@@ -15,3 +15,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "Dependabot"
+    groups:
+       minor-updates:
+          applies-to: version-updates
+          update-types:
+            - "minor"
+            - "patch"

@@ -3,6 +3,8 @@ name = "terrazzo-client"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
 
 [lib]
 

@@ -15,8 +15,13 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-authors = ["Richard <richard.pavy@gmail.com>"]
+authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2021"
+repository = "https://github.com/Terrazzo-Web/Terrazzo"
+license = "MIT"
+description = """
+Lightweight, simple and efficient web UI framework based on Rust and WASM.
+"""
 
 [profile.dev.package."*"]
 # Set the default for dependencies in Development mode.

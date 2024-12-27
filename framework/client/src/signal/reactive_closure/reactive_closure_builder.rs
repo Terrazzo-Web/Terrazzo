@@ -2,7 +2,7 @@ use std::panic::Location;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use autoclone_macro::autoclone;
+use autoclone::autoclone;
 use scopeguard::defer;
 use tracing::debug;
 use tracing::debug_span;

@@ -1,10 +1,12 @@
 [package]
-name = "autoclone-macro"
+name = "autoclone"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
+description = "A simple macro to clone variables before passing them into a `move` closure or async block."
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

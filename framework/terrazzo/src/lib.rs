@@ -1,4 +1,4 @@
-pub use ::autoclone_macro::autoclone;
+pub use ::autoclone::autoclone;
 
 #[cfg(feature = "client")]
 mod client_impl;

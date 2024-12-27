@@ -1,12 +1,12 @@
-//! A simple macro to cloning variable before passing them into a `move` closure or async block.
+//! A simple macro to clone variables before passing them into a `move` closure or async block.
 //!
 //! # Usage
-//! The list of variables to clone are defined at the beginning of the block,
+//! The list of variables to clone is defined at the beginning of the block,
 //! which is easier to add cloning for variables.
 //!
 //! With autoclone:
 //! ```
-//! use autoclone_macro::autoclone;
+//! # use autoclone::autoclone;
 //! #[autoclone]
 //! fn test() {
 //!     let my_string = "Hello, World!".to_string();
@@ -20,14 +20,14 @@
 //!     println!("Outside the move callback: {my_string}");
 //!     callback();
 //! }
-//! test();
+//! # test();
 //! ```
 //!
 //! # Comparison with clone-macro
 //! With clone-macro:
 //! ```
+//! # use clone_macro::clone;
 //! fn test() {
-//!     use clone_macro::clone;
 //!     let my_string = "Hello, World!".to_string();
 //!     // Adding cloning is not trivial
 //!     // - requires adding/removing `clone!([my_string]` if cloning is necessary
@@ -38,7 +38,7 @@
 //!     println!("Outside the move callback: {my_string}");
 //!     callback();
 //! }
-//! test();
+//! # test();
 //! ```
 //!
 //! See also <https://docs.rs/clone-macro>

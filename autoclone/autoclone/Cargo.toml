@@ -21,7 +21,7 @@ quote = { workspace = true }
 syn = { workspace = true, features = ["full", "visit-mut"] }
 
 [dev-dependencies]
-clone-macro = "*"
+clone-macro = "0.1.0"
 
 [lints]
 workspace = true

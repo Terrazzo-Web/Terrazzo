@@ -43,7 +43,6 @@ terrazzo = { path = "framework/terrazzo" }
 terrazzo-build = { path = "framework/build" }
 terrazzo-client = { path = "framework/client" }
 terrazzo-macro = { path = "framework/macro" }
-terrazzo-pty = { path = "pty" }
 
 axum = { version = "0.7.9" }
 darling = { version = "0.20.10" }

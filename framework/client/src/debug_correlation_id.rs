@@ -6,11 +6,11 @@ pub type DebugCorrelationId<N> = without_debug::DebugCorrelationId<N>;
 
 #[cfg(not(feature = "concise_traces"))]
 mod with_debug {
-    use named::named;
-    use named::NamedType as _;
+    use nameth::nameth;
+    use nameth::NamedType as _;
     use tracing::trace;
 
-    #[named]
+    #[nameth]
     pub struct DebugCorrelationId<N: std::fmt::Display>(N, i32);
 
     impl<N: std::fmt::Display> std::fmt::Debug for DebugCorrelationId<N> {
@@ -51,11 +51,11 @@ mod without_debug {
     use std::fmt::format;
     use std::marker::PhantomData;
 
-    use named::named;
-    use named::NamedType as _;
+    use nameth::nameth;
+    use nameth::NamedType as _;
 
     #[derive(Debug)]
-    #[named]
+    #[nameth]
     pub struct DebugCorrelationId<N: std::fmt::Display>(PhantomData<N>);
 
     impl<N: std::fmt::Display> std::fmt::Display for DebugCorrelationId<N> {

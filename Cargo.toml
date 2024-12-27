@@ -7,9 +7,9 @@ members = [
     "framework/client",
     "framework/macro",
     "framework/terrazzo",
-    "named/named",
-    "named/named-macro",
-    "named/named-tests",
+    "nameth/nameth",
+    "nameth/nameth-macro",
+    "nameth/nameth-tests",
 ]
 resolver = "2"
 
@@ -37,8 +37,8 @@ opt-level = "s"
 
 [workspace.dependencies]
 autoclone-macro = { path = "autoclone/autoclone-macro" }
-named = { path = "named/named" }
-named-macro = { path = "named/named-macro" }
+nameth = { path = "nameth/nameth" }
+nameth-macro = { path = "nameth/nameth-macro" }
 terrazzo = { path = "framework/terrazzo" }
 terrazzo-build = { path = "framework/build" }
 terrazzo-client = { path = "framework/client" }

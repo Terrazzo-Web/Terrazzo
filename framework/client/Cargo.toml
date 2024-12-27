@@ -8,7 +8,7 @@ edition = { workspace = true }
 
 [dependencies]
 autoclone-macro = { workspace = true }
-named = { workspace = true }
+nameth = { workspace = true }
 scopeguard = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

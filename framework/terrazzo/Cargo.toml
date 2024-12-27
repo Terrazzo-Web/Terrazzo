@@ -19,7 +19,7 @@ http = { workspace = true, optional = true }
 include_directory = { workspace = true, optional = true }
 mime = { workspace = true, optional = true }
 mime_guess = { workspace = true, optional = true }
-named = { workspace = true, optional = true }
+nameth = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 stylance = { workspace = true, optional = true }
@@ -46,7 +46,7 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-    "dep:named",
+    "dep:nameth",
     "dep:scopeguard",
     "dep:stylance",
     "dep:terrazzo-client",

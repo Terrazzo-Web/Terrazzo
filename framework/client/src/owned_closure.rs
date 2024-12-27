@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use named::named;
-use named::NamedEnumValues;
-use named::NamedType;
+use nameth::nameth;
+use nameth::NamedEnumValues;
+use nameth::NamedType;
 use wasm_bindgen::closure::IntoWasmClosure;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast as _;
@@ -41,7 +41,7 @@ macro_rules! impl_owned_callback {
     };
 }
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum CallbackSelfDropError {
     #[error("[{}][{}] The callback was already dropped!", Self::type_name(), self.name())]

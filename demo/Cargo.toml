@@ -15,7 +15,7 @@ path = "src/server.rs"
 required-features = ["server"]
 
 [dependencies]
-named = { workspace = true, optional = true }
+nameth = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 terrazzo = { workspace = true }
@@ -41,7 +41,7 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-    "dep:named",
+    "dep:nameth",
     "dep:scopeguard",
     "dep:serde_json",
     "dep:thiserror",

@@ -137,7 +137,7 @@ enum NameOrCallSite {
 }
 
 impl ReactiveClosureBuilderWantClosure {
-    pub fn named(self, name: impl Into<XString>) -> Self {
+    pub fn nameth(self, name: impl Into<XString>) -> Self {
         Self {
             name: NameOrCallSite::Name(name.into()),
         }

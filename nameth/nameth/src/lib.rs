@@ -1,4 +1,4 @@
-pub use named_macro::named;
+pub use nameth_macro::nameth;
 
 pub trait NamedType {
     fn type_name() -> &'static str;

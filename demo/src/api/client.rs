@@ -1,5 +1,5 @@
-use named::named;
-use named::NamedEnumValues as _;
+use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use terrazzo::prelude::OrElseLog;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;
@@ -45,14 +45,14 @@ async fn send_request(
     return Ok(response);
 }
 
-#[named]
+#[nameth]
 #[derive(Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 enum Method {
     POST,
 }
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum SendRequestError {
     #[error("[{}] Invalid url='{url}': {error:?}", self.name())]

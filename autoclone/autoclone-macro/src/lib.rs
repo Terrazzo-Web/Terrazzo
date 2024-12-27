@@ -41,7 +41,7 @@
 //! test();
 //! ```
 //!
-//! See also https://docs.rs/clone-macro
+//! See also <https://docs.rs/clone-macro>
 //!
 //! # Syntax sugar
 //! The `autoclone!()` macro does not exist.

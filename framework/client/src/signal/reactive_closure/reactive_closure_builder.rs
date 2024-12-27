@@ -19,7 +19,7 @@ use crate::signal::XSignal;
 use crate::string::XString;
 use crate::template::IsTemplate;
 
-/// A builder for [ReactiveClosure].
+/// A builder for ReactiveClosure.
 /// The closure initially takes multiple parameters that must be bound to signals until we are left with a Fn().
 #[must_use]
 pub struct ReactiveClosureBuilder<F> {

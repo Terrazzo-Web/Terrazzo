@@ -9,7 +9,7 @@ license = { workspace = true }
 [lib]
 
 [dependencies]
-autoclone-macro = { workspace = true }
+autoclone = { workspace = true }
 nameth = { workspace = true }
 scopeguard = { workspace = true }
 thiserror = { workspace = true }

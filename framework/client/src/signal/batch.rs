@@ -71,7 +71,7 @@ mod tests {
     use std::cell::RefCell;
     use std::sync::Arc;
 
-    use autoclone_macro::autoclone;
+    use autoclone::autoclone;
 
     use super::Batch;
 

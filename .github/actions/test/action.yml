@@ -2,11 +2,10 @@ name: Test
 runs:
   using: "composite"
   steps:
-    # Avoids race with two build scripts installing wasm-bindgen-cli at the same time.
     - name: First compile
       run: |
-        cargo build --bin game --features server
-        cargo build --bin web-terminal --features server
+        cargo build --features=client
+        cargo build --features=server
       shell: bash
     - name: Test client
       run: cargo test --features=client

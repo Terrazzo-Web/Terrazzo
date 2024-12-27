@@ -1,0 +1,73 @@
+[package]
+name = "terrazzo-demo"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "demo-server"
+path = "src/server.rs"
+required-features = ["server"]
+
+[dependencies]
+named = { workspace = true, optional = true }
+scopeguard = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+terrazzo = { workspace = true }
+thiserror = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["full"] }
+tower-http = { workspace = true, optional = true, features = [
+    "fs",
+    "sensitive-headers",
+    "trace",
+] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, optional = true, features = [
+    "env-filter",
+] }
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = [] }
+
+[build-dependencies]
+scopeguard = { workspace = true }
+terrazzo-build = { workspace = true }
+
+[features]
+default = []
+client = [
+    "dep:named",
+    "dep:scopeguard",
+    "dep:serde_json",
+    "dep:thiserror",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:web-sys",
+    "terrazzo/client",
+]
+server = [
+    "dep:tokio",
+    "dep:tower-http",
+    "dep:tracing-subscriber",
+    "terrazzo/server",
+]
+max_level_debug = ["tracing/max_level_debug", "tracing/release_max_level_debug"]
+max_level_info = [
+    "tracing/max_level_info",
+    "tracing/release_max_level_info",
+    "concise_traces",
+]
+concise_traces = ["terrazzo/concise_traces"]
+
+[package.metadata.stylance]
+output_file = "./target/css/demo.scss"
+folders = ["./src/"]
+extensions = [".scss", ".css"]
+
+[lints]
+workspace = true

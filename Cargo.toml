@@ -2,16 +2,14 @@
 members = [
     "autoclone/autoclone-macro",
     "autoclone/autoclone-macro-tests",
+    "demo",
     "framework/build",
     "framework/client",
     "framework/macro",
     "framework/terrazzo",
-    "game",
     "named/named",
     "named/named-macro",
     "named/named-tests",
-    "pty",
-    "web-terminal",
 ]
 resolver = "2"
 

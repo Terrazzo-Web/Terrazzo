@@ -3,22 +3,11 @@ runs:
   using: "composite"
 
   steps:
-    - name: Stylance web-terminal
-      run: cd web-terminal && stylance .
-      shell: bash
-
-    - name: Stylance game
-      run: cd game && stylance .
-      shell: bash
-
     - name: Clippy
       run: |
-        cargo clippy --features client,max_level_debug
-        cargo clippy --features client,max_level_info
-        cargo clippy --bin game --features server,max_level_debug
-        cargo clippy --bin game --features server,max_level_info
-        cargo clippy --bin web-terminal --features server,max_level_debug
-        cargo clippy --bin web-terminal --features server,max_level_info
+        cargo clippy --features client
+        cargo clippy --features server
+        cargo clippy --features=client,server
       shell: bash
 
     - name: Rustfmt

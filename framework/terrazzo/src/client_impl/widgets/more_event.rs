@@ -1,5 +1,5 @@
-use named::named;
-use named::NamedEnumValues as _;
+use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use terrazzo_client::prelude::XString;
 use wasm_bindgen::JsCast;
 use web_sys::EventTarget;
@@ -25,7 +25,7 @@ impl MoreEvent for web_sys::Event {
     }
 }
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum CurrentTargetElementError {
     #[error("[{n}] [{0}] Missing current target", n = self.name())]

@@ -1,18 +1,18 @@
 [package]
-name = "named-macro"
+name = "nameth"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "A simple macro to generate a static &str representing the name of a function, a struct or an enum"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-proc-macro = true
-
 [dependencies]
-darling = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true }
+nameth-macro = { workspace = true }
+
+[lib]
 
 [lints]
 workspace = true

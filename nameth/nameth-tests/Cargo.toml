@@ -1,13 +1,15 @@
 [package]
-name = "named"
+name = "nameth-tests"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-named-macro = { workspace = true }
+[dev-dependencies]
+nameth = { workspace = true }
 
 [lib]
 

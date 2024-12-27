@@ -4,9 +4,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 
-use named::named;
-use named::NamedEnumValues;
-use named::NamedType;
+use nameth::nameth;
+use nameth::NamedEnumValues;
+use nameth::NamedType;
 
 pub struct BuildOptions<'t> {
     pub client_dir: PathBuf,
@@ -137,12 +137,12 @@ fn rm<E>(path: &Path, error: E) -> Result<(), E> {
     status.success().then_some(()).ok_or(error)
 }
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 #[error("[{t}] {0}", t = Self::type_name())]
 pub struct BuildError(#[from] BuildErrorInner);
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 enum BuildErrorInner {
     #[error("[{n}] Client src dir is invalid UTF-8", n = self.name())]

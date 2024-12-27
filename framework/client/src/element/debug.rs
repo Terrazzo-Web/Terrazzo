@@ -193,7 +193,7 @@ mod verbose {
 
 #[cfg(feature = "concise_traces")]
 mod concise {
-    use named::NamedType as _;
+    use nameth::NamedType as _;
 
     use crate::element::XElement;
 

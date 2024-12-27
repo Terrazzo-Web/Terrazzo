@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use named::named;
-use named::NamedType as _;
+use nameth::nameth;
+use nameth::NamedType as _;
 use tracing::trace;
 
 use super::consumer_id::ConsumerId;
@@ -14,7 +14,7 @@ use crate::prelude::OrElseLog as _;
 use crate::string::XString;
 
 #[must_use]
-#[named]
+#[nameth]
 pub struct Consumer<V: ProducedValue> {
     inner: Arc<ConsumerInner<V, dyn Fn(V::Value)>>,
 }

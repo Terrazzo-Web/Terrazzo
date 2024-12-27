@@ -2,8 +2,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use named::named;
-use named::NamedType as _;
+use nameth::nameth;
+use nameth::NamedType as _;
 use scopeguard::defer;
 use tracing::debug;
 use tracing::debug_span;
@@ -31,7 +31,7 @@ mod merge_children;
 mod merge_events;
 pub mod template;
 
-#[named]
+#[nameth]
 pub struct XElement {
     pub key: XKey,
     pub tag_name: Option<XString>,

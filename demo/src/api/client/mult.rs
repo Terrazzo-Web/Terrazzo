@@ -1,5 +1,5 @@
-use named::named;
-use named::NamedEnumValues as _;
+use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use terrazzo::prelude::OrElseLog as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
@@ -12,7 +12,7 @@ use super::Method;
 use super::SendRequestError;
 use super::BASE_URL;
 
-#[named]
+#[nameth]
 pub async fn mult(a: i32, b: i32) -> Result<i32, MultError> {
     let data = serde_json::to_string(&(a, b))?;
     let response: Response =
@@ -33,7 +33,7 @@ pub async fn mult(a: i32, b: i32) -> Result<i32, MultError> {
     Ok(serde_json::from_str(&body)?)
 }
 
-#[named]
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum MultError {
     #[error("[{n}] {0}", n = self.name())]

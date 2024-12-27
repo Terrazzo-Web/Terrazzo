@@ -3,12 +3,14 @@ name = "terrazzo-client"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
 
 [lib]
 
 [dependencies]
 autoclone-macro = { workspace = true }
-named = { workspace = true }
+nameth = { workspace = true }
 scopeguard = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

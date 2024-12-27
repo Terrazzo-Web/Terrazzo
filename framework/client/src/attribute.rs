@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use named::named;
-use named::NamedType as _;
+use nameth::nameth;
+use nameth::NamedType as _;
 use tracing::trace;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;
@@ -17,7 +17,7 @@ use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
 
-#[named]
+#[nameth]
 pub struct XAttribute {
     pub name: XAttributeName,
     pub value: XAttributeValue,

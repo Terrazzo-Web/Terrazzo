@@ -1,31 +1,31 @@
 #![cfg(test)]
 
-use named::named;
-use named::NamedEnumValues;
-use named::NamedType;
+use nameth::nameth;
+use nameth::NamedEnumValues;
+use nameth::NamedType;
 
 #[test]
-fn named_struct() {
-    #[named]
+fn nameth_struct() {
+    #[nameth]
     struct ZeroStruct;
     assert_eq!("ZeroStruct", ZeroStruct::type_name());
 
-    #[named]
+    #[nameth]
     struct EmptyStruct {}
     assert_eq!("EmptyStruct", EmptyStruct::type_name());
 
-    #[named]
+    #[nameth]
     struct TupleStruct(#[expect(unused)] i32, #[expect(unused)] String);
     assert_eq!("TupleStruct", TupleStruct::type_name());
 
-    #[named]
+    #[nameth]
     struct GenericStruct<T, U: std::fmt::Display>(T, U);
     assert_eq!("GenericStruct", GenericStruct::<i32, i32>::type_name());
 }
 
 #[test]
-fn named_enum() {
-    #[named]
+fn nameth_enum() {
+    #[nameth]
     enum TestEnum {
         ZeroVariant,
         TupleVariant(#[expect(unused)] i32, #[expect(unused)] String),
@@ -44,7 +44,7 @@ fn named_enum() {
     );
     assert_eq!("TestEnum", TestEnum::type_name());
 
-    #[named]
+    #[nameth]
     #[expect(unused)]
     enum GenericEnum<T, U: std::fmt::Display> {
         A(T),
@@ -54,12 +54,12 @@ fn named_enum() {
 }
 
 #[test]
-#[named]
-fn named_fn() {
-    assert_eq!("some_named_function", SOME_NAMED_FUNCTION);
-    assert_eq!("named_fn", NAMED_FN);
+#[nameth]
+fn nameth_fn() {
+    assert_eq!("some_nameth_function", SOME_NAMETH_FUNCTION);
+    assert_eq!("nameth_fn", NAMETH_FN);
 }
 
 #[expect(unused)]
-#[named]
-pub(crate) fn some_named_function() {}
+#[nameth]
+pub(crate) fn some_nameth_function() {}

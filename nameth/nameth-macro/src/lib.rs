@@ -6,7 +6,7 @@ use quote::quote;
 use syn::Ident;
 
 #[proc_macro_attribute]
-pub fn named(attr: TokenStream, tokens: TokenStream) -> TokenStream {
+pub fn nameth(attr: TokenStream, tokens: TokenStream) -> TokenStream {
     let attr_args = match NestedMeta::parse_meta_list(attr.into()) {
         Ok(args) => args,
         Err(error) => {
@@ -25,7 +25,7 @@ pub fn named(attr: TokenStream, tokens: TokenStream) -> TokenStream {
         Err(err) => return err.into_compile_error().into(),
     };
 
-    let crate_name = attr_args.crate_override.as_deref().unwrap_or("named");
+    let crate_name = attr_args.crate_override.as_deref().unwrap_or("nameth");
     let crate_name = format_ident!("{}", crate_name);
 
     let name = match item {

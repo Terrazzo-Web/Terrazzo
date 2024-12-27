@@ -1,5 +1,5 @@
 use debug_correlation_id::DebugCorrelationId;
-use named::NamedType as _;
+use nameth::NamedType as _;
 
 use self::owned_closure::XOwnedClosure;
 use self::prelude::OrElseLog;

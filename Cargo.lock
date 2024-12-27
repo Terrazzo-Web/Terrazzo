@@ -797,14 +797,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "named"
+name = "nameth"
 version = "0.1.0"
 dependencies = [
- "named-macro",
+ "nameth-macro",
 ]
 
 [[package]]
-name = "named-macro"
+name = "nameth-macro"
 version = "0.1.0"
 dependencies = [
  "darling",
@@ -813,10 +813,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "named-tests"
+name = "nameth-tests"
 version = "0.1.0"
 dependencies = [
- "named",
+ "nameth",
 ]
 
 [[package]]
@@ -1311,7 +1311,7 @@ dependencies = [
  "include_directory",
  "mime",
  "mime_guess",
- "named",
+ "nameth",
  "rsass-macros",
  "scopeguard",
  "stylance",
@@ -1328,7 +1328,7 @@ dependencies = [
 name = "terrazzo-build"
 version = "0.1.0"
 dependencies = [
- "named",
+ "nameth",
  "thiserror 2.0.9",
 ]
 
@@ -1337,7 +1337,7 @@ name = "terrazzo-client"
 version = "0.1.0"
 dependencies = [
  "autoclone-macro",
- "named",
+ "nameth",
  "scopeguard",
  "terrazzo-macro",
  "thiserror 2.0.9",
@@ -1352,7 +1352,7 @@ dependencies = [
 name = "terrazzo-demo"
 version = "0.1.0"
 dependencies = [
- "named",
+ "nameth",
  "scopeguard",
  "serde_json",
  "terrazzo",

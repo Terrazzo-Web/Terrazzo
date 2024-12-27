@@ -3,6 +3,8 @@ name = "terrazzo-demo"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,7 +17,7 @@ path = "src/server.rs"
 required-features = ["server"]
 
 [dependencies]
-named = { workspace = true, optional = true }
+nameth = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 terrazzo = { workspace = true }
@@ -41,7 +43,7 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-    "dep:named",
+    "dep:nameth",
     "dep:scopeguard",
     "dep:serde_json",
     "dep:thiserror",

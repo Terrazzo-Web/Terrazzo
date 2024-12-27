@@ -1,17 +1,21 @@
 [package]
-name = "autoclone-macro-tests"
+name = "nameth-macro"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
+description = "Implementation details for <https://crates.io/crates/nameth>"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dev-dependencies]
-autoclone-macro = { workspace = true }
-
 [lib]
+proc-macro = true
+
+[dependencies]
+darling = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
 
 [lints]
 workspace = true

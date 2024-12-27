@@ -1,0 +1,1 @@
+A simple macro to clone variables before passing them into a `move` closure or async block.

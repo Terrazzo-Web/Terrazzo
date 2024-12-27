@@ -11,7 +11,7 @@ license = { workspace = true }
 [lib]
 
 [dependencies]
-autoclone-macro = { workspace = true }
+autoclone = { workspace = true }
 axum = { workspace = true, optional = true, features = [
     "http1",
     "http2",

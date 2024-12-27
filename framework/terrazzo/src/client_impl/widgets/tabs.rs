@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use autoclone_macro::autoclone;
+use autoclone::autoclone;
 use terrazzo_client::prelude::*;
 use terrazzo_macro::html;
 use terrazzo_macro::template;

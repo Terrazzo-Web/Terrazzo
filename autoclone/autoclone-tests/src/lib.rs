@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use autoclone_macro::autoclone;
+    use autoclone::autoclone;
 
     #[test]
     #[autoclone]

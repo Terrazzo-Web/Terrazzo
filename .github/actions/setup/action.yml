@@ -12,7 +12,6 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-          terrazzo/target/wasm
         key: ${{ runner.os }}-cargo-1.83.0-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Add wasm32 compilation target

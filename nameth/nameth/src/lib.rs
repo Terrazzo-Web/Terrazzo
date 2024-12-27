@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 /// Attribute that can be added to structs, enums or function,
 /// to generate a static &str representing the name of the item.
 ///
@@ -45,10 +47,12 @@
 /// ```
 pub use nameth_macro::nameth;
 
+/// Trait implemented by [nameth] macro to get the name of a struct, enum, or function.
 pub trait NamedType {
     fn type_name() -> &'static str;
 }
 
+/// Trait implemented by [nameth] macro to get the name of an enum value.
 pub trait NamedEnumValues {
     fn name(&self) -> &'static str;
 }

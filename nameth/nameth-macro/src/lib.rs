@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use darling::ast::NestedMeta;
 use darling::FromMeta;
 use proc_macro::TokenStream;

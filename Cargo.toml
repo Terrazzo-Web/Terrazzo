@@ -43,7 +43,7 @@ opt-level = "s"
 [workspace.dependencies]
 autoclone-macro = { path = "autoclone/autoclone-macro" }
 nameth = { path = "nameth/nameth" }
-nameth-macro = { path = "nameth/nameth-macro" }
+nameth-macro = { version = "0.1.0", path = "nameth/nameth-macro" }
 terrazzo = { path = "framework/terrazzo" }
 terrazzo-build = { path = "framework/build" }
 terrazzo-client = { path = "framework/client" }

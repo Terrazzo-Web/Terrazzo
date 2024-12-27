@@ -56,8 +56,8 @@ fn nameth_enum() {
 #[test]
 #[nameth]
 fn nameth_fn() {
-    assert_eq!("some_nameth_function", SOME_NAMED_FUNCTION);
-    assert_eq!("nameth_fn", NAMED_FN);
+    assert_eq!("some_nameth_function", SOME_NAMETH_FUNCTION);
+    assert_eq!("nameth_fn", NAMETH_FN);
 }
 
 #[expect(unused)]

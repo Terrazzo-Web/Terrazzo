@@ -122,7 +122,7 @@ impl<F: Fn() + 'static> ReactiveClosureBuilder<F> {
     }
 }
 
-/// creates a new reactive closure builder.
+/// Creates a new reactive closure builder.
 ///
 /// This is mainly used by `#[template]` code-generated code.
 #[track_caller]

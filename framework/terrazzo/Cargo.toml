@@ -48,7 +48,7 @@ scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }
 
 [features]
-default = []
+default = ["client", "server"]
 client = [
     "dep:nameth",
     "dep:scopeguard",

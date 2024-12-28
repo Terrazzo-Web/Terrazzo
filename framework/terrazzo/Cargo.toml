@@ -68,6 +68,7 @@ server = [
     "dep:rsass-macros",
 ]
 concise_traces = ["terrazzo-client?/concise_traces"]
+rustdoc = []
 
 [package.metadata.stylance]
 output_file = "./target/css/common.scss"
@@ -76,3 +77,6 @@ extensions = [".scss", ".css"]
 
 [lints]
 workspace = true
+
+[package.metadata.docs.rs]
+features = ["rustdoc"]

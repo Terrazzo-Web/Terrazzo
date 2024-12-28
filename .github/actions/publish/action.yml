@@ -2,9 +2,11 @@ name: Publish
 runs:
   using: "composite"
   steps:
+    - name: Login
+      run: cargo login $CRATES_TOKEN
+      shell: bash
     - name: Publish
       run: |
-        cargo login ...
         cargo publish -p nameth-macro
         cargo publish -p nameth
         cargo publish -p autoclone

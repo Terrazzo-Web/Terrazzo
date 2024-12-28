@@ -75,7 +75,17 @@ One of the biggest selling points for Rust is strong tooling, including `cargo`,
 
 ## What does Terrazzo look like?
 
-Terrazzo uses two different macros
+Terrazzo does not need custom tooling. The `autoclone!()` macro helps with cloning. SSR with
+hydration is not supported yet but Terrazzo useds a simple diff-merge logic that isn't prone
+to bugs.
+
+**Doing the right thing should be easy, doing the wrong thing should be hard**:
+Terrazzo makes it easier to optimize rendering: reading a signal requires declaring a template, so
+just make sure to push reading signals down to child DOM nodes. Only read a signal where you need
+to render something. Use the `key` special attribute to avoid re-creating DOM nodes when ordering
+changes but the nodes stay the same.
+
+Terrazzo uses two different macros:
 - The `#[template]` turns a function into a template. Use `#[template(debug = true)]` to see what
   the generated code looks like.
 - The `#[html]` adds syntactic sugar to replace function calls where the name matches one of the

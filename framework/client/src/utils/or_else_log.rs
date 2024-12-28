@@ -1,5 +1,10 @@
+//! A handy util like `.unwrap()`
+//! but makes sure to log an error on the browser console before [panic].
+
 use tracing::error;
 
+/// A handy util like `.unwrap()`
+/// but makes sure to log an error on the browser console before [panic].
 pub trait OrElseLog<T, E>: Sized {
     #[track_caller]
     fn or_throw(self, log: impl std::fmt::Display) -> T {

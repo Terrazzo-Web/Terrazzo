@@ -1,3 +1,5 @@
+//! Templates
+
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::signal::depth::Depth;
 

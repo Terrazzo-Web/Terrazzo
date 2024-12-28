@@ -1,3 +1,5 @@
+//! Attributes of generated HTML elements
+
 use std::rc::Rc;
 
 use nameth::nameth;

@@ -1,3 +1,5 @@
+//! Debug utils
+
 #[cfg(not(feature = "concise_traces"))]
 pub type DebugCorrelationId<N> = with_debug::DebugCorrelationId<N>;
 

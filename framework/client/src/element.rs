@@ -1,3 +1,5 @@
+//! Generated HTML elements
+
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -31,7 +33,7 @@ mod merge_children;
 mod merge_events;
 pub mod template;
 
-/// Represents a generated HTML node.
+/// Represents a generated HTML element.
 ///
 /// Example: the HTML tag `<input type="text" name="username" value="LamparoS@Pavy.one" />`
 /// would be written as

@@ -1,3 +1,5 @@
+//! Generated HTML nodes
+
 use crate::element::XElement;
 use crate::string::XString;
 

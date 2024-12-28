@@ -1,3 +1,5 @@
+//! Owned Javscript closures
+
 use std::cell::RefCell;
 use std::sync::Arc;
 

@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use debug_correlation_id::DebugCorrelationId;
 use nameth::NamedType as _;
 

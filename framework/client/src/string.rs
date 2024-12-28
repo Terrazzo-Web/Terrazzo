@@ -1,3 +1,5 @@
+//! Copy-friendly strings or static &str.
+
 use std::borrow::Borrow;
 use std::hash::Hash;
 use std::ops::Deref;

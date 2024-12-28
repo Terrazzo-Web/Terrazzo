@@ -1,3 +1,5 @@
+//! Eleme
+
 pub use wasm_bindgen::closure::Closure;
 pub use web_sys::Element;
 

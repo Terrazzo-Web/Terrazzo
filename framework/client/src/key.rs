@@ -1,3 +1,5 @@
+//! Keys for generated HTML elements
+
 use web_sys::Element;
 
 use crate::element::template::XTemplate;

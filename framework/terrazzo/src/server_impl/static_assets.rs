@@ -163,6 +163,9 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
     )
 }
 
+/// Macro to load a folder of static assets.
+///
+/// See [install_dir].
 #[macro_export]
 macro_rules! declare_assets_dir {
     ($prefix:literal, $dir:tt) => {{

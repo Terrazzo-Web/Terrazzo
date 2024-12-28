@@ -8,6 +8,29 @@ use tracing::trace_span;
 use super::version::Version;
 use crate::prelude::OrElseLog as _;
 
+/// Allows batching several signal writes into one refresh.
+///
+/// This is an optimization to avoid executing the merge and rendering logic several times.
+///
+/// The rendering logic is delayed until the [Batch] object is droppped.
+///
+/// Example:
+/// ```
+/// # use terrazzo_client::prelude::*;
+/// // Define some signals in the application logic
+/// let signal1 = XSignal::new("my string signal", "value");
+/// let signal2 = XSignal::new("my integer signal", 0);
+///
+/// // Open a new batch
+/// let batch = Batch::use_batch("Update nodes");
+///
+/// // Updating signals has no side effects...
+/// signal1.set("new value");
+/// signal2.set(1);
+///
+/// // ... until the batch is dropped, which triggers all the batched updates and refreshes the UI.
+/// drop(batch);
+/// ```
 pub struct Batch {
     prev: Option<BatchedCallbacks>,
     _span: EnteredSpan,

@@ -2,6 +2,7 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use tracing::info;
 use web_sys::MouseEvent;
 
 use super::show_counter;
@@ -34,5 +35,7 @@ pub fn counter_demo(counter: XSignal<i32>) -> XElement {
             "+1",
         ),
         show_counter(counter.clone()),
+        before_render = |_: Element| info!("Before render"),
+        after_render = |_: Element| info!("After render"),
     )
 }

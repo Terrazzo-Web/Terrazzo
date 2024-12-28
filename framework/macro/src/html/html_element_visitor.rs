@@ -202,10 +202,9 @@ impl HtmlElementVisitor {
         };
 
         let [before_render, after_render] = [before_render, after_render].map(|on_render| {
-            let Some(on_render) = on_render else {
-                return quote! { None };
-            };
-            return quote! { Some( OnRenderCallback(Box::new(#on_render)) ) };
+            on_render
+                .map(|on_render| quote! { Some( OnRenderCallback(Box::new(#on_render)) ) })
+                .unwrap_or_else(|| quote! { None })
         });
 
         let tag_name = tag_name

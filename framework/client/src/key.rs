@@ -1,15 +1,22 @@
+//! Keys for generated HTML elements
+
 use web_sys::Element;
 
 use crate::element::template::XTemplate;
 use crate::string::XString;
 
 /// The key of an Element node.
+///
+/// See [XElement::key]
+///
+/// [XElement::key]: crate::prelude::XElement::key
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum XKey {
     Named(XString),
     Index(usize),
 }
 
+/// The name of the custom attribute used to store the [Xkey] of a generated DOM node.
 pub const KEY_ATTRIBUTE: &str = "data-trz-key";
 
 impl XKey {

@@ -113,6 +113,98 @@ impl<T> XSignal<T> {
     }
 }
 
+/// A handy utility function to add diffing logic when using [derived] signals.
+///
+/// ```
+/// # use std::cell::Cell;
+/// # use std::rc::Rc;
+/// # use autoclone::autoclone;
+/// # use terrazzo_client::prelude::*;
+/// # #[autoclone]
+/// # fn main() {
+/// let main = XSignal::new("main", "1".to_owned());
+/// let compute_derived = Rc::new(Cell::new(0));
+/// let compute_main = Rc::new(Cell::new(0));
+///
+/// let derived_nodiff = main.derive(
+///     "derived",
+///     /* to: */
+///     move |main| {
+/// #       autoclone!(compute_derived);
+///         compute_derived.set(compute_derived.get() + 1);
+///         main.parse::<i32>().unwrap()
+///     },
+///     /* from: */
+///     move |_main: &String, derived: &i32| {
+/// #       autoclone!(compute_main);
+///         compute_main.set(compute_main.get() + 1);
+///         Some(derived.to_string())
+///     },
+/// );
+///
+/// # assert_eq!("1", main.get_value_untracked());
+/// # assert_eq!(1, derived_nodiff.get_value_untracked());
+/// # assert_eq!(1, compute_derived.take());
+/// # assert_eq!(0, compute_main.take());
+///
+/// // 1. Updating `main` updates `derived`
+/// // 2. Which updates `main` again
+/// // 3. Which updates `derived` but to the same value
+/// main.set("2");
+/// # assert_eq!("2", main.get_value_untracked());
+/// # assert_eq!(2, derived_nodiff.get_value_untracked());
+/// assert_eq!(2, compute_derived.take());
+/// assert_eq!(1, compute_main.take());
+///
+/// // Updating `main` to the same value is a no-op.
+/// main.set("2");
+/// # assert_eq!("2", main.get_value_untracked());
+/// # assert_eq!(2, derived_nodiff.get_value_untracked());
+/// assert_eq!(0, compute_derived.take());
+/// assert_eq!(0, compute_main.take());
+///
+/// // Reset ...
+/// # drop(derived_nodiff);
+/// # main.set("1");
+///
+/// let derived_diff = main.derive(
+///     "derived",
+///     /* to: */
+///     move |main| {
+///         autoclone!(compute_derived);
+///         compute_derived.set(compute_derived.get() + 1);
+///         main.parse::<i32>().unwrap()
+///     },
+///     /* from: */
+///     if_change(move |_main: &String, derived: &i32| {
+///         autoclone!(compute_main);
+///         compute_main.set(compute_main.get() + 1);
+///         Some(derived.to_string())
+///     }),
+/// );
+///
+/// # assert_eq!("1", main.get_value_untracked());
+/// # assert_eq!(1, derived_diff.get_value_untracked());
+/// # compute_derived.set(0);
+/// # compute_main.set(0);
+///
+/// // Updating `main` updates `derived`, which updates `main` again but to the same value.
+/// main.set("2");
+/// # assert_eq!("2", main.get_value_untracked());
+/// # assert_eq!(2, derived_diff.get_value_untracked());
+/// assert_eq!(1, compute_derived.take());
+/// assert_eq!(1, compute_main.take());
+///
+/// // Updating `main` to the same value is a no-op.
+/// main.set("2");
+/// # assert_eq!("2", main.get_value_untracked());
+/// # assert_eq!(2, derived_diff.get_value_untracked());
+/// assert_eq!(0, compute_derived.take());
+/// assert_eq!(0, compute_main.take());
+/// # }
+/// ```
+///
+/// [derived]: crate::prelude::XSignal::derive
 pub fn if_change<T: Eq, U>(
     from: impl Fn(&T, &U) -> Option<T> + 'static,
 ) -> impl Fn(&T, &U) -> Option<T> + 'static {

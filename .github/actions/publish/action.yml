@@ -1,0 +1,15 @@
+name: Publish
+runs:
+  using: "composite"
+  steps:
+    - name: Publish
+      run: |
+        cargo login ...
+        cargo publish -p nameth-macro
+        cargo publish -p nameth
+        cargo publish -p autoclone
+        cargo publish -p terrazzo-macro
+        cargo publish -p terrazzo-client
+        cargo publish -p terrazzo-build
+        cargo publish -p terrazzo
+      shell: bash

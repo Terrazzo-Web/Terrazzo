@@ -1,3 +1,5 @@
+//! Reactive signals
+
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -89,6 +91,9 @@ impl<T> XSignalValue<T> {
 }
 
 impl<T> XSignal<T> {
+    /// Create a new signal.
+    ///
+    /// The name of the signal is used in console logs, does not have to be unique.
     pub fn new(name: impl Into<XString>, value: T) -> Self {
         Self(Arc::new(XSignalInner {
             current_value: Mutex::new(XSignalValue {
@@ -101,6 +106,7 @@ impl<T> XSignal<T> {
         }))
     }
 
+    /// Registers a callback that will trigger when the signal is updated.
     #[must_use]
     pub fn add_subscriber(&self, closure: impl Fn(T) + 'static) -> Consumers
     where
@@ -129,6 +135,9 @@ impl<T> XSignal<T> {
         )])
     }
 
+    /// Gets the current value of the signal.
+    ///
+    /// Reactive behavior should use [XSignal::add_subscriber].
     pub fn get_value_untracked(&self) -> T
     where
         T: Clone,
@@ -148,6 +157,7 @@ impl<T> Clone for XSignal<T> {
 }
 
 impl<T: std::fmt::Debug + 'static> XSignal<T> {
+    /// Updates the signal by setting a new value.
     pub fn set(&self, new_value: impl Into<T>)
     where
         T: Eq,
@@ -159,6 +169,7 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
         });
     }
 
+    /// Updates the signal by computing a new value from the old one.
     pub fn update<R, U>(&self, compute: impl FnOnce(&T) -> U) -> R
     where
         U: Into<UpdateSignalResult<Option<T>, R>>,
@@ -167,6 +178,9 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
         self.update_impl(|t| compute(t))
     }
 
+    /// Updates the signal by computing a new value from the old one.
+    ///
+    /// The old value is mutable and can be reused to compute the new value.
     pub fn update_mut<R, U>(&self, compute: impl FnOnce(&mut T) -> U) -> R
     where
         U: Into<UpdateSignalResult<T, R>>,
@@ -209,6 +223,9 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
         return result;
     }
 
+    /// Updates the signal by setting a new value.
+    ///
+    /// Contrary to [XSignal::set], the signal triggers even if the value didn't change.
     pub fn force(&self, new_value: impl Into<T>) {
         let _span = debug_span!("Force", signal = %self.producer.name()).entered();
         let new_value = new_value.into();
@@ -239,6 +256,11 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
     }
 }
 
+/// A struct that represents the result of [updating a signal].
+///
+/// By default, updating a signal means assigning some new value and returning `()`.
+///
+/// [updating a signal]: XSignal::update
 pub struct UpdateSignalResult<T, R> {
     pub new_value: T,
     pub result: R,
@@ -253,6 +275,20 @@ impl<T> From<T> for UpdateSignalResult<T, ()> {
     }
 }
 
+/// A shortcut to run some update logic on a signal and return a non-void value.
+///
+/// ```
+/// # use terrazzo_client::prelude::*;
+/// let signal = XSignal::new("signal", "1".to_owned());
+/// let new = signal.update(|old| {
+///     let old = old.parse::<i32>().unwrap();
+///     let new = old + 1;
+///     return Some(new.to_string()).and_return(new);
+/// });
+///
+/// // We got the updated value as an integer while the signal contains a string.
+/// assert_eq!(new, 2);
+/// ```
 pub trait UpdateAndReturn {
     type NewValue;
     fn and_return<R>(self, result: R) -> UpdateSignalResult<Self::NewValue, R>;

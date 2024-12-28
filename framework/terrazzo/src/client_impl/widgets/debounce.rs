@@ -1,3 +1,5 @@
+//! Utils to debounce function calls
+
 use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -7,12 +9,28 @@ use terrazzo_client::prelude::OrElseLog as _;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast as _;
 
+/// Avoids executing a function too often.
+/// Goal is to avoid flickering and improve UI performance.
+///
+/// ```ignore
+/// let f = Duration::from_secs(1).debounce(|i| println!("{i}"));
+/// f(1); // This won't show anything
+/// // wait > 1 second ...
+/// f(2); // Now this executes the callback and prints "2". "1" never gets printed.
+/// ```
 pub trait DoDebounce {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
 }
 
+/// Advanced usage for [DoDebounce].
 pub struct Debounce {
+    /// The inactive delay before the callback gets executed.
     pub delay: Duration,
+
+    /// The max delay before the callback gets executed.
+    ///
+    /// For example, if keystrokes are debounced, the callback isn't executed as long as the user keeps typing.
+    /// The `max_delay` configures that the callback should get executed eventually, even in absence of inactivity period.
     pub max_delay: Option<Duration>,
 }
 

@@ -5,6 +5,8 @@ authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
+description = "The Terrazzo library to build dynamic web pages in Rust"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -46,7 +48,7 @@ scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }
 
 [features]
-default = []
+default = ["client", "server"]
 client = [
     "dep:nameth",
     "dep:scopeguard",

@@ -5,6 +5,7 @@ use wasm_bindgen::JsCast;
 use web_sys::EventTarget;
 
 pub trait MoreEvent {
+    /// Shortcut to get the target of a DOM event cast to a certain type.
     fn current_target_element<T: JsCast>(
         &self,
         name: impl Into<XString>,

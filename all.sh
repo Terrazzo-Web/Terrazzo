@@ -10,3 +10,4 @@ cargo clippy --features=client,server
 cargo clippy --features client
 cargo clippy --features server
 cargo doc --all-features
+cargo build --bin demo-server --features server,max_level_debug

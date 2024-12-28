@@ -16,7 +16,7 @@ fn simple_node() -> syn::Result<()> {
 fn sample(generated_template: <XElement as IsTemplated>::Template) -> Consumers {
     let generated_template1 = generated_template.clone();
     make_reactive_closure()
-        .nameth("sample")
+        .named("sample")
         .closure(move || {
             let generated_template = generated_template.clone();
             let generated_body = move || { div(key = "root", "Root text") };
@@ -47,7 +47,7 @@ fn sample(
 ) -> Consumers {
     let generated_template1 = generated_template.clone();
     make_reactive_closure()
-        .nameth("sample")
+        .named("sample")
         .closure(move || {
             let generated_template = generated_template.clone();
             move |signal: String| {
@@ -82,7 +82,7 @@ fn sample(
 ) -> Consumers {
     let generated_template1 = generated_template.clone();
     make_reactive_closure()
-        .nameth("sample")
+        .named("sample")
         .closure(move || {
             let generated_template = generated_template.clone();
             move |signal1: String| {
@@ -129,7 +129,7 @@ fn sample(
     let signal1_mut = signal1.clone();
     let signal2_mut = signal2.clone();
     make_reactive_closure()
-        .nameth("sample")
+        .named("sample")
         .closure(move || {
             let generated_template = generated_template.clone();
             let signal1_mut = MutableSignal::from(&signal1_mut);
@@ -174,7 +174,7 @@ pub fn sample(arg: &str) -> XElement {
     ) -> Consumers {
         let generated_template1 = generated_template.clone();
         make_reactive_closure()
-            .nameth("sample")
+            .named("sample")
             .closure(move || {
                 let generated_template = generated_template.clone();
                 let arg = arg.clone();

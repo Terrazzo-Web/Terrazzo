@@ -17,36 +17,96 @@ use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
 
+/// Represents an attribute of an HTML node.
+///
+/// Example: the HTML tag `<input type="text" name="username" value="LamparoS@Pavy.one" />`
+/// would have an attribute
+/// ```
+/// # use terrazzo_client::prelude::XAttribute;
+/// # let _ =
+/// XAttribute {
+///     name: "name".into(),
+///     value: "username".into(),
+/// }
+/// # ;
+/// ```
+///
+/// and an attribute
+/// ```
+/// # use terrazzo_client::prelude::XAttribute;
+/// # let _ =
+/// XAttribute {
+///     name: "value".into(),
+///     value: "LamparoS@Pavy.one".into(),
+/// }
+/// # ;
+/// ```
 #[nameth]
 pub struct XAttribute {
+    /// Name of the attribute
     pub name: XAttributeName,
+
+    /// Value of the attribute
     pub value: XAttributeValue,
 }
 
+/// Represents the name of an [XAttribute].
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum XAttributeName {
+    /// Represents the name of an HTML attribute.
     Attribute(XString),
+
+    /// Represents the name of a CSS property.
+    ///
+    /// Example:
+    /// `<div style="width:100%'> ... </div>`
+    /// would have the following [XAttribute]:
+    /// ```
+    /// # use terrazzo_client::prelude::*;
+    /// # let _ =
+    /// XAttribute {
+    ///     name: XAttributeName::Style("width".into()).into(),
+    ///     value: "100%".into(),
+    /// }
+    /// # ;
+    /// ```
     Style(XString),
 }
 
+/// Represents the value of an [XAttribute].
+///
+/// Usually the `#[template]` macro takes care of generating the code for [XAttributeValue]s.
 pub enum XAttributeValue {
+    /// When the value is not set, like [Option::None].
     Null,
+
+    /// When the attribute as some value.
     Static(XString),
+
+    /// When the attribute must be computed by some reactive closure.
     Dynamic(XDynamicAttribute),
+
+    /// When the dynamic attribute is computed and owned by the reactive closure.
     Generated {
         template: XAttributeTemplate,
         consumers: Consumers,
     },
 }
 
+/// Represents the callback that generates a dynamic [XAttribute].
 pub struct XDynamicAttribute(pub Box<dyn Fn(XAttributeTemplate) -> Consumers>);
 
 impl<F: Fn(XAttributeTemplate) -> Consumers + 'static> From<F> for XDynamicAttribute {
     fn from(value: F) -> Self {
+        let _ = XAttribute {
+            name: "type".into(),
+            value: "text".into(),
+        };
         Self(Box::new(value))
     }
 }
 
+/// Represents the template that generates a dynamic [XAttribute].
 #[derive(Clone)]
 pub struct XAttributeTemplate(Rc<AttributeTemplateInner>);
 

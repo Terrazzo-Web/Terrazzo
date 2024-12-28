@@ -109,6 +109,7 @@ macro_rules! declare_asset {
 /// Declares a scss file as a static asset.
 ///
 /// The content of the file is compiled from SCSS into CSS and included in the server binary.
+#[cfg(not(feature = "rustdoc"))]
 #[macro_export]
 macro_rules! declare_scss_asset {
     ($file:expr $(,)?) => {
@@ -118,6 +119,16 @@ macro_rules! declare_scss_asset {
         )
         .mime($crate::mime::TEXT_CSS_UTF_8.as_ref())
         .extension("css")
+    };
+}
+
+#[cfg(feature = "rustdoc")]
+#[macro_export]
+macro_rules! declare_scss_asset {
+    ($file:expr $(,)?) => {
+        $crate::static_assets::AssetBuilder::new($file, $file.as_bytes())
+            .mime($crate::mime::TEXT_CSS_UTF_8.as_ref())
+            .extension("css")
     };
 }
 

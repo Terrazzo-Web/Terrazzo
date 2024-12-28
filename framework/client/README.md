@@ -12,8 +12,9 @@ The template library is usually used in tandem with the `terrazzo-macro` crate.
 This macro us used to generate dynamic HTML nodes.
 
 ```
-# use terrazzo_client::prelude::*;
-# use terrazzo_macro::html;
+use terrazzo_client::prelude::*;
+use terrazzo_macro::html;
+
 #[html]
 fn sample() -> XElement {
     div(
@@ -59,6 +60,35 @@ fn sample() -> XElement {
     div(
         class = "my-css-class",
         style = format!("width: {}%", 100),
+        "Content",
+    )
+}
+```
+
+### Optional attributes
+This can be useful when a function generates a node and an attribute may or may not have a value.
+```
+# use terrazzo_client::prelude::*;
+# use terrazzo_macro::html;
+#[html]
+fn sample(class: Option<String>) -> XElement {
+    div(
+        class |= class,
+        style = format!("width: {}%", 100),
+        "Content",
+    )
+}
+```
+
+### Style properties
+Style properties can be set individually.
+```
+# use terrazzo_client::prelude::*;
+# use terrazzo_macro::html;
+#[html]
+fn sample(width: i32) -> XElement {
+    div(
+        style::width = format!("{}%", width),
         "Content",
     )
 }

@@ -1,12 +1,16 @@
+//! Generated HTML nodes
+
 use crate::element::XElement;
 use crate::string::XString;
 
+/// Represents a generated node, which is either an HTML element or a text node.
 #[derive(Debug)]
 pub enum XNode {
     Element(XElement),
     Text(XText),
 }
 
+/// Represents a generated text node
 #[derive(Debug)]
 pub struct XText(pub XString);
 

@@ -14,7 +14,6 @@ fn main() {
 
     if env::var(CLIENT_FEATURE).is_ok() {
         println!("cargo::warning=Can't enable both 'client' and 'server' features");
-        return;
     }
 
     terrazzo_build::build_css();

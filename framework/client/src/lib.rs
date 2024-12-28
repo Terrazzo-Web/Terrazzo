@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use debug_correlation_id::DebugCorrelationId;
 use nameth::NamedType as _;
 
@@ -16,6 +18,9 @@ mod string;
 mod template;
 mod utils;
 
+/// Configures tracing in the browser using [tracing_subscriber_wasm].
+///
+/// Run it once at page startup time.
 pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 

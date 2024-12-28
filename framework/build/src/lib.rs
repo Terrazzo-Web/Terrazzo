@@ -1,4 +1,4 @@
-//! Build script to compile client code to wasm and copy assets to target folder.
+#![doc = include_str!("../README.md")]
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -8,12 +8,32 @@ use nameth::nameth;
 use nameth::NamedEnumValues;
 use nameth::NamedType;
 
+/// Options for [build].
 pub struct BuildOptions<'t> {
+    /// Where the client code is located. Usually this is
+    /// ```
+    /// std::env::var("CARGO_MANIFEST_DIR")
+    /// # ;
+    /// ```
     pub client_dir: PathBuf,
+
+    /// Where the server code is located. Usually this is also
+    /// ```
+    /// std::env::var("CARGO_MANIFEST_DIR")
+    /// # ;
+    /// ```
     pub server_dir: PathBuf,
+
+    /// A list of extra compile options.
+    ///
+    /// For example, to compile the client code with the `"client"` and `"max_level_info"` features enabled,
+    /// add `["--features", "client,max_level_info"]` to `wasm_pack_options`.
     pub wasm_pack_options: &'t [&'t str],
 }
 
+/// A `cargo` build script helper, to compile the client code to WASM and copy assets to the target folder.
+///
+/// Uses [wasm-pack](https://rustwasm.github.io/docs/wasm-pack/quickstart.html) to build the WASM assembly.
 pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     // https://doc.rust-lang.org/cargo/reference/build-scripts.html#cargo-warning
     // for (key, value) in std::env::vars() {
@@ -137,6 +157,7 @@ fn rm<E>(path: &Path, error: E) -> Result<(), E> {
     status.success().then_some(()).ok_or(error)
 }
 
+/// Errors returned by [build].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 #[error("[{t}] {0}", t = Self::type_name())]
@@ -170,6 +191,7 @@ enum BuildErrorInner {
     CpTargetAssetsError,
 }
 
+/// Invokes [stylance](https://crates.io/crates/stylance-cli) at compile time.
 pub fn build_css() {
     let dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let status = std::process::Command::new("stylance")

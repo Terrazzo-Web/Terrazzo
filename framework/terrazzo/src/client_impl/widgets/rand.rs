@@ -1,14 +1,16 @@
-//! Represents a flying cookie in the game
+//! Pseudo random number generator that works in WASM
 
 use std::num::NonZeroU32;
 use std::sync::Mutex;
 
 use terrazzo_client::prelude::OrElseLog as _;
 
+/// A very simple pseudo random number generator that works in WASM.
 pub struct Rand {
     next: Mutex<u32>,
 }
 
+/// Returns a random number using a static [Rand] instance.
 pub fn rand(from: i32, to: i32) -> i32 {
     static RAND: Rand = Rand::new(if let Some(next) = NonZeroU32::new(13) {
         next
@@ -19,12 +21,14 @@ pub fn rand(from: i32, to: i32) -> i32 {
 }
 
 impl Rand {
+    /// Creates a new [Rand] instance.
     pub const fn new(next: NonZeroU32) -> Self {
         Self {
             next: Mutex::new(next.get()),
         }
     }
 
+    /// Returns a random number between `from` (inclusive) and `to` (exclusive).
     pub fn next(&self, from: i32, to: i32) -> i32 {
         let mut rand = self.next.lock().or_throw("Next rand");
         let rand = &mut *rand;

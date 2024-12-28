@@ -75,7 +75,7 @@ pub fn template(
             let generated_template1 = generated_template.clone();
             #(#prelude)*
             make_reactive_closure()
-                .nameth(#name)
+                .named(#name)
                 .closure(move || {
                     let generated_template = generated_template.clone();
                     #(#copies)*

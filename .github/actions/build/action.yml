@@ -9,4 +9,5 @@ runs:
         cargo build --features=server
         cargo build --features=server --release
         cargo build --features=client,server
+        cargo build --bin demo-server --features server,max_level_debug
       shell: bash

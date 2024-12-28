@@ -1,5 +1,9 @@
 use super::XSignal;
 
+/// A wrapper for the mutable half of a signal.
+///
+/// This is used by code generation of the `#[template]` attribute with the
+/// `#[signal] mut signal: XSignal<T>` syntax.
 pub struct MutableSignal<V> {
     signal: XSignal<V>,
 }

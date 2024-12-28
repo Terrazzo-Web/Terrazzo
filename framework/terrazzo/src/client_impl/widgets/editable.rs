@@ -14,6 +14,12 @@ stylance::import_crate_style!(style, "src/client_impl/widgets/editable.scss");
 
 static EDITABLE_ELEMENT: &str = "Editable element";
 
+/// An HTML node that
+/// 1. Displays a value, which on `click` event...
+/// 2. Displays an `<input type="text" />` to edit the value, which on `change` event...
+/// 3. Updates the signal, and then we display the value again.
+///
+/// This can be used to display values that can be edited in-place.
 #[html]
 #[template]
 pub fn editable<P, PI>(

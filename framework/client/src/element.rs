@@ -1,3 +1,5 @@
+//! Generated HTML elements
+
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -31,28 +33,89 @@ mod merge_children;
 mod merge_events;
 pub mod template;
 
+/// Represents a generated HTML element.
+///
+/// Example: the HTML tag `<input type="text" name="username" value="LamparoS@Pavy.one" />`
+/// would be written as
+/// ```
+/// # use terrazzo_client::prelude::*;
+/// # let _ =
+/// XElement {
+///     tag_name: Some("form".into()),
+///     key: XKey::default(),
+///     value: XElementValue::Static {
+///         attributes: vec![],
+///         children: vec![XNode::from(XElement {
+///             tag_name: Some("input".into()),
+///             key: XKey::default(),
+///             value: XElementValue::Static {
+///                 attributes: vec![
+///                     XAttribute { name: "type".into(), value: "text".into() },
+///                     XAttribute { name: "name".into(), value: "username".into() },
+///                     XAttribute { name: "value".into(), value: "LamparoS@Pavy.one".into() },
+///                 ],
+///                 children: vec![],
+///                 events: vec![],
+///             },
+///             before_render: None,
+///             after_render: None,
+///         })],
+///         events: vec![],
+///     },
+///     before_render: None,
+///     after_render: None,
+/// }
+/// # ;
+/// ```
 #[nameth]
 pub struct XElement {
+    /// The key of an element is used to reconcile a generated [XElement] with an existing [Element]
+    /// node.
+    ///
+    /// This allows reusing existing DOM nodes instead of generating entirely new ones when an
+    /// [XElement] is recomputed after a [signal] is updated and triggers.
+    ///
+    /// If the key is not set, a key is generated using the ordinal position of the node,
+    /// and nodes are merged on a best-effort basis.
+    ///
+    /// [signal]: super::signal::XSignal
     pub key: XKey,
+
+    /// The name of the HTML tag. Can be [None] when provided by a `#[template(tag = ...)]` attribute.
     pub tag_name: Option<XString>,
+
+    /// The content of the HTML node.
     pub value: XElementValue,
+
+    /// A callback executed after the [Element] is created but before it is rendered.
+    ///
+    /// On first render this will always be an empty node.
     pub before_render: Option<OnRenderCallback>,
+
+    /// A callback executed after the [Element] is rendered.
     pub after_render: Option<OnRenderCallback>,
 }
 
+/// The content of an HTML node.
 pub enum XElementValue {
+    /// When the node is some static content.
     Static {
         attributes: Vec<XAttribute>,
         events: Vec<XEvent>,
         children: Vec<XNode>,
     },
+
+    /// When the node must be computed by some reactive closure.
     Dynamic(XDynamicElement),
+
+    /// When the dynamic node is computed and owned by the reactive closure.
     Generated {
         template: XTemplate,
         consumers: Consumers,
     },
 }
 
+/// Represents the callback that generates a dynamic [XElement].
 pub struct XDynamicElement(Box<dyn Fn(XTemplate) -> Consumers>);
 
 impl<F: Fn(XTemplate) -> Consumers + 'static> From<F> for XDynamicElement {
@@ -61,8 +124,14 @@ impl<F: Fn(XTemplate) -> Consumers + 'static> From<F> for XDynamicElement {
     }
 }
 
+/// Represents an event that will be attached to the generated DOM node.
 pub struct XEvent {
+    /// The name of the event, e.g. "click" or "mouseover".
     pub event_type: XString,
+
+    /// The callback that takes the [event] as parameter and is executed when the event fires.
+    ///
+    /// [event]: web_sys::Event
     pub callback: Arc<dyn ClosureAsFunction>,
 }
 
@@ -76,6 +145,16 @@ impl<T: ?Sized> ClosureAsFunction for Closure<T> {
     }
 }
 
+/// A callback that is executed before/after a node is rendered.
+///
+/// Exampple:
+/// ```ignore
+/// div(
+///     h1("Some HTML template"),
+///     before_render = |_: Element| info!("Before render"),
+///     after_render = |_: Element| info!("After render"),
+/// )
+/// ```
 pub struct OnRenderCallback(pub Box<dyn Fn(Element)>);
 
 impl XElement {

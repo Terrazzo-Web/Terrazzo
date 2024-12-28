@@ -1,3 +1,5 @@
+//! Server-side assets
+
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::future::ready;
@@ -15,6 +17,7 @@ use tracing::warn;
 
 static ASSETS: RwLock<Option<HashMap<String, Asset>>> = RwLock::new(None);
 
+/// Server-side asset.
 #[must_use]
 pub struct AssetBuilder {
     pub asset_name: String,
@@ -24,6 +27,7 @@ pub struct AssetBuilder {
 }
 
 impl AssetBuilder {
+    /// Create a new asset with a static content.
     pub fn new(name: impl Into<String>, content: &'static [u8]) -> Self {
         let file_name = name.into();
         let asset_name = Path::new(&file_name).file_name().unwrap();
@@ -36,6 +40,7 @@ impl AssetBuilder {
         }
     }
 
+    /// Tweaks the name of the asset.
     pub fn asset_name(self, asset_name: impl Into<String>) -> Self {
         Self {
             asset_name: asset_name.into(),
@@ -43,6 +48,7 @@ impl AssetBuilder {
         }
     }
 
+    /// Tweaks the file extension of the asset file.
     pub fn extension(self, extension: impl AsRef<OsStr>) -> Self {
         Self {
             asset_name: Path::new(&self.asset_name)
@@ -54,6 +60,8 @@ impl AssetBuilder {
         }
     }
 
+    /// Tweaks the mime type of the asset.
+    /// This affects the "Content-Type" header.
     pub fn mime<M>(self, mime: M) -> Self
     where
         HeaderValue: TryFrom<M>,
@@ -63,6 +71,7 @@ impl AssetBuilder {
         Self { mime, ..self }
     }
 
+    /// Records the asset in a static table.
     pub fn install(self) {
         let mime = if let Some(mime) = self.mime {
             mime
@@ -84,6 +93,9 @@ impl AssetBuilder {
     }
 }
 
+/// Declares a file as a static asset.
+///
+/// The content of the file is compiled into the server binary using the [include_bytes] macro.
 #[macro_export]
 macro_rules! declare_asset {
     ($file:expr $(,)?) => {
@@ -94,6 +106,9 @@ macro_rules! declare_asset {
     };
 }
 
+/// Declares a scss file as a static asset.
+///
+/// The content of the file is compiled from SCSS into CSS and included in the server binary.
 #[macro_export]
 macro_rules! declare_scss_asset {
     ($file:expr $(,)?) => {
@@ -130,6 +145,7 @@ fn add(name: String, value: Asset) {
     *assets = Some(map);
 }
 
+/// Axum handler that serves all the registered static assets.
 pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
     debug!("Getting {path}");
     let assets = ASSETS.read().expect(path);
@@ -147,6 +163,9 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
     )
 }
 
+/// Macro to load a folder of static assets.
+///
+/// See [install_dir].
 #[macro_export]
 macro_rules! declare_assets_dir {
     ($prefix:literal, $dir:tt) => {{
@@ -156,6 +175,7 @@ macro_rules! declare_assets_dir {
     }};
 }
 
+/// Loads all the files in a folder (recursively) into the server binary as static assets.
 pub fn install_dir(prefix: &str, dir: &Dir<'static>) {
     for entry in dir.entries() {
         if let Some(dir) = entry.as_dir() {

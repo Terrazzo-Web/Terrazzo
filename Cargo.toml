@@ -41,10 +41,10 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { path = "autoclone/autoclone" }
+autoclone = { version = "0.1.1", path = "autoclone/autoclone" }
 nameth = { version = "0.1.1", path = "nameth/nameth" }
 nameth-macro = { version = "0.1.1", path = "nameth/nameth-macro" }
-terrazzo = { version = "0.1.1", path = "framework/terrazzo" }
+terrazzo = { version = "0.1.1", path = "framework/terrazzo", default-features = false }
 terrazzo-build = { version = "0.1.1", path = "framework/build" }
 terrazzo-client = { version = "0.1.1", path = "framework/client" }
 terrazzo-macro = { version = "0.1.1", path = "framework/macro" }

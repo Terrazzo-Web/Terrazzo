@@ -8,6 +8,7 @@ The template library is usually used in tandem with the `terrazzo-macro` crate.
 
 ## The `#[html]` macro
 
+### Basic usage
 This macro us used to generate dynamic HTML nodes.
 
 ```
@@ -24,9 +25,18 @@ fn sample() -> XElement {
 }
 ```
 
-## List of nodes
-
+### List of nodes
 List of nodes can be generated from iterators
+
+```
+# use terrazzo_client::prelude::*;
+# use terrazzo_macro::html;
+#[html]
+fn sample() -> XElement {
+    let list = [1, 2, 3].map(|i| li("{i}"));
+    div(h1("Title"), ul(list..))
+}
+```
 
 This function generates:
 ```html
@@ -40,12 +50,16 @@ This function generates:
 </div>
 ```
 
+### Attributes
 ```
 # use terrazzo_client::prelude::*;
 # use terrazzo_macro::html;
 #[html]
 fn sample() -> XElement {
-    let list = [1, 2, 3].map(|i| li("{i}"));
-    div(h1("Title"), ul(list..))
+    div(
+        class = "my-css-class",
+        style = format!("width: {}%", 100),
+        "Content",
+    )
 }
 ```

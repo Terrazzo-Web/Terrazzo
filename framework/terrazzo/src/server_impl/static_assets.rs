@@ -106,9 +106,6 @@ macro_rules! declare_asset {
     };
 }
 
-/// Declares a scss file as a static asset.
-///
-/// The content of the file is compiled from SCSS into CSS and included in the server binary.
 #[cfg(not(feature = "rustdoc"))]
 #[macro_export]
 macro_rules! declare_scss_asset {
@@ -122,6 +119,9 @@ macro_rules! declare_scss_asset {
     };
 }
 
+/// Declares a scss file as a static asset.
+///
+/// The content of the file is compiled from SCSS into CSS and included in the server binary.
 #[cfg(feature = "rustdoc")]
 #[macro_export]
 macro_rules! declare_scss_asset {

@@ -1,0 +1,14 @@
+name: Publish (dry-run)
+runs:
+  using: "composite"
+  steps:
+    - name: Publish (dry-run)
+      run: |
+        cargo publish -p nameth-macro --dry-run
+        cargo publish -p nameth --dry-run
+        cargo publish -p autoclone --dry-run
+        cargo publish -p terrazzo-macro --dry-run
+        cargo publish -p terrazzo-client --dry-run
+        cargo publish -p terrazzo-build --dry-run
+        cargo publish -p terrazzo --dry-run
+      shell: bash

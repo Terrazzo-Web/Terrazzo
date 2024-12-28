@@ -4,7 +4,7 @@ Terrazzo is a lightweight, simple and efficient web UI framework based on Rust a
 
 ## Prior art
 
-This project was inspired by frameworks like Dioxus and Leptos.
+This project was inspired by frameworks like [Dioxus](https://dioxuslabs.com/learn/0.6/) and [Leptos](https://leptos.dev).
 
 These frameworks are based on Rust and WASM:
 - Both the server-side and client-side logic is written in Rust
@@ -22,7 +22,7 @@ which greatly improves the ergonomics.
 
 - We don't have to guess how and when to call `.clone()`, especially when signals are used in
   closures.
-- We can always pass Signals as values so we don't have to deal with references, lifetimes and the
+- We can always pass signals as values so we don't have to deal with references, lifetimes and the
   Rust borrow-checker.
 
 In other words, we can leverage the powerful Rust type system, use one language for both the UI and
@@ -38,12 +38,12 @@ Dioxus and Leptos are incredibly feature-rich, but are also prone to bugs.
 ### Arena-allocated signals and use-after-free bugs
 I believe that making signals `Copy` using arena allocation for the sake of ergonomics is an
 anti-pattern.
-- With Dioxus, use of signals must obey a strict set of rules can cannot be enforced otherwise by
-  the compiler.
+- With Dioxus, use of signals must obey a strict set of rules can that cannot be enforced otherwise
+  by the Rust compiler.
   <https://dioxuslabs.com/learn/0.6/reference/hooks/#rules-of-hooks>
-- With Leptos, bugs can arise if signals are used after they are (implicitely) disposed. I feel
-  like this is completely missing the point of using Rust, since the whole reason this language
-  exists is precisely to prevents use-after-free bugs.
+- With Leptos, bugs can arise if signals are used after they are (implicitly) disposed. I feel
+  like this is completely missing the point of using Rust, since once of the main selling points of
+  this language is precisely to [prevent use-after-free bugs](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#dangling-references).
   [Appendix: The Life Cycle of a Signal](https://book.leptos.dev/appendix_life_cycle.html?highlight=owner#signals-can-be-used-after-they-are-disposed)
 
 I prefer dealing with the Rust borrow-checker and any other kind of static analysis annoyance, even
@@ -54,7 +54,7 @@ The promise of Rust is that the compiler has your back: if it compiles, it works
 faster than other languages, not because "for-loops" are faster in Rust, but because Rust codebases
 are easier to refactor and optimize. You can replace a deep copy with a reference, and that promise
 will hold: if it compiles, it works. Else, the Rust compiler will help you figure out when to call
-`.clone()`, when to use use ref-counter pointers, or when to guard mutable state with a mutex or
+`.clone()`, when to use use ref-counting pointers, or when to guard mutable state with a mutex or
 use a cell.
 
 ### Hydration bugs
@@ -87,15 +87,8 @@ Terrazzo uses two different macros
 # use terrazzo::html;
 # use terrazzo::prelude::*;
 # use terrazzo::template;
-# struct State {
-#     value: i32,
-#     signal: XSignal<String>,
-# }
-# impl State {
-#     fn click(&self) {
-#         println!("Click!");
-#     }
-# }
+# struct State { value: i32, signal: XSignal<String> }
+# impl State { fn click(&self) { println!("Click!"); } }
 #[template]
 #[html]
 pub fn my_main_component() -> XElement {

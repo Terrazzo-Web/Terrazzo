@@ -20,7 +20,8 @@ use crate::string::XString;
 use crate::template::IsTemplate;
 
 /// A builder for ReactiveClosure.
-/// The closure initially takes multiple parameters that must be bound to signals until we are left with a Fn().
+///
+/// The closure initially takes multiple parameters that must be bound to signals until we are left with a `Fn()`.
 #[must_use]
 pub struct ReactiveClosureBuilder<F> {
     /// A name, for troubleshooting purposes only.
@@ -34,6 +35,8 @@ pub struct ReactiveClosureBuilder<F> {
 }
 
 /// Binds the parameter of a reactive closure to a signal.
+///
+/// This is mainly used by `#[template]` code-generated code.
 pub trait BindReactiveClosure<F, BF, I, O>
 where
     F: Fn() -> BF,
@@ -119,6 +122,9 @@ impl<F: Fn() + 'static> ReactiveClosureBuilder<F> {
     }
 }
 
+/// creates a new reactive closure builder.
+///
+/// This is mainly used by `#[template]` code-generated code.
 #[track_caller]
 pub fn make_reactive_closure() -> ReactiveClosureBuilderWantClosure {
     ReactiveClosureBuilderWantClosure {
@@ -176,6 +182,9 @@ impl<F> ToReactiveClosureBuilder for F {
     }
 }
 
+/// A struct that holds consumers, i.e. callbacks that are executed when producers execute.
+///
+/// This is used by the signaling mechanism.
 #[derive(Default)]
 pub struct Consumers(pub(crate) Vec<Consumer<ProducedSignal>>);
 

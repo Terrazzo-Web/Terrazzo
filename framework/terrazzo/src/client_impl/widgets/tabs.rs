@@ -1,3 +1,5 @@
+//! Implements a pattern to have clickable and sortable tabs.
+
 use std::rc::Rc;
 
 use autoclone::autoclone;
@@ -11,6 +13,7 @@ stylance::import_crate_style!(style, "src/client_impl/widgets/tabs.scss");
 
 const DRAG_KEY: &str = "id";
 
+/// Describes a list of tabs.
 pub trait TabsDescriptor: Clone + 'static {
     type State: TabsState<TabDescriptor = Self::TabDescriptor>;
     type TabDescriptor: TabDescriptor<State = Self::State>;
@@ -28,11 +31,17 @@ pub trait TabsDescriptor: Clone + 'static {
     }
 }
 
+/// The underlying state.
+///
+/// The state should store the list of tabs, among other things.
 pub trait TabsState: Clone + 'static {
     type TabDescriptor: TabDescriptor<State = Self>;
     fn move_tab(&self, after_tab: Option<Self::TabDescriptor>, moved_tab_key: String);
 }
 
+/// Describes a single tab.
+///
+/// This includes how to display the tab title and the tab page item, which is displayed when the item is selected.
 pub trait TabDescriptor: Clone + 'static {
     type State: Clone + 'static;
     fn key(&self) -> XString;
@@ -41,6 +50,9 @@ pub trait TabDescriptor: Clone + 'static {
     fn selected(&self, state: &Self::State) -> XSignal<bool>;
 }
 
+/// Options to configure how tabs are displayed.
+///
+/// This is mainly a list of CSS classes to configure the appearance of tabs, when they are selected or not, and during drag-and-drop.
 #[derive(Default)]
 pub struct TabsOptions<T = Option<XString>> {
     pub tabs_class: T,
@@ -56,6 +68,8 @@ pub struct TabsOptions<T = Option<XString>> {
     pub title_drop_sep: T,
 }
 
+/// The template that renders a list of tabs.
+///
 /// ```text
 /// <tabs>
 ///     <titles>

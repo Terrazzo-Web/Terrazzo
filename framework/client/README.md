@@ -10,18 +10,34 @@ The template library is usually used in tandem with the `terrazzo-macro` crate.
 This macro us used to generate dynamic HTML nodes.
 
 ```
-use terrazzo_client::prelude::*;
-use terrazzo_macro::html;
-
+# use terrazzo_client::prelude::*;
+# use terrazzo_macro::html;
 #[html]
 fn sample() -> XElement {
     div(
         h1("Section 1"),
         ul(li("Firstly"), li("Secondly")),
         h1("Section 2"),
-        ol(li("One"), li("One"), li("One")),
+        ol(li("One"), li("Two"), li("Three")),
     )
 }
+```
+
+This function generates:
+```html
+<div>
+    <h1> Section 1 </h1>
+    <ul>
+        <li> Firstly </li>
+        <li> Secondly </li>
+    </ul>
+    <h1> Section 2 </h1>
+    <ol>
+        <li> One </li>
+        <li> Two </li>
+        <li> Three </li>
+    </ol>
+</div>
 ```
 
 ## List of nodes
@@ -95,7 +111,7 @@ fn sample(width: i32) -> XElement {
 ## Special attributes
 `key`, `before-render` and `after-render` are special attributes.
 
-See [crate::prelude::XKey] and [crate::prelude::OnRenderCallback] for details.
+See [XKey](crate::prelude::XKey) and [OnRenderCallback](crate::prelude::OnRenderCallback) for details.
 
 # The `#[template]` macro
 
@@ -107,9 +123,8 @@ The node gets updated every time to `content` signal is updated.
 
 ```
 # use terrazzo_client::prelude::*;
-use terrazzo_macro::html;
-use terrazzo_macro::template;
-
+# use terrazzo_macro::html;
+# use terrazzo_macro::template;
 #[template]
 #[html]
 fn inner(name: String, #[signal] content: String) -> XElement {
@@ -137,7 +152,6 @@ When the tag is defined on the attribute itself, the key should be defined on th
 # use terrazzo_client::prelude::*;
 # use terrazzo_macro::html;
 # use terrazzo_macro::template;
-
 #[template(tag = p, key = name.clone())]
 #[html]
 fn inner(name: String, #[signal] content: String) -> XElement {
@@ -159,8 +173,8 @@ Updating the signal will recompute and update the attribute or style property.
 
 ```
 # use terrazzo_client::prelude::*;
-use terrazzo_macro::html;
-use terrazzo_macro::template;
+# use terrazzo_macro::html;
+# use terrazzo_macro::template;
 #[html]
 pub fn sample(suffix: XSignal<&'static str>, width: XSignal<i32>) -> XElement {
     div(
@@ -183,9 +197,11 @@ fn make_width(#[signal] width: i32) -> XAttributeValue {
 
 # Debugging
 
-## At rumtime
+## At runtime
 The [tracing](https://docs.rs/tracing) crate is used to log events and add debugging information.
 
 ## At compile time
 To debug code-generation, add `debug = true` to the `html` and `template` macros,
-e.g. `#[html(debug = true)]` and `#[template(debug = true)]`.
+e.g.
+- `#[html(debug = true)]`, and
+- `#[template(debug = true)]`.

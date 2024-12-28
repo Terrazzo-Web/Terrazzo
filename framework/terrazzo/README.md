@@ -1,6 +1,8 @@
 # Terrazzo
 
-Terrazzo is a lightweight, simple and efficient web UI framework based on Rust and WASM.
+**Terrazzo** is a lightweight, simple and efficient web UI framework based on **Rust** and **WASM**.
+
+**Tl;DR**: See **Terrazzo** in action in the [demo](https://github.com/Terrazzo-Web/Terrazzo/blob/main/demo/src/demo.rs).
 
 ## Prior art
 

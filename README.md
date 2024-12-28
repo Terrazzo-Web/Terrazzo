@@ -27,7 +27,7 @@ Build scripts to compile and package the WASM assembly.
 # Demo
 Terrazzo `"Hello, World!"` demo. Shows how to use macros and signals to build a dynamic web page with Terrazzo.
 
-[Terrazzo demo](framework/build/README.md)
+[Terrazzo demo](demo/README.md)
 
 # Utils
 

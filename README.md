@@ -40,7 +40,7 @@ I believe that making signals `Copy` using arena allocation for the sake of ergo
 anti-pattern.
 - With Dioxus, use of signals must obey a strict set of rules can cannot be enforced otherwise by
   the compiler.
-  https://dioxuslabs.com/learn/0.6/reference/hooks/#rules-of-hooks
+  <https://dioxuslabs.com/learn/0.6/reference/hooks/#rules-of-hooks>
 - With Leptos, bugs can arise if signals are used after they are (implicitely) disposed. I feel
   like this is completely missing the point of using Rust, since the whole reason this language
   exists is precisely to prevents use-after-free bugs.
@@ -82,16 +82,34 @@ Terrazzo uses two different macros
   Use `#[html(debug = true)]` to see what the generated code looks like.
 
 ```
+# fn main() {
+# #[cfg(feature = "client")] {
+# use terrazzo::html;
+# use terrazzo::prelude::*;
+# use terrazzo::template;
+# struct State {
+#     value: i32,
+#     signal: XSignal<String>,
+# }
+# impl State {
+#     fn click(&self) {
+#         println!("Click!");
+#     }
+# }
 #[template]
 #[html]
 pub fn my_main_component() -> XElement {
-    let state = ...;
+    let state = State {
+        value: 123,
+        signal: XSignal::new("signal", "state".to_owned()),
+    };
+    let state_value = state.value;
     return div(
         class = "main-component",
         style::width = "100%",
-        click = move |event| { state.click() },
-        "text node {state.value}",
-        static_component(state.clone()),
+        click = move |event| state.click(),
+        "text node {state_value}",
+        static_component(),
         dynamic_component(state.signal.clone()),
     );
 }
@@ -107,6 +125,8 @@ fn static_component() -> XElement {
 fn dynamic_component(#[signal] value: String) -> XElement {
     tag("Dynamic: ", "{value}")
 }
+# } // #[cfg(feature = "client")]
+# } // fn main()
 ```
 
 See [demo.rs](https://github.com/Terrazzo-Web/Terrazzo/blob/main/demo/src/demo.rs).

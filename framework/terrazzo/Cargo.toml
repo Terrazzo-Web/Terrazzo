@@ -7,6 +7,8 @@ repository = { workspace = true }
 license = { workspace = true }
 description = "The Terrazzo library to build dynamic web pages in Rust"
 readme = "README.md"
+categories = ["web-programming", "wasm"]
+keywords = ["terrazzo", "wasm"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

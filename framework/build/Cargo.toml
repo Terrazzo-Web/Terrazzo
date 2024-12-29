@@ -7,6 +7,7 @@ repository = { workspace = true }
 license = { workspace = true }
 description = "Helpers to create cargo build scripts to compile and package web apps build with Terrazzo"
 readme = "README.md"
+keywords = ["build-script", "terrazzo", "wasm"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

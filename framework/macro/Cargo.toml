@@ -7,6 +7,8 @@ repository = { workspace = true }
 license = { workspace = true }
 description = "Macros to generate dynamic HTML nodes in Rust"
 readme = "README.md"
+categories = ["web-programming", "wasm"]
+keywords = ["macro", "proc-macros", "terrazzo", "wasm"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

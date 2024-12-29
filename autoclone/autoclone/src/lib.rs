@@ -12,7 +12,7 @@
 //!     let my_string = "Hello, World!".to_string();
 //!     let callback = move || {
 //!         // Declare variables that need cloning.
-//!         // `autoclone!(<my_variabke>, <other_variabke>, ...);`
+//!         // `autoclone!(<my_variable>, <other_variable>, ...);`
 //!         // Just remove the `autoclone!(...);` statement if cloning is not required.
 //!         autoclone!(my_string);
 //!         println!("Inside the move callback: {my_string}");

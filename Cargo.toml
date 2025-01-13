@@ -60,20 +60,20 @@ libc = { version = "0.2.169" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 pin-project = { version = "1.1.8" }
-prettyplease = { version = "0.2.27" }
-proc-macro2 = { version = "1.0.92" }
+prettyplease = { version = "0.2.29" }
+proc-macro2 = { version = "1.0.93" }
 quote = { version = "1.0.38" }
 reqwest-wasm = { version = "0.11.16" }
 rustix = { version = "0.38.42" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.217", features = ["derive", "rc"] }
-serde_json = { version = "1.0.134" }
+serde_json = { version = "1.0.135" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.3" }
 rsass-macros = { version = "0.28.10" }
 syn = { version = "2.0.93" }
-thiserror = { version = "2.0.9" }
-tokio = { version = "1.42.0" }
+thiserror = { version = "2.0.11" }
+tokio = { version = "1.43.0" }
 tokio-util = { version = "0.7.13" }
 tower-http = { version = "0.6.2" }
 tracing = { version = "0.1.41" }

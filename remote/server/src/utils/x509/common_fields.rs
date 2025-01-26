@@ -7,6 +7,7 @@ use openssl::x509::extension::SubjectKeyIdentifier;
 use openssl::x509::X509Builder;
 use openssl::x509::X509NameRef;
 use openssl::x509::X509Ref;
+use x509_parser::x509::X509Version;
 
 use super::serial_number::set_serial_number;
 use super::serial_number::SetSerialNumberError;
@@ -22,6 +23,9 @@ pub fn set_common_fields(
     subject_name: &X509NameRef,
     validity: Validity,
 ) -> Result<(), SetCommonFieldsError> {
+    builder
+        .set_version(X509Version::V3.0 as i32)
+        .map_err(SetCommonFieldsError::SetVersion)?;
     builder
         .set_subject_name(subject_name)
         .map_err(SetCommonFieldsError::SetSubject)?;
@@ -44,6 +48,9 @@ pub fn set_common_fields(
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum SetCommonFieldsError {
+    #[error("[{n}] Failed to set the X509 version: {0}", n = self.name())]
+    SetVersion(ErrorStack),
+
     #[error("[{n}] Failed to set the subject name: {0}", n = self.name())]
     SetSubject(ErrorStack),
 

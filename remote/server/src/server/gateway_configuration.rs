@@ -20,11 +20,20 @@ pub trait GatewayConfig: IsConfiguration {
         }
     }
 
+    /// The root CA is used to issue the client certificates.
+    ///
+    /// This asset is never rotated, even if the private key leaks.
+    /// Security is based on the signed extension of client certificates.
     type RootCaConfig: SecurityConfig;
     fn root_ca(&self) -> Self::RootCaConfig;
 
+    /// The TLS certificate used to listen to HTTPS connections.
     type TlsConfig: SecurityConfig;
     fn tls(&self) -> Self::TlsConfig;
+
+    /// The certificate used to sign the custom extension of X509 certificates.
+    type ClientCertificateIssuerConfig: SecurityConfig;
+    fn client_certificate_issuer(&self) -> Self::TlsConfig;
 }
 
 impl<T: GatewayConfig> GatewayConfig for Arc<T> {
@@ -51,5 +60,11 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn tls(&self) -> Self::TlsConfig {
         let this: &T = self.as_ref();
         this.tls()
+    }
+
+    type ClientCertificateIssuerConfig = T::ClientCertificateIssuerConfig;
+    fn client_certificate_issuer(&self) -> Self::TlsConfig {
+        let this: &T = self.as_ref();
+        this.client_certificate_issuer()
     }
 }

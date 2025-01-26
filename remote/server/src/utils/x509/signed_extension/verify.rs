@@ -21,7 +21,7 @@ pub fn validate_signed_extension(
     store: Option<&X509StoreRef>,
     signer_name: &str,
 ) -> Result<(), ValidateSignedExtensionError> {
-    let (_rest, certificate) = X509Certificate::from_der(&certificate)?;
+    let (_rest, certificate) = X509Certificate::from_der(certificate)?;
     let signed_extension = find_signed_extension(&certificate)?;
     let () = verify_signer(signer_name, signed_extension)?;
     let () = verify_signature(store, &certificate, signed_extension)?;
@@ -34,8 +34,7 @@ fn find_signed_extension<'t>(
     certificate
         .extensions()
         .iter()
-        .filter(|extension| extension.oid.to_id_string() == super::SIGNED_EXTENSION_OID)
-        .next()
+        .find(|extension| extension.oid.to_id_string() == super::SIGNED_EXTENSION_OID)
         .ok_or(ValidateSignedExtensionError::SignedExtensionNotFound)
 }
 

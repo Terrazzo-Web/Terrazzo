@@ -59,8 +59,7 @@ pub fn verify_signature(
         let (field, e, a) = expected
             .zip(actual)
             .enumerate()
-            .filter(|(_i, (e, a))| e != a)
-            .next()
+            .find(|(_i, (e, a))| e != a)
             .map(|(i, (e, a))| {
                 let field = match i {
                     0 => "common_name",

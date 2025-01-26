@@ -13,7 +13,7 @@ use openssl::error::ErrorStack;
 
 pub fn system_to_asn1_time(system: SystemTime) -> Result<Asn1Time, SystemToAsn1TimeError> {
     let unix_seconds = system.duration_since(UNIX_EPOCH)?.as_secs();
-    Ok(Asn1Time::from_unix(unix_seconds as i64)?.into())
+    Ok(Asn1Time::from_unix(unix_seconds as i64)?)
 }
 
 #[nameth]

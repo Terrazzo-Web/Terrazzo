@@ -65,13 +65,9 @@ fn find_signing_certificate(
             let Some(extensions) = &certificate.tbs_certificate.extensions else {
                 continue;
             };
-            let Some(skid_extension) = extensions
-                .iter()
-                .filter(|extension| {
-                    extension.extn_id.as_bytes() == OID_X509_EXT_SUBJECT_KEY_IDENTIFIER.as_bytes()
-                })
-                .next()
-            else {
+            let Some(skid_extension) = extensions.iter().find(|extension| {
+                extension.extn_id.as_bytes() == OID_X509_EXT_SUBJECT_KEY_IDENTIFIER.as_bytes()
+            }) else {
                 continue;
             };
             let skid_extension = skid_extension.extn_value.as_bytes();
@@ -84,10 +80,9 @@ fn find_signing_certificate(
         }
 
         let subject = &certificate.tbs_certificate.subject;
-        let distinguished_names = subject.0.iter().flat_map(|dn| dn.0.iter());
+        let mut distinguished_names = subject.0.iter().flat_map(|dn| dn.0.iter());
         let Some(common_name) = distinguished_names
-            .filter(|entry| entry.oid.as_bytes() == OID_X509_COMMON_NAME.as_bytes())
-            .next()
+            .find(|entry| entry.oid.as_bytes() == OID_X509_COMMON_NAME.as_bytes())
         else {
             continue;
         };

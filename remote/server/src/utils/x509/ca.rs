@@ -52,7 +52,7 @@ fn make_impl(
     let (issuer_name, issuer_key) = issuer
         .map(|(issuer, key)| (issuer.subject_name(), key))
         .unwrap_or((&subject_name, &key));
-    set_common_fields(&mut builder, &issuer_name, &subject_name, validity)?;
+    set_common_fields(&mut builder, issuer_name, &subject_name, validity)?;
 
     (|| {
         let basic_constraints = BasicConstraints::new().critical().ca().build()?;

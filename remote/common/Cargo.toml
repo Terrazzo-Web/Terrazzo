@@ -1,0 +1,28 @@
+[package]
+name = "trz-gateway-common"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = { workspace = true }
+
+[lib]
+
+[dependencies]
+nameth = { workspace = true }
+prost = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"] }
+thiserror = { workspace = true }
+tonic = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true, features = ["prost"] }
+
+[lints]
+workspace = true

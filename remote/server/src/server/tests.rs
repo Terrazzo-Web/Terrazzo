@@ -256,5 +256,9 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
 
 fn temp_dir() -> &'static TempDir {
     static CONFIG: OnceLock<TempDir> = OnceLock::new();
-    CONFIG.get_or_init(|| TempDir::new().expect("TempDir::new()"))
+    CONFIG.get_or_init(|| {
+        TempDir::new()
+            .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
+            .expect("TempDir::new()")
+    })
 }

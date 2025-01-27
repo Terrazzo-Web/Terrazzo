@@ -8,6 +8,7 @@ use openssl::pkey::Private;
 use openssl::x509::extension::BasicConstraints;
 use openssl::x509::extension::ExtendedKeyUsage;
 use openssl::x509::extension::KeyUsage;
+use openssl::x509::extension::SubjectAlternativeName;
 use openssl::x509::X509Builder;
 use openssl::x509::X509Extension;
 use openssl::x509::X509Ref;
@@ -38,8 +39,10 @@ pub fn make_cert(
         .set_pubkey(&public_key)
         .map_err(MakeCertError::SetPublicKey)?;
 
-    let name = make_name(name)?;
-    set_common_fields(&mut builder, issuer.subject_name(), &name, validity)?;
+    {
+        let name = make_name(name)?;
+        set_common_fields(&mut builder, issuer.subject_name(), &name, validity)?;
+    }
 
     (|| {
         let basic_constraints = BasicConstraints::new().critical().build()?;
@@ -68,6 +71,18 @@ pub fn make_cert(
     .map_err(MakeCertError::ExtendedKeyUsage)?;
 
     set_akid(issuer, &mut builder).map_err(MakeCertError::AuthorityKeyIdentifier)?;
+
+    if let Some(common_name) = name.common_name {
+        (|| {
+            builder.append_extension(
+                SubjectAlternativeName::new()
+                    .dns(common_name)
+                    .build(&builder.x509v3_context(Some(issuer), None))?,
+            )?;
+            Ok(())
+        })()
+        .map_err(MakeCertError::SubjectAlternativeName)?;
+    }
 
     for extension in extensions {
         builder
@@ -114,6 +129,9 @@ pub enum MakeCertError {
     #[error("[{n}] Failed to set AKID: {0}", n = self.name())]
     AuthorityKeyIdentifier(ErrorStack),
 
+    #[error("[{n}] Failed to set subject alternative name: {0}", n = self.name())]
+    SubjectAlternativeName(ErrorStack),
+
     #[error("[{n}] Failed add custom extension: {0}", n = self.name())]
     AppendExtension(ErrorStack),
 
@@ -133,6 +151,7 @@ impl IsHttpError for MakeCertError {
             MakeCertError::KeyUsage { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             MakeCertError::ExtendedKeyUsage { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             MakeCertError::AuthorityKeyIdentifier { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            MakeCertError::SubjectAlternativeName { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             MakeCertError::AppendExtension { .. } => StatusCode::BAD_REQUEST,
             MakeCertError::Sign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }

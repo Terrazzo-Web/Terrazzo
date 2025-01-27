@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use tracing::debug;
@@ -16,7 +18,25 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
     tracing::subscriber::set_global_default(subscriber)?;
     debug!("Tracing enabled");
 
-    std::panic::set_hook(Box::new(|panic| warn!("{panic:?}")));
+    std::panic::set_hook(Box::new(|panic_info| {
+        let panic_payload: Option<&str> =
+            if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                Some(s)
+            } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+                Some(s.as_str())
+            } else {
+                None
+            };
+        let location = panic_info
+            .location()
+            .map(Location::to_string)
+            .unwrap_or_else(|| "???".into());
+        if let Some(panic_payload) = panic_payload {
+            warn!("Panic {panic_payload} at {location}",);
+        } else {
+            warn!("Panic at {location}",);
+        }
+    }));
     Ok(())
 }
 
@@ -25,4 +45,13 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
 pub enum EnableTracingError {
     #[error("[{n}] {0}", n = self.name())]
     SetGlobalDefault(#[from] SetGlobalDefaultError),
+}
+
+pub mod test_utils {
+    use std::sync::Once;
+
+    pub fn enable_tracing_for_tests() {
+        static ONCE: Once = Once::new();
+        ONCE.call_once(|| super::enable_tracing().unwrap());
+    }
 }

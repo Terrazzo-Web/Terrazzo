@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use nameth::nameth;
-use nameth::NamedEnumValues;
-use nameth::NamedType;
+use nameth::NamedEnumValues as _;
+use nameth::NamedType as _;
 
 #[test]
 fn nameth_struct() {

@@ -8,6 +8,7 @@ use openssl::asn1::Asn1Time;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::StatusCode;
 use tempfile::TempDir;
+use tracing::debug;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 
 use super::gateway_configuration::GatewayConfig;
@@ -19,6 +20,7 @@ use crate::security_configuration::trusted_store::PemTrustedStore;
 use crate::security_configuration::SecurityConfig;
 use crate::server::certificate::GetCertificateRequest;
 use crate::server::Server;
+use crate::utils::x509::ca::make_intermediate;
 use crate::utils::x509::cert::make_cert;
 use crate::utils::x509::key::make_key;
 use crate::utils::x509::name::CertitficateName;
@@ -113,18 +115,26 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
 async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Error>> {
     let client = {
         use reqwest::tls::Certificate;
-        let root_ca = Certificate::from_pem(config.root_ca_config.certificate_pem.as_bytes())?;
+        let trusted_root = Certificate::from_pem(
+            config
+                .tls_config
+                .trusted_store
+                .root_certificates_pem
+                .as_bytes(),
+        )?;
         reqwest::ClientBuilder::new()
-            .add_root_certificate(root_ca)
+            .add_root_certificate(trusted_root)
             .build()?
     };
     let mut wait = Duration::from_millis(1);
     while wait < Duration::from_secs(5) {
         let request = client.get(format!("https://{}:{}/status", config.host(), config.port));
-        if let Ok(response) = request.send().await {
-            if let Ok("UP") = response.text().await.as_deref() {
-                return Ok(client);
-            }
+        match request.send().await {
+            Ok(response) => match response.text().await.as_deref() {
+                Ok("UP") => return Ok(client),
+                response => debug!("Unexpected response: {response:?}"),
+            },
+            Err(error) => debug!("Failed: {error:?}"),
         }
         tokio::time::sleep(wait).await;
         wait = wait * 2;
@@ -205,10 +215,9 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
     let root_ca_config = root_ca_config()?;
     let root_ca = root_ca_config.certificate()?;
     let root_certificate_pem = root_ca_config.certificate_pem;
-    let intermediate_key = make_key()?;
     let validity = root_ca.certificate.as_ref().try_into()?;
 
-    let intermediate = make_cert(
+    let (intermediate, intermediate_key) = make_intermediate(
         &root_ca.certificate,
         &root_ca.private_key,
         CertitficateName {
@@ -217,8 +226,6 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
             ..CertitficateName::default()
         },
         validity,
-        &intermediate_key.public_key_to_pem().pem_string()?,
-        vec![],
     )?;
 
     let certificate_key = make_key()?;

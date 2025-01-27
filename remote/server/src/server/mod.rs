@@ -10,9 +10,9 @@ use futures::FutureExt;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use tokio::sync::oneshot;
+use tracing::debug;
 use tracing::info;
 use tracing::info_span;
-use tracing::trace;
 use tracing::warn;
 use tracing::Instrument as _;
 use trz_gateway_common::tracing::EnableTracingError;
@@ -53,10 +53,10 @@ impl<C: GatewayConfig> Server<C> {
             .root_ca()
             .certificate()
             .map_err(|error| GatewayError::RootCa(error.into()))?;
-        trace!("Got Root CA");
+        debug!("Got Root CA");
 
         let tls_config = config.tls().to_rustls_config().await?;
-        trace!("Got TLS config");
+        debug!("Got TLS config");
 
         let server = Arc::new(Self {
             config,
@@ -76,6 +76,7 @@ impl<C: GatewayConfig> Server<C> {
         let mut terminated = vec![];
 
         for socket_addr in socket_addrs {
+            debug!("Setup server on {socket_addr}");
             let task = server.clone().run_endpoint(socket_addr);
             let (terminated_tx, terminated_rx) = oneshot::channel();
             terminated.push(terminated_rx);
@@ -126,12 +127,12 @@ impl<C: GatewayConfig> Server<C> {
             .in_current_span(),
         );
 
-        trace!("Serving...");
+        debug!("Serving...");
         let () = axum_server
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await
             .map_err(GatewayError::Serve)?;
-        trace!("Serving: done");
+        debug!("Serving: done");
         Ok(())
     }
 

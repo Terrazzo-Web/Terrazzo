@@ -18,9 +18,9 @@ use tracing::Instrument as _;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
-use crate::security_configuration::Certificate;
-use crate::security_configuration::CertificateError;
-use crate::security_configuration::SecurityConfig;
+use crate::security_configuration::certificate::Certificate;
+use crate::security_configuration::certificate::CertificateConfig;
+use crate::security_configuration::certificate::ToRustlsConfigError;
 
 mod app;
 mod certificate;
@@ -41,7 +41,7 @@ pub struct Server<C> {
 impl<C: GatewayConfig> Server<C> {
     pub async fn run(
         config: C,
-    ) -> Result<(oneshot::Sender<String>, oneshot::Receiver<()>), GatewayError> {
+    ) -> Result<(oneshot::Sender<String>, oneshot::Receiver<()>), GatewayError<C>> {
         if config.enable_tracing() {
             trz_gateway_common::tracing::enable_tracing()?;
         }
@@ -52,18 +52,10 @@ impl<C: GatewayConfig> Server<C> {
         let root_ca = config
             .root_ca()
             .certificate()
-            .map_err(GatewayError::RootCa)?;
+            .map_err(|error| GatewayError::RootCa(error.into()))?;
         trace!("Got Root CA");
 
-        let tls_config = {
-            let tls = config.tls();
-            RustlsConfig::from_pem(
-                tls.certificate_pem().as_bytes().to_owned(),
-                tls.private_key_pem().as_bytes().to_owned(),
-            )
-        }
-        .await
-        .map_err(GatewayError::GetRustlsConfig)?;
+        let tls_config = config.tls().to_rustls_config().await?;
         trace!("Got TLS config");
 
         let server = Arc::new(Self {
@@ -115,7 +107,7 @@ impl<C: GatewayConfig> Server<C> {
         Ok((shutdown_tx, all_terminated))
     }
 
-    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), GatewayError> {
+    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), GatewayError<C>> {
         let app = self.make_app();
 
         let handle = Handle::new();
@@ -150,12 +142,12 @@ impl<C: GatewayConfig> Server<C> {
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum GatewayError {
+pub enum GatewayError<C: GatewayConfig> {
     #[error("[{n}] {0}", n = self.name())]
     EnableTracing(#[from] EnableTracingError),
 
     #[error("[{n}] Failed to get Root CA: {0}", n = self.name())]
-    RootCa(CertificateError),
+    RootCa(Box<dyn std::error::Error>),
 
     #[error("[{n}] Failed to get socket address for {host}:{port}: {error}", n = self.name())]
     ToSocketAddrs {
@@ -164,8 +156,8 @@ pub enum GatewayError {
         error: std::io::Error,
     },
 
-    #[error("[{n}] Failed to get TLS config: {0}", n = self.name())]
-    GetRustlsConfig(std::io::Error),
+    #[error("[{n}] {0}", n = self.name())]
+    ToRustlsConfig(#[from] ToRustlsConfigError<<C::TlsConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     Serve(std::io::Error),

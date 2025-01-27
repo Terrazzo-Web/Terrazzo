@@ -160,3 +160,19 @@ impl<T: CertificateConfig> CertificateConfig for Arc<T> {
         self.as_ref().to_rustls_config()
     }
 }
+
+fn to() {
+    fn sfd() {
+        let mut roots = RootCertStore::empty();
+        roots
+            .add(self.root_ca.certificate.to_der().unwrap().into())
+            .unwrap();
+        let config = ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(
+                WebPkiServerVerifier::builder(roots.into()).build().unwrap(),
+            )
+            .with_no_client_auth();
+        let config = TlsConnector::from(Arc::new(config));
+    }
+}

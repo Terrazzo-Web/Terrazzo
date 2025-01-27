@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use certificate::CertificateConfig;
 use openssl::x509::store::X509Store;
-use trusted_store::TrustedStoreConfig;
 
 use self::certificate::Certificate;
+use self::certificate::CertificateConfig;
+use self::trusted_store::TrustedStoreConfig;
 
 pub mod certificate;
 mod common;

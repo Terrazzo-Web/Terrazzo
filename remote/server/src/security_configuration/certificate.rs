@@ -93,9 +93,9 @@ async fn to_rustls_config_impl<T: CertificateConfig + ?Sized>(
         .private_key
         .private_key_to_der()
         .map_err(ToRustlsConfigError::PrivateKeyToDer)?;
-    Ok(RustlsConfig::from_der(certificate_chain, private_key)
+    RustlsConfig::from_der(certificate_chain, private_key)
         .await
-        .map_err(ToRustlsConfigError::RustlsConfig)?)
+        .map_err(ToRustlsConfigError::RustlsConfig)
 }
 
 #[nameth]

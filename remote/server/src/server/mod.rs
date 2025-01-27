@@ -53,7 +53,7 @@ impl<C: GatewayConfig> Server<C> {
             .root_ca()
             .certificate()
             .map_err(|error| GatewayError::RootCa(error.into()))?;
-        debug!("Got Root CA");
+        debug!("Got Root CA: {}", root_ca.display());
 
         let tls_config = config.tls().to_rustls_config().await?;
         debug!("Got TLS config");

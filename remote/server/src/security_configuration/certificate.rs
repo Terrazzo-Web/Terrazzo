@@ -7,7 +7,9 @@ use nameth::NamedEnumValues as _;
 use openssl::error::ErrorStack;
 use openssl::pkey::PKey;
 use openssl::pkey::Private;
+use openssl::x509::X509Ref;
 use openssl::x509::X509;
+use tracing::debug;
 
 use super::common::parse_pem_certificates;
 
@@ -68,6 +70,20 @@ pub struct Certificate {
     pub private_key: PKey<Private>,
 }
 
+impl Certificate {
+    pub fn display(&self) -> impl std::fmt::Display {
+        display_x509_certificate(&self.certificate)
+    }
+}
+
+pub fn display_x509_certificate(certificate: &X509Ref) -> impl std::fmt::Display {
+    certificate
+        .to_text()
+        .map(String::from_utf8)
+        .unwrap_or_else(|error| Ok(error.to_string()))
+        .unwrap_or_else(|error| error.to_string())
+}
+
 async fn to_rustls_config_impl<T: CertificateConfig + ?Sized>(
     certificate_config: &T,
 ) -> Result<RustlsConfig, ToRustlsConfigError<T::Error>> {
@@ -75,16 +91,23 @@ async fn to_rustls_config_impl<T: CertificateConfig + ?Sized>(
         .certificate()
         .map_err(ToRustlsConfigError::Certificates)?;
     let mut certificate_chain = vec![];
+
+    debug!("Add leaf certificate: {}", certificate.display());
     certificate_chain.push(
         certificate
             .certificate
             .to_der()
             .map_err(ToRustlsConfigError::CertificateToDer)?,
     );
+
     for intermediate in certificate_config
         .intermediates()
         .map_err(ToRustlsConfigError::Intermediates)?
     {
+        debug!(
+            "Add intermediate: {}",
+            display_x509_certificate(&intermediate)
+        );
         let intermediate = intermediate.to_der();
         certificate_chain.push(intermediate.map_err(ToRustlsConfigError::IntermediateToDer)?);
     }

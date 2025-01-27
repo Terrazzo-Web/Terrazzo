@@ -87,7 +87,7 @@ pub fn make_cert(
     for extension in extensions {
         builder
             .append_extension(extension)
-            .map_err(MakeCertError::AppendExtension)?;
+            .map_err(MakeCertError::AppendCustomExtension)?;
     }
 
     builder
@@ -133,7 +133,7 @@ pub enum MakeCertError {
     SubjectAlternativeName(ErrorStack),
 
     #[error("[{n}] Failed add custom extension: {0}", n = self.name())]
-    AppendExtension(ErrorStack),
+    AppendCustomExtension(ErrorStack),
 
     #[error("[{n}] Failed to sign the certificate: {0}", n = self.name())]
     Sign(ErrorStack),
@@ -143,17 +143,17 @@ impl IsHttpError for MakeCertError {
     fn status_code(&self) -> StatusCode {
         match self {
             MakeCertError::ParsePublicKey { .. } => StatusCode::BAD_REQUEST,
-            MakeCertError::NewBuilder { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             MakeCertError::MakeName(error) => error.status_code(),
             MakeCertError::SetCommonFieldsError(error) => error.status_code(),
-            MakeCertError::SetPublicKey { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::BasicConstraints { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::KeyUsage { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::ExtendedKeyUsage { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::AuthorityKeyIdentifier { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::SubjectAlternativeName { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeCertError::AppendExtension { .. } => StatusCode::BAD_REQUEST,
-            MakeCertError::Sign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            MakeCertError::AppendCustomExtension { .. } => StatusCode::BAD_REQUEST,
+            MakeCertError::NewBuilder { .. }
+            | MakeCertError::SetPublicKey { .. }
+            | MakeCertError::BasicConstraints { .. }
+            | MakeCertError::KeyUsage { .. }
+            | MakeCertError::ExtendedKeyUsage { .. }
+            | MakeCertError::AuthorityKeyIdentifier { .. }
+            | MakeCertError::SubjectAlternativeName { .. }
+            | MakeCertError::Sign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

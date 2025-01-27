@@ -1,6 +1,6 @@
 name: Set up
 inputs:
-  github_token:
+  github-token:
     description: "GitHub token for authentication"
     required: true
 runs:
@@ -33,4 +33,4 @@ runs:
     - name: Install Protoc
       uses: arduino/setup-protoc@v3
       with:
-        repo-token: ${{ inputs.github_token }}
+        repo-token: ${{ inputs.github-token }}

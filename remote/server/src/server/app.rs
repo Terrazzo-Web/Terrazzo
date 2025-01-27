@@ -6,6 +6,7 @@ use axum::routing::get;
 use axum::Router;
 use tower_http::trace::DefaultMakeSpan;
 use tower_http::trace::TraceLayer;
+use tracing::Level;
 
 use super::gateway_configuration::GatewayConfig;
 use super::Server;
@@ -30,6 +31,9 @@ impl<C: GatewayConfig> Server<C> {
                     server.tunnel(client_id, web_socket)
                 }),
             )
-            .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()))
+            .layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(DefaultMakeSpan::default().level(Level::TRACE)),
+            )
     }
 }

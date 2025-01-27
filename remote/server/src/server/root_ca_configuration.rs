@@ -3,7 +3,7 @@ use std::path::Path;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 
-use crate::security_configuration::SecurityConfig;
+use crate::security_configuration::certificate::PemCertificate;
 use crate::utils::x509::ca::make_ca;
 use crate::utils::x509::ca::MakeCaError;
 use crate::utils::x509::name::CertitficateName;
@@ -11,13 +11,8 @@ use crate::utils::x509::validity::Validity;
 use crate::utils::x509::PemAsStringError;
 use crate::utils::x509::PemString as _;
 
-pub struct RootCaConfig {
-    root_ca: String,
-    private_key: String,
-}
-
-impl RootCaConfig {
-    pub fn load(
+impl PemCertificate {
+    pub fn load_root_ca(
         name: String,
         root_ca: impl AsRef<Path>,
         private_key: impl AsRef<Path>,
@@ -34,8 +29,9 @@ impl RootCaConfig {
                     .map_err(RootCaConfigError::LoadPrivateKey)?;
 
                 Ok(Self {
-                    root_ca,
-                    private_key,
+                    certificate_pem: root_ca,
+                    private_key_pem: private_key,
+                    intermediates_pem: String::default(),
                 })
             }
             (false, false) => {
@@ -45,10 +41,12 @@ impl RootCaConfig {
                         ..CertitficateName::default()
                     },
                     default_validity,
-                )?;
+                )
+                .map_err(Box::new)?;
                 Ok(Self {
-                    root_ca: certificate.to_pem().pem_string()?,
-                    private_key: private_key.private_key_to_pem_pkcs8().pem_string()?,
+                    certificate_pem: certificate.to_pem().pem_string()?,
+                    private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
+                    intermediates_pem: String::default(),
                 })
             }
             (root_ca_exists, private_key_exists) => {
@@ -58,16 +56,6 @@ impl RootCaConfig {
                 })
             }
         }
-    }
-}
-
-impl SecurityConfig for RootCaConfig {
-    fn certificate_pem(&self) -> &str {
-        &self.root_ca
-    }
-
-    fn private_key_pem(&self) -> &str {
-        &self.private_key
     }
 }
 
@@ -87,7 +75,7 @@ pub enum RootCaConfigError {
     },
 
     #[error("[{n}] {0}", n = self.name())]
-    MakeCa(#[from] MakeCaError),
+    MakeCa(#[from] Box<MakeCaError>),
 
     #[error("[{n}] {0}", n = self.name())]
     PemString(#[from] PemAsStringError),

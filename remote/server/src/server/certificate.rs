@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::gateway_configuration::GatewayConfig;
+use super::tunnel::ClientId;
 use super::Server;
 use crate::auth_code::AuthCode;
 use crate::utils::http_error::HttpError;
@@ -23,7 +24,7 @@ use crate::utils::x509::PemString as _;
 pub struct GetCertificateRequest {
     pub code: AuthCode,
     pub public_key: String,
-    pub name: String,
+    pub name: ClientId,
 }
 
 impl<C: GatewayConfig> Server<C> {
@@ -82,7 +83,16 @@ impl IsHttpError for GetCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
             GetCertificateError::InvalidAuthCode => StatusCode::FORBIDDEN,
-            GetCertificateError::MakeCert { .. } => StatusCode::BAD_REQUEST,
+            GetCertificateError::MakeCert(error) => error.status_code(),
+        }
+    }
+}
+
+impl IsHttpError for MakePemCertificateError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            MakePemCertificateError::MakeCert(error) => error.status_code(),
+            MakePemCertificateError::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

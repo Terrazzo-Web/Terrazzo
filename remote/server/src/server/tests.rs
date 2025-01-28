@@ -62,7 +62,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
         .body(serde_json::to_string(&GetCertificateRequest {
             code: AuthCode::current(),
             public_key,
-            name: "Test cert".to_owned(),
+            name: "Test cert".into(),
         })?);
     let response = request.send().await?;
     assert_eq!(StatusCode::OK, response.status());
@@ -99,7 +99,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
         .body(serde_json::to_string(&GetCertificateRequest {
             code: AuthCode::from("invalid-code"),
             public_key,
-            name: "Test cert".to_owned(),
+            name: "Test cert".into(),
         })?);
     let response = request.send().await?;
     assert_eq!(StatusCode::FORBIDDEN, response.status());

@@ -42,7 +42,7 @@ async fn to_rustls_config_impl<T: CertificateConfig + ?Sized>(
     {
         debug!(
             "Add intermediate: {}",
-            display_x509_certificate(&intermediate)
+            display_x509_certificate(intermediate)
         );
         let intermediate = intermediate.to_der();
         certificate_chain.push(intermediate.map_err(ToRustlsConfigError::IntermediateToDer)?);

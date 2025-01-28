@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::gateway_configuration::GatewayConfig;
-use super::tunnel::ClientId;
+use super::ClientId;
 use super::Server;
 use crate::auth_code::AuthCode;
 use crate::utils::http_error::HttpError;

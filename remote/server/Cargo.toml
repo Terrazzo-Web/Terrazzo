@@ -16,11 +16,12 @@ trz-gateway-common = { workspace = true }
 autoclone = { workspace = true }
 axum = { workspace = true, features = ["macros", "ws"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
-cms = { version = "0.2.3" }
+cms = { workspace = true }
+dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
-oid-registry = { version = "0.8.0" }
+oid-registry = { workspace = true }
 openssl = { workspace = true }
 rustls-native-certs = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }

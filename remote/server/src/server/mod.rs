@@ -16,9 +16,11 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
+use trz_gateway_common::declare_identifier;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
+use crate::connection::Connections;
 use crate::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
 use crate::security_configuration::certificate::rustls_config::ToRustlsConfigError;
 use crate::security_configuration::certificate::tls_connector::ToTlsConnector;
@@ -41,7 +43,10 @@ pub struct Server<C> {
     root_ca: Arc<Certificate>,
     tls_server: RustlsConfig,
     tls_client: TlsConnector,
+    connections: Connections,
 }
+
+declare_identifier!(ClientId);
 
 impl<C: GatewayConfig> Server<C> {
     pub async fn run(
@@ -72,6 +77,7 @@ impl<C: GatewayConfig> Server<C> {
             root_ca,
             tls_server,
             tls_client,
+            connections: Connections::default(),
         });
 
         let (host, port) = server.socket_addr();

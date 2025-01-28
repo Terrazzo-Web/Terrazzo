@@ -73,6 +73,7 @@ portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.29" }
 proc-macro2 = { version = "1.0.93" }
 prost = { version = "0.13.4" }
+prost-types = { version = "0.13.4" }
 quote = { version = "1.0.38" }
 reqwest = { version = "0.12.12" }
 reqwest-wasm = { version = "0.11.16" }

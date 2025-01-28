@@ -29,6 +29,7 @@ use tracing::Instrument as _;
 use tracing::Span;
 
 use self::rustls::pki_types::DnsName;
+use self::rustls::pki_types::InvalidDnsNameError;
 use self::rustls::pki_types::ServerName;
 use super::gateway_configuration::GatewayConfig;
 use super::ClientId;
@@ -87,11 +88,11 @@ impl<C: GatewayConfig> Server<C> {
         let tls_stream = self
             .tls_client
             .connect(
-                ServerName::DnsName(DnsName::try_from(client_id.to_string()).unwrap()),
+                ServerName::DnsName(DnsName::try_from(client_id.to_string())?),
                 connection,
             )
             .await
-            .unwrap();
+            .map_err(TunnelError::TlsConnectError)?;
 
         // The endpoint is irrelevant: gRPC isn't actually connecting to this endpoint.
         // Instead we are manually providing the connection using 'connect_with_connector'.
@@ -140,6 +141,12 @@ async fn make_single_use_connector<S: AsyncRead + AsyncWrite>(
 pub enum TunnelError {
     #[error("[{n}] Failed to create synthetic endpoint", n = self.name())]
     InvalidEndpoint,
+
+    #[error("[{n}] {0}", n = self.name())]
+    InvalidDnsName(#[from] InvalidDnsNameError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    TlsConnectError(std::io::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     SingleUseConnectorError(std::io::Error),

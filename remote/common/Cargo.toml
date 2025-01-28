@@ -12,6 +12,7 @@ description = { workspace = true }
 [dependencies]
 nameth = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
 tonic = { workspace = true }

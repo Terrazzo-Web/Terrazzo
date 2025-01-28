@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package terrazzo.remote.health;
+
+import "google/protobuf/duration.proto";
+
+service HealthService {
+  rpc PingPong(Ping) returns (Pong);
+}
+
+message Ping {
+  string connection_id = 1;
+  google.protobuf.Duration delay = 2;
+}
+
+message Pong {}

@@ -7,6 +7,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use futures::future::Shared;
 use futures::FutureExt;
+use handle::ServerHandle;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use tokio::sync::oneshot;
@@ -31,6 +32,7 @@ use crate::security_configuration::certificate::CertificateConfig;
 mod app;
 mod certificate;
 pub mod gateway_configuration;
+pub mod handle;
 pub mod root_ca_configuration;
 mod tunnel;
 
@@ -43,21 +45,18 @@ pub struct Server<C> {
     root_ca: Arc<Certificate>,
     tls_server: RustlsConfig,
     tls_client: TlsConnector,
-    connections: Connections,
+    connections: Arc<Connections>,
 }
 
 declare_identifier!(ClientId);
 
 impl<C: GatewayConfig> Server<C> {
-    pub async fn run(
-        config: C,
-    ) -> Result<(oneshot::Sender<String>, oneshot::Receiver<()>), GatewayError<C>> {
+    pub async fn run(config: C) -> Result<ServerHandle, GatewayError<C>> {
         if config.enable_tracing() {
             trz_gateway_common::tracing::enable_tracing()?;
         }
 
-        let (shutdown_tx, shutdown_rx) = oneshot::channel::<String>();
-        let shutdown_rx = shutdown_rx.shared();
+        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
 
         let root_ca = config
             .root_ca()
@@ -73,11 +72,11 @@ impl<C: GatewayConfig> Server<C> {
 
         let server = Arc::new(Self {
             config,
-            shutdown: shutdown_rx,
+            shutdown: shutdown_rx.shared(),
             root_ca,
             tls_server,
             tls_client,
-            connections: Connections::default(),
+            connections: Connections::default().into(),
         });
 
         let (host, port) = server.socket_addr();
@@ -107,20 +106,18 @@ impl<C: GatewayConfig> Server<C> {
             );
         }
 
-        let all_terminated = {
+        {
             use futures::future::join_all;
             let all_terminated = join_all(terminated);
-            let (all_terminated_tx, all_terminated_rx) = oneshot::channel();
             tokio::spawn(
                 async move {
                     let _: Vec<Result<(), oneshot::error::RecvError>> = all_terminated.await;
-                    let _: Result<(), ()> = all_terminated_tx.send(());
+                    let _: Result<(), ()> = terminated_tx.send(());
                 }
                 .in_current_span(),
             );
-            all_terminated_rx
-        };
-        Ok((shutdown_tx, all_terminated))
+        }
+        Ok(handle)
     }
 
     async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), GatewayError<C>> {

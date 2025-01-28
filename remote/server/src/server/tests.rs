@@ -5,7 +5,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use openssl::asn1::Asn1Time;
+use openssl::pkey::HasPublic;
+use openssl::pkey::PKeyRef;
 use reqwest::header::CONTENT_TYPE;
+use reqwest::Response;
 use reqwest::StatusCode;
 use tempfile::TempDir;
 use tracing::debug;
@@ -33,56 +36,40 @@ const ROOT_CA_PRIVATE_KEY_FILENAME: &str = "root-ca-key.pem";
 #[tokio::test]
 async fn status() -> Result<(), Box<dyn Error>> {
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await?;
+    let handle = Server::run(config.clone()).await?;
 
     let _client = make_client(&config).await;
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn certificate() -> Result<(), Box<dyn Error>> {
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await.expect("Server::run");
+    let handle = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let public_key = private_key.public_key_to_pem().pem_string()?;
-
-    let request = client
-        .get(format!(
-            "https://{}:{}/remote/certificate",
-            config.host(),
-            config.port
-        ))
-        .header(CONTENT_TYPE, "application/json")
-        .body(serde_json::to_string(&GetCertificateRequest {
-            code: AuthCode::current(),
-            public_key,
-            name: "Test cert".into(),
-        })?);
-    let response = request.send().await?;
+    let response = send_certificate_request(&config, client, &private_key).await?;
     assert_eq!(StatusCode::OK, response.status());
 
-    let body = response.text().await?;
-    let (rest, certificate) = x509_parser::pem::parse_x509_pem(body.as_bytes())?;
+    let pem = response.text().await?;
+    let (rest, certificate) = x509_parser::pem::parse_x509_pem(pem.as_bytes())?;
     assert_eq!([0; 0], rest);
     let certificate = certificate.parse_x509()?;
     assert_eq!("CN=Test Root CA", certificate.issuer().to_string());
     assert_eq!("CN=Test cert", certificate.subject().to_string());
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await?;
+    let handle = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
@@ -107,8 +94,24 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let body = response.text().await?;
     assert_eq!("[InvalidAuthCode] AuthCode is invalid", body);
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn tunnel() -> Result<(), Box<dyn Error>> {
+    let config = TestConfig::new();
+    let handle = Server::run(config.clone()).await?;
+
+    let client = make_client(&config).await?;
+
+    let private_key = make_key()?;
+    let response = send_certificate_request(&config, client, &private_key).await?;
+    assert_eq!(StatusCode::OK, response.status());
+
+    let _pem = response.text().await?;
+
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
@@ -142,8 +145,28 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
     panic!("Failed to connect")
 }
 
-#[derive(Debug)]
+async fn send_certificate_request(
+    config: &TestConfig,
+    client: reqwest::Client,
+    private_key: &PKeyRef<impl HasPublic>,
+) -> Result<Response, Box<dyn Error>> {
+    let public_key = private_key.public_key_to_pem().pem_string()?;
+    let request = client
+        .get(format!(
+            "https://{}:{}/remote/certificate",
+            config.host(),
+            config.port
+        ))
+        .header(CONTENT_TYPE, "application/json")
+        .body(serde_json::to_string(&GetCertificateRequest {
+            code: AuthCode::current(),
+            public_key,
+            name: "Test cert".into(),
+        })?);
+    Ok(request.send().await?)
+}
 
+#[derive(Debug)]
 struct TestConfig {
     port: u16,
     root_ca_config: Arc<PemCertificate>,

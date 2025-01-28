@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::time::Duration;
+use std::time::Instant;
 
 use openssl::asn1::Asn1Time;
 use openssl::pkey::HasPublic;
@@ -131,6 +132,7 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
     };
     let mut wait = Duration::from_millis(1);
     while wait < Duration::from_secs(5) {
+        let t = Instant::now();
         let request = client.get(format!("https://{}:{}/status", config.host(), config.port));
         match request.send().await {
             Ok(response) => match response.text().await.as_deref() {
@@ -140,7 +142,7 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
             Err(error) => debug!("Failed: {error:?}"),
         }
         tokio::time::sleep(wait).await;
-        wait = wait * 2;
+        wait = Duration::max(t.elapsed(), wait) * 2;
     }
     panic!("Failed to connect")
 }

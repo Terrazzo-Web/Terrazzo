@@ -10,6 +10,7 @@ use futures::FutureExt;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use tokio::sync::oneshot;
+use tokio_rustls::TlsConnector;
 use tracing::debug;
 use tracing::info;
 use tracing::info_span;
@@ -18,9 +19,12 @@ use tracing::Instrument as _;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
+use crate::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
+use crate::security_configuration::certificate::rustls_config::ToRustlsConfigError;
+use crate::security_configuration::certificate::tls_connector::ToTlsConnector;
+use crate::security_configuration::certificate::tls_connector::ToTlsConnectorError;
 use crate::security_configuration::certificate::Certificate;
 use crate::security_configuration::certificate::CertificateConfig;
-use crate::security_configuration::certificate::ToRustlsConfigError;
 
 mod app;
 mod certificate;
@@ -34,8 +38,9 @@ mod tests;
 pub struct Server<C> {
     config: C,
     shutdown: Shared<oneshot::Receiver<String>>,
-    root_ca: Certificate,
-    tls_config: RustlsConfig,
+    root_ca: Arc<Certificate>,
+    tls_server: RustlsConfig,
+    tls_client: TlsConnector,
 }
 
 impl<C: GatewayConfig> Server<C> {
@@ -55,14 +60,18 @@ impl<C: GatewayConfig> Server<C> {
             .map_err(|error| GatewayError::RootCa(error.into()))?;
         debug!("Got Root CA: {}", root_ca.display());
 
-        let tls_config = config.tls().to_rustls_config().await?;
-        debug!("Got TLS config");
+        let tls_server = config.tls().to_rustls_config().await?;
+        debug!("Got TLS server config");
+
+        let tls_client = config.root_ca().to_tls_connector().await?;
+        debug!("Got TLS client config");
 
         let server = Arc::new(Self {
             config,
             shutdown: shutdown_rx,
             root_ca,
-            tls_config,
+            tls_server,
+            tls_client,
         });
 
         let (host, port) = server.socket_addr();
@@ -113,7 +122,7 @@ impl<C: GatewayConfig> Server<C> {
 
         let handle = Handle::new();
         let axum_server =
-            axum_server::bind_rustls(socket_addr, self.tls_config.clone()).handle(handle.clone());
+            axum_server::bind_rustls(socket_addr, self.tls_server.clone()).handle(handle.clone());
 
         let shutdown = self.shutdown.clone();
         tokio::spawn(
@@ -158,7 +167,10 @@ pub enum GatewayError<C: GatewayConfig> {
     },
 
     #[error("[{n}] {0}", n = self.name())]
-    ToRustlsConfig(#[from] ToRustlsConfigError<<C::TlsConfig as CertificateConfig>::Error>),
+    ToTlsServerConfig(#[from] ToRustlsConfigError<<C::TlsConfig as CertificateConfig>::Error>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    ToTlsClientConfig(#[from] ToTlsConnectorError<<C::RootCaConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     Serve(std::io::Error),

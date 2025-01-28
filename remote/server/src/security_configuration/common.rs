@@ -9,3 +9,18 @@ pub(super) fn parse_pem_certificates(
         .filter(|pem| !pem.is_empty())
         .map(|pem| X509::from_pem(pem.as_bytes()))
 }
+
+pub(super) fn get_or_init<T: Clone, E>(
+    mutex: &std::sync::Mutex<Option<T>>,
+    make: impl FnOnce() -> Result<T, E>,
+) -> Result<T, E> {
+    let mut lock = mutex.lock().unwrap();
+    match &mut *lock {
+        Some(value) => Ok(value.clone()),
+        None => {
+            let value = make()?;
+            *lock = Some(value.clone());
+            return Ok(value);
+        }
+    }
+}

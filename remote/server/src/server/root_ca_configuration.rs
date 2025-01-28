@@ -3,7 +3,7 @@ use std::path::Path;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 
-use crate::security_configuration::certificate::PemCertificate;
+use crate::security_configuration::certificate::pem::PemCertificate;
 use crate::utils::x509::ca::make_ca;
 use crate::utils::x509::ca::MakeCaError;
 use crate::utils::x509::name::CertitficateName;

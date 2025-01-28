@@ -39,33 +39,27 @@ pub trait GatewayConfig: IsConfiguration {
 
 impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn enable_tracing(&self) -> bool {
-        let this: &T = self.as_ref();
-        this.enable_tracing()
+        self.as_ref().enable_tracing()
     }
     fn host(&self) -> &str {
-        let this: &T = self.as_ref();
-        this.host()
+        self.as_ref().host()
     }
     fn port(&self) -> u16 {
-        let this: &T = self.as_ref();
-        this.port()
+        self.as_ref().port()
     }
 
     type RootCaConfig = T::RootCaConfig;
     fn root_ca(&self) -> Self::RootCaConfig {
-        let this: &T = self.as_ref();
-        this.root_ca()
+        self.as_ref().root_ca()
     }
 
     type TlsConfig = T::TlsConfig;
     fn tls(&self) -> Self::TlsConfig {
-        let this: &T = self.as_ref();
-        this.tls()
+        self.as_ref().tls()
     }
 
     type ClientCertificateIssuerConfig = T::ClientCertificateIssuerConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
-        let this: &T = self.as_ref();
-        this.client_certificate_issuer()
+        self.as_ref().client_certificate_issuer()
     }
 }

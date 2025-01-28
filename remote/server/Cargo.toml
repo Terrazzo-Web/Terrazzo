@@ -18,6 +18,7 @@ axum = { workspace = true, features = ["macros", "ws"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
 cms = { version = "0.2.3" }
 futures = { workspace = true }
+hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
 oid-registry = { version = "0.8.0" }
 openssl = { workspace = true }
@@ -27,6 +28,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = { workspace = true }
 tokio-util = { workspace = true }
+tonic = { workspace = true }
+tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true, features = ["fs", "trace"] }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use openssl::x509::store::X509Store;
+use openssl::x509::X509;
 
 use self::certificate::Certificate;
 use self::certificate::CertificateConfig;
@@ -27,11 +28,11 @@ impl<T: TrustedStoreConfig, C> TrustedStoreConfig for SecurityConfig<T, C> {
 impl<T, C: CertificateConfig> CertificateConfig for SecurityConfig<T, C> {
     type Error = C::Error;
 
-    fn intermediates(&self) -> Result<Vec<openssl::x509::X509>, Self::Error> {
+    fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
         self.certificate.intermediates()
     }
 
-    fn certificate(&self) -> Result<Certificate, Self::Error> {
+    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error> {
         self.certificate.certificate()
     }
 }

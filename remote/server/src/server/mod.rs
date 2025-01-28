@@ -7,7 +7,6 @@ use axum_server::tls_rustls::RustlsConfig;
 use axum_server::Handle;
 use futures::future::Shared;
 use futures::FutureExt;
-use handle::ServerHandle;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use tokio::sync::oneshot;
@@ -21,6 +20,7 @@ use trz_gateway_common::declare_identifier;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
+use self::handle::ServerHandle;
 use crate::connection::Connections;
 use crate::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
 use crate::security_configuration::certificate::rustls_config::ToRustlsConfigError;

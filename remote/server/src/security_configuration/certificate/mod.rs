@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use cache::CachedCertificate;
-use cache::MemoizedCertificate;
 use openssl::pkey::PKey;
 use openssl::pkey::Private;
 use openssl::x509::X509Ref;
 use openssl::x509::X509;
+
+use self::cache::CachedCertificate;
+use self::cache::MemoizedCertificate;
 
 pub mod cache;
 pub mod pem;

@@ -110,7 +110,7 @@ impl<T> Validity<T> {
 mod tests {
     use openssl::asn1::Asn1Time;
 
-    use crate::utils::x509::validity::Validity;
+    use super::Validity;
 
     #[test]
     fn convert() -> Result<(), Box<dyn std::error::Error>> {

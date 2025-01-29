@@ -15,7 +15,7 @@ use super::time::SystemToAsn1TimeError;
 use super::validity::set_validity;
 use super::validity::Validity;
 use super::validity::ValidityError;
-use crate::utils::http_error::IsHttpError;
+use crate::http_error::IsHttpError;
 
 pub fn set_common_fields(
     builder: &mut X509Builder,

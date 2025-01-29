@@ -1,3 +1,4 @@
+use crate::x509::validity::Validity;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use openssl::asn1::Asn1OctetString;
@@ -14,7 +15,6 @@ use super::cms_options;
 use super::make_certificate_properties_hash;
 use super::signed_extension_oid;
 use super::MakeCertificatePropertiesHashError;
-use crate::utils::x509::validity::Validity;
 
 pub fn make_signed_extension(
     common_name: &str,

@@ -7,18 +7,18 @@ use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
 use serde::Deserialize;
 use serde::Serialize;
+use trz_gateway_common::http_error::HttpError;
+use trz_gateway_common::http_error::IsHttpError;
+use trz_gateway_common::id::ClientId;
+use trz_gateway_common::x509::cert::make_cert;
+use trz_gateway_common::x509::cert::MakeCertError;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::PemAsStringError;
+use trz_gateway_common::x509::PemString as _;
 
 use super::gateway_configuration::GatewayConfig;
-use super::ClientId;
 use super::Server;
 use crate::auth_code::AuthCode;
-use crate::utils::http_error::HttpError;
-use crate::utils::http_error::IsHttpError;
-use crate::utils::x509::cert::make_cert;
-use crate::utils::x509::cert::MakeCertError;
-use crate::utils::x509::name::CertitficateName;
-use crate::utils::x509::PemAsStringError;
-use crate::utils::x509::PemString as _;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetCertificateRequest {

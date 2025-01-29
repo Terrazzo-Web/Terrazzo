@@ -2,14 +2,14 @@ use std::path::Path;
 
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use trz_gateway_common::x509::ca::make_ca;
+use trz_gateway_common::x509::ca::MakeCaError;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::validity::Validity;
+use trz_gateway_common::x509::PemAsStringError;
+use trz_gateway_common::x509::PemString as _;
 
 use crate::security_configuration::certificate::pem::PemCertificate;
-use crate::utils::x509::ca::make_ca;
-use crate::utils::x509::ca::MakeCaError;
-use crate::utils::x509::name::CertitficateName;
-use crate::utils::x509::validity::Validity;
-use crate::utils::x509::PemAsStringError;
-use crate::utils::x509::PemString as _;
 
 impl PemCertificate {
     pub fn load_root_ca(

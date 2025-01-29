@@ -10,6 +10,7 @@ members = [
     "nameth/nameth",
     "nameth/nameth-macro",
     "nameth/nameth-tests",
+    "remote/client",
     "remote/common",
     "remote/server",
 ]
@@ -50,6 +51,7 @@ terrazzo = { version = "0.1.3", path = "framework/terrazzo", default-features = 
 terrazzo-build = { version = "0.1.3", path = "framework/build" }
 terrazzo-client = { version = "0.1.3", path = "framework/client" }
 terrazzo-macro = { version = "0.1.3", path = "framework/macro" }
+trz-gateway-client = { path = "remote/client" }
 trz-gateway-common = { path = "remote/common" }
 trz-gateway-server = { path = "remote/server" }
 

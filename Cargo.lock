@@ -3183,19 +3183,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
-name = "trz-gateway-common"
+name = "trz-gateway-client"
 version = "0.1.3"
 dependencies = [
  "nameth",
  "prost",
  "prost-types",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.11",
  "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "trz-gateway-common",
+]
+
+[[package]]
+name = "trz-gateway-common"
+version = "0.1.3"
+dependencies = [
+ "axum 0.8.1",
+ "cms",
+ "nameth",
+ "oid-registry 0.8.0",
+ "openssl",
+ "prost",
+ "prost-types",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio-rustls",
+ "tonic",
  "tonic-build",
  "tracing",
  "tracing-subscriber",
+ "x509-parser",
 ]
 
 [[package]]
@@ -3205,17 +3229,15 @@ dependencies = [
  "autoclone",
  "axum 0.8.1",
  "axum-server",
- "cms",
  "dashmap",
  "futures",
  "hyper-util",
+ "mime",
  "nameth",
- "oid-registry 0.8.0",
  "openssl",
  "portpicker",
  "prost-types",
  "reqwest",
- "rustls-native-certs",
  "scopeguard",
  "serde",
  "serde_json",
@@ -3230,7 +3252,6 @@ dependencies = [
  "tracing",
  "trz-gateway-common",
  "uuid",
- "x509-parser",
 ]
 
 [[package]]

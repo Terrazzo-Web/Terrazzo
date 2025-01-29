@@ -6,7 +6,7 @@ use openssl::nid::Nid;
 use openssl::x509::X509Name;
 use openssl::x509::X509NameBuilder;
 
-use crate::utils::http_error::IsHttpError;
+use crate::http_error::IsHttpError;
 
 pub(super) fn make_name(args: CertitficateName) -> Result<X509Name, MakeNameError> {
     let mut name = X509NameBuilder::new().map_err(MakeNameError::NewBuilder)?;

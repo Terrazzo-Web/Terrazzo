@@ -43,6 +43,8 @@ macro_rules! declare_identifier {
     };
 }
 
+declare_identifier!(ClientId);
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

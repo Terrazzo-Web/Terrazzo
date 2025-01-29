@@ -125,10 +125,10 @@ mod tests {
     use openssl::sign::Signer;
     use openssl::sign::Verifier;
 
+    use crate::x509::validity::Validity;
+
     use super::super::name::CertitficateName;
-    use crate::utils::x509::ca::MakeCaError;
-    use crate::utils::x509::validity::Validity;
-    use crate::utils::x509::PemString as _;
+    use super::MakeCaError;
 
     #[test]
     fn make_ca() -> Result<(), Box<dyn Error>> {

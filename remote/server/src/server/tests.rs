@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use std::time::Instant;
 
+use mime::APPLICATION_JSON;
 use openssl::asn1::Asn1Time;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
@@ -14,6 +15,12 @@ use reqwest::StatusCode;
 use tempfile::TempDir;
 use tracing::debug;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
+use trz_gateway_common::x509::ca::make_intermediate;
+use trz_gateway_common::x509::cert::make_cert;
+use trz_gateway_common::x509::key::make_key;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::validity::Validity;
+use trz_gateway_common::x509::PemString as _;
 
 use super::gateway_configuration::GatewayConfig;
 use super::root_ca_configuration::RootCaConfigError;
@@ -24,12 +31,6 @@ use crate::security_configuration::trusted_store::PemTrustedStore;
 use crate::security_configuration::SecurityConfig;
 use crate::server::certificate::GetCertificateRequest;
 use crate::server::Server;
-use crate::utils::x509::ca::make_intermediate;
-use crate::utils::x509::cert::make_cert;
-use crate::utils::x509::key::make_key;
-use crate::utils::x509::name::CertitficateName;
-use crate::utils::x509::validity::Validity;
-use crate::utils::x509::PemString as _;
 
 const ROOT_CA_CERTIFICATE_FILENAME: &str = "root-ca-cert.pem";
 const ROOT_CA_PRIVATE_KEY_FILENAME: &str = "root-ca-key.pem";
@@ -83,7 +84,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
             config.host(),
             config.port
         ))
-        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
             code: AuthCode::from("invalid-code"),
             public_key,
@@ -159,7 +160,7 @@ async fn send_certificate_request(
             config.host(),
             config.port
         ))
-        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
             code: AuthCode::current(),
             public_key,

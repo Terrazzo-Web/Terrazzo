@@ -16,7 +16,6 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
-use trz_gateway_common::declare_identifier;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
@@ -47,8 +46,6 @@ pub struct Server<C> {
     tls_client: TlsConnector,
     connections: Arc<Connections>,
 }
-
-declare_identifier!(ClientId);
 
 impl<C: GatewayConfig> Server<C> {
     pub async fn run(config: C) -> Result<ServerHandle, GatewayError<C>> {

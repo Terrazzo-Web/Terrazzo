@@ -12,10 +12,9 @@ use tokio::time::error::Elapsed;
 use tokio::time::timeout;
 use tonic::transport::Channel;
 use tracing::Instrument;
+use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
-
-use crate::server::ClientId;
 
 pub mod connection_id;
 

@@ -27,12 +27,12 @@ use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
 use tracing::Span;
+use trz_gateway_common::id::ClientId;
 
 use self::rustls::pki_types::DnsName;
 use self::rustls::pki_types::InvalidDnsNameError;
 use self::rustls::pki_types::ServerName;
 use super::gateway_configuration::GatewayConfig;
-use super::ClientId;
 use super::Server;
 
 impl<C: GatewayConfig> Server<C> {

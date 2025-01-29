@@ -33,6 +33,8 @@ mod tests {
 
     use openssl::pkey::PKey;
 
+    use crate::x509::PemString as _;
+
     #[test]
     fn make_key() -> Result<(), Box<dyn Error>> {
         Ok({

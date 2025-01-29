@@ -164,14 +164,6 @@ mod tests {
     use std::time::Duration;
     use std::time::SystemTime;
 
-    use crate::x509::ca::make_ca;
-    use crate::x509::ca::make_intermediate;
-    use crate::x509::ca::MakeCaError;
-    use crate::x509::key::make_key;
-    use crate::x509::signed_extension::make_signed_extension;
-    use crate::x509::signed_extension::validate_signed_extension;
-    use crate::x509::validity::Validity;
-    use crate::x509::PemString as _;
     use openssl::pkey::PKey;
     use openssl::pkey::PKeyRef;
     use openssl::pkey::Private;
@@ -187,6 +179,14 @@ mod tests {
     use tokio_rustls::rustls::pki_types::CertificateDer;
 
     use super::super::name::CertitficateName;
+    use crate::x509::ca::make_ca;
+    use crate::x509::ca::make_intermediate;
+    use crate::x509::ca::MakeCaError;
+    use crate::x509::key::make_key;
+    use crate::x509::signed_extension::make_signed_extension;
+    use crate::x509::signed_extension::validate_signed_extension;
+    use crate::x509::validity::Validity;
+    use crate::x509::PemString as _;
 
     const DATA: &str = "Hello, world! 😃";
 

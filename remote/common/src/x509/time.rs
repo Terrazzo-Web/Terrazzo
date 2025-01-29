@@ -55,7 +55,8 @@ mod tests {
     use std::time::SystemTime;
     use std::time::UNIX_EPOCH;
 
-    use super::{asn1_to_system_time, system_to_asn1_time};
+    use super::asn1_to_system_time;
+    use super::system_to_asn1_time;
 
     #[test]
     fn convert() {

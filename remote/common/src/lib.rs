@@ -1,3 +1,4 @@
+pub mod api;
 pub mod http_error;
 pub mod id;
 pub mod protos;

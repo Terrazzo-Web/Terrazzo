@@ -92,6 +92,7 @@ tempfile = { version = "3.15.0" }
 thiserror = { version = "2.0.11" }
 tokio = { version = "1.43.0" }
 tokio-rustls = { version = "0.26.1" }
+tokio-tungstenite = { version = "0.26.1" }
 tokio-util = { version = "0.7.13" }
 tonic = { version = "0.12.2" }
 tonic-build = { version = "0.12.3" }

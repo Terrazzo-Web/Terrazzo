@@ -14,6 +14,7 @@ use reqwest::Response;
 use reqwest::StatusCode;
 use tempfile::TempDir;
 use tracing::debug;
+use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 use trz_gateway_common::x509::ca::make_intermediate;
 use trz_gateway_common::x509::cert::make_cert;
@@ -29,7 +30,6 @@ use crate::security_configuration::certificate::pem::PemCertificate;
 use crate::security_configuration::certificate::CertificateConfig;
 use crate::security_configuration::trusted_store::PemTrustedStore;
 use crate::security_configuration::SecurityConfig;
-use crate::server::certificate::GetCertificateRequest;
 use crate::server::Server;
 
 const ROOT_CA_CERTIFICATE_FILENAME: &str = "root-ca-cert.pem";
@@ -86,7 +86,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
         ))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
-            code: AuthCode::from("invalid-code"),
+            auth_code: AuthCode::from("invalid-code"),
             public_key,
             name: "Test cert".into(),
         })?);
@@ -162,7 +162,7 @@ async fn send_certificate_request(
         ))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
-            code: AuthCode::current(),
+            auth_code: AuthCode::current(),
             public_key,
             name: "Test cert".into(),
         })?);

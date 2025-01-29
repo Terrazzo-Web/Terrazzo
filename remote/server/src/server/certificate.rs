@@ -5,11 +5,9 @@ use axum::Json;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
-use serde::Deserialize;
-use serde::Serialize;
+use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::http_error::IsHttpError;
-use trz_gateway_common::id::ClientId;
 use trz_gateway_common::x509::cert::make_cert;
 use trz_gateway_common::x509::cert::MakeCertError;
 use trz_gateway_common::x509::name::CertitficateName;
@@ -20,19 +18,12 @@ use super::gateway_configuration::GatewayConfig;
 use super::Server;
 use crate::auth_code::AuthCode;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetCertificateRequest {
-    pub code: AuthCode,
-    pub public_key: String,
-    pub name: ClientId,
-}
-
 impl<C: GatewayConfig> Server<C> {
     pub async fn get_certificate(
         self: Arc<Self>,
-        Json(request): Json<GetCertificateRequest>,
+        Json(request): Json<GetCertificateRequest<AuthCode>>,
     ) -> Result<String, HttpError<GetCertificateError>> {
-        if !request.code.is_valid() {
+        if !request.auth_code.is_valid() {
             return Err(GetCertificateError::InvalidAuthCode)?;
         }
         Ok(self
@@ -42,7 +33,7 @@ impl<C: GatewayConfig> Server<C> {
 
     fn make_pem_cert(
         self: Arc<Self>,
-        request: GetCertificateRequest,
+        request: GetCertificateRequest<AuthCode>,
     ) -> Result<String, MakePemCertificateError> {
         let certificate = make_cert(
             &self.root_ca.certificate,

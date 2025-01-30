@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::future::Future;
 
 use axum_server::tls_rustls::RustlsConfig;

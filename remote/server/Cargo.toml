@@ -11,7 +11,7 @@ description = { workspace = true }
 [lib]
 
 [dependencies]
-trz-gateway-common = { workspace = true }
+trz-gateway-common = { workspace = true, features = ["server"] }
 
 autoclone = { workspace = true }
 axum = { workspace = true, features = ["macros", "ws"] }

@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::future::Future;
 use std::sync::Arc;
 

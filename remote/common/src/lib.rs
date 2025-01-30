@@ -2,6 +2,7 @@ pub mod api;
 pub mod http_error;
 pub mod id;
 pub mod protos;
+pub mod security_configuration;
 pub mod tracing;
 pub mod x509;
 

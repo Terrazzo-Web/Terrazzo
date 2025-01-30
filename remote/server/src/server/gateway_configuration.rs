@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use crate::security_configuration::certificate::CertificateConfig;
-use crate::security_configuration::HasSecurityConfig;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::HasSecurityConfig;
+
 use crate::utils::is_configuration::IsConfiguration;
 
 pub trait GatewayConfig: IsConfiguration {

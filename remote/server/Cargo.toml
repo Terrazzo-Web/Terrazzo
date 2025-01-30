@@ -20,7 +20,6 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
-openssl = { workspace = true }
 prost-types = { workspace = true }
 scopeguard = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
@@ -36,6 +35,7 @@ uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 mime = { workspace = true }
+openssl = { workspace = true }
 portpicker = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }

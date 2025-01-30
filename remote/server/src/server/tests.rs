@@ -15,6 +15,10 @@ use reqwest::StatusCode;
 use tempfile::TempDir;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
+use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::trusted_store::PemTrustedStore;
+use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 use trz_gateway_common::x509::ca::make_intermediate;
 use trz_gateway_common::x509::cert::make_cert;
@@ -24,13 +28,10 @@ use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_common::x509::PemString as _;
 
 use super::gateway_configuration::GatewayConfig;
+use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
+use super::Server;
 use crate::auth_code::AuthCode;
-use crate::security_configuration::certificate::pem::PemCertificate;
-use crate::security_configuration::certificate::CertificateConfig;
-use crate::security_configuration::trusted_store::PemTrustedStore;
-use crate::security_configuration::SecurityConfig;
-use crate::server::Server;
 
 const ROOT_CA_CERTIFICATE_FILENAME: &str = "root-ca-cert.pem";
 const ROOT_CA_PRIVATE_KEY_FILENAME: &str = "root-ca-key.pem";
@@ -222,7 +223,7 @@ fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let lock = MUTEX.lock().unwrap();
     let tempdir = temp_dir();
-    let root_ca = PemCertificate::load_root_ca(
+    let root_ca = root_ca_configuration::load_root_ca(
         "Test Root CA".to_owned(),
         tempdir.path().join(ROOT_CA_CERTIFICATE_FILENAME),
         tempdir.path().join(ROOT_CA_PRIVATE_KEY_FILENAME),

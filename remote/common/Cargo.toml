@@ -11,6 +11,7 @@ description = { workspace = true }
 
 [dependencies]
 axum = { workspace = true }
+axum-server = { workspace = true, features = ["tls-rustls"] }
 cms = { workspace = true }
 nameth = { workspace = true }
 oid-registry = { workspace = true }

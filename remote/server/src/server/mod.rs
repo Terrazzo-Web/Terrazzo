@@ -16,17 +16,17 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
+use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
+use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfigError;
+use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsConnector;
+use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsConnectorError;
+use trz_gateway_common::security_configuration::certificate::Certificate;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
 use self::handle::ServerHandle;
 use crate::connection::Connections;
-use crate::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
-use crate::security_configuration::certificate::rustls_config::ToRustlsConfigError;
-use crate::security_configuration::certificate::tls_connector::ToTlsConnector;
-use crate::security_configuration::certificate::tls_connector::ToTlsConnectorError;
-use crate::security_configuration::certificate::Certificate;
-use crate::security_configuration::certificate::CertificateConfig;
 
 mod app;
 mod certificate;

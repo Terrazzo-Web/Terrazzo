@@ -41,6 +41,7 @@ async fn to_tls_connector_impl<T: CertificateConfig + ?Sized>(
     let config = ClientConfig::builder()
         .dangerous()
         .with_custom_certificate_verifier(
+            // TODO: validate the signed extension
             WebPkiServerVerifier::builder(roots.into()).build().unwrap(),
         )
         .with_no_client_auth();

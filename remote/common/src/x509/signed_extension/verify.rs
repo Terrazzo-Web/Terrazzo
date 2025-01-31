@@ -1,6 +1,5 @@
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
-use openssl::x509::store::X509StoreRef;
 use tokio_rustls::rustls;
 use x509_parser::error::X509Error;
 use x509_parser::prelude::FromDer;
@@ -12,13 +11,14 @@ use self::signature::verify_signature;
 use self::signature::VerifySignatureError;
 use self::signer::verify_signer;
 use self::signer::VerifySignerError;
+use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
 mod signature;
 mod signer;
 
 pub fn validate_signed_extension(
     certificate: &CertificateDer,
-    store: Option<&X509StoreRef>,
+    store: &impl TrustedStoreConfig,
     signer_name: &str,
 ) -> Result<(), ValidateSignedExtensionError> {
     let (_rest, certificate) = X509Certificate::from_der(certificate)?;

@@ -79,14 +79,15 @@ prost-types = { version = "0.13.4" }
 quote = { version = "1.0.38" }
 reqwest = { version = "0.12.12" }
 reqwest-wasm = { version = "0.11.16" }
+rsass-macros = { version = "0.28.10" }
 rustix = { version = "0.38.42" }
+rustls = { version = "0.23.21" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.217", features = ["derive", "rc"] }
 serde_json = { version = "1.0.137" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.4" }
-rsass-macros = { version = "0.28.10" }
 syn = { version = "2.0.93" }
 tempfile = { version = "3.15.0" }
 thiserror = { version = "2.0.11" }

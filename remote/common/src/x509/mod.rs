@@ -9,10 +9,10 @@ pub mod cert;
 pub mod common_fields;
 pub mod key;
 pub mod name;
+pub mod native_roots;
 pub mod serial_number;
 pub mod signed_extension;
 pub mod time;
-pub mod trusted_roots;
 pub mod validity;
 
 pub trait PemString {

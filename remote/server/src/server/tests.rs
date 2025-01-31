@@ -17,7 +17,7 @@ use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
-use trz_gateway_common::security_configuration::trusted_store::PemTrustedStore;
+use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
 use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 use trz_gateway_common::x509::ca::make_intermediate;

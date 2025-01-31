@@ -2,32 +2,33 @@ use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use openssl::cms::CmsContentInfo;
 use openssl::error::ErrorStack;
-use openssl::x509::store::X509StoreRef;
 use x509_parser::prelude::X509Certificate;
 use x509_parser::prelude::X509Extension;
 
+use crate::security_configuration::trusted_store::TrustedStoreConfig;
 use crate::x509::signed_extension::cms_options;
 use crate::x509::signed_extension::make_certificate_properties_hash;
 use crate::x509::signed_extension::MakeCertificatePropertiesHashError;
-use crate::x509::trusted_roots::trusted_roots;
 use crate::x509::validity::Validity;
 
 pub fn verify_signature(
-    store: Option<&X509StoreRef>,
+    store: &impl TrustedStoreConfig,
     certificate: &X509Certificate<'_>,
     signed_extension: &X509Extension<'_>,
 ) -> Result<(), VerifySignatureError> {
+    let store = Some(
+        store
+            .root_certificates()
+            .map_err(|error| VerifySignatureError::RootCertificates(error.into()))?,
+    );
+    let store = store.as_ref().map(|s| s.as_ref().as_ref());
     let mut signed_cms = CmsContentInfo::from_der(signed_extension.value)
         .map_err(VerifySignatureError::CmsContentInfo)?;
-    let store = match store {
-        Some(store) => store,
-        None => trusted_roots(),
-    };
     let mut signed_cms_content = vec![];
     let () = signed_cms
         .verify(
             None,
-            Some(store),
+            store,
             None,
             Some(&mut signed_cms_content),
             cms_options(),
@@ -82,6 +83,9 @@ pub fn verify_signature(
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum VerifySignatureError {
+    #[error("[{n}] Failed to load root certificates", n = self.name())]
+    RootCertificates(Box<dyn std::error::Error>),
+
     #[error("[{n}] The signed extension didn't contain a Signed CMS", n = self.name())]
     CmsContentInfo(ErrorStack),
 

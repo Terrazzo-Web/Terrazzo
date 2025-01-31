@@ -179,6 +179,8 @@ mod tests {
     use tokio_rustls::rustls::pki_types::CertificateDer;
 
     use super::super::name::CertitficateName;
+    use crate::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
+    use crate::security_configuration::trusted_store::empty::EmptyTrustedStoreConfig;
     use crate::x509::ca::make_ca;
     use crate::x509::ca::make_intermediate;
     use crate::x509::ca::MakeCaError;
@@ -384,9 +386,12 @@ mod tests {
 
     #[test]
     fn signed_extension_not_a_cert() -> Result<(), Box<dyn Error>> {
-        let error =
-            validate_signed_extension(&CertificateDer::from_slice("abcd".as_bytes()), None, "")
-                .unwrap_err();
+        let error = validate_signed_extension(
+            &CertificateDer::from_slice("abcd".as_bytes()),
+            &EmptyTrustedStoreConfig,
+            "",
+        )
+        .unwrap_err();
         defer_on_unwind!(eprintln!("{error}"));
         assert!(error
             .to_string()
@@ -470,7 +475,7 @@ mod tests {
         };
         let () = validate_signed_extension(
             &CertificateDer::from_slice(&certificate.to_der()?),
-            Some(&store),
+            &CachedTrustedStoreConfig::from(store),
             "Terrazzo Client",
         )?;
         Ok(())

@@ -44,7 +44,7 @@ async fn to_tls_connector_impl<T: CertificateConfig + ?Sized>(
         .dangerous()
         .with_custom_certificate_verifier(
             // TODO: validate the signed extension
-            WebPkiServerVerifier::builder(roots.into()).build().unwrap(),
+            WebPkiServerVerifier::builder(roots.into()).build()?,
         )
         .with_no_client_auth();
     Ok(TlsConnector::from(Arc::new(config)))

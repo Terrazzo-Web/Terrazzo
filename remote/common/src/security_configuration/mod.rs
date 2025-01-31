@@ -20,7 +20,7 @@ pub struct SecurityConfig<T, C> {
 impl<T: TrustedStoreConfig, C> TrustedStoreConfig for SecurityConfig<T, C> {
     type Error = T::Error;
 
-    fn root_certificates(&self) -> Result<X509Store, Self::Error> {
+    fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
         self.trusted_store.root_certificates()
     }
 }

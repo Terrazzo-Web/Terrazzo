@@ -2,12 +2,15 @@ use std::sync::Arc;
 
 use openssl::x509::store::X509Store;
 
+use crate::is_configuration::IsConfiguration;
+
 pub mod cache;
 pub mod empty;
 pub mod native;
 pub mod pem;
+pub mod rustls_connector;
 
-pub trait TrustedStoreConfig {
+pub trait TrustedStoreConfig: IsConfiguration {
     type Error: std::error::Error + 'static;
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error>;
 }

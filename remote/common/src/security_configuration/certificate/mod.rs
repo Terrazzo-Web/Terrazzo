@@ -7,13 +7,14 @@ use openssl::x509::X509;
 
 use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;
+use crate::is_configuration::IsConfiguration;
 
 pub mod cache;
 pub mod pem;
 pub mod rustls_config;
 pub mod tls_connector;
 
-pub trait CertificateConfig {
+pub trait CertificateConfig: IsConfiguration {
     type Error: std::error::Error;
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error>;
     fn certificate(&self) -> Result<Arc<Certificate>, Self::Error>;

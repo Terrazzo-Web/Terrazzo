@@ -10,7 +10,7 @@ description = { workspace = true }
 [lib]
 
 [dependencies]
-trz-gateway-common = { workspace = true }
+trz-gateway-common = { workspace = true, features = ["client"] }
 
 mime = { workspace = true }
 nameth = { workspace = true }
@@ -18,10 +18,11 @@ openssl = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 reqwest = { workspace = true }
+rustls = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio-tungstenite = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

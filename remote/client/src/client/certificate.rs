@@ -27,8 +27,7 @@ impl Client {
                 public_key,
                 name: "Test cert".into(),
             })?);
-        let response = request.send().await?.text().await?;
-        Ok("".into())
+        Ok(request.send().await?.text().await?)
     }
 }
 

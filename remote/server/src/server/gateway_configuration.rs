@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
+use trz_gateway_common::is_configuration::IsConfiguration;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
-
-use crate::utils::is_configuration::IsConfiguration;
 
 pub trait GatewayConfig: IsConfiguration {
     fn enable_tracing(&self) -> bool {
@@ -30,7 +29,7 @@ pub trait GatewayConfig: IsConfiguration {
     fn root_ca(&self) -> Self::RootCaConfig;
 
     /// The TLS certificate used to listen to HTTPS connections.
-    type TlsConfig: HasSecurityConfig;
+    type TlsConfig: CertificateConfig;
     fn tls(&self) -> Self::TlsConfig;
 
     /// The certificate used to sign the custom extension of X509 certificates.

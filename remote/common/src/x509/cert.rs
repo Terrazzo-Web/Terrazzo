@@ -175,8 +175,8 @@ mod tests {
     use openssl::x509::X509Extension;
     use openssl::x509::X509Ref;
     use openssl::x509::X509;
+    use rustls::pki_types::CertificateDer;
     use scopeguard::defer_on_unwind;
-    use tokio_rustls::rustls::pki_types::CertificateDer;
 
     use super::super::name::CertitficateName;
     use crate::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;

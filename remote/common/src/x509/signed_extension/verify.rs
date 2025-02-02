@@ -1,12 +1,11 @@
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
-use tokio_rustls::rustls;
+use rustls::pki_types::CertificateDer;
 use x509_parser::error::X509Error;
 use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
 use x509_parser::prelude::X509Extension;
 
-use self::rustls::pki_types::CertificateDer;
 use self::signature::verify_signature;
 use self::signature::VerifySignatureError;
 use self::signer::verify_signer;

@@ -8,7 +8,7 @@ pub mod cache;
 pub mod empty;
 pub mod native;
 pub mod pem;
-pub mod rustls_connector;
+pub mod root_cert_store;
 
 pub trait TrustedStoreConfig: IsConfiguration {
     type Error: std::error::Error + 'static;

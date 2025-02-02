@@ -11,7 +11,7 @@ use super::TrustedStoreConfig;
 pub trait ToRootCertStore: TrustedStoreConfig {
     fn to_root_cert_store(
         &self,
-    ) -> impl Future<Output = Result<RootCertStore, ToRustlsRootCertStoreError<Self::Error>>> {
+    ) -> impl Future<Output = Result<RootCertStore, ToRootCertStoreError<Self::Error>>> {
         to_root_cert_store_impl(self)
     }
 }
@@ -20,25 +20,25 @@ impl<T: TrustedStoreConfig> ToRootCertStore for T {}
 
 pub async fn to_root_cert_store_impl<T: TrustedStoreConfig + ?Sized>(
     trusted_store: &T,
-) -> Result<RootCertStore, ToRustlsRootCertStoreError<T::Error>> {
+) -> Result<RootCertStore, ToRootCertStoreError<T::Error>> {
     let mut roots = RootCertStore::empty();
     let trusted_roots = trusted_store
         .root_certificates()
-        .map_err(ToRustlsRootCertStoreError::Certificate)?;
+        .map_err(ToRootCertStoreError::Certificate)?;
     for trusted_root in trusted_roots.all_certificates() {
         let trusted_root_der = trusted_root
             .to_der()
-            .map_err(ToRustlsRootCertStoreError::X509ToDer)?;
+            .map_err(ToRootCertStoreError::X509ToDer)?;
         roots
             .add(CertificateDer::from_slice(&trusted_root_der))
-            .map_err(ToRustlsRootCertStoreError::AddCertificate)?;
+            .map_err(ToRootCertStoreError::AddCertificate)?;
     }
     Ok(roots)
 }
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum ToRustlsRootCertStoreError<E: std::error::Error> {
+pub enum ToRootCertStoreError<E: std::error::Error> {
     #[error("[{n}] {0}", n = self.name())]
     Certificate(E),
 

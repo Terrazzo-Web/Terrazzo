@@ -18,8 +18,8 @@ use tracing::warn;
 use tracing::Instrument as _;
 use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
 use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfigError;
-use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsConnector;
-use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsConnectorError;
+use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsClient;
+use trz_gateway_common::security_configuration::certificate::tls_connector::ToTlsClientError;
 use trz_gateway_common::security_configuration::certificate::Certificate;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::tracing::EnableTracingError;
@@ -64,7 +64,7 @@ impl<C: GatewayConfig> Server<C> {
         let tls_server = config.tls().to_rustls_config().await?;
         debug!("Got TLS server config");
 
-        let tls_client = config.root_ca().to_tls_connector().await?;
+        let tls_client = config.root_ca().to_tls_client().await?;
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {
@@ -170,7 +170,7 @@ pub enum GatewayError<C: GatewayConfig> {
     ToTlsServerConfig(#[from] ToRustlsConfigError<<C::TlsConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
-    ToTlsClientConfig(#[from] ToTlsConnectorError<<C::RootCaConfig as CertificateConfig>::Error>),
+    ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     Serve(std::io::Error),

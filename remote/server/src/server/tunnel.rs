@@ -15,9 +15,11 @@ use hyper_util::rt::TokioIo;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
+use rustls::pki_types::DnsName;
+use rustls::pki_types::InvalidDnsNameError;
+use rustls::pki_types::ServerName;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio_rustls::rustls;
 use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
 use tokio_util::io::StreamReader;
@@ -29,9 +31,6 @@ use tracing::Instrument as _;
 use tracing::Span;
 use trz_gateway_common::id::ClientId;
 
-use self::rustls::pki_types::DnsName;
-use self::rustls::pki_types::InvalidDnsNameError;
-use self::rustls::pki_types::ServerName;
 use super::gateway_configuration::GatewayConfig;
 use super::Server;
 

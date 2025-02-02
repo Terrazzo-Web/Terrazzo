@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use tokio_rustls::rustls;
-
-use self::rustls::crypto::aws_lc_rs;
-use self::rustls::crypto::CryptoProvider;
+use rustls::crypto::aws_lc_rs;
+use rustls::crypto::CryptoProvider;
 
 pub fn crypto_provider() -> &'static Arc<CryptoProvider> {
     let once = std::sync::Once::new();

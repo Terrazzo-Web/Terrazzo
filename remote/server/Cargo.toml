@@ -21,6 +21,7 @@ futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
 prost-types = { workspace = true }
+rustls = { workspace = true }
 scopeguard = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }

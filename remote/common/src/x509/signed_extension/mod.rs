@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::sync::OnceLock;
 use std::time::SystemTimeError;
 use std::time::UNIX_EPOCH;

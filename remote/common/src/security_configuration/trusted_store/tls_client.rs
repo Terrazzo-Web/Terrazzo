@@ -4,7 +4,6 @@ use std::sync::Arc;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
-use openssl::error::ErrorStack;
 use rustls::client::danger::HandshakeSignatureValid;
 use rustls::client::danger::ServerCertVerified;
 use rustls::client::WebPkiServerVerifier;
@@ -13,23 +12,29 @@ use rustls::pki_types::ServerName;
 use rustls::pki_types::UnixTime;
 use rustls::server::VerifierBuilderError;
 use rustls::ClientConfig;
-use rustls::RootCertStore;
 
-use super::CertificateConfig;
+use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStore;
+use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStoreError;
+use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
 /// TLS client for
 /// - Client to Gateway WebSocket
 /// - Gateway to Client gRPC + needs custom server cert validator
-pub trait ToTlsClient: CertificateConfig {
+pub trait ToTlsClient: TrustedStoreConfig + Sized {
     fn to_tls_client(
         &self,
-        server_certificate_verifier: Option<impl CustomServerCertificateVerifier + 'static>,
+        server_certificate_verifier: impl CustomServerCertificateVerifier + 'static,
     ) -> impl Future<Output = Result<ClientConfig, ToTlsClientError<Self::Error>>> {
         to_tls_client_impl(self, server_certificate_verifier)
     }
 }
 
+impl<T: TrustedStoreConfig> ToTlsClient for T {}
+
 pub trait CustomServerCertificateVerifier: Send + Sync {
+    fn has_custom_logic() -> bool {
+        true
+    }
     fn verify_server_certificate(
         &self,
         end_entity: &CertificateDer<'_>,
@@ -40,31 +45,38 @@ pub trait CustomServerCertificateVerifier: Send + Sync {
     ) -> Result<ServerCertVerified, rustls::Error>;
 }
 
-impl<T: CertificateConfig> ToTlsClient for T {}
+pub struct ChainOnlyServerCertificateVerifier;
+impl CustomServerCertificateVerifier for ChainOnlyServerCertificateVerifier {
+    fn has_custom_logic() -> bool {
+        false
+    }
+    fn verify_server_certificate(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        unreachable!()
+    }
+}
 
-async fn to_tls_client_impl<T: CertificateConfig + ?Sized>(
-    certificate_config: &T,
-    server_certificate_verifier: Option<impl CustomServerCertificateVerifier + 'static>,
-) -> Result<ClientConfig, ToTlsClientError<T::Error>> {
-    let mut root_store = RootCertStore::empty();
-    let certificate = certificate_config
-        .certificate()
-        .map_err(ToTlsClientError::Certificate)?
-        .certificate
-        .to_der()
-        .map_err(ToTlsClientError::CertificateToDer)?
-        .into();
-
-    root_store
-        .add(certificate)
-        .map_err(ToTlsClientError::AddCertificate)?;
-
-    let builder = if let Some(server_certificate_verifier) = server_certificate_verifier {
+async fn to_tls_client_impl<T, V>(
+    trusted_store_config: &T,
+    server_certificate_verifier: V,
+) -> Result<ClientConfig, ToTlsClientError<T::Error>>
+where
+    T: TrustedStoreConfig,
+    V: CustomServerCertificateVerifier + 'static,
+{
+    let root_store = Arc::new(trusted_store_config.to_root_cert_store().await?);
+    let builder = if V::has_custom_logic() {
         ClientConfig::builder()
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(CustomWebPkiServerVerifier {
                 custom: server_certificate_verifier,
-                chain: WebPkiServerVerifier::builder(root_store.into()).build()?,
+                chain: WebPkiServerVerifier::builder(root_store).build()?,
             }))
     } else {
         ClientConfig::builder().with_root_certificates(root_store)
@@ -76,13 +88,7 @@ async fn to_tls_client_impl<T: CertificateConfig + ?Sized>(
 #[derive(thiserror::Error, Debug)]
 pub enum ToTlsClientError<E: std::error::Error> {
     #[error("[{n}] {0}", n = self.name())]
-    Certificate(E),
-
-    #[error("[{n}] {0}", n = self.name())]
-    CertificateToDer(ErrorStack),
-
-    #[error("[{n}] {0}", n = self.name())]
-    AddCertificate(rustls::Error),
+    ToRootCertStore(#[from] ToRootCertStoreError<E>),
 
     #[error("[{n}] {0}", n = self.name())]
     VerifierBuilderError(#[from] VerifierBuilderError),

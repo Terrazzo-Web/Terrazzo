@@ -12,7 +12,7 @@ pub mod certificate;
 mod common;
 pub mod trusted_store;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SecurityConfig<T, C> {
     pub trusted_store: T,
     pub certificate: C,

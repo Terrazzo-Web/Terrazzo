@@ -9,6 +9,7 @@ pub mod empty;
 pub mod native;
 pub mod pem;
 pub mod root_cert_store;
+pub mod tls_client;
 
 pub trait TrustedStoreConfig: IsConfiguration {
     type Error: std::error::Error + 'static;

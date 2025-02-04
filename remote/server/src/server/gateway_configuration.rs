@@ -25,7 +25,7 @@ pub trait GatewayConfig: IsConfiguration {
     ///
     /// This asset is never rotated, even if the private key leaks.
     /// Security is based on the signed extension of client certificates.
-    type RootCaConfig: CertificateConfig;
+    type RootCaConfig: HasSecurityConfig;
     fn root_ca(&self) -> Self::RootCaConfig;
 
     /// The TLS certificate used to listen to HTTPS connections.

@@ -16,12 +16,14 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
-use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfig as _;
-use trz_gateway_common::security_configuration::certificate::rustls_config::ToRustlsConfigError;
-use trz_gateway_common::security_configuration::certificate::tls_client::ToTlsClient;
-use trz_gateway_common::security_configuration::certificate::tls_client::ToTlsClientError;
+use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer;
+use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
 use trz_gateway_common::security_configuration::certificate::Certificate;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
+use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient;
+use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
+use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
@@ -61,18 +63,22 @@ impl<C: GatewayConfig> Server<C> {
             .map_err(|error| GatewayError::RootCa(error.into()))?;
         debug!("Got Root CA: {}", root_ca.display());
 
-        let tls_server = config.tls().to_rustls_config().await?;
+        let tls_server = config.tls().to_tls_server().await?;
         debug!("Got TLS server config");
 
-        let tls_client = config.root_ca().to_tls_client().await?;
+        // TODO: add signed extension validation
+        let tls_client = config
+            .root_ca()
+            .to_tls_client(ChainOnlyServerCertificateVerifier)
+            .await?;
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {
             config,
             shutdown: shutdown_rx.shared(),
             root_ca,
-            tls_server,
-            tls_client,
+            tls_server: RustlsConfig::from_config(Arc::from(tls_server)),
+            tls_client: TlsConnector::from(Arc::new(tls_client)),
             connections: Connections::default().into(),
         });
 
@@ -167,10 +173,10 @@ pub enum GatewayError<C: GatewayConfig> {
     },
 
     #[error("[{n}] {0}", n = self.name())]
-    ToTlsServerConfig(#[from] ToRustlsConfigError<<C::TlsConfig as CertificateConfig>::Error>),
+    ToTlsServerConfig(#[from] ToTlsServerError<<C::TlsConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
-    ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as CertificateConfig>::Error>),
+    ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     Serve(std::io::Error),

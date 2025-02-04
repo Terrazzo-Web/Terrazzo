@@ -219,7 +219,7 @@ impl GatewayConfig for TestConfig {
     }
 }
 
-fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
+fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let lock = MUTEX.lock().unwrap();
     let tempdir = temp_dir();
@@ -234,6 +234,7 @@ fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
             .try_into()
             .expect("Asn1Time to SystemTime"),
     )?;
+    let root_ca = Arc::new(root_ca);
     drop(lock);
     Ok(root_ca)
 }
@@ -241,7 +242,7 @@ fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
 fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>> {
     let root_ca_config = root_ca_config()?;
     let root_ca = root_ca_config.certificate()?;
-    let root_certificate_pem = root_ca_config.certificate_pem;
+    let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;
 
     let (intermediate, intermediate_key) = make_intermediate(

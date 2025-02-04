@@ -1,24 +1,35 @@
+use std::ffi::OsString;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
+use trz_gateway_common::id::ClientId;
 use trz_gateway_common::is_configuration::IsConfiguration;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
+use uuid::Uuid;
 
 pub trait ClientConfig: IsConfiguration {
     fn enable_tracing(&self) -> bool {
         true
     }
 
-    fn host(&self) -> &str {
-        "127.0.0.1"
+    fn client_id(&self) -> ClientId {
+        static CLIENT_ID: OnceLock<ClientId> = OnceLock::new();
+        fn make_default_hostname() -> ClientId {
+            if let Ok(Ok(hostname)) = hostname::get().map(OsString::into_string) {
+                hostname
+            } else {
+                Uuid::new_v4().to_string()
+            }
+            .into()
+        }
+
+        CLIENT_ID.get_or_init(make_default_hostname).clone()
     }
 
-    fn port(&self) -> u16 {
-        if cfg!(debug_assertions) {
-            3000
-        } else {
-            3001
-        }
+    fn base_url(&self) -> impl std::fmt::Display {
+        let port = if cfg!(debug_assertions) { 3000 } else { 3001 };
+        format!("https://localhost:{port}")
     }
 
     // The issuer of GatewayConfig::TlsConfig
@@ -34,11 +45,9 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
     fn enable_tracing(&self) -> bool {
         self.as_ref().enable_tracing()
     }
-    fn host(&self) -> &str {
-        self.as_ref().host()
-    }
-    fn port(&self) -> u16 {
-        self.as_ref().port()
+
+    fn base_url(&self) -> impl std::fmt::Display {
+        self.as_ref().base_url()
     }
 
     type ServerPkiConfig = T::ServerPkiConfig;

@@ -53,27 +53,31 @@ impl<C: GatewayConfig> Server<C> {
     fn process_websocket(self: Arc<Self>, client_id: ClientId, web_socket: WebSocket) {
         let (sink, stream) = web_socket.split();
 
-        #[nameth]
-        #[derive(thiserror::Error, Debug)]
-        #[error("[{n}] {0}", n = Self::type_name())]
-        pub struct ReadError(axum::Error);
+        let reader = {
+            #[nameth]
+            #[derive(thiserror::Error, Debug)]
+            #[error("[{n}] {0}", n = Self::type_name())]
+            struct ReadError(axum::Error);
 
-        let reader = StreamReader::new(stream.map(|message| {
-            message.map(Message::into_data).map_err(|error| {
-                std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
-            })
-        }));
+            StreamReader::new(stream.map(|message| {
+                message.map(Message::into_data).map_err(|error| {
+                    std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
+                })
+            }))
+        };
 
-        #[nameth]
-        #[derive(thiserror::Error, Debug)]
-        #[error("[{n}] {0}", n = Self::type_name())]
-        pub struct WriteError(axum::Error);
+        let writer = {
+            #[nameth]
+            #[derive(thiserror::Error, Debug)]
+            #[error("[{n}] {0}", n = Self::type_name())]
+            struct WriteError(axum::Error);
 
-        let sink = CopyToBytes::new(sink.with(|data| ready(Ok(Message::Binary(data)))))
-            .sink_map_err(|error| {
-                std::io::Error::new(ErrorKind::ConnectionAborted, WriteError(error))
-            });
-        let writer = SinkWriter::new(sink);
+            let sink = CopyToBytes::new(sink.with(|data| ready(Ok(Message::Binary(data)))))
+                .sink_map_err(|error| {
+                    std::io::Error::new(ErrorKind::ConnectionAborted, WriteError(error))
+                });
+            SinkWriter::new(sink)
+        };
 
         let stream = tokio::io::join(reader, writer);
         tokio::spawn(self.process_connection(client_id, stream).in_current_span());

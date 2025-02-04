@@ -10,8 +10,11 @@ description = { workspace = true }
 [lib]
 
 [dependencies]
-trz-gateway-common = { workspace = true, features = ["client"] }
+trz-gateway-common = { workspace = true }
 
+futures = { workspace = true }
+http = { workspace = true }
+hostname = { workspace = true }
 mime = { workspace = true }
 nameth = { workspace = true }
 openssl = { workspace = true }
@@ -22,10 +25,14 @@ rustls = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
 tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
+tokio-util = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
 
 [dev-dependencies]
 

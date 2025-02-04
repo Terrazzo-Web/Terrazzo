@@ -11,8 +11,7 @@ use crate::is_configuration::IsConfiguration;
 
 pub mod cache;
 pub mod pem;
-pub mod rustls_config;
-pub mod tls_connector;
+pub mod tls_server;
 
 pub trait CertificateConfig: IsConfiguration {
     type Error: std::error::Error;

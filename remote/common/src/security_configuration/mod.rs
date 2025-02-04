@@ -39,6 +39,4 @@ impl<T: IsConfiguration, C: CertificateConfig> CertificateConfig for SecurityCon
 }
 
 pub trait HasSecurityConfig: TrustedStoreConfig + CertificateConfig {}
-impl<T: TrustedStoreConfig, C: CertificateConfig> HasSecurityConfig for SecurityConfig<T, C> {}
-
-impl<T: HasSecurityConfig> HasSecurityConfig for Arc<T> {}
+impl<T: TrustedStoreConfig + CertificateConfig> HasSecurityConfig for T {}

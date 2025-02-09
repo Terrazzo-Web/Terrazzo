@@ -28,12 +28,12 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::tracing::EnableTracingError;
 
-use self::gateway_configuration::GatewayConfig;
+use self::gateway_config::GatewayConfig;
 use crate::connection::Connections;
 
 mod app;
 mod certificate;
-pub mod gateway_configuration;
+pub mod gateway_config;
 pub mod root_ca_configuration;
 mod tunnel;
 

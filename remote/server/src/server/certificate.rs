@@ -14,7 +14,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
-use super::gateway_configuration::GatewayConfig;
+use super::gateway_config::GatewayConfig;
 use super::Server;
 use crate::auth_code::AuthCode;
 

@@ -27,7 +27,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_common::x509::PemString as _;
 
-use super::gateway_configuration::GatewayConfig;
+use super::gateway_config::GatewayConfig;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
 use super::Server;

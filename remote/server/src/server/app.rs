@@ -8,7 +8,7 @@ use tower_http::trace::DefaultMakeSpan;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
 
-use super::gateway_configuration::GatewayConfig;
+use super::gateway_config::GatewayConfig;
 use super::Server;
 
 impl<C: GatewayConfig> Server<C> {

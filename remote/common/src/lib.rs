@@ -1,4 +1,5 @@
 pub mod api;
+pub mod handle;
 pub mod http_error;
 pub mod id;
 pub mod is_configuration;

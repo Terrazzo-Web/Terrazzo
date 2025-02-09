@@ -9,10 +9,6 @@ use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfi
 use uuid::Uuid;
 
 pub trait ClientConfig: IsConfiguration {
-    fn enable_tracing(&self) -> bool {
-        true
-    }
-
     fn client_id(&self) -> ClientId {
         static CLIENT_ID: OnceLock<ClientId> = OnceLock::new();
         fn make_default_hostname() -> ClientId {
@@ -32,6 +28,8 @@ pub trait ClientConfig: IsConfiguration {
         format!("https://localhost:{port}")
     }
 
+    fn http_client(&self) -> reqwest::Client;
+
     // The issuer of GatewayConfig::TlsConfig
     type ServerPkiConfig: TrustedStoreConfig;
     fn server_pki(&self) -> Self::ServerPkiConfig;
@@ -42,12 +40,12 @@ pub trait ClientConfig: IsConfiguration {
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
-    fn enable_tracing(&self) -> bool {
-        self.as_ref().enable_tracing()
-    }
-
     fn base_url(&self) -> impl std::fmt::Display {
         self.as_ref().base_url()
+    }
+
+    fn http_client(&self) -> reqwest::Client {
+        self.as_ref().http_client()
     }
 
     type ServerPkiConfig = T::ServerPkiConfig;

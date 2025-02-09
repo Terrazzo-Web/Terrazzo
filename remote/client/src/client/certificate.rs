@@ -9,26 +9,34 @@ use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
-use super::Client;
+use crate::client_configuration::ClientConfig;
 
-impl Client {
-    pub async fn get_certifiate(
+pub trait GetCertifiate: ClientConfig + Sized {
+    fn get_certifiate(
         &self,
         auth_code: AuthCode,
         key: &PKeyRef<impl HasPublic>,
-    ) -> Result<String, GetCertificateError> {
-        let public_key = key.public_key_to_pem().pem_string()?;
-        let request = self
-            .client
-            .get(format!("{}/remote/certificate", self.base_url))
-            .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
-            .body(serde_json::to_string(&GetCertificateRequest {
-                auth_code,
-                public_key,
-                name: "Test cert".into(),
-            })?);
-        Ok(request.send().await?.text().await?)
+    ) -> impl std::future::Future<Output = Result<String, GetCertificateError>> {
+        get_certifiate(self, auth_code, key)
     }
+}
+
+async fn get_certifiate<T: GetCertifiate>(
+    client: &T,
+    auth_code: AuthCode,
+    key: &PKeyRef<impl HasPublic>,
+) -> Result<String, GetCertificateError> {
+    let public_key = key.public_key_to_pem().pem_string()?;
+    let request = client
+        .http_client()
+        .get(format!("{}/remote/certificate", client.base_url()))
+        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
+        .body(serde_json::to_string(&GetCertificateRequest {
+            auth_code,
+            public_key,
+            name: "Test cert".into(),
+        })?);
+    Ok(request.send().await?.text().await?)
 }
 
 #[nameth]

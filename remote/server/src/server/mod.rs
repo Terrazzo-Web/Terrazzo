@@ -1,5 +1,7 @@
+use std::future::Future;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,10 +14,10 @@ use nameth::NamedEnumValues as _;
 use tokio::sync::oneshot;
 use tokio_rustls::TlsConnector;
 use tracing::debug;
-use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
+use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
 use trz_gateway_common::security_configuration::certificate::Certificate;
@@ -27,13 +29,11 @@ use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfi
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_configuration::GatewayConfig;
-use self::handle::ServerHandle;
 use crate::connection::Connections;
 
 mod app;
 mod certificate;
 pub mod gateway_configuration;
-pub mod handle;
 pub mod root_ca_configuration;
 mod tunnel;
 
@@ -42,7 +42,7 @@ mod tests;
 
 pub struct Server<C> {
     config: C,
-    shutdown: Shared<oneshot::Receiver<String>>,
+    shutdown: Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     root_ca: Arc<Certificate>,
     tls_server: RustlsConfig,
     tls_client: TlsConnector,
@@ -50,12 +50,13 @@ pub struct Server<C> {
 }
 
 impl<C: GatewayConfig> Server<C> {
-    pub async fn run(config: C) -> Result<ServerHandle, GatewayError<C>> {
+    pub async fn run(config: C) -> Result<ServerHandle<()>, GatewayError<C>> {
         if config.enable_tracing() {
             trz_gateway_common::tracing::enable_tracing()?;
         }
 
         let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+        let shutdown_rx: Pin<Box<dyn Future<Output = ()> + Send + Sync>> = Box::pin(shutdown_rx);
 
         let root_ca = config
             .root_ca()
@@ -133,10 +134,7 @@ impl<C: GatewayConfig> Server<C> {
         let shutdown = self.shutdown.clone();
         tokio::spawn(
             async move {
-                match shutdown.await {
-                    Ok(message) => info!("Server shutdown: {message}"),
-                    Err(oneshot::error::RecvError { .. }) => warn!("Server handle dropped!"),
-                }
+                let () = shutdown.await;
                 handle.graceful_shutdown(Some(Duration::from_secs(30)));
             }
             .in_current_span(),

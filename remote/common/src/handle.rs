@@ -35,12 +35,11 @@ impl<R> ServerHandle<R> {
             .expect("shutdown_tx")
             .send(format!("{reason}"))
             .map_err(|_| ServerStopError::NotRunning)?;
-        Ok(self
-            .terminated_rx
+        self.terminated_rx
             .take()
             .expect("terminated_rx")
             .await
-            .map_err(|_| ServerStopError::ShutdownError)?)
+            .map_err(|_| ServerStopError::ShutdownError)
     }
 }
 

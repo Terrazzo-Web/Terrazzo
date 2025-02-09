@@ -19,7 +19,9 @@ use crate::client_configuration::ClientConfig;
 
 pub mod certificate;
 pub mod connect;
+mod connection;
 mod health;
+mod to_async_io;
 
 pub struct Client {
     uri: String,
@@ -36,7 +38,6 @@ impl Client {
             .to_tls_client(ChainOnlyServerCertificateVerifier)
             .await?;
         let tls_server = config.tls().to_tls_server().await?;
-
         Ok(Client {
             uri: format!("{}/remote/tunnel/{}", config.base_url(), config.client_id()),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),

@@ -19,7 +19,7 @@ axum-server = { workspace = true, features = ["tls-rustls"] }
 cms = { version = "0.2.3" }
 futures = { workspace = true }
 nameth = { workspace = true }
-oid-registry = { version = "0.8.0" }
+oid-registry = { version = "0.8.1" }
 openssl = { workspace = true }
 rustls-native-certs = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }

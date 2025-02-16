@@ -7,6 +7,7 @@ use openssl::x509::X509;
 
 use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;
+use crate::certificate_info::CertificateInfo;
 use crate::is_configuration::IsConfiguration;
 
 pub mod cache;
@@ -33,10 +34,7 @@ pub trait CertificateConfig: IsConfiguration {
     }
 }
 
-pub struct Certificate {
-    pub certificate: X509,
-    pub private_key: PKey<Private>,
-}
+pub type Certificate = CertificateInfo<X509, PKey<Private>>;
 
 impl Certificate {
     pub fn display(&self) -> impl std::fmt::Display {

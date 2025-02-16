@@ -5,33 +5,25 @@ use axum::Json;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
-use serde::Deserialize;
-use serde::Serialize;
+use trz_gateway_common::api::tunnel::GetCertificateRequest;
+use trz_gateway_common::http_error::HttpError;
+use trz_gateway_common::http_error::IsHttpError;
+use trz_gateway_common::x509::cert::make_cert;
+use trz_gateway_common::x509::cert::MakeCertError;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::PemAsStringError;
+use trz_gateway_common::x509::PemString as _;
 
-use super::gateway_configuration::GatewayConfig;
+use super::gateway_config::GatewayConfig;
 use super::Server;
 use crate::auth_code::AuthCode;
-use crate::utils::http_error::HttpError;
-use crate::utils::http_error::IsHttpError;
-use crate::utils::x509::cert::make_cert;
-use crate::utils::x509::cert::MakeCertError;
-use crate::utils::x509::name::CertitficateName;
-use crate::utils::x509::PemAsStringError;
-use crate::utils::x509::PemString as _;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetCertificateRequest {
-    pub code: AuthCode,
-    pub public_key: String,
-    pub name: String,
-}
 
 impl<C: GatewayConfig> Server<C> {
     pub async fn get_certificate(
         self: Arc<Self>,
-        Json(request): Json<GetCertificateRequest>,
+        Json(request): Json<GetCertificateRequest<AuthCode>>,
     ) -> Result<String, HttpError<GetCertificateError>> {
-        if !request.code.is_valid() {
+        if !request.auth_code.is_valid() {
             return Err(GetCertificateError::InvalidAuthCode)?;
         }
         Ok(self
@@ -41,11 +33,10 @@ impl<C: GatewayConfig> Server<C> {
 
     fn make_pem_cert(
         self: Arc<Self>,
-        request: GetCertificateRequest,
+        request: GetCertificateRequest<AuthCode>,
     ) -> Result<String, MakePemCertificateError> {
         let certificate = make_cert(
-            &self.root_ca.certificate,
-            &self.root_ca.private_key,
+            (*self.root_ca).as_ref(),
             CertitficateName {
                 common_name: Some(&request.name),
                 ..CertitficateName::default()
@@ -82,7 +73,16 @@ impl IsHttpError for GetCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
             GetCertificateError::InvalidAuthCode => StatusCode::FORBIDDEN,
-            GetCertificateError::MakeCert { .. } => StatusCode::BAD_REQUEST,
+            GetCertificateError::MakeCert(error) => error.status_code(),
+        }
+    }
+}
+
+impl IsHttpError for MakePemCertificateError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            MakePemCertificateError::MakeCert(error) => error.status_code(),
+            MakePemCertificateError::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

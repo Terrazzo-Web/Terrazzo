@@ -28,6 +28,13 @@ macro_rules! declare_identifier {
             }
         }
 
+        impl std::ops::Deref for $name {
+            type Target = str;
+            fn deref(&self) -> &Self::Target {
+                self.as_ref()
+            }
+        }
+
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 std::fmt::Display::fmt(self.as_ref(), f)
@@ -35,6 +42,8 @@ macro_rules! declare_identifier {
         }
     };
 }
+
+declare_identifier!(ClientId);
 
 #[cfg(test)]
 mod tests {

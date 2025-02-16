@@ -1,6 +1,6 @@
 fn main() {
     tonic_build::configure()
         .build_client(true)
-        .compile_protos(&["src/protos/gateway_service.proto"], &["src/"])
+        .compile_protos(&["src/protos/health.proto"], &["src/"])
         .unwrap();
 }

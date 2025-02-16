@@ -5,8 +5,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use nameth::nameth;
-use nameth::NamedEnumValues;
-use nameth::NamedType;
+use nameth::NamedEnumValues as _;
+use nameth::NamedType as _;
 
 /// Options for [build].
 pub struct BuildOptions<'t> {

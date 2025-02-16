@@ -1,0 +1,42 @@
+[package]
+name = "trz-gateway-client"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = { workspace = true }
+
+[lib]
+
+[dependencies]
+trz-gateway-common = { workspace = true }
+
+futures = { workspace = true }
+hostname = { workspace = true }
+mime = { workspace = true }
+nameth = { workspace = true }
+openssl = { workspace = true }
+pin-project = { workspace = true }
+prost-types = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
+tokio-util = { workspace = true }
+tonic = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+trz-gateway-server = { workspace = true }
+terrazzo-testutils = { workspace = true }
+
+portpicker = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

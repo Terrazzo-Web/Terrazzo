@@ -15,7 +15,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::tracing::EnableTracingError;
 
-use crate::client_configuration::ClientConfig;
+use crate::tunnel_config::TunnelConfig;
 
 pub mod certificate;
 pub mod connect;
@@ -32,14 +32,14 @@ pub struct Client {
 declare_identifier!(AuthCode);
 
 impl Client {
-    pub async fn new<C: ClientConfig>(config: C) -> Result<Self, NewClientError<C>> {
+    pub async fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
         let tls_client = config
             .server_pki()
             .to_tls_client(ChainOnlyServerCertificateVerifier)
             .await?;
         let tls_server = config.tls().to_tls_server().await?;
         Ok(Client {
-            uri: format!("{}/remote/tunnel/{}", config.base_url(), config.client_id()),
+            uri: format!("{}/remote/tunnel", config.base_url()),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
         })
@@ -54,7 +54,7 @@ impl Client {
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum NewClientError<C: ClientConfig> {
+pub enum NewClientError<C: TunnelConfig> {
     #[error("[{n}] {0}", n = self.name())]
     EnableTracing(#[from] EnableTracingError),
 

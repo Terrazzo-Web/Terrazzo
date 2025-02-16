@@ -4,32 +4,26 @@ use nameth::NamedEnumValues as _;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
 use reqwest::header::CONTENT_TYPE;
+use reqwest::Client;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
-use crate::client_configuration::ClientConfig;
+use crate::certificate_config::ClientCertificateConfig;
 
-pub trait GetCertifiate: ClientConfig + Sized {
-    fn get_certifiate(
-        &self,
-        auth_code: AuthCode,
-        key: &PKeyRef<impl HasPublic>,
-    ) -> impl std::future::Future<Output = Result<String, GetCertificateError>> {
-        get_certifiate(self, auth_code, key)
-    }
-}
-
-async fn get_certifiate<T: GetCertifiate>(
-    client: &T,
+pub async fn get_certifiate(
+    certificate_config: impl ClientCertificateConfig,
+    http_client: Client,
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
-    let request = client
-        .http_client()
-        .get(format!("{}/remote/certificate", client.base_url()))
+    let request = http_client
+        .get(format!(
+            "{}/remote/certificate",
+            certificate_config.base_url()
+        ))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
             auth_code,

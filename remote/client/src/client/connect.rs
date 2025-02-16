@@ -64,7 +64,7 @@ impl super::Client {
                     let terminated_tx = terminated_tx.clone();
                     move |connection| {
                         if connection.is_err() {
-                            let _ = terminated_tx(Err(TunnelError::Disconnected));
+                              terminated_tx(Err(TunnelError::Disconnected));
                         }
                     }
                 }),
@@ -76,7 +76,7 @@ impl super::Client {
             let result = grpc_server
                 .serve_with_incoming_shutdown(connection, shutdown)
                 .await;
-            let _ = terminated_tx(result.map_err(Into::into));
+             terminated_tx(result.map_err(Into::into));
         });
         Ok(())
     }

@@ -16,7 +16,13 @@ impl<T> Fixture<T> {
     }
 
     pub fn get_or_init(&self, init: impl Fn() -> T + Send + Sync + 'static) -> Arc<T> {
-        self.once.get_or_init(|| FixtureState::new(init)).get()
+        self.once
+            .get_or_init(|| FixtureState::new(init))
+            .get_or_init()
+    }
+
+    pub fn get(&self) -> Arc<T> {
+        self.once.get().expect("Fixture::get").get()
     }
 }
 
@@ -33,7 +39,7 @@ impl<T> FixtureState<T> {
         }
     }
 
-    fn get(&self) -> Arc<T> {
+    fn get_or_init(&self) -> Arc<T> {
         let mut current = self.current.lock().expect("FixtureState::current::lock");
         if let Some(value) = current.upgrade() {
             return value;
@@ -41,6 +47,14 @@ impl<T> FixtureState<T> {
         let value = Arc::new((self.init)());
         *current = Arc::downgrade(&value);
         return value;
+    }
+
+    fn get(&self) -> Arc<T> {
+        self.current
+            .lock()
+            .expect("FixtureState::current::lock")
+            .upgrade()
+            .expect("FixtureState::get")
     }
 }
 

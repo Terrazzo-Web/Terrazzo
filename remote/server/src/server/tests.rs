@@ -41,6 +41,7 @@ const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
 
 #[tokio::test]
 async fn status() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let handle = Server::run(config.clone()).await?;
 
@@ -52,6 +53,7 @@ async fn status() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn certificate() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let handle = Server::run(config.clone()).await?;
 
@@ -74,6 +76,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let handle = Server::run(config.clone()).await?;
 
@@ -106,6 +109,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn tunnel() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let handle = Server::run(config.clone()).await?;
 
@@ -223,13 +227,13 @@ impl GatewayConfig for TestConfig {
 }
 
 fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
-    let tempdir = temp_dir();
+    let temp_dir = TEMP_DIR.get();
 
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
         "Test Root CA".to_owned(),
-        ROOT_CA_FILENAME.map(|filename| tempdir.path().join(filename)),
+        ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)),
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)
             .expect("Asn1Time::days_from_now")
@@ -281,9 +285,10 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
     })
 }
 
-fn temp_dir() -> Arc<TempDir> {
-    static FIXTURE: Fixture<TempDir> = Fixture::new();
-    FIXTURE.get_or_init(|| {
+static TEMP_DIR: Fixture<TempDir> = Fixture::new();
+
+fn use_temp_dir() -> Arc<TempDir> {
+    TEMP_DIR.get_or_init(|| {
         TempDir::new()
             .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
             .expect("TempDir::new()")

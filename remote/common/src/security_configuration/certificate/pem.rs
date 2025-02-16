@@ -10,6 +10,7 @@ use openssl::x509::X509;
 
 use super::Certificate;
 use super::CertificateConfig;
+use crate::certificate_info::CertificateInfo;
 use crate::security_configuration::common::parse_pem_certificates;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
@@ -78,4 +79,14 @@ pub enum PemTrustedStoreCertificateError {
 
     #[error("[{n}] Failed to add a X509 certificate to the store: {0}", n = self.name())]
     AddCert(ErrorStack),
+}
+
+impl From<CertificateInfo<String>> for PemCertificate {
+    fn from(value: CertificateInfo<String>) -> Self {
+        Self {
+            intermediates_pem: String::default(),
+            certificate_pem: value.certificate,
+            private_key_pem: value.private_key,
+        }
+    }
 }

@@ -2,6 +2,8 @@ use std::path::Path;
 
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use trz_gateway_common::certificate_info::CertificateError;
+use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::x509::ca::make_ca;
 use trz_gateway_common::x509::ca::MakeCaError;
@@ -12,27 +14,24 @@ use trz_gateway_common::x509::PemString as _;
 
 pub fn load_root_ca(
     name: String,
-    root_ca_path: impl AsRef<Path>,
-    private_key_path: impl AsRef<Path>,
+    root_ca_path: CertificateInfo<impl AsRef<Path>>,
     default_validity: Validity,
 ) -> Result<PemCertificate, RootCaConfigError> {
     let root_ca_path = root_ca_path.as_ref();
-    let private_key_path = private_key_path.as_ref();
-
-    match (root_ca_path.exists(), private_key_path.exists()) {
-        (true, true) => {
-            let root_ca =
-                std::fs::read_to_string(root_ca_path).map_err(RootCaConfigError::LoadRootCa)?;
-            let private_key = std::fs::read_to_string(private_key_path)
-                .map_err(RootCaConfigError::LoadPrivateKey)?;
-
-            Ok(PemCertificate {
-                certificate_pem: root_ca,
-                private_key_pem: private_key,
-                intermediates_pem: String::default(),
-            })
+    match root_ca_path.map(|path| path.exists()) {
+        CertificateInfo {
+            certificate: true,
+            private_key: true,
+        } => {
+            let root_ca = root_ca_path
+                .try_map(std::fs::read_to_string)
+                .map_err(RootCaConfigError::Load)?;
+            Ok(root_ca.into())
         }
-        (false, false) => {
+        CertificateInfo {
+            certificate: false,
+            private_key: false,
+        } => {
             let (certificate, private_key) = make_ca(
                 CertitficateName {
                     common_name: Some(name.as_str()),
@@ -46,13 +45,19 @@ pub fn load_root_ca(
                 private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
                 intermediates_pem: String::default(),
             };
-            std::fs::write(root_ca_path, &pem_certificate.certificate_pem)
-                .map_err(RootCaConfigError::StoreRootCa)?;
-            std::fs::write(private_key_path, &pem_certificate.private_key_pem)
-                .map_err(RootCaConfigError::StorePrivateKey)?;
+            let _: CertificateInfo<()> = root_ca_path
+                .zip(CertificateInfo {
+                    certificate: &pem_certificate.certificate_pem,
+                    private_key: &pem_certificate.private_key_pem,
+                })
+                .try_map(|(path, pem)| std::fs::write(path, pem))
+                .map_err(RootCaConfigError::Store)?;
             Ok(pem_certificate)
         }
-        (root_ca_exists, private_key_exists) => {
+        CertificateInfo {
+            certificate: root_ca_exists,
+            private_key: private_key_exists,
+        } => {
             return Err(RootCaConfigError::InconsistentState {
                 root_ca_exists,
                 private_key_exists,
@@ -65,16 +70,10 @@ pub fn load_root_ca(
 #[derive(thiserror::Error, Debug)]
 pub enum RootCaConfigError {
     #[error("[{n}] Failed to load certificate: {0}", n = self.name())]
-    LoadRootCa(std::io::Error),
-
-    #[error("[{n}] Failed to load private key: {0}", n = self.name())]
-    LoadPrivateKey(std::io::Error),
+    Load(CertificateError<std::io::Error>),
 
     #[error("[{n}] Failed to store certificate: {0}", n = self.name())]
-    StoreRootCa(std::io::Error),
-
-    #[error("[{n}] Failed to store private key: {0}", n = self.name())]
-    StorePrivateKey(std::io::Error),
+    Store(CertificateError<std::io::Error>),
 
     #[error("[{n}] Inconsistent state: root_ca_exists:{root_ca_exists} private_key_exists:{private_key_exists}", n = self.name())]
     InconsistentState {

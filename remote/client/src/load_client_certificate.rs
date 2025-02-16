@@ -29,22 +29,19 @@ use crate::http_client::MakeHttpClientError;
 pub async fn load_client_certificate<C: ClientCertificateConfig>(
     client_config: C,
     auth_code: AuthCode,
-    certificate_info: CertificateInfo<&'static Path>,
+    certificate_path: CertificateInfo<impl AsRef<Path>>,
 ) -> Result<PemCertificate, LoadClientCertificateError<C>> {
-    match certificate_info.map(|path| path.exists()) {
+    let certificate_path = certificate_path.as_ref();
+    match certificate_path.map(|path| path.exists()) {
         CertificateInfo {
             certificate: true,
             private_key: true,
         } => {
-            let root_ca = certificate_info
+            let root_ca = certificate_path
                 .try_map(std::fs::read_to_string)
                 .map_err(LoadClientCertificateError::Load)?;
 
-            Ok(PemCertificate {
-                certificate_pem: root_ca.certificate,
-                private_key_pem: root_ca.private_key,
-                intermediates_pem: String::default(),
-            })
+            Ok(root_ca.into())
         }
         CertificateInfo {
             certificate: false,
@@ -57,7 +54,7 @@ pub async fn load_client_certificate<C: ClientCertificateConfig>(
                 private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
                 intermediates_pem: String::default(),
             };
-            let _: CertificateInfo<()> = certificate_info
+            let _: CertificateInfo<()> = certificate_path
                 .zip(CertificateInfo {
                     certificate: &pem_certificate.certificate_pem,
                     private_key: &pem_certificate.private_key_pem,

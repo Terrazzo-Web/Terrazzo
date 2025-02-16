@@ -15,6 +15,7 @@ use reqwest::StatusCode;
 use tempfile::TempDir;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
+use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
@@ -33,8 +34,10 @@ use super::root_ca_configuration::RootCaConfigError;
 use super::Server;
 use crate::auth_code::AuthCode;
 
-const ROOT_CA_CERTIFICATE_FILENAME: &str = "root-ca-cert.pem";
-const ROOT_CA_PRIVATE_KEY_FILENAME: &str = "root-ca-key.pem";
+const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
+    certificate: "root-ca-cert.pem",
+    private_key: "root-ca-key.pem",
+};
 
 #[tokio::test]
 async fn status() -> Result<(), Box<dyn Error>> {
@@ -225,8 +228,7 @@ fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     let tempdir = temp_dir();
     let root_ca = root_ca_configuration::load_root_ca(
         "Test Root CA".to_owned(),
-        tempdir.path().join(ROOT_CA_CERTIFICATE_FILENAME),
-        tempdir.path().join(ROOT_CA_PRIVATE_KEY_FILENAME),
+        ROOT_CA_FILENAME.map(|filename| tempdir.path().join(filename)),
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)
             .expect("Asn1Time::days_from_now")

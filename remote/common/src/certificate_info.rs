@@ -24,11 +24,28 @@ impl<X> CertificateInfo<X> {
             private_key: f(self.private_key).map_err(CertificateError::PrivateKey)?,
         })
     }
+}
 
-    pub fn zip<Y>(self, other: CertificateInfo<Y>) -> CertificateInfo<(X, Y)> {
+impl<X, Y> CertificateInfo<X, Y> {
+    pub fn zip<XX, YY>(self, other: CertificateInfo<XX, YY>) -> CertificateInfo<(X, XX), (Y, YY)> {
         CertificateInfo {
             certificate: (self.certificate, other.certificate),
             private_key: (self.private_key, other.private_key),
+        }
+    }
+}
+
+impl<X, Y> CertificateInfo<X, Y> {
+    pub fn as_ref<XX, YY>(&self) -> CertificateInfo<&XX, &YY>
+    where
+        X: AsRef<XX>,
+        Y: AsRef<YY>,
+        XX: ?Sized,
+        YY: ?Sized,
+    {
+        CertificateInfo {
+            certificate: self.certificate.as_ref(),
+            private_key: self.private_key.as_ref(),
         }
     }
 }

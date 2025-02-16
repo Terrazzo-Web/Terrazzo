@@ -180,18 +180,18 @@ async fn send_certificate_request(
 #[derive(Debug)]
 struct TestConfig {
     port: u16,
-    root_ca_config: Arc<PemCertificate>,
+    root_ca: Arc<PemCertificate>,
     tls_config: Arc<SecurityConfig<PemTrustedStore, PemCertificate>>,
 }
 
 impl TestConfig {
     fn new() -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca_config = root_ca_config().expect("root_ca_config()").into();
-        let tls_config = tls_config().expect("tls_config()").into();
+        let root_ca_config = make_test_root_ca().expect("root_ca_config()").into();
+        let tls_config = make_test_tls_config().expect("tls_config()").into();
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
-            root_ca_config,
+            root_ca: root_ca_config,
             tls_config,
         })
     }
@@ -212,7 +212,7 @@ impl GatewayConfig for TestConfig {
 
     type RootCaConfig = Arc<PemCertificate>;
     fn root_ca(&self) -> Self::RootCaConfig {
-        self.root_ca_config.clone()
+        self.root_ca.clone()
     }
 
     type TlsConfig = Arc<SecurityConfig<PemTrustedStore, PemCertificate>>;
@@ -226,7 +226,7 @@ impl GatewayConfig for TestConfig {
     }
 }
 
-fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
+fn make_test_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     let temp_dir = TEMP_DIR.get();
 
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
@@ -244,8 +244,9 @@ fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     Ok(Arc::new(root_ca))
 }
 
-fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>> {
-    let root_ca_config = root_ca_config()?;
+fn make_test_tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>>
+{
+    let root_ca_config = make_test_root_ca()?;
     let root_ca = root_ca_config.certificate()?;
     let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;

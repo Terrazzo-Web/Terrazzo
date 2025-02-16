@@ -3223,10 +3223,13 @@ dependencies = [
  "nameth",
  "openssl",
  "pin-project",
+ "portpicker",
  "prost-types",
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
+ "terrazzo-testutils",
  "thiserror 2.0.11",
  "tokio",
  "tokio-rustls",
@@ -3235,6 +3238,7 @@ dependencies = [
  "tonic",
  "tracing",
  "trz-gateway-common",
+ "trz-gateway-server",
  "uuid",
 ]
 

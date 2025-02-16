@@ -32,6 +32,11 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+trz-gateway-server = { workspace = true }
+terrazzo-testutils = { workspace = true }
+
+portpicker = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

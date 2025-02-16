@@ -1,28 +1,45 @@
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::sync::Weak;
 
 pub struct Fixture<T> {
-    new: Box<dyn Fn() -> T + Send + Sync>,
-    current: Mutex<Weak<T>>,
+    once: OnceLock<FixtureState<T>>,
 }
 
 impl<T> Fixture<T> {
-    pub fn new(new: impl Fn() -> T + Send + Sync + 'static) -> Self {
+    pub const fn new() -> Self {
         Self {
-            new: Box::new(new),
-            current: Mutex::new(Weak::new()),
+            once: OnceLock::new(),
         }
     }
 
-    pub fn get(&self) -> Arc<T> {
-        let mut current = self.current.lock().expect("fixture::current::lock");
-        if let Some(current) = current.upgrade() {
-            return current;
+    pub fn get_or_init(&self, init: impl Fn() -> T + Send + Sync + 'static) -> Arc<T> {
+        self.once.get_or_init(|| FixtureState::new(init)).get()
+    }
+}
+
+struct FixtureState<T> {
+    init: Box<dyn Fn() -> T + Send + Sync>,
+    current: Mutex<Weak<T>>,
+}
+
+impl<T> FixtureState<T> {
+    fn new(init: impl Fn() -> T + Send + Sync + 'static) -> Self {
+        Self {
+            init: Box::new(init),
+            current: Default::default(),
         }
-        let new = Arc::new((self.new)());
-        *current = Arc::downgrade(&new);
-        return new;
+    }
+
+    fn get(&self) -> Arc<T> {
+        let mut current = self.current.lock().expect("FixtureState::current::lock");
+        if let Some(value) = current.upgrade() {
+            return value;
+        }
+        let value = Arc::new((self.init)());
+        *current = Arc::downgrade(&value);
+        return value;
     }
 }
 
@@ -30,40 +47,25 @@ impl<T> Fixture<T> {
 mod tests {
     use std::sync::atomic::AtomicI32;
     use std::sync::atomic::Ordering::SeqCst;
-    use std::sync::OnceLock;
-    use std::thread;
-    use std::time::Duration;
+    use std::sync::Arc;
 
     use super::Fixture;
 
-    fn fixture() -> &'static Fixture<i32> {
-        static FIXTURE: OnceLock<Fixture<i32>> = OnceLock::new();
+    #[test]
+    fn test_fixture() {
+        let a = fixture();
+        assert_eq!(1, *a);
+        let b = fixture();
+        assert_eq!(1, *a);
+        drop(a);
+        drop(b);
+        let c = fixture();
+        assert_eq!(2, *c);
+    }
+
+    fn fixture() -> Arc<i32> {
+        static FIXTURE: Fixture<i32> = Fixture::new();
         static NEXT: AtomicI32 = AtomicI32::new(1);
-        let init: Box<dyn Fn() -> i32 + Send + Sync> = Box::new(|| NEXT.fetch_add(1, SeqCst));
-        FIXTURE.get_or_init(|| Fixture::new(init))
-    }
-
-    #[test]
-    fn a() {
-        let fixture = fixture().get();
-        assert_eq!(1, *fixture);
-        thread::sleep(Duration::from_secs(1));
-        drop(fixture);
-    }
-
-    #[test]
-    fn b() {
-        let fixture = fixture().get();
-        assert_eq!(1, *fixture);
-        thread::sleep(Duration::from_secs(1));
-        drop(fixture);
-    }
-
-    #[test]
-    fn c() {
-        thread::sleep(Duration::from_secs(2));
-        let fixture = fixture().get();
-        assert_eq!(2, *fixture);
-        drop(fixture);
+        FIXTURE.get_or_init(|| NEXT.fetch_add(1, SeqCst))
     }
 }

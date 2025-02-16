@@ -20,11 +20,8 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
-oid-registry = { workspace = true }
-openssl = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }
-rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }

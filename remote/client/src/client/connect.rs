@@ -1,4 +1,5 @@
-use std::future::ready;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
@@ -45,8 +46,29 @@ impl super::Client {
             .await
             .map_err(ConnectError::Accept)?;
 
+        let terminated_tx = {
+            let terminated_tx = Arc::new(Mutex::new(Some(terminated_tx)));
+            move |result| {
+                let terminated_tx = terminated_tx.lock().expect("terminated_tx").take();
+                if let Some(terminated_tx) = terminated_tx {
+                    let _sent = terminated_tx.send(result);
+                }
+            }
+        };
+
         let connection = Connection::new(tls_stream);
-        let connection = futures::stream::once(ready(Ok::<_, std::io::Error>(connection)));
+        let connection = futures::stream::iter(
+            [Ok(connection), Err(TunnelError::Disconnected)]
+                .into_iter()
+                .inspect({
+                    let terminated_tx = terminated_tx.clone();
+                    move |connection| {
+                        if connection.is_err() {
+                            let _ = terminated_tx(Err(TunnelError::Disconnected));
+                        }
+                    }
+                }),
+        );
 
         let grpc_server =
             Server::builder().add_service(HealthServiceServer::new(HealthServiceImpl));
@@ -54,7 +76,7 @@ impl super::Client {
             let result = grpc_server
                 .serve_with_incoming_shutdown(connection, shutdown)
                 .await;
-            let _ = terminated_tx.send(result.map_err(Into::into));
+            let _ = terminated_tx(result.map_err(Into::into));
         });
         Ok(())
     }
@@ -75,4 +97,7 @@ pub enum ConnectError {
 pub enum TunnelError {
     #[error("[{n}] {0}", n = self.name())]
     TunnelFailure(#[from] tonic::transport::Error),
+
+    #[error("[{n}] The client got disconnected", n = self.name())]
+    Disconnected,
 }

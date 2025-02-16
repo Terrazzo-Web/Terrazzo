@@ -10,6 +10,7 @@ use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_server::server::Server;
 
 use self::test_gateway_config::use_temp_dir;
+use crate::client::connect::TunnelError;
 use crate::client::Client;
 use crate::load_client_certificate::load_client_certificate;
 
@@ -49,6 +50,7 @@ async fn end_to_end() -> Result<(), Box<dyn std::error::Error>> {
     info!("The client is running");
 
     let () = server_handle.stop("End of test").await?;
-    let () = client_handle.stopped().await??;
+    let client_disconnected = client_handle.stopped().await?.unwrap_err();
+    assert!(matches!(client_disconnected, TunnelError::Disconnected));
     Ok(())
 }

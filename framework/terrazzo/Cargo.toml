@@ -29,9 +29,9 @@ nameth = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 stylance = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
 terrazzo-client = { workspace = true, optional = true }
 terrazzo-macro = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
 tracing = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = [

@@ -1,88 +1,84 @@
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::OnceLock;
 use std::time::Duration;
+use std::time::Instant;
 
+use mime::APPLICATION_JSON;
 use openssl::asn1::Asn1Time;
+use openssl::pkey::HasPublic;
+use openssl::pkey::PKeyRef;
 use reqwest::header::CONTENT_TYPE;
+use reqwest::Response;
 use reqwest::StatusCode;
 use tempfile::TempDir;
+use terrazzo_testutils::fixture::Fixture;
 use tracing::debug;
+use trz_gateway_common::api::tunnel::GetCertificateRequest;
+use trz_gateway_common::certificate_info::CertificateInfo;
+use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
+use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
+use trz_gateway_common::x509::ca::make_intermediate;
+use trz_gateway_common::x509::cert::make_cert;
+use trz_gateway_common::x509::key::make_key;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::validity::Validity;
+use trz_gateway_common::x509::PemString as _;
 
-use super::gateway_configuration::GatewayConfig;
+use super::gateway_config::GatewayConfig;
+use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
+use super::Server;
 use crate::auth_code::AuthCode;
-use crate::security_configuration::certificate::CertificateConfig;
-use crate::security_configuration::certificate::PemCertificate;
-use crate::security_configuration::trusted_store::PemTrustedStore;
-use crate::security_configuration::SecurityConfig;
-use crate::server::certificate::GetCertificateRequest;
-use crate::server::Server;
-use crate::utils::x509::ca::make_intermediate;
-use crate::utils::x509::cert::make_cert;
-use crate::utils::x509::key::make_key;
-use crate::utils::x509::name::CertitficateName;
-use crate::utils::x509::validity::Validity;
-use crate::utils::x509::PemString as _;
 
-const ROOT_CA_CERTIFICATE_FILENAME: &str = "root-ca-cert.pem";
-const ROOT_CA_PRIVATE_KEY_FILENAME: &str = "root-ca-key.pem";
+const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
+    certificate: "root-ca-cert.pem",
+    private_key: "root-ca-key.pem",
+};
 
 #[tokio::test]
 async fn status() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await?;
+    let handle = Server::run(config.clone()).await?;
 
-    let _client = make_client(&config).await;
+    let _client = make_client(&config).await?;
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn certificate() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await.expect("Server::run");
+    let handle = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let public_key = private_key.public_key_to_pem().pem_string()?;
-
-    let request = client
-        .get(format!(
-            "https://{}:{}/remote/certificate",
-            config.host(),
-            config.port
-        ))
-        .header(CONTENT_TYPE, "application/json")
-        .body(serde_json::to_string(&GetCertificateRequest {
-            code: AuthCode::current(),
-            public_key,
-            name: "Test cert".to_owned(),
-        })?);
-    let response = request.send().await?;
+    let response = send_certificate_request(&config, client, &private_key).await?;
     assert_eq!(StatusCode::OK, response.status());
 
-    let body = response.text().await?;
-    let (rest, certificate) = x509_parser::pem::parse_x509_pem(body.as_bytes())?;
+    let pem = response.text().await?;
+    let (rest, certificate) = x509_parser::pem::parse_x509_pem(pem.as_bytes())?;
     assert_eq!([0; 0], rest);
     let certificate = certificate.parse_x509()?;
     assert_eq!("CN=Test Root CA", certificate.issuer().to_string());
     assert_eq!("CN=Test cert", certificate.subject().to_string());
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let (shutdown, terminated) = Server::run(config.clone()).await?;
+    let handle = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
@@ -95,11 +91,11 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
             config.host(),
             config.port
         ))
-        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
-            code: AuthCode::from("invalid-code"),
+            auth_code: AuthCode::from("invalid-code"),
             public_key,
-            name: "Test cert".to_owned(),
+            name: "Test cert".into(),
         })?);
     let response = request.send().await?;
     assert_eq!(StatusCode::FORBIDDEN, response.status());
@@ -107,8 +103,25 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let body = response.text().await?;
     assert_eq!("[InvalidAuthCode] AuthCode is invalid", body);
 
-    shutdown.send("End of test".into())?;
-    let () = terminated.await?;
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn tunnel() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let handle = Server::run(config.clone()).await?;
+
+    let client = make_client(&config).await?;
+
+    let private_key = make_key()?;
+    let response = send_certificate_request(&config, client, &private_key).await?;
+    assert_eq!(StatusCode::OK, response.status());
+
+    let _pem = response.text().await?;
+
+    let () = handle.stop("End of test").await?;
     Ok(())
 }
 
@@ -128,6 +141,7 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
     };
     let mut wait = Duration::from_millis(1);
     while wait < Duration::from_secs(5) {
+        let t = Instant::now();
         let request = client.get(format!("https://{}:{}/status", config.host(), config.port));
         match request.send().await {
             Ok(response) => match response.text().await.as_deref() {
@@ -137,27 +151,47 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
             Err(error) => debug!("Failed: {error:?}"),
         }
         tokio::time::sleep(wait).await;
-        wait = wait * 2;
+        wait = Duration::max(t.elapsed(), wait) * 2;
     }
     panic!("Failed to connect")
 }
 
-#[derive(Debug)]
+async fn send_certificate_request(
+    config: &TestConfig,
+    client: reqwest::Client,
+    private_key: &PKeyRef<impl HasPublic>,
+) -> Result<Response, Box<dyn Error>> {
+    let public_key = private_key.public_key_to_pem().pem_string()?;
+    let request = client
+        .get(format!(
+            "https://{}:{}/remote/certificate",
+            config.host(),
+            config.port
+        ))
+        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
+        .body(serde_json::to_string(&GetCertificateRequest {
+            auth_code: AuthCode::current(),
+            public_key,
+            name: "Test cert".into(),
+        })?);
+    Ok(request.send().await?)
+}
 
+#[derive(Debug)]
 struct TestConfig {
     port: u16,
-    root_ca_config: Arc<PemCertificate>,
-    tls_config: Arc<SecurityConfig<PemTrustedStore, PemCertificate>>,
+    root_ca: Arc<PemCertificate>,
+    tls_config: <TestConfig as GatewayConfig>::TlsConfig,
 }
 
 impl TestConfig {
     fn new() -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca_config = root_ca_config().expect("root_ca_config()").into();
-        let tls_config = tls_config().expect("tls_config()").into();
+        let root_ca_config = make_root_ca().expect("root_ca_config()");
+        let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
-            root_ca_config,
+            root_ca: root_ca_config,
             tls_config,
         })
     }
@@ -178,7 +212,7 @@ impl GatewayConfig for TestConfig {
 
     type RootCaConfig = Arc<PemCertificate>;
     fn root_ca(&self) -> Self::RootCaConfig {
-        self.root_ca_config.clone()
+        self.root_ca.clone()
     }
 
     type TlsConfig = Arc<SecurityConfig<PemTrustedStore, PemCertificate>>;
@@ -186,20 +220,20 @@ impl GatewayConfig for TestConfig {
         self.tls_config.clone()
     }
 
-    type ClientCertificateIssuerConfig = Arc<SecurityConfig<PemTrustedStore, PemCertificate>>;
+    type ClientCertificateIssuerConfig = Self::TlsConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
         self.tls_config.clone()
     }
 }
 
-fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
+fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
+    let temp_dir = TEMP_DIR.get();
+
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
-    let lock = MUTEX.lock().unwrap();
-    let tempdir = temp_dir();
-    let root_ca = PemCertificate::load_root_ca(
+    let _lock = MUTEX.lock().unwrap();
+    let root_ca = root_ca_configuration::load_root_ca(
         "Test Root CA".to_owned(),
-        tempdir.path().join(ROOT_CA_CERTIFICATE_FILENAME),
-        tempdir.path().join(ROOT_CA_PRIVATE_KEY_FILENAME),
+        ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)),
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)
             .expect("Asn1Time::days_from_now")
@@ -207,19 +241,17 @@ fn root_ca_config() -> Result<PemCertificate, RootCaConfigError> {
             .try_into()
             .expect("Asn1Time to SystemTime"),
     )?;
-    drop(lock);
-    Ok(root_ca)
+    Ok(Arc::new(root_ca))
 }
 
-fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>> {
-    let root_ca_config = root_ca_config()?;
+fn make_tls_config() -> Result<<TestConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
+    let root_ca_config = make_root_ca()?;
     let root_ca = root_ca_config.certificate()?;
-    let root_certificate_pem = root_ca_config.certificate_pem;
+    let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;
 
-    let (intermediate, intermediate_key) = make_intermediate(
-        &root_ca.certificate,
-        &root_ca.private_key,
+    let intermediate = make_intermediate(
+        (*root_ca).as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("Intermediate CA"),
@@ -230,8 +262,7 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
 
     let certificate_key = make_key()?;
     let certificate = make_cert(
-        &intermediate,
-        &intermediate_key,
+        intermediate.as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("localhost"),
@@ -242,21 +273,22 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
         vec![],
     )?;
 
-    Ok(SecurityConfig {
+    Ok(Arc::new(SecurityConfig {
         trusted_store: PemTrustedStore {
             root_certificates_pem: root_certificate_pem,
         },
         certificate: PemCertificate {
-            intermediates_pem: intermediate.to_pem()?.pem_string()?,
+            intermediates_pem: intermediate.certificate.to_pem()?.pem_string()?,
             certificate_pem: certificate.to_pem()?.pem_string()?,
             private_key_pem: certificate_key.private_key_to_pem_pkcs8()?.pem_string()?,
         },
-    })
+    }))
 }
 
-fn temp_dir() -> &'static TempDir {
-    static CONFIG: OnceLock<TempDir> = OnceLock::new();
-    CONFIG.get_or_init(|| {
+static TEMP_DIR: Fixture<TempDir> = Fixture::new();
+
+fn use_temp_dir() -> Arc<TempDir> {
+    TEMP_DIR.get_or_init(|| {
         TempDir::new()
             .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
             .expect("TempDir::new()")

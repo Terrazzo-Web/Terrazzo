@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use nameth::nameth;
-use nameth::NamedEnumValues;
-use nameth::NamedType;
+use nameth::NamedEnumValues as _;
+use nameth::NamedType as _;
 use wasm_bindgen::closure::IntoWasmClosure;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast as _;

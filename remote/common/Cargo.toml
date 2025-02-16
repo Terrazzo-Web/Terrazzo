@@ -10,15 +10,25 @@ description = { workspace = true }
 [lib]
 
 [dependencies]
+axum = { workspace = true }
+cms = { workspace = true }
 nameth = { workspace = true }
+oid-registry = { workspace = true }
+openssl = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
+rustls = { workspace = true }
+rustls-native-certs = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+x509-parser = { workspace = true }
 
 [dev-dependencies]
+scopeguard = { workspace = true }
 serde_json = { workspace = true }
 
 [build-dependencies]

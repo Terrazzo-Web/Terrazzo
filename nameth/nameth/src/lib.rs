@@ -8,7 +8,7 @@
 /// **With structs**
 /// ```
 /// # use nameth::nameth;
-/// # use nameth::NamedType;
+/// # use nameth::NamedType as _;
 /// #[nameth]
 /// struct Point { x: i32, y: i32 }
 /// assert_eq!("Point", Point::type_name());
@@ -17,8 +17,8 @@
 /// **With enums**
 /// ```
 /// # use nameth::nameth;
-/// # use nameth::NamedType;
-/// # use nameth::NamedEnumValues;
+/// # use nameth::NamedType as _;
+/// # use nameth::NamedEnumValues as _;
 /// #[nameth]
 /// enum Shape {
 ///     Square(f64),
@@ -34,7 +34,7 @@
 /// **With functions**
 /// ```
 /// # use nameth::nameth;
-/// # use nameth::NamedType;
+/// # use nameth::NamedType as _;
 /// # struct Shape;
 ///
 /// #[nameth]

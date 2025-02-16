@@ -10,8 +10,10 @@ members = [
     "nameth/nameth",
     "nameth/nameth-macro",
     "nameth/nameth-tests",
+    "remote/client",
     "remote/common",
     "remote/server",
+    "testutils",
 ]
 resolver = "2"
 
@@ -50,45 +52,55 @@ terrazzo = { version = "0.1.3", path = "framework/terrazzo", default-features = 
 terrazzo-build = { version = "0.1.3", path = "framework/build" }
 terrazzo-client = { version = "0.1.3", path = "framework/client" }
 terrazzo-macro = { version = "0.1.3", path = "framework/macro" }
+terrazzo-testutils = { path = "testutils" }
+trz-gateway-client = { path = "remote/client" }
 trz-gateway-common = { path = "remote/common" }
 trz-gateway-server = { path = "remote/server" }
 
 axum = { version = "0.8.1" }
 axum-server = { version = "0.7.1" }
+cms = { version = "0.2.3" }
 darling = { version = "0.20.10" }
 dashmap = { version = "6.1.0" }
 deluxe = { version = "0.5.0" }
-futures = { version = "0.3.30" }
+futures = { version = "0.3.31" }
+hostname = { version = "0.4.0" }
 http = { version = "1.2.0" }
+hyper-util = { version = "0.1.10" }
 include_directory = { version = "0.1.1" }
 libc = { version = "0.2.169" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
-openssl = { version = "0.10.70" }
+oid-registry = { version = "0.8.1" }
+openssl = { version = "0.10.71" }
 pin-project = { version = "1.1.9" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.29" }
 proc-macro2 = { version = "1.0.93" }
-prost = { version = "0.13.4" }
+prost = { version = "0.13.5" }
+prost-types = { version = "0.13.5" }
 quote = { version = "1.0.38" }
 reqwest = { version = "0.12.12" }
 reqwest-wasm = { version = "0.11.16" }
-rustix = { version = "0.38.42" }
+rsass-macros = { version = "0.29.0" }
+rustix = { version = "0.38.44" }
+rustls = { version = "0.23.23" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.217", features = ["derive", "rc"] }
 serde_json = { version = "1.0.138" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.4" }
-rsass-macros = { version = "0.28.10" }
 syn = { version = "2.0.98" }
-tempfile = { version = "3.16.0" }
+tempfile = { version = "3.17.0" }
 thiserror = { version = "2.0.11" }
 tokio = { version = "1.43.0" }
 tokio-rustls = { version = "0.26.1" }
+tokio-tungstenite = { version = "0.26.1" }
 tokio-util = { version = "0.7.13" }
-tonic = { version = "0.12.2" }
+tonic = { version = "0.12.3" }
 tonic-build = { version = "0.12.3" }
+tower = { version = "0.5.2" }
 tower-http = { version = "0.6.2" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5" }
@@ -97,10 +109,10 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 uuid = { version = "1.13.1" }
 wasm-bindgen = { version = "0.2.100" }
 wasm-bindgen-futures = { version = "0.4.50" }
-wasm-bindgen-test = { version = "0.3.45" }
+wasm-bindgen-test = { version = "0.3.50" }
 wasm-streams = { version = "0.4.2" }
-web-sys = { version = "0.3.76" }
-x509-parser = { version = "0.16.0" }
+web-sys = { version = "0.3.77" }
+x509-parser = { version = "0.17.0" }
 
 [workspace.lints.rust]
 unused = "deny"

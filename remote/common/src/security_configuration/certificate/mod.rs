@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use openssl::pkey::PKey;
-use openssl::pkey::Private;
 use openssl::x509::X509Ref;
 use openssl::x509::X509;
 
 use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;
-use crate::certificate_info::CertificateInfo;
+use crate::certificate_info::X509CertificateInfo;
 use crate::is_configuration::IsConfiguration;
 
 pub mod cache;
@@ -17,7 +15,7 @@ pub mod tls_server;
 pub trait CertificateConfig: IsConfiguration {
     type Error: std::error::Error;
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error>;
-    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error>;
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error>;
 
     fn memoize(self) -> MemoizedCertificate<Self>
     where
@@ -34,9 +32,7 @@ pub trait CertificateConfig: IsConfiguration {
     }
 }
 
-pub type Certificate = CertificateInfo<X509, PKey<Private>>;
-
-impl Certificate {
+impl X509CertificateInfo {
     pub fn display(&self) -> impl std::fmt::Display {
         display_x509_certificate(&self.certificate)
     }
@@ -57,7 +53,7 @@ impl<T: CertificateConfig> CertificateConfig for Arc<T> {
         self.as_ref().intermediates()
     }
 
-    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         self.as_ref().certificate()
     }
 }

@@ -36,8 +36,7 @@ impl<C: GatewayConfig> Server<C> {
         request: GetCertificateRequest<AuthCode>,
     ) -> Result<String, MakePemCertificateError> {
         let certificate = make_cert(
-            &self.root_ca.certificate,
-            &self.root_ca.private_key,
+            (*self.root_ca).as_ref(),
             CertitficateName {
                 common_name: Some(&request.name),
                 ..CertitficateName::default()

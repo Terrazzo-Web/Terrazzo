@@ -8,8 +8,8 @@ use openssl::x509::store::X509Store;
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::X509;
 
-use super::Certificate;
 use super::CertificateConfig;
+use super::X509CertificateInfo;
 use crate::certificate_info::CertificateInfo;
 use crate::security_configuration::common::parse_pem_certificates;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
@@ -24,12 +24,12 @@ pub struct PemCertificate {
 impl CertificateConfig for PemCertificate {
     type Error = PemCertificateError;
 
-    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         let certificate = X509::from_pem(self.certificate_pem.as_bytes())
             .map_err(PemCertificateError::InvalidPemCertificate)?;
         let private_key = PKey::private_key_from_pem(self.private_key_pem.as_bytes())
             .map_err(PemCertificateError::InvalidPemPrivateKey)?;
-        Ok(Certificate {
+        Ok(X509CertificateInfo {
             certificate,
             private_key,
         }

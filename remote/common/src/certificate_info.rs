@@ -1,5 +1,10 @@
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use openssl::pkey::PKey;
+use openssl::pkey::PKeyRef;
+use openssl::pkey::Private;
+use openssl::x509::X509Ref;
+use openssl::x509::X509;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CertificateInfo<X, Y = X> {
@@ -59,3 +64,6 @@ pub enum CertificateError<E: std::error::Error> {
     #[error("[{n}] {0}", n = self.name())]
     PrivateKey(E),
 }
+
+pub type X509CertificateInfo = CertificateInfo<X509, PKey<Private>>;
+pub type X509CertificateInfoRef<'t> = CertificateInfo<&'t X509Ref, &'t PKeyRef<Private>>;

@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::OnceLock;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -13,6 +12,7 @@ use reqwest::header::CONTENT_TYPE;
 use reqwest::Response;
 use reqwest::StatusCode;
 use tempfile::TempDir;
+use terrazzo_testutils::fixture::Fixture;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
@@ -223,9 +223,10 @@ impl GatewayConfig for TestConfig {
 }
 
 fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
-    static MUTEX: std::sync::Mutex<()> = Mutex::new(());
-    let lock = MUTEX.lock().unwrap();
     let tempdir = temp_dir();
+
+    static MUTEX: std::sync::Mutex<()> = Mutex::new(());
+    let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
         "Test Root CA".to_owned(),
         ROOT_CA_FILENAME.map(|filename| tempdir.path().join(filename)),
@@ -236,9 +237,7 @@ fn root_ca_config() -> Result<Arc<PemCertificate>, RootCaConfigError> {
             .try_into()
             .expect("Asn1Time to SystemTime"),
     )?;
-    let root_ca = Arc::new(root_ca);
-    drop(lock);
-    Ok(root_ca)
+    Ok(Arc::new(root_ca))
 }
 
 fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>> {
@@ -247,9 +246,8 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
     let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;
 
-    let (intermediate, intermediate_key) = make_intermediate(
-        &root_ca.certificate,
-        &root_ca.private_key,
+    let intermediate = make_intermediate(
+        (*root_ca).as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("Intermediate CA"),
@@ -260,8 +258,7 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
 
     let certificate_key = make_key()?;
     let certificate = make_cert(
-        &intermediate,
-        &intermediate_key,
+        intermediate.as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("localhost"),
@@ -277,16 +274,16 @@ fn tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<d
             root_certificates_pem: root_certificate_pem,
         },
         certificate: PemCertificate {
-            intermediates_pem: intermediate.to_pem()?.pem_string()?,
+            intermediates_pem: intermediate.certificate.to_pem()?.pem_string()?,
             certificate_pem: certificate.to_pem()?.pem_string()?,
             private_key_pem: certificate_key.private_key_to_pem_pkcs8()?.pem_string()?,
         },
     })
 }
 
-fn temp_dir() -> &'static TempDir {
-    static CONFIG: OnceLock<TempDir> = OnceLock::new();
-    CONFIG.get_or_init(|| {
+fn temp_dir() -> Arc<TempDir> {
+    static FIXTURE: Fixture<TempDir> = Fixture::new();
+    FIXTURE.get_or_init(|| {
         TempDir::new()
             .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
             .expect("TempDir::new()")

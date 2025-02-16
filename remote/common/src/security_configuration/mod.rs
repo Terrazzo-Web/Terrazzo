@@ -3,9 +3,9 @@ use std::sync::Arc;
 use openssl::x509::store::X509Store;
 use openssl::x509::X509;
 
-use self::certificate::Certificate;
 use self::certificate::CertificateConfig;
 use self::trusted_store::TrustedStoreConfig;
+use crate::certificate_info::X509CertificateInfo;
 use crate::is_configuration::IsConfiguration;
 
 pub mod certificate;
@@ -33,7 +33,7 @@ impl<T: IsConfiguration, C: CertificateConfig> CertificateConfig for SecurityCon
         self.certificate.intermediates()
     }
 
-    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         self.certificate.certificate()
     }
 }

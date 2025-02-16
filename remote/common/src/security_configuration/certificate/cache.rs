@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use openssl::x509::X509;
 
-use super::Certificate;
 use super::CertificateConfig;
+use super::X509CertificateInfo;
 use crate::security_configuration::common::get_or_init;
 
 pub struct MemoizedCertificate<C> {
     base: C,
     intermediates: std::sync::Mutex<Option<Arc<Vec<X509>>>>,
-    certificate: std::sync::Mutex<Option<Arc<Certificate>>>,
+    certificate: std::sync::Mutex<Option<Arc<X509CertificateInfo>>>,
 }
 
 impl<C> MemoizedCertificate<C> {
@@ -30,7 +30,7 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
         get_or_init(&self.intermediates, || self.base.intermediates())
     }
 
-    fn certificate(&self) -> Result<Arc<Certificate>, Self::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         get_or_init(&self.certificate, || self.base.certificate())
     }
 }
@@ -38,7 +38,7 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
 pub struct CachedCertificate<C> {
     _base: PhantomData<C>,
     intermediates: Arc<Vec<X509>>,
-    certificate: Arc<Certificate>,
+    certificate: Arc<X509CertificateInfo>,
 }
 
 impl<C: CertificateConfig> CachedCertificate<C> {
@@ -58,7 +58,7 @@ impl<C: CertificateConfig> CertificateConfig for CachedCertificate<C> {
         Ok(self.intermediates.clone())
     }
 
-    fn certificate(&self) -> Result<Arc<Certificate>, C::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, C::Error> {
         Ok(self.certificate.clone())
     }
 }

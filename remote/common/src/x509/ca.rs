@@ -1,14 +1,9 @@
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use openssl::error::ErrorStack;
-use openssl::pkey::PKey;
-use openssl::pkey::PKeyRef;
-use openssl::pkey::Private;
 use openssl::x509::extension::BasicConstraints;
 use openssl::x509::extension::KeyUsage;
 use openssl::x509::X509Builder;
-use openssl::x509::X509Ref;
-use openssl::x509::X509;
 
 use super::common_fields::set_akid;
 use super::common_fields::set_common_fields;
@@ -19,28 +14,30 @@ use super::name::make_name;
 use super::name::CertitficateName;
 use super::name::MakeNameError;
 use super::validity::Validity;
+use crate::certificate_info::CertificateInfo;
+use crate::certificate_info::X509CertificateInfo;
+use crate::certificate_info::X509CertificateInfoRef;
 
 pub fn make_ca(
     subject_name: CertitficateName,
     validity: Validity,
-) -> Result<(X509, PKey<Private>), MakeCaError> {
+) -> Result<X509CertificateInfo, MakeCaError> {
     make_impl(None, subject_name, validity)
 }
 
 pub fn make_intermediate(
-    root: &X509Ref,
-    root_key: &PKeyRef<Private>,
+    root: X509CertificateInfoRef,
     subject_name: CertitficateName,
     validity: Validity,
-) -> Result<(X509, PKey<Private>), MakeCaError> {
-    make_impl(Some((root, root_key)), subject_name, validity)
+) -> Result<X509CertificateInfo, MakeCaError> {
+    make_impl(Some(root), subject_name, validity)
 }
 
 fn make_impl(
-    issuer: Option<(&X509Ref, &PKeyRef<Private>)>,
+    issuer: Option<X509CertificateInfoRef>,
     subject_name: CertitficateName,
     validity: Validity,
-) -> Result<(X509, PKey<Private>), MakeCaError> {
+) -> Result<X509CertificateInfo, MakeCaError> {
     let key = make_key()?;
 
     let mut builder = X509Builder::new().map_err(MakeCaError::NewBuilder)?;
@@ -50,7 +47,7 @@ fn make_impl(
         .map_err(MakeCaError::SetPublicKey)?;
     let subject_name = make_name(subject_name)?;
     let (issuer_name, issuer_key) = issuer
-        .map(|(issuer, key)| (issuer.subject_name(), key))
+        .map(|issuer| (issuer.certificate.subject_name(), issuer.private_key))
         .unwrap_or((&subject_name, &key));
     set_common_fields(&mut builder, issuer_name, &subject_name, validity)?;
 
@@ -72,8 +69,8 @@ fn make_impl(
     })()
     .map_err(MakeCaError::KeyUsage)?;
 
-    if let Some((issuer, _)) = issuer {
-        set_akid(issuer, &mut builder).map_err(MakeCaError::AuthorityKeyIdentifier)?;
+    if let Some(issuer) = issuer {
+        set_akid(issuer.certificate, &mut builder).map_err(MakeCaError::AuthorityKeyIdentifier)?;
     }
 
     builder
@@ -82,7 +79,10 @@ fn make_impl(
 
     let root_cert = builder.build();
 
-    Ok((root_cert, key))
+    Ok(CertificateInfo {
+        certificate: root_cert,
+        private_key: key,
+    })
 }
 
 #[nameth]
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn make_ca() -> Result<(), Box<dyn Error>> {
         Ok({
-            let (certificate, _private_key) = super::make_ca(
+            let ca = super::make_ca(
                 CertitficateName {
                     country: Some(['D', 'E']),
                     state_or_province: Some("Bayern"),
@@ -146,7 +146,7 @@ mod tests {
                     to: SystemTime::now() + Duration::from_secs(1) * 3600,
                 },
             )?;
-            let text = certificate.to_text().pem_string().unwrap();
+            let text = ca.certificate.to_text().pem_string().unwrap();
             let _debug = scopeguard::guard_on_unwind((), |_| {
                 println!("Certificate is\n{text}");
             });
@@ -171,7 +171,7 @@ mod tests {
         const DATA: &str = "Hello, world! 😃";
 
         Ok({
-            let (certificate, private_key) = super::make_ca(
+            let ca = super::make_ca(
                 CertitficateName {
                     country: Some(['D', 'E']),
                     state_or_province: Some("Bayern"),
@@ -184,10 +184,10 @@ mod tests {
                     to: SystemTime::now() + Duration::from_secs(1) * 3600,
                 },
             )?;
-            let public_key = certificate.public_key()?;
+            let public_key = ca.certificate.public_key()?;
 
             let signature = {
-                let mut signer = Signer::new_without_digest(&private_key)?;
+                let mut signer = Signer::new_without_digest(&ca.private_key)?;
                 signer.update(DATA.as_bytes())?;
                 signer.sign_to_vec()?
             };
@@ -198,7 +198,7 @@ mod tests {
                 assert!(verifier.verify(&signature)?);
             }
 
-            let (certificate, _) = super::make_ca(
+            let ca = super::make_ca(
                 CertitficateName {
                     country: Some(['D', 'E']),
                     state_or_province: Some("Bayern"),
@@ -211,7 +211,7 @@ mod tests {
                     to: SystemTime::now() + Duration::from_secs(1) * 3600,
                 },
             )?;
-            let public_key = certificate.public_key()?;
+            let public_key = ca.certificate.public_key()?;
             let mut verifier = Verifier::new_without_digest(&public_key)?;
             verifier.update(DATA.as_bytes())?;
             assert_eq!(false, verifier.verify(&signature)?);

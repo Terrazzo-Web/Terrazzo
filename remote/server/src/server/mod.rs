@@ -17,10 +17,10 @@ use tracing::debug;
 use tracing::info_span;
 use tracing::warn;
 use tracing::Instrument as _;
+use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
-use trz_gateway_common::security_configuration::certificate::Certificate;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient;
@@ -43,7 +43,7 @@ mod tests;
 pub struct Server<C> {
     config: C,
     shutdown: Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
-    root_ca: Arc<Certificate>,
+    root_ca: Arc<X509CertificateInfo>,
     tls_server: RustlsConfig,
     tls_client: TlsConnector,
     connections: Arc<Connections>,

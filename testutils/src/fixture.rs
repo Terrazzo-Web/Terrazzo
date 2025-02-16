@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::sync::Weak;
 
+#[derive(Default)]
 pub struct Fixture<T> {
     once: OnceLock<FixtureState<T>>,
 }

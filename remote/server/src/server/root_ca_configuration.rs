@@ -32,7 +32,7 @@ pub fn load_root_ca(
             certificate: false,
             private_key: false,
         } => {
-            let (certificate, private_key) = make_ca(
+            let root_ca = make_ca(
                 CertitficateName {
                     common_name: Some(name.as_str()),
                     ..CertitficateName::default()
@@ -40,19 +40,16 @@ pub fn load_root_ca(
                 default_validity,
             )
             .map_err(Box::new)?;
-            let pem_certificate = PemCertificate {
-                certificate_pem: certificate.to_pem().pem_string()?,
-                private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
-                intermediates_pem: String::default(),
-            };
+            let root_ca_pem = CertificateInfo {
+                certificate: root_ca.certificate.to_pem(),
+                private_key: root_ca.private_key.private_key_to_pem_pkcs8(),
+            }
+            .try_map(|maybe_pem| maybe_pem.pem_string())?;
             let _: CertificateInfo<()> = root_ca_path
-                .zip(CertificateInfo {
-                    certificate: &pem_certificate.certificate_pem,
-                    private_key: &pem_certificate.private_key_pem,
-                })
-                .try_map(|(path, pem)| std::fs::write(path, pem))
+                .zip(root_ca_pem.as_ref())
+                .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
                 .map_err(RootCaConfigError::Store)?;
-            Ok(pem_certificate)
+            Ok(root_ca_pem.into())
         }
         CertificateInfo {
             certificate: root_ca_exists,
@@ -85,5 +82,5 @@ pub enum RootCaConfigError {
     MakeCa(#[from] Box<MakeCaError>),
 
     #[error("[{n}] {0}", n = self.name())]
-    PemString(#[from] PemAsStringError),
+    PemString(#[from] CertificateError<PemAsStringError>),
 }

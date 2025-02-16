@@ -3,17 +3,15 @@ use nameth::NamedEnumValues as _;
 use openssl::asn1::Asn1OctetString;
 use openssl::cms::CmsContentInfo;
 use openssl::error::ErrorStack;
-use openssl::pkey::PKeyRef;
-use openssl::pkey::Private;
 use openssl::stack::StackRef;
 use openssl::x509::X509Extension;
-use openssl::x509::X509Ref;
 use openssl::x509::X509;
 
 use super::cms_options;
 use super::make_certificate_properties_hash;
 use super::signed_extension_oid;
 use super::MakeCertificatePropertiesHashError;
+use crate::certificate_info::X509CertificateInfoRef;
 use crate::x509::validity::Validity;
 
 pub fn make_signed_extension(
@@ -21,14 +19,13 @@ pub fn make_signed_extension(
     validity: Validity,
     public_key_der: &[u8],
     intermediate_certificates: Option<&StackRef<X509>>,
-    signer_certificate: &X509Ref,
-    signer_key: &PKeyRef<Private>,
+    signer: X509CertificateInfoRef,
 ) -> Result<X509Extension, MakeSignedExtensionError> {
     let certificate_properties_hash =
         make_certificate_properties_hash(common_name, validity, public_key_der)?;
     let signed_cms = CmsContentInfo::sign(
-        Some(signer_certificate),
-        Some(signer_key),
+        Some(signer.certificate),
+        Some(signer.private_key),
         intermediate_certificates,
         Some(&certificate_properties_hash),
         cms_options(),

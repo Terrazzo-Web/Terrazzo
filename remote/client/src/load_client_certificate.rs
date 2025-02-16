@@ -3,11 +3,10 @@ use std::path::Path;
 use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use openssl::error::ErrorStack;
-use openssl::pkey::PKey;
-use openssl::pkey::Private;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateError;
 use trz_gateway_common::certificate_info::CertificateInfo;
+use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::x509::key::make_key;
@@ -47,21 +46,17 @@ pub async fn load_client_certificate<C: ClientCertificateConfig>(
             certificate: false,
             private_key: false,
         } => {
-            let (certificate, private_key) =
-                make_client_certificate(client_config, auth_code).await?;
-            let pem_certificate = PemCertificate {
-                certificate_pem: certificate.to_pem().pem_string()?,
-                private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
-                intermediates_pem: String::default(),
-            };
+            let client_cert = make_client_certificate(client_config, auth_code).await?;
+            let client_cert_pem = CertificateInfo {
+                certificate: client_cert.certificate.to_pem(),
+                private_key: client_cert.private_key.private_key_to_pem_pkcs8(),
+            }
+            .try_map(|maybe_pem| maybe_pem.pem_string())?;
             let _: CertificateInfo<()> = certificate_path
-                .zip(CertificateInfo {
-                    certificate: &pem_certificate.certificate_pem,
-                    private_key: &pem_certificate.private_key_pem,
-                })
-                .try_map(|(path, pem)| std::fs::write(path, pem))
+                .zip(client_cert_pem.as_ref())
+                .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
                 .map_err(LoadClientCertificateError::Store)?;
-            Ok(pem_certificate)
+            Ok(client_cert_pem.into())
         }
         CertificateInfo {
             certificate: root_ca_exists,
@@ -97,19 +92,22 @@ pub enum LoadClientCertificateError<C: ClientCertificateConfig> {
     },
 
     #[error("[{n}] {0}", n = self.name())]
-    PemString(#[from] PemAsStringError),
+    PemString(#[from] CertificateError<PemAsStringError>),
 }
 
 async fn make_client_certificate<C: ClientCertificateConfig>(
     client_config: C,
     auth_code: AuthCode,
-) -> Result<(X509, PKey<Private>), MakeClientCertificateError<C::GatewayPki>> {
+) -> Result<X509CertificateInfo, MakeClientCertificateError<C::GatewayPki>> {
     let key = make_key()?;
     let http_client = make_http_client(client_config.gateway_pki())?;
     let certificate = get_certifiate(client_config, http_client, auth_code, &key).await?;
     let certificate =
         X509::from_pem(certificate.as_bytes()).map_err(MakeClientCertificateError::ParsePem)?;
-    Ok((certificate, key))
+    Ok(CertificateInfo {
+        certificate,
+        private_key: key,
+    })
 }
 
 #[nameth]

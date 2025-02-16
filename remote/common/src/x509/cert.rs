@@ -3,15 +3,12 @@ use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use openssl::error::ErrorStack;
 use openssl::pkey::PKey;
-use openssl::pkey::PKeyRef;
-use openssl::pkey::Private;
 use openssl::x509::extension::BasicConstraints;
 use openssl::x509::extension::ExtendedKeyUsage;
 use openssl::x509::extension::KeyUsage;
 use openssl::x509::extension::SubjectAlternativeName;
 use openssl::x509::X509Builder;
 use openssl::x509::X509Extension;
-use openssl::x509::X509Ref;
 use openssl::x509::X509;
 
 use super::common_fields::set_akid;
@@ -21,11 +18,11 @@ use super::name::make_name;
 use super::name::CertitficateName;
 use super::name::MakeNameError;
 use super::validity::Validity;
+use crate::certificate_info::X509CertificateInfoRef;
 use crate::http_error::IsHttpError;
 
 pub fn make_cert(
-    issuer: &X509Ref,
-    issuer_key: &PKeyRef<Private>,
+    issuer: X509CertificateInfoRef,
     name: CertitficateName,
     validity: Validity,
     public_key: &str,
@@ -41,7 +38,12 @@ pub fn make_cert(
 
     {
         let name = make_name(name)?;
-        set_common_fields(&mut builder, issuer.subject_name(), &name, validity)?;
+        set_common_fields(
+            &mut builder,
+            issuer.certificate.subject_name(),
+            &name,
+            validity,
+        )?;
     }
 
     (|| {
@@ -70,14 +72,14 @@ pub fn make_cert(
     })()
     .map_err(MakeCertError::ExtendedKeyUsage)?;
 
-    set_akid(issuer, &mut builder).map_err(MakeCertError::AuthorityKeyIdentifier)?;
+    set_akid(issuer.certificate, &mut builder).map_err(MakeCertError::AuthorityKeyIdentifier)?;
 
     if let Some(common_name) = name.common_name {
         (|| {
             builder.append_extension(
                 SubjectAlternativeName::new()
                     .dns(common_name)
-                    .build(&builder.x509v3_context(Some(issuer), None))?,
+                    .build(&builder.x509v3_context(Some(issuer.certificate), None))?,
             )?;
             Ok(())
         })()
@@ -91,7 +93,7 @@ pub fn make_cert(
     }
 
     builder
-        .sign(issuer_key, openssl::hash::MessageDigest::sha256())
+        .sign(issuer.private_key, openssl::hash::MessageDigest::sha256())
         .map_err(MakeCertError::Sign)?;
 
     let certificate = builder.build();
@@ -165,7 +167,6 @@ mod tests {
     use std::time::SystemTime;
 
     use openssl::pkey::PKey;
-    use openssl::pkey::PKeyRef;
     use openssl::pkey::Private;
     use openssl::pkey::Public;
     use openssl::sign::Signer;
@@ -173,12 +174,14 @@ mod tests {
     use openssl::stack::Stack;
     use openssl::x509::store::X509StoreBuilder;
     use openssl::x509::X509Extension;
-    use openssl::x509::X509Ref;
     use openssl::x509::X509;
     use rustls::pki_types::CertificateDer;
     use scopeguard::defer_on_unwind;
 
     use super::super::name::CertitficateName;
+    use crate::certificate_info::CertificateInfo;
+    use crate::certificate_info::X509CertificateInfo;
+    use crate::certificate_info::X509CertificateInfoRef;
     use crate::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
     use crate::security_configuration::trusted_store::empty::EmptyTrustedStoreConfig;
     use crate::x509::ca::make_ca;
@@ -194,11 +197,11 @@ mod tests {
 
     #[test]
     fn make_cert() -> Result<(), Box<dyn Error>> {
-        let (ca, ca_key) = make_test_ca()?;
+        let ca = make_test_ca()?;
         Ok({
-            let (certificate, _private_key) = make_test_cert(&ca, &ca_key)?;
-            let text = certificate.to_text().pem_string()?;
-            let ca_text = ca.to_text().pem_string()?;
+            let test_cert = make_test_cert(ca.as_ref())?;
+            let text = test_cert.certificate.to_text().pem_string()?;
+            let ca_text = ca.certificate.to_text().pem_string()?;
             let _debug = scopeguard::guard_on_unwind((), |_| {
                 println!("CA is\n{ca_text}");
                 println!("Certificate is\n{text}");
@@ -224,21 +227,27 @@ mod tests {
 
     #[test]
     fn sign_payload() -> Result<(), Box<dyn Error>> {
-        let (ca, ca_key) = make_test_ca()?;
+        let ca = make_test_ca()?;
 
         Ok({
-            let (certificate, private_key) = make_test_cert(&ca, &ca_key)?;
+            let test_cert = make_test_cert(ca.as_ref())?;
 
             let signature = {
-                let mut signer = Signer::new_without_digest(&private_key)?;
+                let mut signer = Signer::new_without_digest(&test_cert.private_key)?;
                 signer.update(DATA.as_bytes())?;
                 signer.sign_to_vec()?
             };
 
-            assert!(validate_signature(certificate.public_key()?, &signature)?);
+            assert!(validate_signature(
+                test_cert.certificate.public_key()?,
+                &signature
+            )?);
 
-            let (certificate, _private_key) = make_test_cert(&ca, &ca_key)?;
-            assert!(!validate_signature(certificate.public_key()?, &signature)?);
+            let test_cert2 = make_test_cert(ca.as_ref())?;
+            assert!(!validate_signature(
+                test_cert2.certificate.public_key()?,
+                &signature
+            )?);
         })
     }
 
@@ -332,9 +341,8 @@ mod tests {
     fn signed_extension_wrong_signer() -> Result<(), Box<dyn Error>> {
         let test_case = SignedExtensionTestCase::new()?;
         for (t, common_name) in [(true, "Terrazzo Client"), (false, "NOT Terrazzo")] {
-            let (signer_certificate, signer_key) = make_named_test_cert(
-                &test_case.root,
-                &test_case.root_key,
+            let signer = make_named_test_cert(
+                test_case.root.as_ref(),
                 CertitficateName {
                     country: Some(['D', 'E']),
                     state_or_province: Some("Bayern"),
@@ -344,8 +352,7 @@ mod tests {
                 },
             )?;
             let extension = make_test_signed_extension(&SignedExtensionTestCase {
-                signer_certificate: signer_certificate,
-                signer_key: signer_key,
+                signer,
                 ..test_case.clone()
             })?;
             let certificate = make_test_cert_with_signed_extension(&test_case, extension)?;
@@ -366,13 +373,9 @@ mod tests {
     #[test]
     fn signed_extension_untrusted_signer() -> Result<(), Box<dyn Error>> {
         let test_case = SignedExtensionTestCase::new()?;
-        let (wrong_signer_certificate, wrong_signer_key) = {
-            let (ca, ca_key) = make_test_ca()?;
-            make_test_cert(&ca, &ca_key)?
-        };
+        let wrong_signer = make_test_cert(make_test_ca()?.as_ref())?;
         let extension = make_test_signed_extension(&SignedExtensionTestCase {
-            signer_certificate: wrong_signer_certificate,
-            signer_key: wrong_signer_key,
+            signer: wrong_signer,
             ..test_case.clone()
         })?;
         let certificate = make_test_cert_with_signed_extension(&test_case, extension)?;
@@ -402,8 +405,8 @@ mod tests {
     #[test]
     fn signed_extension_missing() -> Result<(), Box<dyn Error>> {
         let test_case = SignedExtensionTestCase::new()?;
-        let (certificate, _) = make_test_cert(&test_case.root, &test_case.root_key)?;
-        let error = validate_test_signed_extension(&test_case, certificate).unwrap_err();
+        let test_cert = make_test_cert(test_case.root.as_ref())?;
+        let error = validate_test_signed_extension(&test_case, test_cert.certificate).unwrap_err();
         defer_on_unwind!(eprintln!("{error}"));
         assert!(error.to_string().starts_with("[SignedExtensionNotFound]"));
         Ok(())
@@ -412,7 +415,7 @@ mod tests {
     #[test]
     fn signed_extension_invalid_intermediate() -> Result<(), Box<dyn Error>> {
         let test_case = SignedExtensionTestCase::new()?;
-        let (intermediate, _) = make_test_intermediate(&test_case.root, &test_case.root_key)?;
+        let intermediate = make_test_intermediate(test_case.root.as_ref())?;
         let extension = make_test_signed_extension(&SignedExtensionTestCase {
             intermediate,
             ..test_case.clone()
@@ -428,12 +431,9 @@ mod tests {
 
     #[derive(Clone)]
     struct SignedExtensionTestCase {
-        root: X509,
-        root_key: PKey<Private>,
-        intermediate: X509,
-        intermediate_key: PKey<Private>,
-        signer_certificate: X509,
-        signer_key: PKey<Private>,
+        root: X509CertificateInfo,
+        intermediate: X509CertificateInfo,
+        signer: X509CertificateInfo,
         common_name: String,
         validity: Validity,
         public_key: PKey<Private>,
@@ -441,10 +441,9 @@ mod tests {
 
     impl SignedExtensionTestCase {
         fn new() -> Result<Self, Box<dyn Error>> {
-            let (root, root_key) = make_test_ca()?;
-            let (intermediate, intermediate_key) = make_test_intermediate(&root, &root_key)?;
-            let (signer_certificate, signer_key) =
-                make_test_cert(&intermediate, &intermediate_key)?;
+            let root = make_test_ca()?;
+            let intermediate = make_test_intermediate(root.as_ref())?;
+            let signer = make_test_cert(intermediate.as_ref())?;
             let validity = Validity {
                 from: SystemTime::now(),
                 to: SystemTime::now() + Duration::from_secs(1) * 3600,
@@ -452,11 +451,8 @@ mod tests {
             let public_key = make_key()?;
             Ok(Self {
                 root,
-                root_key,
                 intermediate,
-                intermediate_key,
-                signer_certificate,
-                signer_key,
+                signer,
                 common_name: "With signed extension".to_owned(),
                 validity,
                 public_key,
@@ -470,7 +466,7 @@ mod tests {
     ) -> Result<(), Box<dyn Error>> {
         let store = {
             let mut builder = X509StoreBuilder::new()?;
-            builder.add_cert(test_case.root.to_owned())?;
+            builder.add_cert(test_case.root.certificate.to_owned())?;
             builder.build()
         };
         let () = validate_signed_extension(
@@ -486,8 +482,7 @@ mod tests {
         extension: X509Extension,
     ) -> Result<X509, Box<dyn Error>> {
         let certificate = super::make_cert(
-            &test_case.intermediate,
-            &test_case.intermediate_key,
+            test_case.intermediate.as_ref(),
             CertitficateName {
                 country: Some(['D', 'E']),
                 state_or_province: Some("Bayern"),
@@ -506,25 +501,20 @@ mod tests {
         test_case: &SignedExtensionTestCase,
     ) -> Result<X509Extension, Box<dyn Error>> {
         let mut intermediates = Stack::new()?;
-        intermediates.push(test_case.intermediate.clone())?;
+        intermediates.push(test_case.intermediate.certificate.clone())?;
         let extension = make_signed_extension(
             &test_case.common_name,
             test_case.validity,
             &test_case.public_key.public_key_to_der()?,
             Some(&intermediates),
-            &test_case.signer_certificate,
-            &test_case.signer_key,
+            test_case.signer.as_ref(),
         )?;
         Ok(extension)
     }
 
-    fn make_test_cert(
-        ca: &X509,
-        ca_key: &PKey<Private>,
-    ) -> Result<(X509, PKey<Private>), Box<dyn Error>> {
+    fn make_test_cert(ca: X509CertificateInfoRef) -> Result<X509CertificateInfo, Box<dyn Error>> {
         make_named_test_cert(
             ca,
-            ca_key,
             CertitficateName {
                 country: Some(['D', 'E']),
                 state_or_province: Some("Bayern"),
@@ -536,15 +526,13 @@ mod tests {
     }
 
     fn make_named_test_cert(
-        ca: &X509,
-        ca_key: &PKey<Private>,
+        ca: X509CertificateInfoRef,
         name: CertitficateName,
-    ) -> Result<(X509, PKey<Private>), Box<dyn Error>> {
+    ) -> Result<X509CertificateInfo, Box<dyn Error>> {
         let private_key = make_key()?;
         let public_key = private_key.public_key_to_pem().pem_string()?;
         let certificate = super::make_cert(
             ca,
-            ca_key,
             name,
             Validity {
                 from: SystemTime::now(),
@@ -553,10 +541,13 @@ mod tests {
             &public_key,
             vec![],
         )?;
-        Ok((certificate, private_key))
+        Ok(CertificateInfo {
+            certificate,
+            private_key,
+        })
     }
 
-    fn make_test_ca() -> Result<(X509, PKey<Private>), MakeCaError> {
+    fn make_test_ca() -> Result<X509CertificateInfo, MakeCaError> {
         make_ca(
             CertitficateName {
                 country: Some(['D', 'E']),
@@ -573,12 +564,10 @@ mod tests {
     }
 
     fn make_test_intermediate(
-        root: &X509Ref,
-        root_key: &PKeyRef<Private>,
-    ) -> Result<(X509, PKey<Private>), MakeCaError> {
+        root: X509CertificateInfoRef,
+    ) -> Result<X509CertificateInfo, MakeCaError> {
         make_intermediate(
             root,
-            root_key,
             CertitficateName {
                 common_name: Some("Terrazzo Test intermediate"),
                 ..CertitficateName::default()

@@ -6,6 +6,8 @@ use openssl::error::ErrorStack;
 use openssl::pkey::PKey;
 use openssl::pkey::Private;
 use openssl::x509::X509;
+use trz_gateway_common::certificate_info::CertificateError;
+use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::x509::key::make_key;
@@ -14,8 +16,6 @@ use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
 use crate::certificate_config::ClientCertificateConfig;
-use crate::certificate_info::CertificateError;
-use crate::certificate_info::CertificateInfo;
 use crate::client::certificate::get_certifiate;
 use crate::client::certificate::GetCertificateError;
 use crate::client::AuthCode;

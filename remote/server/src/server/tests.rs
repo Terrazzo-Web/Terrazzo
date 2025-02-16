@@ -41,7 +41,7 @@ async fn status() -> Result<(), Box<dyn Error>> {
     let config = TestConfig::new();
     let handle = Server::run(config.clone()).await?;
 
-    let _client = make_client(&config).await;
+    let _client = make_client(&config).await?;
 
     let () = handle.stop("End of test").await?;
     Ok(())

@@ -13,6 +13,7 @@ members = [
     "remote/client",
     "remote/common",
     "remote/server",
+    "testutils",
 ]
 resolver = "2"
 
@@ -54,6 +55,7 @@ terrazzo-macro = { version = "0.1.3", path = "framework/macro" }
 trz-gateway-client = { path = "remote/client" }
 trz-gateway-common = { path = "remote/common" }
 trz-gateway-server = { path = "remote/server" }
+terrazzo-testutils = { path = "testutils" }
 
 axum = { version = "0.8.1" }
 axum-server = { version = "0.7.1" }

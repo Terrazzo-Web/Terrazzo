@@ -42,6 +42,7 @@ reqwest = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 x509-parser = { workspace = true }
+terrazzo-testutils = { workspace = true }
 
 [lints]
 workspace = true

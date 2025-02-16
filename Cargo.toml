@@ -71,7 +71,7 @@ include_directory = { version = "0.1.1" }
 libc = { version = "0.2.169" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
-oid-registry = { version = "0.8.0" }
+oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.71" }
 pin-project = { version = "1.1.9" }
 portpicker = { version = "0.1.1" }

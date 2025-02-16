@@ -64,12 +64,12 @@ include_directory = { version = "0.1.1" }
 libc = { version = "0.2.169" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
-openssl = { version = "0.10.70" }
+openssl = { version = "0.10.71" }
 pin-project = { version = "1.1.9" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.29" }
 proc-macro2 = { version = "1.0.93" }
-prost = { version = "0.13.4" }
+prost = { version = "0.13.5" }
 quote = { version = "1.0.38" }
 reqwest = { version = "0.12.12" }
 reqwest-wasm = { version = "0.11.16" }
@@ -82,7 +82,7 @@ serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.4" }
 rsass-macros = { version = "0.28.10" }
 syn = { version = "2.0.98" }
-tempfile = { version = "3.16.0" }
+tempfile = { version = "3.17.0" }
 thiserror = { version = "2.0.11" }
 tokio = { version = "1.43.0" }
 tokio-rustls = { version = "0.26.1" }

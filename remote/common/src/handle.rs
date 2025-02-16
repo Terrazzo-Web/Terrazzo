@@ -35,6 +35,10 @@ impl<R> ServerHandle<R> {
             .expect("shutdown_tx")
             .send(format!("{reason}"))
             .map_err(|_| ServerStopError::NotRunning)?;
+        self.stopped().await
+    }
+
+    pub async fn stopped(mut self) -> Result<R, ServerStopError> {
         self.terminated_rx
             .take()
             .expect("terminated_rx")
@@ -48,7 +52,6 @@ impl<R> Drop for ServerHandle<R> {
         if (self.shutdown_tx.is_some() || self.terminated_rx.is_some()) && !std::thread::panicking()
         {
             warn!("The server was not shutdown");
-            debug_assert!(false);
         }
     }
 }

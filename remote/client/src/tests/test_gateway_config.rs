@@ -31,14 +31,14 @@ const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
 pub struct TestGatewayConfig {
     port: u16,
     root_ca: Arc<PemCertificate>,
-    tls_config: Arc<SecurityConfig<PemTrustedStore, PemCertificate>>,
+    tls_config: <Self as GatewayConfig>::TlsConfig,
 }
 
 impl TestGatewayConfig {
     pub fn new() -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca = make_test_root_ca().expect("test_root_ca()").into();
-        let tls_config = make_test_tls_config().expect("tls_config()").into();
+        let root_ca = make_root_ca().expect("test_root_ca()");
+        let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
             root_ca,
@@ -65,18 +65,20 @@ impl GatewayConfig for TestGatewayConfig {
         self.root_ca.clone()
     }
 
-    type TlsConfig = Arc<SecurityConfig<PemTrustedStore, PemCertificate>>;
+    type TlsConfig = Arc<SecurityConfig<Arc<PemTrustedStore>, PemCertificate>>;
     fn tls(&self) -> Self::TlsConfig {
+        // The TLS server certificate is the same as the signing certificate.
         self.tls_config.clone()
     }
 
-    type ClientCertificateIssuerConfig = Arc<SecurityConfig<PemTrustedStore, PemCertificate>>;
+    type ClientCertificateIssuerConfig = Self::TlsConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
+        // The signing certificate is the same as the TLS server certificate.
         self.tls_config.clone()
     }
 }
 
-fn make_test_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
+fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     let temp_dir = TEMP_DIR.get();
 
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
@@ -94,9 +96,8 @@ fn make_test_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     Ok(Arc::new(root_ca))
 }
 
-fn make_test_tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertificate>, Box<dyn Error>>
-{
-    let root_ca_config = make_test_root_ca()?;
+fn make_tls_config() -> Result<<TestGatewayConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
+    let root_ca_config = make_root_ca()?;
     let root_ca = root_ca_config.certificate()?;
     let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;
@@ -124,16 +125,16 @@ fn make_test_tls_config() -> Result<SecurityConfig<PemTrustedStore, PemCertifica
         vec![],
     )?;
 
-    Ok(SecurityConfig {
-        trusted_store: PemTrustedStore {
+    Ok(Arc::new(SecurityConfig {
+        trusted_store: Arc::new(PemTrustedStore {
             root_certificates_pem: root_certificate_pem,
-        },
+        }),
         certificate: PemCertificate {
             intermediates_pem: intermediate.certificate.to_pem()?.pem_string()?,
             certificate_pem: certificate.to_pem()?.pem_string()?,
             private_key_pem: certificate_key.private_key_to_pem_pkcs8()?.pem_string()?,
         },
-    })
+    }))
 }
 
 static TEMP_DIR: Fixture<TempDir> = Fixture::new();

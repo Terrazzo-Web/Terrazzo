@@ -49,7 +49,6 @@ async fn end_to_end() -> Result<(), Box<dyn std::error::Error>> {
     info!("The client is running");
 
     let () = server_handle.stop("End of test").await?;
-    let client_disconnection = client_handle.stopped().await?.unwrap_err();
-    assert_eq!("", client_disconnection.to_string());
+    let () = client_handle.stopped().await??;
     Ok(())
 }

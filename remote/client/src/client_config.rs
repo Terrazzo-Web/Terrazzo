@@ -16,11 +16,8 @@ use uuid::Uuid;
 ///
 /// Both cases require the base URL to connect to and the PKI to trust.
 ///
-/// Used by
-/// - [ClientCertificateConfig] to initialize a certificate for a client_id
-/// - [TunnelConfig] to create tunnels using the certificate obtained from [ClientCertificateConfig]
+/// Used by [TunnelConfig] to create tunnels using the certificate obtained from [ClientConfig]
 ///
-/// [ClientCertificateConfig]: crate::certificate_config::ClientCertificateConfig
 /// [TunnelConfig]: crate::tunnel_config::TunnelConfig
 pub trait ClientConfig: IsConfiguration {
     /// The URL where the Terrazzo Gateway is listening.

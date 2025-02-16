@@ -24,10 +24,10 @@ pub trait ClientConfig: IsConfiguration {
         format!("https://localhost:{port}")
     }
 
-    type GatewayPkiConfig: TrustedStoreConfig;
+    type GatewayPki: TrustedStoreConfig;
 
     /// The trust anchors for the Terrazzo Gateway server certificate.
-    fn gateway_pki(&self) -> Self::GatewayPkiConfig;
+    fn gateway_pki(&self) -> Self::GatewayPki;
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
@@ -35,8 +35,8 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
         self.as_ref().base_url()
     }
 
-    type GatewayPkiConfig = T::GatewayPkiConfig;
-    fn gateway_pki(&self) -> Self::GatewayPkiConfig {
+    type GatewayPki = T::GatewayPki;
+    fn gateway_pki(&self) -> Self::GatewayPki {
         self.as_ref().gateway_pki()
     }
 }

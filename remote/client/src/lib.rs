@@ -1,4 +1,3 @@
-pub mod certificate_config;
 pub mod client;
 pub mod client_config;
 mod http_client;

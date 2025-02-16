@@ -26,8 +26,9 @@ impl super::Client {
         let web_socket_config = None;
         let disable_nagle = true;
 
+        let websocket_uri = format!("ws{}", &self.uri[4..]);
         let (web_socket, response) = tokio_tungstenite::connect_async_tls_with_config(
-            &self.uri,
+            websocket_uri,
             web_socket_config,
             disable_nagle,
             Some(self.tls_client.clone()),

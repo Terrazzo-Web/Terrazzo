@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use trz_gateway_common::id::ClientId;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
@@ -28,6 +29,10 @@ impl<G> TestTunnelConfig<G> {
 impl<G: GatewayConfig> ClientConfig for TestTunnelConfig<G> {
     fn base_url(&self) -> impl std::fmt::Display {
         self.client_config.base_url()
+    }
+
+    fn client_id(&self) -> ClientId {
+        self.client_config.client_id()
     }
 
     type GatewayPki = <TestClientConfig<G> as ClientConfig>::GatewayPki;

@@ -39,7 +39,7 @@ impl Client {
             .await?;
         let tls_server = config.client_certificate().to_tls_server().await?;
         Ok(Client {
-            uri: format!("{}/remote/tunnel", config.base_url()),
+            uri: format!("{}/remote/tunnel/{}", config.base_url(), config.client_id()),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
         })

@@ -10,11 +10,11 @@ use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
-use crate::certificate_config::ClientCertificateConfig;
+use crate::client_config::ClientConfig;
 
 /// API client to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
-    client_config: impl ClientCertificateConfig,
+    client_config: impl ClientConfig,
     http_client: Client,
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
@@ -26,7 +26,7 @@ pub async fn get_certifiate(
         .body(serde_json::to_string(&GetCertificateRequest {
             auth_code,
             public_key,
-            name: "Test cert".into(),
+            name: client_config.client_id(),
         })?);
     Ok(request.send().await?.text().await?)
 }

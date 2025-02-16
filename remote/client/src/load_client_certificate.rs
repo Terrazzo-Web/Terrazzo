@@ -14,10 +14,10 @@ use trz_gateway_common::x509::key::MakeKeyError;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
-use crate::certificate_config::ClientCertificateConfig;
 use crate::client::certificate::get_certifiate;
 use crate::client::certificate::GetCertificateError;
 use crate::client::AuthCode;
+use crate::client_config::ClientConfig;
 use crate::http_client::make_http_client;
 use crate::http_client::MakeHttpClientError;
 
@@ -25,7 +25,7 @@ use crate::http_client::MakeHttpClientError;
 /// certificate and private key and caches them in PEM files.
 ///
 /// [TunnelConfig::client_certificate]: crate::tunnel_config::TunnelConfig::client_certificate
-pub async fn load_client_certificate<C: ClientCertificateConfig>(
+pub async fn load_client_certificate<C: ClientConfig>(
     client_config: C,
     auth_code: AuthCode,
     certificate_path: CertificateInfo<impl AsRef<Path>>,
@@ -72,7 +72,7 @@ pub async fn load_client_certificate<C: ClientCertificateConfig>(
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum LoadClientCertificateError<C: ClientCertificateConfig> {
+pub enum LoadClientCertificateError<C: ClientConfig> {
     #[error("[{n}] Failed to load certificate: {0}", n = self.name())]
     Load(CertificateError<std::io::Error>),
 
@@ -95,7 +95,7 @@ pub enum LoadClientCertificateError<C: ClientCertificateConfig> {
     PemString(#[from] CertificateError<PemAsStringError>),
 }
 
-async fn make_client_certificate<C: ClientCertificateConfig>(
+async fn make_client_certificate<C: ClientConfig>(
     client_config: C,
     auth_code: AuthCode,
 ) -> Result<X509CertificateInfo, MakeClientCertificateError<C::GatewayPki>> {

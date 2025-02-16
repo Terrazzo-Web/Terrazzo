@@ -44,10 +44,12 @@ pub trait ClientCertificateConfig: ClientConfig {
 
 impl<T: ClientCertificateConfig> ClientCertificateConfig for Arc<T> {}
 
-/// Default implementation for [CertificateConfig::tls] that loads the
+/// Default implementation for [TunnelConfig::tls] that loads the
 /// certificate and private key and caches them in PEM files.
+///
+/// [TunnelConfig::tls]: crate::tunnel_config::TunnelConfig::tls
 pub async fn load_client_certificate<C: ClientCertificateConfig>(
-    certificate_config: C,
+    client_config: C,
     auth_code: AuthCode,
     certificate_path: &Path,
     private_key_path: &Path,
@@ -67,7 +69,7 @@ pub async fn load_client_certificate<C: ClientCertificateConfig>(
         }
         (false, false) => {
             let (certificate, private_key) =
-                make_client_certificate(certificate_config, auth_code).await?;
+                make_client_certificate(client_config, auth_code).await?;
             let pem_certificate = PemCertificate {
                 certificate_pem: certificate.to_pem().pem_string()?,
                 private_key_pem: private_key.private_key_to_pem_pkcs8().pem_string()?,
@@ -120,12 +122,12 @@ pub enum LoadClientCertificateError<C: ClientCertificateConfig> {
 }
 
 async fn make_client_certificate<C: ClientCertificateConfig>(
-    certificate_config: C,
+    client_config: C,
     auth_code: AuthCode,
 ) -> Result<(X509, PKey<Private>), MakeClientCertificateError<C::GatewayPkiConfig>> {
     let key = make_key()?;
-    let http_client = make_http_client(certificate_config.gateway_pki())?;
-    let certificate = get_certifiate(certificate_config, http_client, auth_code, &key).await?;
+    let http_client = make_http_client(client_config.gateway_pki())?;
+    let certificate = get_certifiate(client_config, http_client, auth_code, &key).await?;
     let certificate =
         X509::from_pem(certificate.as_bytes()).map_err(MakeClientCertificateError::ParsePem)?;
     Ok((certificate, key))
@@ -161,7 +163,7 @@ where
             Certificate::from_der(&root_der).map_err(MakeHttpClientError::DerToCertificate)?;
         builder = builder.add_root_certificate(root_certificate);
     }
-    Ok(builder.build().map_err(MakeHttpClientError::Build)?)
+    builder.build().map_err(MakeHttpClientError::Build)
 }
 
 #[nameth]

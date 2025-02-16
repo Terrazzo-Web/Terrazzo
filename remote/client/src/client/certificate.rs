@@ -12,18 +12,16 @@ use trz_gateway_common::x509::PemString as _;
 use super::AuthCode;
 use crate::certificate_config::ClientCertificateConfig;
 
+/// API client to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
-    certificate_config: impl ClientCertificateConfig,
+    client_config: impl ClientCertificateConfig,
     http_client: Client,
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
     let request = http_client
-        .get(format!(
-            "{}/remote/certificate",
-            certificate_config.base_url()
-        ))
+        .get(format!("{}/remote/certificate", client_config.base_url()))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
             auth_code,

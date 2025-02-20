@@ -142,7 +142,7 @@ static TEMP_DIR: Fixture<TempDir> = Fixture::new();
 pub fn use_temp_dir() -> Arc<TempDir> {
     TEMP_DIR.get_or_init(|| {
         TempDir::new()
-            .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
+            .inspect(|temp_dir| debug!("Using temporary folder {}", temp_dir.path().display()))
             .expect("TempDir::new()")
     })
 }

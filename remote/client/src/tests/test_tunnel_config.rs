@@ -6,6 +6,7 @@ use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use super::test_client_config::TestClientConfig;
 use crate::client_config::ClientConfig;
+use crate::client_service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
 #[derive(Debug)]
@@ -45,5 +46,9 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
     type ClientCertificate = Arc<PemCertificate>;
     fn client_certificate(&self) -> Self::ClientCertificate {
         self.client_certificate.clone()
+    }
+
+    fn client_service(&self) -> impl ClientService {
+        |_server| todo!()
     }
 }

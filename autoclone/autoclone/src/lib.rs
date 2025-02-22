@@ -63,18 +63,18 @@
 //! }
 //! ```
 
-use darling::ast::NestedMeta;
 use darling::FromMeta;
+use darling::ast::NestedMeta;
+use quote::ToTokens as _;
 use quote::format_ident;
 use quote::quote;
-use quote::ToTokens as _;
-use syn::visit_mut;
-use syn::visit_mut::VisitMut;
 use syn::Block;
 use syn::Macro;
 use syn::Stmt;
 use syn::StmtMacro;
 use syn::Token;
+use syn::visit_mut;
+use syn::visit_mut::VisitMut;
 
 mod tests;
 

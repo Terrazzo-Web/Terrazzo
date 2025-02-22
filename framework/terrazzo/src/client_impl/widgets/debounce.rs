@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast as _;
+use wasm_bindgen::prelude::Closure;
 
 /// Avoids executing a function too often.
 /// Goal is to avoid flickering and improve UI performance.

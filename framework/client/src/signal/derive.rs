@@ -5,8 +5,8 @@ use tracing::debug_span;
 use tracing::trace;
 use tracing::warn;
 
-use super::depth::Depth;
 use super::XSignal;
+use super::depth::Depth;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
 use crate::string::XString;

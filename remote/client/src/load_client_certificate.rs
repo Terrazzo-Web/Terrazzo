@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateError;
@@ -9,17 +9,17 @@ use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
-use trz_gateway_common::x509::key::make_key;
-use trz_gateway_common::x509::key::MakeKeyError;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
+use trz_gateway_common::x509::key::MakeKeyError;
+use trz_gateway_common::x509::key::make_key;
 
-use crate::client::certificate::get_certifiate;
-use crate::client::certificate::GetCertificateError;
 use crate::client::AuthCode;
+use crate::client::certificate::GetCertificateError;
+use crate::client::certificate::get_certifiate;
 use crate::client_config::ClientConfig;
-use crate::http_client::make_http_client;
 use crate::http_client::MakeHttpClientError;
+use crate::http_client::make_http_client;
 
 /// Default implementation for [TunnelConfig::client_certificate] that loads the
 /// certificate and private key and caches them in PEM files.
@@ -65,7 +65,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
             return Err(LoadClientCertificateError::InconsistentState {
                 root_ca_exists,
                 private_key_exists,
-            })
+            });
         }
     }
 }

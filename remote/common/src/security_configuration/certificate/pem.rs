@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::pkey::PKey;
+use openssl::x509::X509;
 use openssl::x509::store::X509Store;
 use openssl::x509::store::X509StoreBuilder;
-use openssl::x509::X509;
 
 use super::CertificateConfig;
 use super::X509CertificateInfo;

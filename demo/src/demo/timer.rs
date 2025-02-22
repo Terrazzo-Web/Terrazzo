@@ -6,8 +6,8 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen::JsCast as _;
-use web_sys::window;
 use web_sys::MouseEvent;
+use web_sys::window;
 
 use super::show_counter;
 

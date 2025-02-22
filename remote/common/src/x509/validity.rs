@@ -1,18 +1,18 @@
 use std::ops::Deref;
 use std::time::SystemTime;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::asn1::Asn1Time;
 use openssl::asn1::Asn1TimeRef;
 use openssl::error::ErrorStack;
 use openssl::x509::X509Builder;
 use openssl::x509::X509Ref;
 
-use super::time::asn1_to_system_time;
-use super::time::system_to_asn1_time;
 use super::time::Asn1ToSystemTimeError;
 use super::time::SystemToAsn1TimeError;
+use super::time::asn1_to_system_time;
+use super::time::system_to_asn1_time;
 
 pub(super) fn set_validity(
     builder: &mut X509Builder,

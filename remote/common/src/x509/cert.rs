@@ -1,22 +1,22 @@
 use axum::http::StatusCode;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::pkey::PKey;
+use openssl::x509::X509;
+use openssl::x509::X509Builder;
+use openssl::x509::X509Extension;
 use openssl::x509::extension::BasicConstraints;
 use openssl::x509::extension::ExtendedKeyUsage;
 use openssl::x509::extension::KeyUsage;
 use openssl::x509::extension::SubjectAlternativeName;
-use openssl::x509::X509Builder;
-use openssl::x509::X509Extension;
-use openssl::x509::X509;
 
+use super::common_fields::SetCommonFieldsError;
 use super::common_fields::set_akid;
 use super::common_fields::set_common_fields;
-use super::common_fields::SetCommonFieldsError;
-use super::name::make_name;
 use super::name::CertitficateName;
 use super::name::MakeNameError;
+use super::name::make_name;
 use super::validity::Validity;
 use crate::certificate_info::X509CertificateInfoRef;
 use crate::http_error::IsHttpError;
@@ -172,9 +172,9 @@ mod tests {
     use openssl::sign::Signer;
     use openssl::sign::Verifier;
     use openssl::stack::Stack;
-    use openssl::x509::store::X509StoreBuilder;
-    use openssl::x509::X509Extension;
     use openssl::x509::X509;
+    use openssl::x509::X509Extension;
+    use openssl::x509::store::X509StoreBuilder;
     use rustls::pki_types::CertificateDer;
     use scopeguard::defer_on_unwind;
 
@@ -184,14 +184,14 @@ mod tests {
     use crate::certificate_info::X509CertificateInfoRef;
     use crate::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
     use crate::security_configuration::trusted_store::empty::EmptyTrustedStoreConfig;
+    use crate::x509::PemString as _;
+    use crate::x509::ca::MakeCaError;
     use crate::x509::ca::make_ca;
     use crate::x509::ca::make_intermediate;
-    use crate::x509::ca::MakeCaError;
     use crate::x509::key::make_key;
     use crate::x509::signed_extension::make_signed_extension;
     use crate::x509::signed_extension::validate_signed_extension;
     use crate::x509::validity::Validity;
-    use crate::x509::PemString as _;
 
     const DATA: &str = "Hello, world! 😃";
 
@@ -217,11 +217,16 @@ mod tests {
             assert!(text.contains("X509v3 Subject Key Identifier"));
             assert!(text.contains("X509v3 Authority Key Identifier"));
             // AuthorityKeyIdentifier.issuer(true)
-            assert!(text
-                .contains("DirName:/C=DE/ST=Bayern/L=Munich/O=Terrazzo/CN=Terrazzo Test Root CA"));
-            assert!(!text
-                .to_ascii_uppercase()
-                .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09"));
+            assert!(
+                text.contains(
+                    "DirName:/C=DE/ST=Bayern/L=Munich/O=Terrazzo/CN=Terrazzo Test Root CA"
+                )
+            );
+            assert!(
+                !text
+                    .to_ascii_uppercase()
+                    .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
+            );
         })
     }
 
@@ -364,7 +369,8 @@ mod tests {
                 defer_on_unwind!(eprintln!("{error}"));
                 assert_eq!(
                     error.to_string(),
-                    "[VerifySigner] [SignerCertificateNameMismatch] The signer certificate name was: NOT Terrazzo");
+                    "[VerifySigner] [SignerCertificateNameMismatch] The signer certificate name was: NOT Terrazzo"
+                );
             }
         }
         Ok(())
@@ -381,9 +387,11 @@ mod tests {
         let certificate = make_test_cert_with_signed_extension(&test_case, extension)?;
         let error = validate_test_signed_extension(&test_case, certificate).unwrap_err();
         defer_on_unwind!(eprintln!("{error}"));
-        assert!(error
-            .to_string()
-            .starts_with("[VerifySignature] [SignedCmsInvalid] "));
+        assert!(
+            error
+                .to_string()
+                .starts_with("[VerifySignature] [SignedCmsInvalid] ")
+        );
         Ok(())
     }
 
@@ -396,9 +404,11 @@ mod tests {
         )
         .unwrap_err();
         defer_on_unwind!(eprintln!("{error}"));
-        assert!(error
-            .to_string()
-            .starts_with("[X509Certificate] Failed to parse X509Certificate: "));
+        assert!(
+            error
+                .to_string()
+                .starts_with("[X509Certificate] Failed to parse X509Certificate: ")
+        );
         Ok(())
     }
 
@@ -423,9 +433,11 @@ mod tests {
         let certificate = make_test_cert_with_signed_extension(&test_case, extension)?;
         let error = validate_test_signed_extension(&test_case, certificate).unwrap_err();
         defer_on_unwind!(eprintln!("{error}"));
-        assert!(error
-            .to_string()
-            .starts_with("[VerifySignature] [SignedCmsInvalid] Failed to verify the Signed CMS"));
+        assert!(
+            error.to_string().starts_with(
+                "[VerifySignature] [SignedCmsInvalid] Failed to verify the Signed CMS"
+            )
+        );
         Ok(())
     }
 

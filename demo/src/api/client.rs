@@ -1,5 +1,5 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo::prelude::OrElseLog;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;

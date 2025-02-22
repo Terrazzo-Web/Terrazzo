@@ -8,8 +8,8 @@ pub type DebugCorrelationId<N> = without_debug::DebugCorrelationId<N>;
 
 #[cfg(not(feature = "concise_traces"))]
 mod with_debug {
-    use nameth::nameth;
     use nameth::NamedType as _;
+    use nameth::nameth;
     use tracing::trace;
 
     #[nameth]
@@ -53,8 +53,8 @@ mod without_debug {
     use std::fmt::format;
     use std::marker::PhantomData;
 
-    use nameth::nameth;
     use nameth::NamedType as _;
+    use nameth::nameth;
 
     #[derive(Debug)]
     #[nameth]

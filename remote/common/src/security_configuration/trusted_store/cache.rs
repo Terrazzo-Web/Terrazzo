@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use openssl::x509::store::X509Store;
 
-use super::empty::EmptyTrustedStoreConfig;
 use super::TrustedStoreConfig;
+use super::empty::EmptyTrustedStoreConfig;
 use crate::security_configuration::common::get_or_init;
 
 pub struct MemoizedTrustedStoreConfig<C> {

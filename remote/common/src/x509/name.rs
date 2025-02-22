@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::nid::Nid;
 use openssl::x509::X509Name;

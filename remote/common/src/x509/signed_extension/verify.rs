@@ -1,15 +1,15 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use rustls::pki_types::CertificateDer;
 use x509_parser::error::X509Error;
 use x509_parser::prelude::FromDer;
 use x509_parser::prelude::X509Certificate;
 use x509_parser::prelude::X509Extension;
 
-use self::signature::verify_signature;
 use self::signature::VerifySignatureError;
-use self::signer::verify_signer;
+use self::signature::verify_signature;
 use self::signer::VerifySignerError;
+use self::signer::verify_signer;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
 mod signature;

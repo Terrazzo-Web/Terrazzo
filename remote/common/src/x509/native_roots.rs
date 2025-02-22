@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+use openssl::x509::X509;
 use openssl::x509::store::X509Store;
 use openssl::x509::store::X509StoreBuilder;
-use openssl::x509::X509;
 
 pub fn native_roots() -> &'static Arc<X509Store> {
     static NATIVE_ROOTS: OnceLock<Arc<X509Store>> = OnceLock::new();

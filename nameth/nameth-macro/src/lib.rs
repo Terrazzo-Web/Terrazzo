@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
-use darling::ast::NestedMeta;
 use darling::FromMeta;
+use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
 use quote::format_ident;
 use quote::quote;

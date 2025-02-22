@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use connect::ConnectError;
 use connect::TunnelError;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
-use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient as _;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
-use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 
 use crate::client_service::ClientService;
 use crate::tunnel_config::TunnelConfig;

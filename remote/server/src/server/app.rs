@@ -2,8 +2,8 @@ use std::future::ready;
 use std::sync::Arc;
 
 use autoclone::autoclone;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use tower_http::trace::DefaultMakeSpan;
 use tower_http::trace::TraceLayer;
 use tracing::Level;

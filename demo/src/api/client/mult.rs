@@ -1,16 +1,16 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo::prelude::OrElseLog as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::Headers;
 use web_sys::Response;
 
-use super::send_request;
-use super::set_content_type_json;
+use super::BASE_URL;
 use super::Method;
 use super::SendRequestError;
-use super::BASE_URL;
+use super::send_request;
+use super::set_content_type_json;
 
 #[nameth]
 pub async fn mult(a: i32, b: i32) -> Result<i32, MultError> {

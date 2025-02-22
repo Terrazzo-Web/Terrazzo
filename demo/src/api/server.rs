@@ -1,5 +1,5 @@
-use terrazzo::axum::routing::post;
 use terrazzo::axum::Router;
+use terrazzo::axum::routing::post;
 
 mod mult;
 

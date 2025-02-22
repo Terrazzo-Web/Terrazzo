@@ -1,21 +1,21 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
+use nameth::nameth;
+use rustls::ClientConfig;
+use rustls::client::WebPkiServerVerifier;
 use rustls::client::danger::HandshakeSignatureValid;
 use rustls::client::danger::ServerCertVerified;
-use rustls::client::WebPkiServerVerifier;
 use rustls::pki_types::CertificateDer;
 use rustls::pki_types::ServerName;
 use rustls::pki_types::UnixTime;
 use rustls::server::VerifierBuilderError;
-use rustls::ClientConfig;
 
+use crate::security_configuration::trusted_store::TrustedStoreConfig;
 use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStore;
 use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStoreError;
-use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
 /// TLS client for
 /// - Client to Gateway WebSocket

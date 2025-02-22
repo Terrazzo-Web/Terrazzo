@@ -4,8 +4,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use nameth::nameth;
 use nameth::NamedType as _;
+use nameth::nameth;
 use scopeguard::defer;
 use tracing::debug;
 use tracing::debug_span;
@@ -13,10 +13,10 @@ use tracing::info;
 use tracing::trace;
 use tracing::trace_span;
 use tracing::warn;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast as _;
-use web_sys::js_sys::Function;
+use wasm_bindgen::prelude::Closure;
 use web_sys::Element;
+use web_sys::js_sys::Function;
 
 use self::template::XTemplate;
 use crate::attribute::XAttribute;

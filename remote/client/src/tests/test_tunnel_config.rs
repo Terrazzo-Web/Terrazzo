@@ -57,14 +57,14 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
 }
 
 mod calculator {
-    use tonic::async_trait;
     use tonic::Status;
-    use trz_gateway_common::protos::terrazzo::remote::tests::expression;
-    use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelService;
-    use trz_gateway_common::protos::terrazzo::remote::tests::value;
+    use tonic::async_trait;
     use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
     use trz_gateway_common::protos::terrazzo::remote::tests::Operator;
     use trz_gateway_common::protos::terrazzo::remote::tests::Value;
+    use trz_gateway_common::protos::terrazzo::remote::tests::expression;
+    use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelService;
+    use trz_gateway_common::protos::terrazzo::remote::tests::value;
 
     pub struct Calculator;
 
@@ -99,7 +99,7 @@ mod calculator {
                     let operands = (a?, b?);
                     match operation.operator() {
                         Operator::UndefinedOperand => {
-                            return Err(Status::invalid_argument("null operator"))
+                            return Err(Status::invalid_argument("null operator"));
                         }
                         Operator::Plus => match operands {
                             (value::Kind::I(a), value::Kind::I(b)) => (a + b).into(),

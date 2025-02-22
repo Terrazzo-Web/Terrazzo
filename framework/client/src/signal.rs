@@ -42,10 +42,10 @@ mod inner {
     use std::sync::Arc;
     use std::sync::Mutex;
 
-    use super::producers::producer::Producer;
     use super::ProducedSignal;
     use super::XSignal;
     use super::XSignalValue;
+    use super::producers::producer::Producer;
 
     pub struct XSignalInner<T> {
         pub(super) current_value: Mutex<XSignalValue<T>>,

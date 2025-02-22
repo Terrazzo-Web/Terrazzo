@@ -1,12 +1,12 @@
+use cms::cert::CertificateChoices;
 use cms::cert::x509::der::Decode;
 use cms::cert::x509::ext::pkix::SubjectKeyIdentifier;
-use cms::cert::CertificateChoices;
 use cms::content_info::ContentInfo;
 use cms::signed_data::SignedData;
 use cms::signed_data::SignerIdentifier;
 use cms::signed_data::SignerInfo;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use oid_registry::OID_PKCS7_ID_SIGNED_DATA;
 use oid_registry::OID_X509_COMMON_NAME;
 use oid_registry::OID_X509_EXT_SUBJECT_KEY_IDENTIFIER;

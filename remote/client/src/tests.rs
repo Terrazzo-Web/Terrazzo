@@ -13,10 +13,10 @@ mod test_tunnel_config;
 
 #[tokio::test]
 async fn end_to_end() -> Result<(), Box<dyn std::error::Error>> {
-    EndToEnd::run(|end_to_end| async move {
-        // tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-        let server = end_to_end.server;
-        let client_id = end_to_end.client_id;
+    EndToEnd::run(async |end_to_end| {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        let server = &end_to_end.server;
+        let client_id = &end_to_end.client_id;
         let channel = server
             .connections()
             .get_client(&client_id)
@@ -29,6 +29,7 @@ async fn end_to_end() -> Result<(), Box<dyn std::error::Error>> {
             .await?
             .into_inner();
         assert_eq!(Value::from(11), response);
+        drop(end_to_end);
         Ok(())
     })
     .await

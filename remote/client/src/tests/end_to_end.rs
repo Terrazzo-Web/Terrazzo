@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -33,8 +32,8 @@ pub struct EndToEnd<'t> {
 }
 
 impl<'t> EndToEnd<'t> {
-    pub async fn run<F: Future<Output = Result<(), Box<dyn std::error::Error>>>>(
-        test: impl FnOnce(EndToEnd) -> F + Send,
+    pub async fn run(
+        test: impl AsyncFnOnce(EndToEnd) -> Result<(), Box<dyn std::error::Error>> + Send,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp_dir = use_temp_dir();
 

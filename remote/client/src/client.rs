@@ -14,6 +14,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 
+use crate::client_service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
 pub mod certificate;
@@ -26,6 +27,7 @@ pub struct Client {
     uri: String,
     tls_client: tokio_tungstenite::Connector,
     tls_server: tokio_rustls::TlsAcceptor,
+    client_service: Arc<dyn ClientService>,
 }
 
 declare_identifier!(AuthCode);
@@ -42,6 +44,7 @@ impl Client {
             uri: format!("{}/remote/tunnel/{}", config.base_url(), config.client_id()),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
+            client_service: Arc::new(config.client_service()),
         })
     }
 

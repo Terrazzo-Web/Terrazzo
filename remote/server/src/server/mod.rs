@@ -40,8 +40,7 @@ mod tunnel;
 #[cfg(test)]
 mod tests;
 
-pub struct Server<C> {
-    config: C,
+pub struct Server {
     shutdown: Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     root_ca: Arc<X509CertificateInfo>,
     tls_server: RustlsConfig,
@@ -49,8 +48,10 @@ pub struct Server<C> {
     connections: Arc<Connections>,
 }
 
-impl<C: GatewayConfig> Server<C> {
-    pub async fn run(config: C) -> Result<ServerHandle<()>, GatewayError<C>> {
+impl Server {
+    pub async fn run<C: GatewayConfig>(
+        config: C,
+    ) -> Result<(Arc<Self>, ServerHandle<()>), GatewayError<C>> {
         if config.enable_tracing() {
             trz_gateway_common::tracing::enable_tracing()?;
         }
@@ -75,15 +76,14 @@ impl<C: GatewayConfig> Server<C> {
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {
-            config,
             shutdown: shutdown_rx.shared(),
             root_ca,
             tls_server: RustlsConfig::from_config(Arc::from(tls_server)),
             tls_client: TlsConnector::from(Arc::new(tls_client)),
-            connections: Connections::default().into(),
+            connections: Arc::new(Connections::default()),
         });
 
-        let (host, port) = server.socket_addr();
+        let (host, port) = (config.host(), config.port());
         let socket_addrs = (host, port).to_socket_addrs();
         let socket_addrs = socket_addrs.map_err(|error| GatewayError::ToSocketAddrs {
             host: host.to_owned(),
@@ -121,10 +121,10 @@ impl<C: GatewayConfig> Server<C> {
                 .in_current_span(),
             );
         }
-        Ok(handle)
+        Ok((server, handle))
     }
 
-    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), GatewayError<C>> {
+    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {
         let app = self.make_app();
 
         let handle = Handle::new();
@@ -144,13 +144,13 @@ impl<C: GatewayConfig> Server<C> {
         let () = axum_server
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await
-            .map_err(GatewayError::Serve)?;
+            .map_err(RunGatewayError::Serve)?;
         debug!("Serving: done");
         Ok(())
     }
 
-    fn socket_addr(&self) -> (&str, u16) {
-        (self.config.host(), self.config.port())
+    pub fn connections(&self) -> &Connections {
+        &self.connections
     }
 }
 
@@ -176,6 +176,13 @@ pub enum GatewayError<C: GatewayConfig> {
     #[error("[{n}] {0}", n = self.name())]
     ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
 
+    #[error("[{n}] {0}", n = self.name())]
+    RunGatewayError(#[from] RunGatewayError),
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum RunGatewayError {
     #[error("[{n}] {0}", n = self.name())]
     Serve(std::io::Error),
 }

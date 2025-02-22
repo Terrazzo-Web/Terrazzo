@@ -43,7 +43,7 @@ const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
 async fn status() -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let handle = Server::run(config.clone()).await?;
+    let (_server, handle) = Server::run(config.clone()).await?;
 
     let _client = make_client(&config).await?;
 
@@ -55,7 +55,7 @@ async fn status() -> Result<(), Box<dyn Error>> {
 async fn certificate() -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let handle = Server::run(config.clone()).await?;
+    let (_server, handle) = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
@@ -78,7 +78,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
 async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let handle = Server::run(config.clone()).await?;
+    let (_server, handle) = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 
@@ -111,7 +111,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
 async fn tunnel() -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
-    let handle = Server::run(config.clone()).await?;
+    let (_server, handle) = Server::run(config.clone()).await?;
 
     let client = make_client(&config).await?;
 

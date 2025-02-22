@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package terrazzo.remote.tests;
+
+service TestTunnelService { rpc Calculate(Expression) returns (Value); }
+
+message Expression {
+  oneof kind {
+    Operation operation = 1;
+    Value value = 2;
+  }
+}
+
+message Operation {
+  Expression left = 1;
+  Operator operator = 2;
+  Expression right = 3;
+}
+
+message Value {
+  oneof kind {
+    int64 i = 1;
+    double f = 2;
+  }
+}
+
+enum Operator {
+  UNDEFINED_OPERAND = 0;
+  PLUS = 1;
+  MINUS = 2;
+  MULTIPLY = 3;
+  DIVIDE = 4;
+}

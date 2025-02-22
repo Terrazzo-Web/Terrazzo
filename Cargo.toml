@@ -93,7 +93,7 @@ serde_json = { version = "1.0.138" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.4" }
 syn = { version = "2.0.98" }
-tempfile = { version = "3.17.0" }
+tempfile = { version = "3.17.1" }
 thiserror = { version = "2.0.11" }
 tokio = { version = "1.43.0" }
 tokio-rustls = { version = "0.26.1" }

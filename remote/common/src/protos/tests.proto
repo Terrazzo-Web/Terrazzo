@@ -13,13 +13,18 @@ message Expression {
 
 message Operation {
   Expression left = 1;
-  Operand operand = 2;
+  Operator operator = 2;
   Expression right = 3;
 }
 
-message Value { int64 value = 1; }
+message Value {
+  oneof kind {
+    int64 i = 1;
+    double f = 2;
+  }
+}
 
-enum Operand {
+enum Operator {
   UNDEFINED_OPERAND = 0;
   PLUS = 1;
   MINUS = 2;

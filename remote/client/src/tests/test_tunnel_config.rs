@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use trz_gateway_common::id::ClientId;
+use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelServiceServer;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
@@ -49,6 +50,85 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
     }
 
     fn client_service(&self) -> impl ClientService {
-        |_server| todo!()
+        |mut server: tonic::transport::Server| {
+            server.add_service(TestTunnelServiceServer::new(calculator::Calculator))
+        }
+    }
+}
+
+mod calculator {
+    use tonic::async_trait;
+    use tonic::Status;
+    use trz_gateway_common::protos::terrazzo::remote::tests::expression;
+    use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelService;
+    use trz_gateway_common::protos::terrazzo::remote::tests::value;
+    use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
+    use trz_gateway_common::protos::terrazzo::remote::tests::Operator;
+    use trz_gateway_common::protos::terrazzo::remote::tests::Value;
+
+    pub struct Calculator;
+
+    #[async_trait]
+    impl TestTunnelService for Calculator {
+        async fn calculate(
+            &self,
+            request: tonic::Request<Expression>,
+        ) -> Result<tonic::Response<Value>, Status> {
+            calculate_impl(request.get_ref()).map(tonic::Response::new)
+        }
+    }
+
+    fn calculate_impl(request: &Expression) -> Result<Value, Status> {
+        Ok(
+            match request
+                .kind
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument("null"))?
+            {
+                expression::Kind::Operation(operation) => {
+                    let operands = [&operation.left, &operation.right]
+                        .map(Option::as_ref)
+                        .map(|e| e.ok_or_else(|| Status::invalid_argument("null operand")))
+                        .map(|e| e.map(|e| calculate_impl(&*e)));
+                    let [a, b] = operands;
+                    let operands = [a??, b??].map(|e| {
+                        e.kind
+                            .ok_or_else(|| Status::invalid_argument("null result"))
+                    });
+                    let [a, b] = operands;
+                    let operands = (a?, b?);
+                    match operation.operator() {
+                        Operator::UndefinedOperand => {
+                            return Err(Status::invalid_argument("null operator"))
+                        }
+                        Operator::Plus => match operands {
+                            (value::Kind::I(a), value::Kind::I(b)) => (a + b).into(),
+                            (value::Kind::I(a), value::Kind::F(b)) => (a as f64 + b).into(),
+                            (value::Kind::F(a), value::Kind::I(b)) => (a + b as f64).into(),
+                            (value::Kind::F(a), value::Kind::F(b)) => (a + b).into(),
+                        },
+                        Operator::Minus => match operands {
+                            (value::Kind::I(a), value::Kind::I(b)) => (a - b).into(),
+                            (value::Kind::I(a), value::Kind::F(b)) => (a as f64 - b).into(),
+                            (value::Kind::F(a), value::Kind::I(b)) => (a - b as f64).into(),
+                            (value::Kind::F(a), value::Kind::F(b)) => (a - b).into(),
+                        },
+                        Operator::Multiply => match operands {
+                            (value::Kind::I(a), value::Kind::I(b)) => (a * b).into(),
+                            (value::Kind::I(a), value::Kind::F(b)) => (a as f64 * b).into(),
+                            (value::Kind::F(a), value::Kind::I(b)) => (a * b as f64).into(),
+                            (value::Kind::F(a), value::Kind::F(b)) => (a * b).into(),
+                        },
+                        Operator::Divide => match operands {
+                            (value::Kind::I(a), value::Kind::I(b)) => (a / b).into(),
+                            (value::Kind::I(a), value::Kind::F(b)) => (a as f64 / b).into(),
+                            (value::Kind::F(a), value::Kind::I(b)) => (a / b as f64).into(),
+                            (value::Kind::F(a), value::Kind::F(b)) => (a / b).into(),
+                        },
+                    }
+                }
+                expression::Kind::Value(value) => value.clone(),
+            },
+        )
     }
 }

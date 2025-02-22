@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 
 use tracing::info;
 use trz_gateway_common::certificate_info::CertificateInfo;
@@ -66,13 +67,14 @@ impl<'t> EndToEnd<'t> {
 
         let mut client_handle = Some(client_handle);
 
-        let () = test(EndToEnd {
+        let test = test(EndToEnd {
             client_id,
             server,
             client_certificate,
             client_handle: Box::new(|| client_handle.take().unwrap()),
-        })
-        .await?;
+        });
+        let test = tokio::time::timeout(Duration::from_secs(5), test);
+        let () = test.await??;
 
         let () = server_handle.stop("End of test").await?;
         if let Some(client_handle) = client_handle.take() {

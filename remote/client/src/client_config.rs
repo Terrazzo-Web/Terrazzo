@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use tracing::debug;
 use trz_gateway_common::id::ClientId;
-use trz_gateway_common::is_configuration::IsConfiguration;
+use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use uuid::Uuid;
 
@@ -19,7 +19,7 @@ use uuid::Uuid;
 /// Used by [TunnelConfig] to create tunnels using the certificate obtained from [ClientConfig]
 ///
 /// [TunnelConfig]: crate::tunnel_config::TunnelConfig
-pub trait ClientConfig: IsConfiguration {
+pub trait ClientConfig: IsGlobal {
     /// The URL where the Terrazzo Gateway is listening.
     fn base_url(&self) -> impl std::fmt::Display {
         let port = if cfg!(debug_assertions) { 3000 } else { 3001 };

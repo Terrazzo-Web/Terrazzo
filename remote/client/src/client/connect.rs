@@ -64,19 +64,21 @@ impl super::Client {
                     let terminated_tx = terminated_tx.clone();
                     move |connection| {
                         if connection.is_err() {
-                              terminated_tx(Err(TunnelError::Disconnected));
+                            terminated_tx(Err(TunnelError::Disconnected));
                         }
                     }
                 }),
         );
 
-        let grpc_server =
-            Server::builder().add_service(HealthServiceServer::new(HealthServiceImpl));
+        let grpc_server = self
+            .client_service
+            .configure_service(Server::builder().tcp_keepalive(None).tcp_nodelay(true))
+            .add_service(HealthServiceServer::new(HealthServiceImpl));
         tokio::spawn(async move {
             let result = grpc_server
                 .serve_with_incoming_shutdown(connection, shutdown)
                 .await;
-             terminated_tx(result.map_err(Into::into));
+            terminated_tx(result.map_err(Into::into));
         });
         Ok(())
     }

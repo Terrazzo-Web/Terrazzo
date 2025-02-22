@@ -6,7 +6,7 @@ use openssl::x509::X509;
 use self::certificate::CertificateConfig;
 use self::trusted_store::TrustedStoreConfig;
 use crate::certificate_info::X509CertificateInfo;
-use crate::is_configuration::IsConfiguration;
+use crate::is_global::IsGlobal;
 
 pub mod certificate;
 mod common;
@@ -18,7 +18,7 @@ pub struct SecurityConfig<T, C> {
     pub certificate: C,
 }
 
-impl<T: TrustedStoreConfig, C: IsConfiguration> TrustedStoreConfig for SecurityConfig<T, C> {
+impl<T: TrustedStoreConfig, C: IsGlobal> TrustedStoreConfig for SecurityConfig<T, C> {
     type Error = T::Error;
 
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
@@ -26,7 +26,7 @@ impl<T: TrustedStoreConfig, C: IsConfiguration> TrustedStoreConfig for SecurityC
     }
 }
 
-impl<T: IsConfiguration, C: CertificateConfig> CertificateConfig for SecurityConfig<T, C> {
+impl<T: IsGlobal, C: CertificateConfig> CertificateConfig for SecurityConfig<T, C> {
     type Error = C::Error;
 
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {

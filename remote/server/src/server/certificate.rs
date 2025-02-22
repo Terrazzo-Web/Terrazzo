@@ -14,11 +14,10 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
-use super::gateway_config::GatewayConfig;
 use super::Server;
 use crate::auth_code::AuthCode;
 
-impl<C: GatewayConfig> Server<C> {
+impl Server {
     pub async fn get_certificate(
         self: Arc<Self>,
         Json(request): Json<GetCertificateRequest<AuthCode>>,

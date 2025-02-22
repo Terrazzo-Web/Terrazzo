@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use trz_gateway_common::is_configuration::IsConfiguration;
+use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
 
-pub trait GatewayConfig: IsConfiguration {
+pub trait GatewayConfig: IsGlobal {
     fn enable_tracing(&self) -> bool {
         true
     }

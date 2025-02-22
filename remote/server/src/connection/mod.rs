@@ -135,9 +135,9 @@ impl Connections {
     ) -> Option<
         impl GrpcService<
             BoxBody,
-            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send>,
-        >,
+            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
+        > + use<>,
     > {
-        self.cache.get(client_id).map(|c| c.get_channel().clone())
+        self.cache.get(client_id).map(|c| c.get_channel())
     }
 }

@@ -72,12 +72,10 @@ where
 
     pub fn get_channel(
         &self,
-    ) -> &(
-         impl GrpcService<
+    ) -> impl GrpcService<
         BoxBody,
-        ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send>,
-    > + Clone
-     ) {
-        &self.balanced_channel
+        ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
+    > + use<S> {
+        self.balanced_channel.clone()
     }
 }

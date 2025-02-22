@@ -60,9 +60,9 @@ impl<T> FixtureState<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::sync::atomic::AtomicI32;
     use std::sync::atomic::Ordering::SeqCst;
-    use std::sync::Arc;
 
     use super::Fixture;
 

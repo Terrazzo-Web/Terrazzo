@@ -3,9 +3,9 @@ mod verbose {
     use std::ops::DerefMut;
 
     use crate::attribute::XAttributeValue;
-    use crate::element::template::XTemplate;
     use crate::element::XElement;
     use crate::element::XElementValue;
+    use crate::element::template::XTemplate;
     use crate::node::XNode;
     use crate::template::IsTemplate as _;
 

@@ -1,18 +1,18 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
+use openssl::x509::X509Builder;
 use openssl::x509::extension::BasicConstraints;
 use openssl::x509::extension::KeyUsage;
-use openssl::x509::X509Builder;
 
+use super::common_fields::SetCommonFieldsError;
 use super::common_fields::set_akid;
 use super::common_fields::set_common_fields;
-use super::common_fields::SetCommonFieldsError;
-use super::key::make_key;
 use super::key::MakeKeyError;
-use super::name::make_name;
+use super::key::make_key;
 use super::name::CertitficateName;
 use super::name::MakeNameError;
+use super::name::make_name;
 use super::validity::Validity;
 use crate::certificate_info::CertificateInfo;
 use crate::certificate_info::X509CertificateInfo;
@@ -127,8 +127,8 @@ mod tests {
 
     use super::super::name::CertitficateName;
     use super::MakeCaError;
-    use crate::x509::validity::Validity;
     use crate::x509::PemString as _;
+    use crate::x509::validity::Validity;
 
     #[test]
     fn make_ca() -> Result<(), Box<dyn Error>> {
@@ -160,9 +160,11 @@ mod tests {
             ));
             assert!(text.contains("CA:TRUE"));
             assert!(text.contains("X509v3 Subject Key Identifier"));
-            assert!(!text
-                .to_ascii_uppercase()
-                .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09"));
+            assert!(
+                !text
+                    .to_ascii_uppercase()
+                    .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
+            );
         })
     }
 

@@ -1,5 +1,5 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use reqwest::Certificate;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;

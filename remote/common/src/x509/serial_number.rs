@@ -1,5 +1,5 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::asn1::Asn1Integer;
 use openssl::bn::BigNum;
 use openssl::error::ErrorStack;

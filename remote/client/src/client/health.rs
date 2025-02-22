@@ -1,10 +1,10 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use prost_types::DurationError;
 use tracing::info;
-use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthService;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
+use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthService;
 
 pub struct HealthServiceImpl;
 

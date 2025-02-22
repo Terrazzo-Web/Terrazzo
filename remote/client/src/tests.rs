@@ -9,15 +9,15 @@ use test_tunnel_config::TestTunnelConfig;
 use tracing::info;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::id::ClientId;
-use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_client::TestTunnelServiceClient;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;
+use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_client::TestTunnelServiceClient;
 use trz_gateway_server::auth_code::AuthCode;
 use trz_gateway_server::server::Server;
 
 use self::test_gateway_config::use_temp_dir;
-use crate::client::connect::TunnelError;
 use crate::client::Client;
+use crate::client::connect::TunnelError;
 use crate::load_client_certificate::load_client_certificate;
 
 mod test_client_config;

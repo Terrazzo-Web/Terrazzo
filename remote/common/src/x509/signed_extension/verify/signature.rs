@@ -1,14 +1,14 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::cms::CmsContentInfo;
 use openssl::error::ErrorStack;
 use x509_parser::prelude::X509Certificate;
 use x509_parser::prelude::X509Extension;
 
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
+use crate::x509::signed_extension::MakeCertificatePropertiesHashError;
 use crate::x509::signed_extension::cms_options;
 use crate::x509::signed_extension::make_certificate_properties_hash;
-use crate::x509::signed_extension::MakeCertificatePropertiesHashError;
 use crate::x509::validity::Validity;
 
 pub fn verify_signature(

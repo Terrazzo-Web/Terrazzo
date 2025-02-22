@@ -5,8 +5,8 @@ use futures::Sink;
 use futures::SinkExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
-use nameth::nameth;
 use nameth::NamedType as _;
+use nameth::nameth;
 use tokio_tungstenite::tungstenite;
 use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
@@ -14,7 +14,7 @@ use tokio_util::io::StreamReader;
 
 pub fn to_async_io(
     web_socket: impl Stream<Item = Result<tungstenite::Message, tungstenite::Error>>
-        + Sink<tungstenite::Message, Error = tungstenite::Error>,
+    + Sink<tungstenite::Message, Error = tungstenite::Error>,
 ) -> impl tokio::io::AsyncRead + tokio::io::AsyncWrite {
     let (sink, stream) = web_socket.split();
 

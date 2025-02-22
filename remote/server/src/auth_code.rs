@@ -4,9 +4,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use futures::FutureExt as _;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
+use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument as _;
 use trz_gateway_common::declare_identifier;

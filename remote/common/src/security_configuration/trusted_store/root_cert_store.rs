@@ -1,10 +1,10 @@
 use std::future::Future;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
-use rustls::pki_types::CertificateDer;
 use rustls::RootCertStore;
+use rustls::pki_types::CertificateDer;
 
 use super::TrustedStoreConfig;
 

@@ -1,7 +1,7 @@
 use std::future::Future;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 use rustls::ServerConfig;
 use tracing::debug;

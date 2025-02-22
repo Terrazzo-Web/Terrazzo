@@ -1,9 +1,9 @@
+use quote::ToTokens as _;
 use quote::quote;
 use quote::quote_spanned;
-use quote::ToTokens as _;
 use readonly::process_readonly_input;
-use syn::spanned::Spanned;
 use syn::Visibility;
+use syn::spanned::Spanned;
 
 use self::signal::process_signal_input;
 use crate::arguments::MacroArgs;

@@ -299,8 +299,8 @@ fn tab_item<T: TabDescriptor + 'static>(
 mod tab_options {
     use terrazzo_client::prelude::XString;
 
-    use super::style;
     use super::TabsOptions;
+    use super::style;
 
     impl TabsOptions<&'static str> {
         pub const fn base_options() -> Self {

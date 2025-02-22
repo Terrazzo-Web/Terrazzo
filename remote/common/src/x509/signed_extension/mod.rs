@@ -2,8 +2,8 @@ use std::sync::OnceLock;
 use std::time::SystemTimeError;
 use std::time::UNIX_EPOCH;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::asn1::Asn1Object;
 use openssl::asn1::Asn1ObjectRef;
 use openssl::cms::CMSOptions;
@@ -18,10 +18,10 @@ use super::validity::ValidityError;
 mod make;
 mod verify;
 
-pub use self::make::make_signed_extension;
 pub use self::make::MakeSignedExtensionError;
-pub use self::verify::validate_signed_extension;
+pub use self::make::make_signed_extension;
 pub use self::verify::ValidateSignedExtensionError;
+pub use self::verify::validate_signed_extension;
 
 const SIGNED_EXTENSION_OID: &str = "1.3.6.1.4.1.311.10.99.1";
 

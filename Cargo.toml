@@ -20,7 +20,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.3"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
 license = "MIT"
 description = """

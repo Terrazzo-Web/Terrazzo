@@ -1,7 +1,7 @@
 use std::future::Future;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::info;
 use tracing::warn;

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite;
 use tonic::transport::Server;

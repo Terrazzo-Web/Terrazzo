@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use openssl::x509::store::X509Store;
 use openssl::x509::X509;
+use openssl::x509::store::X509Store;
 
 use self::certificate::CertificateConfig;
 use self::trusted_store::TrustedStoreConfig;

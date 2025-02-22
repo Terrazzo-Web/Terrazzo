@@ -1,7 +1,7 @@
 use std::panic::Location;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use tracing::debug;
 use tracing::level_filters::LevelFilter;
 use tracing::subscriber::SetGlobalDefaultError;

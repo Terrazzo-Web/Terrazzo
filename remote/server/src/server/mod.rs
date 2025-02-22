@@ -80,7 +80,7 @@ impl Server {
             root_ca,
             tls_server: RustlsConfig::from_config(Arc::from(tls_server)),
             tls_client: TlsConnector::from(Arc::new(tls_client)),
-            connections: Connections::default().into(),
+            connections: Arc::new(Connections::default()),
         });
 
         let (host, port) = (config.host(), config.port());

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
+use bytes::Bytes;
 use connection_id::ConnectionId;
 use dashmap::DashMap;
 use nameth::nameth;
@@ -10,17 +10,24 @@ use nameth::NamedEnumValues as _;
 use scopeguard::defer;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
+use tonic::body::BoxBody;
+use tonic::client::GrpcService;
+use tonic::transport::Body;
 use tonic::transport::Channel;
+use tower::BoxError;
 use tracing::Instrument;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 
+use self::balance::IncomingClients;
+
+mod balance;
 pub mod connection_id;
 
 #[derive(Default)]
 pub struct Connections {
-    cache: DashMap<ClientId, HashMap<ConnectionId, Channel>>,
+    cache: DashMap<ClientId, IncomingClients<Channel>>,
 }
 
 impl Connections {
@@ -31,7 +38,7 @@ impl Connections {
                 self.add_channel(entry.get_mut(), client_id, connection_id, channel);
             }
             dashmap::Entry::Vacant(entry) => {
-                let mut connections = HashMap::new();
+                let mut connections = IncomingClients::new();
                 self.add_channel(&mut connections, client_id, connection_id, channel);
                 entry.insert(connections);
             }
@@ -40,12 +47,12 @@ impl Connections {
 
     fn add_channel(
         self: &Arc<Self>,
-        connections: &mut HashMap<ConnectionId, Channel>,
+        connections: &mut IncomingClients<Channel>,
         client_id: ClientId,
         connection_id: ConnectionId,
         channel: Channel,
     ) {
-        connections.insert(connection_id, channel.clone());
+        connections.add_channel(connection_id, channel.clone());
         tokio::spawn(
             self.clone()
                 .channel_health_check(client_id, connection_id, channel)
@@ -82,10 +89,10 @@ impl Connections {
     }
 
     fn remove(self: &Arc<Self>, client_id: ClientId, connection_id: ConnectionId) {
-        let Some(mut connections) = self.cache.get_mut(&client_id) else {
+        let Some(connections) = self.cache.get(&client_id) else {
             return;
         };
-        connections.value_mut().remove(&connection_id);
+        connections.value().remove_channel(connection_id);
     }
 }
 
@@ -115,4 +122,22 @@ pub enum ChannelHealthError {
 
     #[error("[{n}] Client slept for {0:?}, should have been {PERIOD:?}", n = self.name())]
     TooSoon(Duration),
+}
+
+impl Connections {
+    pub fn client_ids(&self) -> impl Iterator<Item = ClientId> + '_ {
+        self.cache.iter().map(|entry| entry.key().clone())
+    }
+
+    pub fn get_client(
+        &self,
+        client_id: &ClientId,
+    ) -> Option<
+        impl GrpcService<
+            BoxBody,
+            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send>,
+        >,
+    > {
+        self.cache.get(client_id).map(|c| c.get_channel().clone())
+    }
 }

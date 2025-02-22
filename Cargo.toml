@@ -59,6 +59,7 @@ trz-gateway-server = { path = "remote/server" }
 
 axum = { version = "0.8.1" }
 axum-server = { version = "0.7.1" }
+bytes = { version = "1.10.0" }
 cms = { version = "0.2.3" }
 darling = { version = "0.20.10" }
 dashmap = { version = "6.1.0" }

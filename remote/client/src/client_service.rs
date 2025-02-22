@@ -1,5 +1,5 @@
-use tonic::transport::server::Router;
 use tonic::transport::Server;
+use tonic::transport::server::Router;
 use trz_gateway_common::is_global::IsGlobal;
 
 pub trait ClientService: IsGlobal {

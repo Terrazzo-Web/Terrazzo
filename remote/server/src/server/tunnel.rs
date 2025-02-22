@@ -1,20 +1,20 @@
-use std::future::ready;
 use std::future::Ready;
+use std::future::ready;
 use std::io::ErrorKind;
 use std::sync::Arc;
 
-use axum::extract::ws::Message;
-use axum::extract::ws::WebSocket;
 use axum::extract::Path;
 use axum::extract::WebSocketUpgrade;
+use axum::extract::ws::Message;
+use axum::extract::ws::WebSocket;
 use axum::http::Uri;
 use axum::response::IntoResponse;
 use futures::SinkExt;
 use futures::StreamExt;
 use hyper_util::rt::TokioIo;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
+use nameth::nameth;
 use rustls::pki_types::DnsName;
 use rustls::pki_types::InvalidDnsNameError;
 use rustls::pki_types::ServerName;
@@ -24,11 +24,11 @@ use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
 use tokio_util::io::StreamReader;
 use tonic::transport::Channel;
+use tracing::Instrument as _;
+use tracing::Span;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use tracing::Instrument as _;
-use tracing::Span;
 use trz_gateway_common::id::ClientId;
 
 use super::Server;

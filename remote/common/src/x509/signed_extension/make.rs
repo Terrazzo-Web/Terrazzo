@@ -1,16 +1,16 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::asn1::Asn1OctetString;
 use openssl::cms::CmsContentInfo;
 use openssl::error::ErrorStack;
 use openssl::stack::StackRef;
-use openssl::x509::X509Extension;
 use openssl::x509::X509;
+use openssl::x509::X509Extension;
 
+use super::MakeCertificatePropertiesHashError;
 use super::cms_options;
 use super::make_certificate_properties_hash;
 use super::signed_extension_oid;
-use super::MakeCertificatePropertiesHashError;
 use crate::certificate_info::X509CertificateInfoRef;
 use crate::x509::validity::Validity;
 

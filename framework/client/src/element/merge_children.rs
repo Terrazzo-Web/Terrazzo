@@ -6,15 +6,15 @@ use tracing::error;
 use tracing::trace;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;
-use web_sys::window;
 use web_sys::Document;
 use web_sys::Element;
 use web_sys::Node;
 use web_sys::Text;
+use web_sys::window;
 
-use super::template::XTemplate;
 use super::XElement;
 use super::XElementValue;
+use super::template::XTemplate;
 use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;

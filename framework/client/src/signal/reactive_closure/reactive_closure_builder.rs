@@ -1,6 +1,6 @@
 use std::panic::Location;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use autoclone::autoclone;
 use scopeguard::defer;
@@ -11,11 +11,11 @@ use tracing::trace;
 use super::ReactiveClosure;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::signal::ProducedSignal;
+use crate::signal::XSignal;
 use crate::signal::producers::consumer::Consumer;
 use crate::signal::producers::producer::Producer;
 use crate::signal::version::Version;
-use crate::signal::ProducedSignal;
-use crate::signal::XSignal;
 use crate::string::XString;
 use crate::template::IsTemplate;
 

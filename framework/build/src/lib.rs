@@ -4,9 +4,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
+use nameth::nameth;
 
 /// Options for [build].
 pub struct BuildOptions<'t> {

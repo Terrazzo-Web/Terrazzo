@@ -5,8 +5,8 @@ use std::time::SystemTime;
 use std::time::SystemTimeError;
 use std::time::UNIX_EPOCH;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::asn1::Asn1Time;
 use openssl::asn1::Asn1TimeRef;
 use openssl::error::ErrorStack;

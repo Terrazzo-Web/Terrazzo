@@ -1,16 +1,16 @@
 use std::path::Path;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use trz_gateway_common::certificate_info::CertificateError;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
-use trz_gateway_common::x509::ca::make_ca;
-use trz_gateway_common::x509::ca::MakeCaError;
-use trz_gateway_common::x509::name::CertitficateName;
-use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
+use trz_gateway_common::x509::ca::MakeCaError;
+use trz_gateway_common::x509::ca::make_ca;
+use trz_gateway_common::x509::name::CertitficateName;
+use trz_gateway_common::x509::validity::Validity;
 
 pub fn load_root_ca(
     name: String,
@@ -58,7 +58,7 @@ pub fn load_root_ca(
             return Err(RootCaConfigError::InconsistentState {
                 root_ca_exists,
                 private_key_exists,
-            })
+            });
         }
     }
 }

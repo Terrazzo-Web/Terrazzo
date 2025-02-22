@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use trz_gateway_common::is_global::IsGlobal;
-use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 
 pub trait GatewayConfig: IsGlobal {
     fn enable_tracing(&self) -> bool {
@@ -14,11 +14,7 @@ pub trait GatewayConfig: IsGlobal {
     }
 
     fn port(&self) -> u16 {
-        if cfg!(debug_assertions) {
-            3000
-        } else {
-            3001
-        }
+        if cfg!(debug_assertions) { 3000 } else { 3001 }
     }
 
     /// The root CA is used to issue the client certificates.

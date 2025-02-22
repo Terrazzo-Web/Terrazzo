@@ -1,7 +1,7 @@
 use std::string::FromUtf8Error;
 
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
 
 pub mod ca;

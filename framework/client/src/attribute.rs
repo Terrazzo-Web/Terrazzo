@@ -2,8 +2,8 @@
 
 use std::rc::Rc;
 
-use nameth::nameth;
 use nameth::NamedType as _;
+use nameth::nameth;
 use tracing::trace;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;

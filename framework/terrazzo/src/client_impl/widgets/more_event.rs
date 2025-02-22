@@ -1,5 +1,5 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo_client::prelude::XString;
 use wasm_bindgen::JsCast;
 use web_sys::EventTarget;

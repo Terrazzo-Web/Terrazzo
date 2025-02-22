@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use nameth::nameth;
 use nameth::NamedType as _;
+use nameth::nameth;
 use tracing::trace;
 
 use super::consumer_id::ConsumerId;

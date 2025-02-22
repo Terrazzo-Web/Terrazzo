@@ -1,10 +1,10 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::pkey::PKey;
 use openssl::pkey::PKeyRef;
 use openssl::pkey::Private;
-use openssl::x509::X509Ref;
 use openssl::x509::X509;
+use openssl::x509::X509Ref;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CertificateInfo<X, Y = X> {

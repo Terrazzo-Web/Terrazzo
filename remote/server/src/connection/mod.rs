@@ -5,8 +5,8 @@ use std::time::Instant;
 use bytes::Bytes;
 use connection_id::ConnectionId;
 use dashmap::DashMap;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use scopeguard::defer;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
@@ -17,8 +17,8 @@ use tonic::transport::Channel;
 use tower::BoxError;
 use tracing::Instrument;
 use trz_gateway_common::id::ClientId;
-use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
+use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 
 use self::balance::IncomingClients;
 

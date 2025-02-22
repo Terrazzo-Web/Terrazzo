@@ -16,7 +16,7 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargo-1.83.0-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-1.85.0-${{ github.job }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Add wasm32 compilation target
       shell: bash

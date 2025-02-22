@@ -1,20 +1,20 @@
 use axum::http::StatusCode;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::error::ErrorStack;
-use openssl::x509::extension::AuthorityKeyIdentifier;
-use openssl::x509::extension::SubjectKeyIdentifier;
 use openssl::x509::X509Builder;
 use openssl::x509::X509NameRef;
 use openssl::x509::X509Ref;
+use openssl::x509::extension::AuthorityKeyIdentifier;
+use openssl::x509::extension::SubjectKeyIdentifier;
 use x509_parser::x509::X509Version;
 
-use super::serial_number::set_serial_number;
 use super::serial_number::SetSerialNumberError;
+use super::serial_number::set_serial_number;
 use super::time::SystemToAsn1TimeError;
-use super::validity::set_validity;
 use super::validity::Validity;
 use super::validity::ValidityError;
+use super::validity::set_validity;
 use crate::http_error::IsHttpError;
 
 pub fn set_common_fields(

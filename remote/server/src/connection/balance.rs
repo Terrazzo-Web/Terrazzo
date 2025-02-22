@@ -3,22 +3,22 @@ use std::marker::Send;
 
 use axum::http;
 use bytes::Bytes;
+use futures::SinkExt;
 use futures::channel::mpsc;
 use futures::future::MapErr;
-use futures::SinkExt;
 use tonic::body::BoxBody;
 use tonic::client::GrpcService;
-use tonic::transport::channel::ResponseFuture;
 use tonic::transport::Body;
+use tonic::transport::channel::ResponseFuture;
+use tower::BoxError;
+use tower::Service;
 use tower::balance::p2c::Balance;
 use tower::buffer::Buffer;
 use tower::discover::Change;
-use tower::load::completion::TrackCompletionFuture;
-use tower::load::pending_requests::Handle;
 use tower::load::CompleteOnResponse;
 use tower::load::PendingRequests;
-use tower::BoxError;
-use tower::Service;
+use tower::load::completion::TrackCompletionFuture;
+use tower::load::pending_requests::Handle;
 use trz_gateway_common::is_global::IsGlobal;
 
 use super::connection_id::ConnectionId;
@@ -72,10 +72,12 @@ where
 
     pub fn get_channel(
         &self,
-    ) -> &(impl GrpcService<
+    ) -> &(
+         impl GrpcService<
         BoxBody,
         ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send>,
-    > + Clone) {
+    > + Clone
+     ) {
         &self.balanced_channel
     }
 }

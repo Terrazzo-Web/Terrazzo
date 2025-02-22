@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use openssl::x509::X509Ref;
 use openssl::x509::X509;
+use openssl::x509::X509Ref;
 
 use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;

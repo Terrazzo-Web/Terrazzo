@@ -8,30 +8,30 @@ use mime::APPLICATION_JSON;
 use openssl::asn1::Asn1Time;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
-use reqwest::header::CONTENT_TYPE;
 use reqwest::Response;
 use reqwest::StatusCode;
+use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use terrazzo_testutils::fixture::Fixture;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
-use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
-use trz_gateway_common::security_configuration::certificate::CertificateConfig;
-use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
 use trz_gateway_common::security_configuration::SecurityConfig;
+use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
+use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
+use trz_gateway_common::x509::PemString as _;
 use trz_gateway_common::x509::ca::make_intermediate;
 use trz_gateway_common::x509::cert::make_cert;
 use trz_gateway_common::x509::key::make_key;
 use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
-use trz_gateway_common::x509::PemString as _;
 
+use super::Server;
 use super::gateway_config::GatewayConfig;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
-use super::Server;
 use crate::auth_code::AuthCode;
 
 const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {

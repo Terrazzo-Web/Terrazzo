@@ -1,5 +1,5 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use openssl::ec::EcGroup;
 use openssl::ec::EcKey;
 use openssl::error::ErrorStack;

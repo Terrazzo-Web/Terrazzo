@@ -147,6 +147,8 @@ impl Connections {
             ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
         > + use<>,
     > {
-        self.cache.get_mut(client_id).map(|mut c| c.get_channel())
+        self.cache
+            .get_mut(client_id)
+            .and_then(|mut c| c.get_channel())
     }
 }

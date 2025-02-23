@@ -63,22 +63,23 @@ where
 
     pub fn get_channel(
         &mut self,
-    ) -> impl GrpcService<
-        BoxBody,
-        ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
-    > + use<S> {
+    ) -> Option<
+        impl GrpcService<
+            BoxBody,
+            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
+        > + use<S>,
+    > {
         let count = self.channels.len();
         if count < 2 {
-            TODO !!!
             return if count == 0 {
-                panic!()
+                None
             } else {
-                self.channels[0].channel.clone()
+                Some(self.channels[0].channel.clone())
             };
         }
         let [a, b] =
             sample_floyd2(&mut self.rng, count as u64).map(|i| &self.channels[i as usize].channel);
-        if a.load() < b.load() { a } else { b }.clone()
+        Some(if a.load() < b.load() { a } else { b }.clone())
     }
 }
 

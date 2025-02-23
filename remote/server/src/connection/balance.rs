@@ -45,7 +45,7 @@ where
 {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded();
-        let balanced_channel = Buffer::new(Balance::new(rx), 1024);
+        let balanced_channel = Buffer::new(Balance::new(rx), 1);
         Self {
             tx,
             balanced_channel,
@@ -55,7 +55,7 @@ where
     pub fn add_channel(&self, connection_id: ConnectionId, channel: S) {
         self.send_change(Change::Insert(
             connection_id,
-            PendingRequests::new(channel, CompleteOnResponse::default()),
+            PendingRequests::new(channel.into(), CompleteOnResponse::default()),
         ));
     }
 

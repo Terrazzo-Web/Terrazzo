@@ -106,7 +106,9 @@ impl Server {
             .await
             .map_err(TunnelError::SingleUseConnectorError)?;
         let channel: Channel = endpoint
-            .connect_with_connector(tower::service_fn(connector))
+            .connect_with_connector(ready_once::ReadyOnceService::from(tower::service_fn(
+                connector,
+            )))
             .await
             .map_err(TunnelError::GrpcConnectError)?;
 
@@ -128,6 +130,9 @@ async fn make_single_use_connector<S: AsyncRead + AsyncWrite>(
                     "The WebSocket was already used to create a channel",
                 );
                 warn!("{error}");
+                if true {
+                    panic!("here");
+                }
                 return ready(Err(error));
             };
             // `single_use_connection` has been consumed and is now empty.
@@ -155,4 +160,58 @@ pub enum TunnelError {
 
     #[error("[{n}] {0}", n = self.name())]
     GrpcConnectError(tonic::transport::Error),
+}
+
+mod ready_once {
+    use std::task::Poll;
+    use std::task::ready;
+
+    use tower::Service;
+    use tracing::info;
+    use tracing::warn;
+
+    pub struct ReadyOnceService<S> {
+        service: S,
+        is_ready: bool,
+    }
+
+    impl<S> From<S> for ReadyOnceService<S> {
+        fn from(service: S) -> Self {
+            Self {
+                service,
+                is_ready: false,
+            }
+        }
+    }
+
+    impl<R, S: Service<R>> Service<R> for ReadyOnceService<S>
+    where
+        S::Error: std::error::Error,
+    {
+        type Response = S::Response;
+        type Error = S::Error;
+        type Future = S::Future;
+
+        fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
+            if !self.is_ready {
+                info!("is not readyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy");
+                match ready!(self.service.poll_ready(cx)) {
+                    Ok(()) => (),
+                    Err(error) => {
+                        warn!(
+                            "Failed here here here here here here here here here here here here: {error}"
+                        );
+                        panic!("here");
+                    }
+                };
+            }
+            info!("IS readyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy");
+            self.is_ready = true;
+            Poll::Ready(Ok(()))
+        }
+
+        fn call(&mut self, req: R) -> Self::Future {
+            self.service.call(req)
+        }
+    }
 }

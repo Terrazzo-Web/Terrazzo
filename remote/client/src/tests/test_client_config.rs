@@ -1,4 +1,4 @@
-use trz_gateway_common::id::ClientId;
+use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use crate::client_config::ClientConfig;
@@ -6,14 +6,14 @@ use crate::client_config::ClientConfig;
 #[derive(Debug)]
 pub struct TestClientConfig<G> {
     gateway_config: G,
-    client_id: ClientId,
+    client_name: ClientName,
 }
 
 impl<G> TestClientConfig<G> {
-    pub fn new(gateway_config: G, client_id: ClientId) -> Self {
+    pub fn new(gateway_config: G, client_name: ClientName) -> Self {
         Self {
             gateway_config,
-            client_id,
+            client_name,
         }
     }
 }
@@ -23,8 +23,8 @@ impl<G: GatewayConfig> ClientConfig for TestClientConfig<G> {
         std::format!("https://localhost:{}", self.gateway_config.port())
     }
 
-    fn client_id(&self) -> ClientId {
-        self.client_id.clone()
+    fn client_name(&self) -> ClientName {
+        self.client_name.clone()
     }
 
     type GatewayPki = G::RootCaConfig;

@@ -26,7 +26,7 @@ pub async fn get_certifiate(
         .body(serde_json::to_string(&GetCertificateRequest {
             auth_code,
             public_key,
-            name: client_config.client_id(),
+            name: client_config.client_name(),
         })?);
     Ok(request.send().await?.text().await?)
 }

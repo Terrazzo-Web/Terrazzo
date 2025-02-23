@@ -43,7 +43,7 @@ macro_rules! declare_identifier {
     };
 }
 
-declare_identifier!(ClientId);
+declare_identifier!(ClientName);
 
 #[cfg(test)]
 mod tests {

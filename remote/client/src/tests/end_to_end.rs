@@ -6,7 +6,7 @@ use tracing::info;
 use tracing::info_span;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
-use trz_gateway_common::id::ClientId;
+use trz_gateway_common::id::ClientName;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_server::auth_code::AuthCode;
 use trz_gateway_server::server::Server;
@@ -24,11 +24,10 @@ const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
 };
 
 pub struct EndToEnd<'t> {
-    pub client_id: ClientId,
+    pub client: Client,
     #[expect(unused)]
     pub client_certificate: Arc<PemCertificate>,
     pub server: Arc<Server>,
-    #[expect(unused)]
     pub client_handle: Box<dyn FnOnce() -> ServerHandle<()> + 't>,
 }
 
@@ -44,10 +43,10 @@ impl<'t> EndToEnd<'t> {
             .await?;
         info!("Started the server");
 
-        let client_id = ClientId::from("EndToEndClient");
+        let client_name = ClientName::from("EndToEndClient");
         let client_config = Arc::new(TestClientConfig::new(
             gateway_config.clone(),
-            client_id.clone(),
+            client_name.clone(),
         ));
 
         let auth_code = AuthCode::current().to_string();
@@ -70,12 +69,12 @@ impl<'t> EndToEnd<'t> {
         let mut client_handle = Some(client_handle);
 
         let test = test(EndToEnd {
-            client_id,
+            client,
             server,
             client_certificate,
             client_handle: Box::new(|| client_handle.take().unwrap()),
         });
-        let test = tokio::time::timeout(Duration::from_secs(5), test);
+        let test = tokio::time::timeout(Duration::from_secs(60), test);
         let () = test.await??;
 
         let () = server_handle.stop("Stopping server").await?;

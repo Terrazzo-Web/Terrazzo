@@ -6,8 +6,10 @@ use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite;
 use tonic::transport::Server;
+use tracing::Span;
 use tracing::debug;
 use tracing::info;
+use tracing_futures::Instrument as _;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 
 use super::connection::Connection;
@@ -23,7 +25,7 @@ impl super::Client {
     where
         F: std::future::Future<Output = ()> + Send + Sync + 'static,
     {
-        info!("Connecting WebSocket to {}", self.uri);
+        info!(uri = self.uri, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
@@ -47,12 +49,14 @@ impl super::Client {
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
-        let incoming =
-            futures::stream::once(ready(Ok(connection))).chain(futures::stream::once(async move {
+        let incoming = futures::stream::once(ready(Ok(connection)))
+            .chain(futures::stream::once(async move {
                 let () = shutdown.await;
                 Err(ConnectError::Disconnected)
-            }));
+            }))
+            .in_current_span();
 
+        let current_span = Span::current();
         let grpc_server = self
             .client_service
             .configure_service(
@@ -60,17 +64,21 @@ impl super::Client {
                     .tcp_keepalive(None)
                     .tcp_nodelay(true)
                     .http2_keepalive_interval(None)
-                    .http2_keepalive_timeout(None),
+                    .http2_keepalive_timeout(None)
+                    .trace_fn(move |_| current_span.clone()),
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl));
 
-        tokio::spawn(async move {
-            match grpc_server.serve_with_incoming(incoming).await {
-                Ok(()) => info!("Finished"),
-                Err(error) => info!("Failed: {error}"),
+        tokio::spawn(
+            async move {
+                match grpc_server.serve_with_incoming(incoming).await {
+                    Ok(()) => info!("Finished"),
+                    Err(error) => info!("Failed: {error}"),
+                }
+                let _ = terminated.send(());
             }
-            let _ = terminated.send(());
-        });
+            .in_current_span(),
+        );
         Ok(())
     }
 }

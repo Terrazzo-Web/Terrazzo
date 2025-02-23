@@ -53,7 +53,13 @@ impl super::Client {
 
         let grpc_server = self
             .client_service
-            .configure_service(Server::builder().tcp_keepalive(None).tcp_nodelay(true))
+            .configure_service(
+                Server::builder()
+                    .tcp_keepalive(None)
+                    .tcp_nodelay(true)
+                    .http2_keepalive_interval(None)
+                    .http2_keepalive_timeout(None),
+            )
             .add_service(HealthServiceServer::new(HealthServiceImpl));
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)

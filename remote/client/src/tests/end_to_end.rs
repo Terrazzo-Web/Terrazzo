@@ -1,7 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use tracing::Instrument as _;
 use tracing::info;
+use tracing::info_span;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
@@ -37,7 +39,9 @@ impl<'t> EndToEnd<'t> {
         let temp_dir = use_temp_dir();
 
         let gateway_config = TestGatewayConfig::new();
-        let (server, server_handle) = Server::run(gateway_config.clone()).await?;
+        let (server, server_handle) = Server::run(gateway_config.clone())
+            .instrument(info_span!("Server"))
+            .await?;
         info!("Started the server");
 
         let client_id = ClientId::from("EndToEndClient");
@@ -60,7 +64,7 @@ impl<'t> EndToEnd<'t> {
         let tunnel_config =
             TestTunnelConfig::new(client_config.clone(), client_certificate.clone());
         let client = Client::new(tunnel_config).await?;
-        let client_handle = client.run().await?;
+        let client_handle = client.run().instrument(info_span!("Client")).await?;
         info!("The client is running");
 
         let mut client_handle = Some(client_handle);

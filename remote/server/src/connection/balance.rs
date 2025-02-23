@@ -1,37 +1,30 @@
-use std::convert::Infallible;
 use std::marker::Send;
 
 use axum::http;
 use bytes::Bytes;
-use futures::SinkExt;
-use futures::channel::mpsc;
-use futures::future::MapErr;
 use tonic::body::BoxBody;
 use tonic::client::GrpcService;
 use tonic::transport::Body;
 use tonic::transport::channel::ResponseFuture;
 use tower::BoxError;
 use tower::Service;
-use tower::balance::p2c::Balance;
-use tower::buffer::Buffer;
-use tower::discover::Change;
-use tower::load::CompleteOnResponse;
-use tower::load::PendingRequests;
-use tower::load::completion::TrackCompletionFuture;
-use tower::load::pending_requests::Handle;
+use tower::load::Load as _;
+use tower::util::rng::HasherRng;
+use tower::util::rng::Rng;
+use tracing::info;
 use trz_gateway_common::is_global::IsGlobal;
 
 use super::connection_id::ConnectionId;
+use super::pending_requests::PendingRequests;
 
 pub struct IncomingClients<S: Service<http::Request<BoxBody>>> {
-    tx: mpsc::UnboundedSender<Result<Change<ConnectionId, PendingRequests<S>>, Infallible>>,
-    balanced_channel: Buffer<
-        http::Request<BoxBody>,
-        MapErr<
-            TrackCompletionFuture<ResponseFuture, CompleteOnResponse, Handle>,
-            fn(tonic::transport::Error) -> BoxError,
-        >,
-    >,
+    channels: Vec<ChannelWithId<S>>,
+    rng: HasherRng,
+}
+
+struct ChannelWithId<S> {
+    connection_id: ConnectionId,
+    channel: PendingRequests<S>,
 }
 
 impl<S> IncomingClients<S>
@@ -41,41 +34,58 @@ where
             Response = http::Response<BoxBody>,
             Future = ResponseFuture,
             Error = tonic::transport::Error,
-        > + IsGlobal,
+        > + Clone
+        + IsGlobal,
 {
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::unbounded();
-        let balanced_channel = Buffer::new(Balance::new(rx), 1024);
         Self {
-            tx,
-            balanced_channel,
+            channels: vec![],
+            rng: Default::default(),
         }
     }
 
-    pub fn add_channel(&self, connection_id: ConnectionId, channel: S) {
-        self.send_change(Change::Insert(
+    pub fn add_channel(&mut self, connection_id: ConnectionId, channel: S) {
+        info!("Addinging channel");
+        let channel = PendingRequests::new(channel);
+        self.channels.push(ChannelWithId {
             connection_id,
-            PendingRequests::new(channel, CompleteOnResponse::default()),
-        ));
-    }
-
-    pub fn remove_channel(&self, connection_id: ConnectionId) {
-        self.send_change(Change::Remove(connection_id));
-    }
-
-    fn send_change(&self, change: Change<ConnectionId, PendingRequests<S>>) {
-        let mut tx = self.tx.clone();
-        let _handle = tokio::spawn(async move {
-            let _sent = tx.send(Ok(change)).await;
+            channel,
         });
     }
 
+    pub fn remove_channel(&mut self, connection_id: ConnectionId) {
+        info!("Removing channel");
+        self.channels = std::mem::take(&mut self.channels)
+            .into_iter()
+            .filter(|c| c.connection_id != connection_id)
+            .collect();
+    }
+
     pub fn get_channel(
-        &self,
+        &mut self,
     ) -> impl GrpcService<
         BoxBody,
         ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
     > + use<S> {
-        self.balanced_channel.clone()
+        let count = self.channels.len();
+        if count < 2 {
+            TODO !!!
+            return if count == 0 {
+                panic!()
+            } else {
+                self.channels[0].channel.clone()
+            };
+        }
+        let [a, b] =
+            sample_floyd2(&mut self.rng, count as u64).map(|i| &self.channels[i as usize].channel);
+        if a.load() < b.load() { a } else { b }.clone()
     }
+}
+
+fn sample_floyd2<R: Rng>(rng: &mut R, length: u64) -> [u64; 2] {
+    debug_assert!(2 <= length);
+    let aidx = rng.next_range(0..length - 1);
+    let bidx = rng.next_range(0..length);
+    let aidx = if aidx == bidx { length - 1 } else { aidx };
+    [aidx, bidx]
 }

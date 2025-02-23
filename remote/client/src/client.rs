@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use connect::ConnectError;
-use connect::TunnelError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use trz_gateway_common::declare_identifier;
@@ -48,7 +47,7 @@ impl Client {
         })
     }
 
-    pub async fn run(&self) -> Result<ServerHandle<Result<(), TunnelError>>, RunClientError> {
+    pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
         let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
         let () = self.connect(shutdown_rx, terminated_tx).await?;
         Ok(handle)

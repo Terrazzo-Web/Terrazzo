@@ -14,7 +14,6 @@ use super::test_gateway_config::TestGatewayConfig;
 use super::test_gateway_config::use_temp_dir;
 use super::test_tunnel_config::TestTunnelConfig;
 use crate::client::Client;
-use crate::client::connect::TunnelError;
 use crate::load_client_certificate::load_client_certificate;
 
 const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
@@ -28,7 +27,7 @@ pub struct EndToEnd<'t> {
     pub client_certificate: Arc<PemCertificate>,
     pub server: Arc<Server>,
     #[expect(unused)]
-    pub client_handle: Box<dyn FnOnce() -> ServerHandle<Result<(), TunnelError>> + 't>,
+    pub client_handle: Box<dyn FnOnce() -> ServerHandle<()> + 't>,
 }
 
 impl<'t> EndToEnd<'t> {
@@ -77,8 +76,7 @@ impl<'t> EndToEnd<'t> {
 
         let () = server_handle.stop("End of test").await?;
         if let Some(client_handle) = client_handle.take() {
-            let client_disconnected = client_handle.stopped().await?.unwrap_err();
-            assert!(matches!(client_disconnected, TunnelError::Disconnected));
+            let () = client_handle.stopped().await?;
         }
         Ok(())
     }

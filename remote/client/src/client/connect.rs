@@ -1,5 +1,5 @@
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::convert::Infallible;
+use std::future::ready;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -18,7 +18,7 @@ impl super::Client {
     pub async fn connect<F>(
         &self,
         shutdown: F,
-        terminated_tx: oneshot::Sender<Result<(), TunnelError>>,
+        terminated: oneshot::Sender<()>,
     ) -> Result<(), ConnectError>
     where
         F: std::future::Future<Output = ()> + Send + Sync + 'static,
@@ -46,40 +46,18 @@ impl super::Client {
             .await
             .map_err(ConnectError::Accept)?;
 
-        let terminated_tx = {
-            let terminated_tx = Arc::new(Mutex::new(Some(terminated_tx)));
-            move |result| {
-                let terminated_tx = terminated_tx.lock().expect("terminated_tx").take();
-                if let Some(terminated_tx) = terminated_tx {
-                    let _sent = terminated_tx.send(result);
-                }
-            }
-        };
-
-        let connection = Connection::new(tls_stream);
-        let connection = futures::stream::iter(
-            [Ok(connection), Err(TunnelError::Disconnected)]
-                .into_iter()
-                .inspect({
-                    let terminated_tx = terminated_tx.clone();
-                    move |connection| {
-                        if connection.is_err() {
-                            terminated_tx(Err(TunnelError::Disconnected));
-                        }
-                    }
-                }),
-        );
+        use futures::FutureExt;
+        let shutdown = shutdown.shared();
+        let connection = Connection::new(tls_stream, terminated);
+        let incoming = futures::stream::once(ready(Ok::<_, Infallible>(connection)));
 
         let grpc_server = self
             .client_service
             .configure_service(Server::builder().tcp_keepalive(None).tcp_nodelay(true))
             .add_service(HealthServiceServer::new(HealthServiceImpl));
-        tokio::spawn(async move {
-            let result = grpc_server
-                .serve_with_incoming_shutdown(connection, shutdown)
-                .await;
-            terminated_tx(result.map_err(Into::into));
-        });
+        let () = grpc_server
+            .serve_with_incoming_shutdown(incoming, shutdown)
+            .await?;
         Ok(())
     }
 }
@@ -92,14 +70,7 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),
-}
 
-#[nameth]
-#[derive(thiserror::Error, Debug)]
-pub enum TunnelError {
     #[error("[{n}] {0}", n = self.name())]
     TunnelFailure(#[from] tonic::transport::Error),
-
-    #[error("[{n}] The client got disconnected", n = self.name())]
-    Disconnected,
 }

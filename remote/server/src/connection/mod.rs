@@ -16,6 +16,8 @@ use tonic::transport::Body;
 use tonic::transport::Channel;
 use tower::BoxError;
 use tracing::Instrument;
+use tracing::info;
+use tracing::warn;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
@@ -24,6 +26,7 @@ use self::balance::IncomingClients;
 
 mod balance;
 pub mod connection_id;
+mod pending_requests;
 
 #[derive(Default)]
 pub struct Connections {
@@ -68,31 +71,37 @@ impl Connections {
     ) -> Result<(), ChannelHealthError> {
         defer!(self.remove(client_id, connection_id));
         let mut health_client = HealthServiceClient::new(channel);
-        loop {
-            let pong = health_client.ping_pong(Ping {
-                connection_id: connection_id.to_string(),
-                ..Ping::default()
-            });
-            timeout(TIMEOUT, pong).await??;
+        let health_check_loop = async move {
+            loop {
+                let pong = health_client.ping_pong(Ping {
+                    connection_id: connection_id.to_string(),
+                    ..Ping::default()
+                });
+                timeout(TIMEOUT, pong).await??;
 
-            let start = Instant::now();
-            let pong = health_client.ping_pong(Ping {
-                connection_id: connection_id.to_string(),
-                delay: Some(PERIOD.try_into()?),
-            });
-            timeout(PERIOD + TIMEOUT, pong).await??;
-            let elapsed = start.elapsed();
-            if elapsed < PERIOD {
-                return Err(ChannelHealthError::TooSoon(elapsed));
+                let start = Instant::now();
+                let pong = health_client.ping_pong(Ping {
+                    connection_id: connection_id.to_string(),
+                    delay: Some(PERIOD.try_into()?),
+                });
+                timeout(PERIOD + TIMEOUT, pong).await??;
+                let elapsed = start.elapsed();
+                if elapsed < PERIOD {
+                    return Err(ChannelHealthError::TooSoon(elapsed));
+                }
             }
-        }
+        };
+        health_check_loop
+            .await
+            .inspect(|()| info!("Health check loop DONE"))
+            .inspect_err(|error| warn!("Health check loop FAILED: {error}"))
     }
 
     fn remove(self: &Arc<Self>, client_id: ClientId, connection_id: ConnectionId) {
-        let Some(connections) = self.cache.get(&client_id) else {
+        let Some(mut connections) = self.cache.get_mut(&client_id) else {
             return;
         };
-        connections.value().remove_channel(connection_id);
+        connections.value_mut().remove_channel(connection_id);
     }
 }
 
@@ -138,6 +147,6 @@ impl Connections {
             ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
         > + use<>,
     > {
-        self.cache.get(client_id).map(|c| c.get_channel())
+        self.cache.get_mut(client_id).map(|mut c| c.get_channel())
     }
 }

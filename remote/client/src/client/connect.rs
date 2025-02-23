@@ -1,6 +1,5 @@
 use std::future::ready;
 
-use futures::FutureExt as _;
 use futures::StreamExt as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -48,8 +47,6 @@ impl super::Client {
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
-        let shutdown = shutdown.shared();
-        let shutdown2 = shutdown.clone();
         let incoming =
             futures::stream::once(ready(Ok(connection))).chain(futures::stream::once(async move {
                 let () = shutdown.await;
@@ -68,10 +65,7 @@ impl super::Client {
             .add_service(HealthServiceServer::new(HealthServiceImpl));
 
         tokio::spawn(async move {
-            match grpc_server
-                .serve_with_incoming_shutdown(incoming, shutdown2)
-                .await
-            {
+            match grpc_server.serve_with_incoming(incoming).await {
                 Ok(()) => info!("Finished"),
                 Err(error) => info!("Failed: {error}"),
             }

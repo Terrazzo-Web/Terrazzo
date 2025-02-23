@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use tracing::warn;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_client::TestTunnelServiceClient;

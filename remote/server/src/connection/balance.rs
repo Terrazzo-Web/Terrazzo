@@ -69,7 +69,7 @@ where
     > + use<S> {
         let count = self.channels.len();
         if count < 2 {
-            // TODO !!!
+            TODO !!!
             return if count == 0 {
                 panic!()
             } else {

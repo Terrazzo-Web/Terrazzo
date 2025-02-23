@@ -1,4 +1,8 @@
+use std::convert::Infallible;
+
+use axum::extract::OptionalFromRequestParts;
 use axum::http::HeaderName;
+use axum::http::request::Parts;
 
 #[macro_export]
 macro_rules! declare_identifier {
@@ -48,6 +52,23 @@ macro_rules! declare_identifier {
 declare_identifier!(ClientName);
 declare_identifier!(ClientId);
 pub static CLIENT_ID_HEADER: HeaderName = HeaderName::from_static("x-client-id");
+
+impl<S> OptionalFromRequestParts<S> for ClientId
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let Some(client_id) = parts.headers.get(&CLIENT_ID_HEADER) else {
+            return Ok(None);
+        };
+        Ok(client_id.to_str().ok().map(ClientId::from))
+    }
+}
 
 #[cfg(test)]
 mod tests {

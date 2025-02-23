@@ -15,7 +15,7 @@ use tonic::client::GrpcService;
 use tonic::transport::Body;
 use tonic::transport::Channel;
 use tower::BoxError;
-use tracing::Instrument;
+use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;

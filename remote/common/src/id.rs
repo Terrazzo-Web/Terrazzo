@@ -1,3 +1,5 @@
+use axum::http::HeaderName;
+
 #[macro_export]
 macro_rules! declare_identifier {
     ($name:ident) => {
@@ -44,6 +46,8 @@ macro_rules! declare_identifier {
 }
 
 declare_identifier!(ClientName);
+declare_identifier!(ClientId);
+pub static CLIENT_ID_HEADER: HeaderName = HeaderName::from_static("x-client-id");
 
 #[cfg(test)]
 mod tests {

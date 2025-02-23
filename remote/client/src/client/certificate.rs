@@ -1,10 +1,10 @@
+use http::header::CONTENT_TYPE;
 use mime::APPLICATION_JSON;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
 use reqwest::Client;
-use reqwest::header::CONTENT_TYPE;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;

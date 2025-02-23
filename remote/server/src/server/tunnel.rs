@@ -7,6 +7,7 @@ use axum::extract::Path;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
+use axum::http::HeaderMap;
 use axum::http::Uri;
 use axum::response::IntoResponse;
 use futures::SinkExt;
@@ -29,6 +30,7 @@ use tracing::Span;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
+use trz_gateway_common::id::CLIENT_ID_HEADER;
 use trz_gateway_common::id::ClientName;
 
 use super::Server;
@@ -36,10 +38,18 @@ use super::Server;
 impl Server {
     pub async fn tunnel(
         self: Arc<Self>,
+        headers: HeaderMap,
         Path(client_name): Path<ClientName>,
         web_socket: WebSocketUpgrade,
     ) -> impl IntoResponse {
-        let span = info_span!("Tunnel", %client_name);
+        let span = if let Some(Ok(client_id)) = headers
+            .get(&CLIENT_ID_HEADER)
+            .map(|client_id| client_id.to_str())
+        {
+            info_span!("Tunnel", %client_name, %client_id)
+        } else {
+            info_span!("Tunnel", %client_name)
+        };
         let _entered = span.clone().entered();
         info!("Incoming tunnel");
         web_socket.on_upgrade(move |web_socket| {

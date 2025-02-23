@@ -3,10 +3,11 @@ use std::sync::Arc;
 use connect::ConnectError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use tracing::Instrument;
+use tracing::Instrument as _;
 use tracing::info_span;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
+use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
@@ -15,6 +16,7 @@ use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfi
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient as _;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
+use uuid::Uuid;
 
 use crate::client_service::ClientService;
 use crate::tunnel_config::TunnelConfig;
@@ -57,12 +59,16 @@ impl Client {
     }
 
     pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
+        let client_name = &self.client_name;
+        let client_id = ClientId::from(Uuid::new_v4().to_string());
         async {
             let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
-            let () = self.connect(shutdown_rx, terminated_tx).await?;
+            let () = self
+                .connect(client_id.clone(), shutdown_rx, terminated_tx)
+                .await?;
             Ok(handle)
         }
-        .instrument(info_span!("Run", %self.client_name))
+        .instrument(info_span!("Run", %client_name, %client_id))
         .await
     }
 }

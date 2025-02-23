@@ -1,6 +1,8 @@
 use std::future::ready;
 
+use self::tungstenite::client::IntoClientRequest as _;
 use futures::StreamExt as _;
+use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -10,6 +12,8 @@ use tracing::Span;
 use tracing::debug;
 use tracing::info;
 use tracing_futures::Instrument as _;
+use trz_gateway_common::id::CLIENT_ID_HEADER;
+use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 
 use super::connection::Connection;
@@ -19,6 +23,7 @@ use super::to_async_io::to_async_io;
 impl super::Client {
     pub async fn connect<F>(
         &self,
+        client_id: ClientId,
         shutdown: F,
         terminated: oneshot::Sender<()>,
     ) -> Result<(), ConnectError>
@@ -29,7 +34,10 @@ impl super::Client {
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let websocket_uri = format!("ws{}", &self.uri[4..]);
+        let mut websocket_uri = format!("ws{}", &self.uri[4..]).into_client_request()?;
+        websocket_uri
+            .headers_mut()
+            .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
         let (web_socket, response) = tokio_tungstenite::connect_async_tls_with_config(
             websocket_uri,
             web_socket_config,
@@ -86,6 +94,9 @@ impl super::Client {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum ConnectError {
+    #[error("[{n}] {0}", n = self.name())]
+    InvalidHeader(#[from] InvalidHeaderValue),
+
     #[error("[{n}] {0}", n = self.name())]
     Connect(#[from] tungstenite::Error),
 

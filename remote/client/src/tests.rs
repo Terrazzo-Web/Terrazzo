@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-
 use futures::future::join_all;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;

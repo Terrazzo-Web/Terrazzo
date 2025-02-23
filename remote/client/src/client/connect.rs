@@ -1,6 +1,5 @@
 use std::future::ready;
 
-use self::tungstenite::client::IntoClientRequest as _;
 use futures::StreamExt as _;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
@@ -16,6 +15,7 @@ use trz_gateway_common::id::CLIENT_ID_HEADER;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 
+use self::tungstenite::client::IntoClientRequest as _;
 use super::connection::Connection;
 use super::health::HealthServiceImpl;
 use super::to_async_io::to_async_io;

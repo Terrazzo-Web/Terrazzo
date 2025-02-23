@@ -7,6 +7,7 @@ use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_cli
 
 use self::end_to_end::EndToEnd;
 
+mod calculator;
 mod end_to_end;
 mod test_client_config;
 mod test_gateway_config;

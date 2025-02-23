@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+
 use futures::future::join_all;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;
@@ -59,6 +60,22 @@ async fn with_many_calls() -> Result<(), Box<dyn std::error::Error>> {
         let () = (end_to_end.client_handle)()
             .stop("Stopping the client")
             .await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn with_sequential_calls() -> Result<(), Box<dyn std::error::Error>> {
+    EndToEnd::run(async |end_to_end| {
+        let handle = end_to_end.client.run().await?;
+        for _ in 0..100 {
+            let () = run_trivial_test(&end_to_end).await?;
+        }
+        let () = (end_to_end.client_handle)()
+            .stop("Stopping the client")
+            .await?;
+        handle.stop("Stopping the second client").await?;
         Ok(())
     })
     .await

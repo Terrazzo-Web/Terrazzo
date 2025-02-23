@@ -26,10 +26,10 @@ impl Server {
                 }),
             )
             .route(
-                "/remote/tunnel/{client_id}",
-                get(move |client_id, web_socket| {
+                "/remote/tunnel/{client_name}",
+                get(move |client_name, web_socket| {
                     autoclone!(server, span);
-                    server.tunnel(client_id, web_socket).instrument(span)
+                    server.tunnel(client_name, web_socket).instrument(span)
                 }),
             )
             .layer(

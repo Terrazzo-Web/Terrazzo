@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
@@ -136,7 +135,7 @@ impl Server {
         tokio::spawn(
             async move {
                 let () = shutdown.await;
-                handle.graceful_shutdown(Some(Duration::from_secs(30)));
+                handle.shutdown();
             }
             .in_current_span(),
         );

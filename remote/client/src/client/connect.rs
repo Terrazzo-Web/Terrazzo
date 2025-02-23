@@ -1,6 +1,7 @@
-use std::convert::Infallible;
 use std::future::ready;
 
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -46,10 +47,14 @@ impl super::Client {
             .await
             .map_err(ConnectError::Accept)?;
 
-        use futures::FutureExt;
+        let connection = Connection::new(tls_stream);
         let shutdown = shutdown.shared();
-        let connection = Connection::new(tls_stream, terminated);
-        let incoming = futures::stream::once(ready(Ok::<_, Infallible>(connection)));
+        let shutdown2 = shutdown.clone();
+        let incoming =
+            futures::stream::once(ready(Ok(connection))).chain(futures::stream::once(async move {
+                let () = shutdown.await;
+                Err(ConnectError::Disconnected)
+            }));
 
         let grpc_server = self
             .client_service
@@ -61,9 +66,17 @@ impl super::Client {
                     .http2_keepalive_timeout(None),
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl));
-        let () = grpc_server
-            .serve_with_incoming_shutdown(incoming, shutdown)
-            .await?;
+
+        tokio::spawn(async move {
+            match grpc_server
+                .serve_with_incoming_shutdown(incoming, shutdown2)
+                .await
+            {
+                Ok(()) => info!("Finished"),
+                Err(error) => info!("Failed: {error}"),
+            }
+            let _ = terminated.send(());
+        });
         Ok(())
     }
 }
@@ -79,4 +92,7 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     TunnelFailure(#[from] tonic::transport::Error),
+
+    #[error("[{n}] The client got disconnected", n = self.name())]
+    Disconnected,
 }

@@ -78,9 +78,11 @@ impl<'t> EndToEnd<'t> {
         let test = tokio::time::timeout(Duration::from_secs(5), test);
         let () = test.await??;
 
-        let () = server_handle.stop("End of test").await?;
+        let () = server_handle.stop("Stopping server").await?;
+        info!("Server stopped");
         if let Some(client_handle) = client_handle.take() {
-            let () = client_handle.stopped().await?;
+            let () = client_handle.stop("Stopping client").await?;
+            info!("Client stopped");
         }
         Ok(())
     }

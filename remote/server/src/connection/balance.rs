@@ -45,7 +45,7 @@ where
     }
 
     pub fn add_channel(&mut self, connection_id: ConnectionId, channel: S) {
-        info!("Addinging channel");
+        info!("Adding channel");
         let channel = PendingRequests::new(channel);
         self.channels.push(ChannelWithId {
             connection_id,
@@ -69,7 +69,7 @@ where
     > + use<S> {
         let count = self.channels.len();
         if count < 2 {
-            TODO !!!
+            // TODO !!!
             return if count == 0 {
                 panic!()
             } else {

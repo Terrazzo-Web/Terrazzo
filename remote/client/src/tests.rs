@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use tracing::info;
+use tracing::warn;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_client::TestTunnelServiceClient;
@@ -38,8 +38,7 @@ async fn trivial() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn with_sleep() -> Result<(), Box<dyn std::error::Error>> {
     EndToEnd::run(async |end_to_end| {
-        TODO !!!
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         let server = &end_to_end.server;
         let client_id = &end_to_end.client_id;
         let channel = server

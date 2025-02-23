@@ -2,25 +2,19 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use pin_project::pin_project;
-use pin_project::pinned_drop;
-use tokio::sync::oneshot;
 use tokio_rustls::server::TlsStream;
 use tonic::transport::server::Connected;
 
 // A wrapper for [TlsStream] that implements [Connected].
-#[pin_project(PinnedDrop)]
+#[pin_project]
 pub struct Connection<C> {
     #[pin]
     tls_stream: TlsStream<C>,
-    terminated: Option<oneshot::Sender<()>>,
 }
 
 impl<C> Connection<C> {
-    pub fn new(tls_stream: TlsStream<C>, terminated: oneshot::Sender<()>) -> Self {
-        Self {
-            tls_stream,
-            terminated: Some(terminated),
-        }
+    pub fn new(tls_stream: TlsStream<C>) -> Self {
+        Self { tls_stream }
     }
 }
 
@@ -77,16 +71,5 @@ impl<C: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWr
 
     fn is_write_vectored(&self) -> bool {
         self.tls_stream.is_write_vectored()
-    }
-}
-
-#[pinned_drop]
-impl<C> PinnedDrop for Connection<C> {
-    fn drop(mut self: Pin<&mut Self>) {
-        let _ = self
-            .project()
-            .terminated
-            .take()
-            .map(|terminated| terminated.send(()));
     }
 }

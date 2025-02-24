@@ -30,26 +30,32 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientId;
+use trz_gateway_common::id::ClientName;
 
 use super::Server;
 
 impl Server {
     pub async fn tunnel(
         self: Arc<Self>,
-        Path(client_id): Path<ClientId>,
+        client_id: Option<ClientId>,
+        Path(client_name): Path<ClientName>,
         web_socket: WebSocketUpgrade,
     ) -> impl IntoResponse {
-        let span = info_span!("Tunnel", %client_id);
+        let span = if let Some(client_id) = client_id {
+            info_span!("Tunnel", %client_name, %client_id)
+        } else {
+            info_span!("Tunnel", %client_name)
+        };
         let _entered = span.clone().entered();
         info!("Incoming tunnel");
         web_socket.on_upgrade(move |web_socket| {
             let _entered = span.clone().entered();
-            self.process_websocket(client_id, web_socket);
+            self.process_websocket(client_name, web_socket);
             ready(())
         })
     }
 
-    fn process_websocket(self: Arc<Self>, client_id: ClientId, web_socket: WebSocket) {
+    fn process_websocket(self: Arc<Self>, client_name: ClientName, web_socket: WebSocket) {
         let (sink, stream) = web_socket.split();
 
         let reader = {
@@ -79,18 +85,21 @@ impl Server {
         };
 
         let stream = tokio::io::join(reader, writer);
-        tokio::spawn(self.process_connection(client_id, stream).in_current_span());
+        tokio::spawn(
+            self.process_connection(client_name, stream)
+                .in_current_span(),
+        );
     }
 
     async fn process_connection(
         self: Arc<Self>,
-        client_id: ClientId,
+        client_name: ClientName,
         connection: impl AsyncRead + AsyncWrite + Unpin + Send + Sync + 'static,
     ) -> Result<(), TunnelError> {
         let tls_stream = self
             .tls_client
             .connect(
-                ServerName::DnsName(DnsName::try_from(client_id.to_string())?),
+                ServerName::DnsName(DnsName::try_from(client_name.to_string())?),
                 connection,
             )
             .await
@@ -99,9 +108,10 @@ impl Server {
         // The endpoint is irrelevant: gRPC isn't actually connecting to this endpoint.
         // Instead we are manually providing the connection using 'connect_with_connector'.
         // The connection used by gRPC is the bi-directional stream based on the WebSocket.
-        let endpoint =
-            tonic::transport::Endpoint::new(format!("https://localhost/remote/tunnel/{client_id}"))
-                .map_err(|_| TunnelError::InvalidEndpoint)?;
+        let endpoint = tonic::transport::Endpoint::new(format!(
+            "https://localhost/remote/tunnel/{client_name}"
+        ))
+        .map_err(|_| TunnelError::InvalidEndpoint)?;
         let connector = make_single_use_connector(tls_stream)
             .await
             .map_err(TunnelError::SingleUseConnectorError)?;
@@ -110,7 +120,7 @@ impl Server {
             .await
             .map_err(TunnelError::GrpcConnectError)?;
 
-        self.connections.add(client_id, channel);
+        self.connections.add(client_name, channel);
         Ok(())
     }
 }

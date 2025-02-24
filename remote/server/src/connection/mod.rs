@@ -15,8 +15,11 @@ use tonic::client::GrpcService;
 use tonic::transport::Body;
 use tonic::transport::Channel;
 use tower::BoxError;
-use tracing::Instrument;
-use trz_gateway_common::id::ClientId;
+use tracing::Instrument as _;
+use tracing::info;
+use tracing::info_span;
+use tracing::warn;
+use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 
@@ -24,22 +27,24 @@ use self::balance::IncomingClients;
 
 mod balance;
 pub mod connection_id;
+mod pending_requests;
 
 #[derive(Default)]
 pub struct Connections {
-    cache: DashMap<ClientId, IncomingClients<Channel>>,
+    cache: DashMap<ClientName, IncomingClients<Channel>>,
 }
 
 impl Connections {
-    pub fn add(self: &Arc<Self>, client_id: ClientId, channel: Channel) {
+    pub fn add(self: &Arc<Self>, client_name: ClientName, channel: Channel) {
         let connection_id = ConnectionId::next();
-        match self.cache.entry(client_id.clone()) {
+        let _span = info_span!("Connection", %connection_id).entered();
+        match self.cache.entry(client_name.clone()) {
             dashmap::Entry::Occupied(mut entry) => {
-                self.add_channel(entry.get_mut(), client_id, connection_id, channel);
+                self.add_channel(entry.get_mut(), client_name, connection_id, channel);
             }
             dashmap::Entry::Vacant(entry) => {
                 let mut connections = IncomingClients::new();
-                self.add_channel(&mut connections, client_id, connection_id, channel);
+                self.add_channel(&mut connections, client_name, connection_id, channel);
                 entry.insert(connections);
             }
         }
@@ -48,51 +53,57 @@ impl Connections {
     fn add_channel(
         self: &Arc<Self>,
         connections: &mut IncomingClients<Channel>,
-        client_id: ClientId,
+        client_name: ClientName,
         connection_id: ConnectionId,
         channel: Channel,
     ) {
         connections.add_channel(connection_id, channel.clone());
         tokio::spawn(
             self.clone()
-                .channel_health_check(client_id, connection_id, channel)
+                .channel_health_check(client_name, connection_id, channel)
                 .in_current_span(),
         );
     }
 
     async fn channel_health_check(
         self: Arc<Connections>,
-        client_id: ClientId,
+        client_name: ClientName,
         connection_id: ConnectionId,
         channel: Channel,
     ) -> Result<(), ChannelHealthError> {
-        defer!(self.remove(client_id, connection_id));
+        defer!(self.remove(client_name, connection_id));
         let mut health_client = HealthServiceClient::new(channel);
-        loop {
-            let pong = health_client.ping_pong(Ping {
-                connection_id: connection_id.to_string(),
-                ..Ping::default()
-            });
-            timeout(TIMEOUT, pong).await??;
+        let health_check_loop = async move {
+            loop {
+                let pong = health_client.ping_pong(Ping {
+                    connection_id: connection_id.to_string(),
+                    ..Ping::default()
+                });
+                timeout(TIMEOUT, pong).await??;
 
-            let start = Instant::now();
-            let pong = health_client.ping_pong(Ping {
-                connection_id: connection_id.to_string(),
-                delay: Some(PERIOD.try_into()?),
-            });
-            timeout(PERIOD + TIMEOUT, pong).await??;
-            let elapsed = start.elapsed();
-            if elapsed < PERIOD {
-                return Err(ChannelHealthError::TooSoon(elapsed));
+                let start = Instant::now();
+                let pong = health_client.ping_pong(Ping {
+                    connection_id: connection_id.to_string(),
+                    delay: Some(PERIOD.try_into()?),
+                });
+                timeout(PERIOD + TIMEOUT, pong).await??;
+                let elapsed = start.elapsed();
+                if elapsed < PERIOD {
+                    return Err(ChannelHealthError::TooSoon(elapsed));
+                }
             }
-        }
+        };
+        health_check_loop
+            .await
+            .inspect(|()| info!("Health check loop DONE"))
+            .inspect_err(|error| warn!("Health check loop FAILED: {error}"))
     }
 
-    fn remove(self: &Arc<Self>, client_id: ClientId, connection_id: ConnectionId) {
-        let Some(connections) = self.cache.get(&client_id) else {
+    fn remove(self: &Arc<Self>, client_name: ClientName, connection_id: ConnectionId) {
+        let Some(mut connections) = self.cache.get_mut(&client_name) else {
             return;
         };
-        connections.value().remove_channel(connection_id);
+        connections.value_mut().remove_channel(connection_id);
     }
 }
 
@@ -125,19 +136,21 @@ pub enum ChannelHealthError {
 }
 
 impl Connections {
-    pub fn client_ids(&self) -> impl Iterator<Item = ClientId> + '_ {
+    pub fn clients(&self) -> impl Iterator<Item = ClientName> + '_ {
         self.cache.iter().map(|entry| entry.key().clone())
     }
 
     pub fn get_client(
         &self,
-        client_id: &ClientId,
+        client_name: &ClientName,
     ) -> Option<
         impl GrpcService<
             BoxBody,
             ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
         > + use<>,
     > {
-        self.cache.get(client_id).map(|c| c.get_channel())
+        self.cache
+            .get_mut(client_name)
+            .and_then(|mut c| c.get_channel())
     }
 }

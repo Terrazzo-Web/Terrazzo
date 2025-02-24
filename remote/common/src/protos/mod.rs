@@ -6,6 +6,8 @@ pub mod terrazzo {
 
         #[cfg(debug_assertions)]
         pub mod tests {
+            use std::fmt::Debug;
+            use std::fmt::Display;
 
             include!(concat!(env!("OUT_DIR"), "/terrazzo.remote.tests.rs"));
 
@@ -82,6 +84,60 @@ pub mod terrazzo {
                             right: Some(Box::new(right)),
                         }))),
                     }
+                }
+            }
+
+            impl Display for Expression {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let Expression { kind } = self;
+                    let Some(kind) = kind else {
+                        return Display::fmt("NULL", f);
+                    };
+                    match kind {
+                        expression::Kind::Operation(operation) => Display::fmt(operation, f),
+                        expression::Kind::Value(value) => Display::fmt(value, f),
+                    }
+                }
+            }
+
+            impl Display for Value {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let Value { kind } = self;
+                    let Some(kind) = kind else {
+                        return Display::fmt("NULL", f);
+                    };
+                    match kind {
+                        value::Kind::I(v) => Display::fmt(v, f),
+                        value::Kind::F(v) => Display::fmt(v, f),
+                    }
+                }
+            }
+
+            impl Display for Operation {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    match &self.left {
+                        Some(left) => Display::fmt(left, f)?,
+                        None => Display::fmt("NULL", f)?,
+                    }
+                    Display::fmt(&self.operator(), f)?;
+                    match &self.right {
+                        Some(right) => Display::fmt(right, f)?,
+                        None => Display::fmt("NULL", f)?,
+                    }
+                    Ok(())
+                }
+            }
+
+            impl Display for Operator {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let str = match self {
+                        Operator::UndefinedOperand => " UNDEFINED ",
+                        Operator::Plus => " + ",
+                        Operator::Minus => " - ",
+                        Operator::Multiply => " * ",
+                        Operator::Divide => " / ",
+                    };
+                    Display::fmt(str, f)
                 }
             }
         }

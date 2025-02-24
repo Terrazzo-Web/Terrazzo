@@ -49,8 +49,7 @@ impl<R> ServerHandle<R> {
 
 impl<R> Drop for ServerHandle<R> {
     fn drop(&mut self) {
-        if (self.shutdown_tx.is_some() || self.terminated_rx.is_some()) && !std::thread::panicking()
-        {
+        if self.terminated_rx.is_some() && !std::thread::panicking() {
             warn!("The server was not shutdown");
         }
     }

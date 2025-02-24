@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 use tracing::debug;
-use trz_gateway_common::id::ClientId;
+use trz_gateway_common::id::ClientName;
 use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use uuid::Uuid;
@@ -26,9 +26,9 @@ pub trait ClientConfig: IsGlobal {
         format!("https://localhost:{port}")
     }
 
-    fn client_id(&self) -> ClientId {
-        static CLIENT_ID: OnceLock<ClientId> = OnceLock::new();
-        fn make_default_hostname() -> ClientId {
+    fn client_name(&self) -> ClientName {
+        static CLIENT_ID: OnceLock<ClientName> = OnceLock::new();
+        fn make_default_hostname() -> ClientName {
             match hostname::get().map(OsString::into_string) {
                 Ok(Ok(hostname)) => return hostname.into(),
                 Err(error) => debug!("Failed to get the hostname with hostname::get(): {error}"),
@@ -51,8 +51,8 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
         self.as_ref().base_url()
     }
 
-    fn client_id(&self) -> ClientId {
-        self.as_ref().client_id()
+    fn client_name(&self) -> ClientName {
+        self.as_ref().client_name()
     }
 
     type GatewayPki = T::GatewayPki;

@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
@@ -14,8 +13,8 @@ use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_rustls::TlsConnector;
 use tracing::Instrument as _;
+use tracing::Span;
 use tracing::debug;
-use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
@@ -95,19 +94,16 @@ impl Server {
 
         for socket_addr in socket_addrs {
             debug!("Setup server on {socket_addr}");
-            let task = server.clone().run_endpoint(socket_addr);
+            let task = server.clone().run_endpoint(socket_addr, Span::current());
             let (terminated_tx, terminated_rx) = oneshot::channel();
             terminated.push(terminated_rx);
-            tokio::spawn(
-                async move {
-                    match task.await {
-                        Ok(()) => (),
-                        Err(error) => warn!("Failed {error}"),
-                    }
-                    let _: Result<(), ()> = terminated_tx.send(());
+            tokio::spawn(async move {
+                match task.await {
+                    Ok(()) => (),
+                    Err(error) => warn!("Failed {error}"),
                 }
-                .instrument(info_span!("Serving", %socket_addr)),
-            );
+                let _: Result<(), ()> = terminated_tx.send(());
+            });
         }
 
         {
@@ -124,8 +120,12 @@ impl Server {
         Ok((server, handle))
     }
 
-    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {
-        let app = self.make_app();
+    async fn run_endpoint(
+        self: Arc<Self>,
+        socket_addr: SocketAddr,
+        span: Span,
+    ) -> Result<(), RunGatewayError> {
+        let app = self.make_app(span);
 
         let handle = Handle::new();
         let axum_server =
@@ -135,7 +135,7 @@ impl Server {
         tokio::spawn(
             async move {
                 let () = shutdown.await;
-                handle.graceful_shutdown(Some(Duration::from_secs(30)));
+                handle.shutdown();
             }
             .in_current_span(),
         );

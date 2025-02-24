@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use connect::ConnectError;
-use connect::TunnelError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tracing::Instrument as _;
+use tracing::info_span;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
+use trz_gateway_common::id::ClientId;
+use trz_gateway_common::id::ClientName;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
@@ -13,6 +16,7 @@ use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfi
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient as _;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
+use uuid::Uuid;
 
 use crate::client_service::ClientService;
 use crate::tunnel_config::TunnelConfig;
@@ -24,6 +28,7 @@ mod health;
 mod to_async_io;
 
 pub struct Client {
+    pub client_name: ClientName,
     uri: String,
     tls_client: tokio_tungstenite::Connector,
     tls_server: tokio_rustls::TlsAcceptor,
@@ -41,17 +46,30 @@ impl Client {
             .await?;
         let tls_server = config.client_certificate().to_tls_server().await?;
         Ok(Client {
-            uri: format!("{}/remote/tunnel/{}", config.base_url(), config.client_id()),
+            client_name: config.client_name(),
+            uri: format!(
+                "{}/remote/tunnel/{}",
+                config.base_url(),
+                config.client_name()
+            ),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
             client_service: Arc::new(config.client_service()),
         })
     }
 
-    pub async fn run(&self) -> Result<ServerHandle<Result<(), TunnelError>>, RunClientError> {
-        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
-        let () = self.connect(shutdown_rx, terminated_tx).await?;
-        Ok(handle)
+    pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
+        let client_name = &self.client_name;
+        let client_id = ClientId::from(Uuid::new_v4().to_string());
+        async {
+            let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+            let () = self
+                .connect(client_id.clone(), shutdown_rx, terminated_tx)
+                .await?;
+            Ok(handle)
+        }
+        .instrument(info_span!("Run", %client_name, %client_id))
+        .await
     }
 }
 

@@ -42,7 +42,7 @@ portpicker = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
-terrazzo-testutils = { workspace = true }
+terrazzo-fixture = { workspace = true }
 x509-parser = { workspace = true }
 
 [lints]

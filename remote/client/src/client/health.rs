@@ -29,7 +29,7 @@ impl HealthService for HealthServiceImpl {
         };
 
         if let Some(delay) = &delay {
-            let delay = format_duration(delay.clone());
+            let delay = format_duration(*delay);
             info!(connection_id, %delay, "Received ping");
         } else {
             info!(connection_id, "Received ping");

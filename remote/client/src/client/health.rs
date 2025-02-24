@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use humantime::format_duration;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use prost_types::DurationError;
@@ -18,11 +21,24 @@ impl HealthService for HealthServiceImpl {
             connection_id,
             delay,
         } = request.get_ref();
-        info!(connection_id, ?delay, "Received ping");
+
+        let delay = if let Some(delay) = &delay {
+            Some(Duration::try_from(*delay).map_err(PingError::from)?)
+        } else {
+            None
+        };
+
+        if let Some(delay) = &delay {
+            let delay = format_duration(delay.clone());
+            info!(connection_id, %delay, "Received ping");
+        } else {
+            info!(connection_id, "Received ping");
+        }
+
         if let Some(delay) = delay {
-            let delay = (*delay).try_into().map_err(PingError::from)?;
             tokio::time::sleep(delay).await;
         }
+
         info!(connection_id, "Return pong");
         Ok(tonic::Response::new(Pong {}))
     }

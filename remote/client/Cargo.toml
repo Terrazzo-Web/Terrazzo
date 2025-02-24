@@ -15,6 +15,7 @@ trz-gateway-common = { workspace = true }
 futures = { workspace = true }
 hostname = { workspace = true }
 http = { workspace = true }
+humantime = { workspace = true }
 mime = { workspace = true }
 nameth = { workspace = true }
 openssl = { workspace = true }

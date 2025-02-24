@@ -18,7 +18,11 @@ impl TestTunnelService for Calculator {
     ) -> Result<tonic::Response<Value>, Status> {
         let expression = request.get_ref();
         let result = calculate_impl(expression);
-        info!("Calculate {expression:?} = {result:?}");
+        let result_str = match &result {
+            Ok(result) => result.to_string(),
+            Err(error) => error.to_string(),
+        };
+        info!("Calculate {expression} = {result_str}");
         result.map(tonic::Response::new)
     }
 }

@@ -12,7 +12,7 @@ use reqwest::Response;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
-use terrazzo_fixture::fixture::Fixture;
+use terrazzo_fixture::Fixture;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;

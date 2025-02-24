@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use openssl::asn1::Asn1Time;
 use tempfile::TempDir;
-use terrazzo_testutils::fixture::Fixture;
+use terrazzo_fixture::fixture::Fixture;
 use tracing::debug;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::security_configuration::SecurityConfig;

@@ -1,19 +1,19 @@
 [workspace]
 members = [
-    "autoclone/autoclone",
-    "autoclone/autoclone-tests",
     "demo",
     "framework/build",
     "framework/client",
     "framework/macro",
     "framework/terrazzo",
-    "nameth/nameth",
-    "nameth/nameth-macro",
-    "nameth/nameth-tests",
     "remote/client",
     "remote/common",
     "remote/server",
-    "fixture",
+    "utils/autoclone/autoclone-tests",
+    "utils/autoclone/autoclone",
+    "utils/fixture",
+    "utils/nameth/nameth-macro",
+    "utils/nameth/nameth-tests",
+    "utils/nameth/nameth",
 ]
 resolver = "2"
 

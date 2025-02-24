@@ -5,7 +5,10 @@ authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
-description = { workspace = true }
+description = "Secure Proxy / Agents implementation in Rust"
+readme = "README.md"
+categories = ["network-programming"]
+keywords = ["terrazzo", "gateway", "agent"]
 
 [lib]
 
@@ -32,7 +35,7 @@ tokio-util = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-futures = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 trz-gateway-server = { workspace = true }

@@ -10,8 +10,12 @@ runs:
         cargo publish -p nameth-macro
         cargo publish -p nameth
         cargo publish -p autoclone
+        cargo publish -p terrazzo-fixture
         cargo publish -p terrazzo-macro
         cargo publish -p terrazzo-client
         cargo publish -p terrazzo-build
         cargo publish -p terrazzo
+        cargo publish -p trz-gateway-common
+        cargo publish -p trz-gateway-server
+        cargo publish -p trz-gateway-client
       shell: bash

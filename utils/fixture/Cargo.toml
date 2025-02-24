@@ -5,6 +5,10 @@ authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
+description = "Test utils to initialize resources that can be shared by multiple tests running in parallel."
+readme = "README.md"
+categories = ["development-tools::testing"]
+keywords = ["terrazzo", "test"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

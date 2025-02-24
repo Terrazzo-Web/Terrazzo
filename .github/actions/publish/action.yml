@@ -15,7 +15,7 @@ runs:
         cargo publish -p terrazzo-client
         cargo publish -p terrazzo-build
         cargo publish -p terrazzo
-        cargo publish -p trz-gateway-client
         cargo publish -p trz-gateway-common
         cargo publish -p trz-gateway-server
+        cargo publish -p trz-gateway-client
       shell: bash

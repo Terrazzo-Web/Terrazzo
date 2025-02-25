@@ -23,6 +23,7 @@ use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsSe
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
 use trz_gateway_common::security_configuration::custom_server_certificate_verifier::SignedExtensionCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
+use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
@@ -79,7 +80,8 @@ impl Server {
         let tls_client = config
             .root_ca()
             .to_tls_client(SignedExtensionCertificateVerifier {
-                store: client_certificate_issuer,
+                store: CachedTrustedStoreConfig::new(client_certificate_issuer)
+                    .map_err(GatewayError::CachedTrustedStoreConfig)?,
                 signer_name: issuer_config.signer_name.clone(),
             })
             .await?;
@@ -191,6 +193,9 @@ pub enum GatewayError<C: GatewayConfig> {
 
     #[error("[{n}] {0}", n = self.name())]
     ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    CachedTrustedStoreConfig(<C::ClientCertificateIssuerConfig as TrustedStoreConfig>::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     RunGatewayError(#[from] RunGatewayError),

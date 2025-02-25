@@ -8,7 +8,6 @@ use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
-use issuer_config::IssuerConfigError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -28,8 +27,10 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
 
+use self::gateway_config::AppConfig;
 use self::gateway_config::GatewayConfig;
 use self::issuer_config::IssuerConfig;
+use self::issuer_config::IssuerConfigError;
 use crate::connection::Connections;
 
 mod app;
@@ -49,6 +50,7 @@ pub struct Server {
     tls_client: TlsConnector,
     connections: Arc<Connections>,
     issuer_config: IssuerConfig,
+    app_config: Box<dyn AppConfig>,
 }
 
 impl Server {
@@ -90,6 +92,7 @@ impl Server {
             tls_client: TlsConnector::from(Arc::new(tls_client)),
             connections: Arc::new(Connections::default()),
             issuer_config,
+            app_config: Box::new(config.app_config()),
         });
 
         let (host, port) = (config.host(), config.port());

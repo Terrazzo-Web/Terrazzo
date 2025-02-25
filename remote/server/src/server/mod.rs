@@ -8,7 +8,6 @@ use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
-use issuer_config::IssuerConfigError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -24,12 +23,15 @@ use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsSe
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
 use trz_gateway_common::security_configuration::custom_server_certificate_verifier::SignedExtensionCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
+use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
 
+use self::gateway_config::AppConfig;
 use self::gateway_config::GatewayConfig;
 use self::issuer_config::IssuerConfig;
+use self::issuer_config::IssuerConfigError;
 use crate::connection::Connections;
 
 mod app;
@@ -49,6 +51,7 @@ pub struct Server {
     tls_client: TlsConnector,
     connections: Arc<Connections>,
     issuer_config: IssuerConfig,
+    app_config: Box<dyn AppConfig>,
 }
 
 impl Server {
@@ -77,7 +80,8 @@ impl Server {
         let tls_client = config
             .root_ca()
             .to_tls_client(SignedExtensionCertificateVerifier {
-                store: client_certificate_issuer,
+                store: CachedTrustedStoreConfig::new(client_certificate_issuer)
+                    .map_err(GatewayError::CachedTrustedStoreConfig)?,
                 signer_name: issuer_config.signer_name.clone(),
             })
             .await?;
@@ -90,6 +94,7 @@ impl Server {
             tls_client: TlsConnector::from(Arc::new(tls_client)),
             connections: Arc::new(Connections::default()),
             issuer_config,
+            app_config: Box::new(config.app_config()),
         });
 
         let (host, port) = (config.host(), config.port());
@@ -188,6 +193,9 @@ pub enum GatewayError<C: GatewayConfig> {
 
     #[error("[{n}] {0}", n = self.name())]
     ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    CachedTrustedStoreConfig(<C::ClientCertificateIssuerConfig as TrustedStoreConfig>::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     RunGatewayError(#[from] RunGatewayError),

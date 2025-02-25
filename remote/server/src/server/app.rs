@@ -16,7 +16,7 @@ impl Server {
     #[autoclone]
     pub(super) fn make_app(self: &Arc<Self>, span: Span) -> Router {
         let server = self.clone();
-        Router::new()
+        let router = Router::new()
             .route("/status", get(|| ready("UP")))
             .route(
                 "/remote/certificate",
@@ -37,6 +37,7 @@ impl Server {
             .layer(
                 TraceLayer::new_for_http()
                     .make_span_with(DefaultMakeSpan::default().level(Level::TRACE)),
-            )
+            );
+        self.app_config.configure_app(router)
     }
 }

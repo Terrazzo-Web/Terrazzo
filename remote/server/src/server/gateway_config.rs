@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use axum::Router;
 use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
@@ -31,6 +32,20 @@ pub trait GatewayConfig: IsGlobal {
     /// The certificate used to sign the custom extension of X509 certificates.
     type ClientCertificateIssuerConfig: HasSecurityConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig;
+
+    fn app_config(&self) -> impl AppConfig {
+        |router| router
+    }
+}
+
+pub trait AppConfig: IsGlobal {
+    fn configure_app(&self, router: Router) -> Router;
+}
+
+impl<C: Fn(Router) -> Router + IsGlobal> AppConfig for C {
+    fn configure_app(&self, router: Router) -> Router {
+        self(router)
+    }
 }
 
 impl<T: GatewayConfig> GatewayConfig for Arc<T> {
@@ -57,5 +72,9 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     type ClientCertificateIssuerConfig = T::ClientCertificateIssuerConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
         self.as_ref().client_certificate_issuer()
+    }
+
+    fn app_config(&self) -> impl AppConfig {
+        self.as_ref().app_config()
     }
 }

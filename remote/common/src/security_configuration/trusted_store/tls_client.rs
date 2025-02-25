@@ -13,9 +13,10 @@ use rustls::pki_types::ServerName;
 use rustls::pki_types::UnixTime;
 use rustls::server::VerifierBuilderError;
 
-use crate::security_configuration::trusted_store::TrustedStoreConfig;
-use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStore;
-use crate::security_configuration::trusted_store::root_cert_store::ToRootCertStoreError;
+use super::TrustedStoreConfig;
+use super::custom_server_certificate_verifier::CustomServerCertificateVerifier;
+use super::root_cert_store::ToRootCertStore;
+use super::root_cert_store::ToRootCertStoreError;
 
 /// TLS client for
 /// - Client to Gateway WebSocket
@@ -30,37 +31,6 @@ pub trait ToTlsClient: TrustedStoreConfig + Sized {
 }
 
 impl<T: TrustedStoreConfig> ToTlsClient for T {}
-
-pub trait CustomServerCertificateVerifier: Send + Sync {
-    fn has_custom_logic() -> bool {
-        true
-    }
-    fn verify_server_certificate(
-        &self,
-        end_entity: &CertificateDer<'_>,
-        intermediates: &[CertificateDer<'_>],
-        server_name: &ServerName<'_>,
-        ocsp_response: &[u8],
-        now: UnixTime,
-    ) -> Result<ServerCertVerified, rustls::Error>;
-}
-
-pub struct ChainOnlyServerCertificateVerifier;
-impl CustomServerCertificateVerifier for ChainOnlyServerCertificateVerifier {
-    fn has_custom_logic() -> bool {
-        false
-    }
-    fn verify_server_certificate(
-        &self,
-        _end_entity: &CertificateDer<'_>,
-        _intermediates: &[CertificateDer<'_>],
-        _server_name: &ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: UnixTime,
-    ) -> Result<ServerCertVerified, rustls::Error> {
-        unreachable!()
-    }
-}
 
 async fn to_tls_client_impl<T, V>(
     trusted_store_config: &T,

@@ -5,6 +5,7 @@ use openssl::x509::store::X509Store;
 use crate::is_global::IsGlobal;
 
 pub mod cache;
+pub mod custom_server_certificate_verifier;
 pub mod empty;
 pub mod native;
 pub mod pem;

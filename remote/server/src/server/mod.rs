@@ -8,6 +8,7 @@ use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
+use issuer_config::IssuerConfigError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -22,17 +23,19 @@ use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
-use trz_gateway_common::security_configuration::trusted_store::tls_client::ChainOnlyServerCertificateVerifier;
+use trz_gateway_common::security_configuration::trusted_store::custom_server_certificate_verifier::SignedExtensionCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
 
 use self::gateway_config::GatewayConfig;
+use self::issuer_config::IssuerConfig;
 use crate::connection::Connections;
 
 mod app;
 mod certificate;
 pub mod gateway_config;
+mod issuer_config;
 pub mod root_ca_configuration;
 mod tunnel;
 
@@ -45,6 +48,7 @@ pub struct Server {
     tls_server: RustlsConfig,
     tls_client: TlsConnector,
     connections: Arc<Connections>,
+    issuer_config: IssuerConfig,
 }
 
 impl Server {
@@ -64,13 +68,18 @@ impl Server {
             .map_err(|error| GatewayError::RootCa(error.into()))?;
         debug!("Got Root CA: {}", root_ca.display());
 
+        let client_certificate_issuer = config.client_certificate_issuer();
+        let issuer_config = IssuerConfig::new(&client_certificate_issuer)?;
+
         let tls_server = config.tls().to_tls_server().await?;
         debug!("Got TLS server config");
 
-        // TODO: add signed extension validation
         let tls_client = config
             .root_ca()
-            .to_tls_client(ChainOnlyServerCertificateVerifier)
+            .to_tls_client(SignedExtensionCertificateVerifier {
+                store: client_certificate_issuer,
+                signer_name: issuer_config.signer_name.clone(),
+            })
             .await?;
         debug!("Got TLS client config");
 
@@ -80,6 +89,7 @@ impl Server {
             tls_server: RustlsConfig::from_config(Arc::from(tls_server)),
             tls_client: TlsConnector::from(Arc::new(tls_client)),
             connections: Arc::new(Connections::default()),
+            issuer_config,
         });
 
         let (host, port) = (config.host(), config.port());
@@ -162,6 +172,9 @@ pub enum GatewayError<C: GatewayConfig> {
 
     #[error("[{n}] Failed to get Root CA: {0}", n = self.name())]
     RootCa(Box<dyn std::error::Error>),
+
+    #[error("[{n}] Failed to get Root CA: {0}", n = self.name())]
+    IssuerConfig(#[from] IssuerConfigError<C::ClientCertificateIssuerConfig>),
 
     #[error("[{n}] Failed to get socket address for {host}:{port}: {error}", n = self.name())]
     ToSocketAddrs {

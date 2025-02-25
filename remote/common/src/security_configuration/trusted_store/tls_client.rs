@@ -14,9 +14,9 @@ use rustls::pki_types::UnixTime;
 use rustls::server::VerifierBuilderError;
 
 use super::TrustedStoreConfig;
-use super::custom_server_certificate_verifier::CustomServerCertificateVerifier;
 use super::root_cert_store::ToRootCertStore;
 use super::root_cert_store::ToRootCertStoreError;
+use crate::security_configuration::custom_server_certificate_verifier::CustomServerCertificateVerifier;
 
 /// TLS client for
 /// - Client to Gateway WebSocket

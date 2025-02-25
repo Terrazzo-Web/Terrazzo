@@ -10,6 +10,7 @@ use crate::is_global::IsGlobal;
 
 pub mod certificate;
 mod common;
+pub mod custom_server_certificate_verifier;
 pub mod trusted_store;
 
 #[derive(Clone, Debug)]

@@ -23,6 +23,8 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
+openssl = { workspace = true }
+pem = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }
 scopeguard = { workspace = true }

@@ -12,6 +12,7 @@ pub mod name;
 pub mod native_roots;
 pub mod serial_number;
 pub mod signed_extension;
+pub mod stack;
 pub mod time;
 pub mod validity;
 

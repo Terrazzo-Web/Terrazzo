@@ -173,7 +173,7 @@ pub enum GatewayError<C: GatewayConfig> {
     #[error("[{n}] Failed to get Root CA: {0}", n = self.name())]
     RootCa(Box<dyn std::error::Error>),
 
-    #[error("[{n}] Failed to get Root CA: {0}", n = self.name())]
+    #[error("[{n}] Failed to get the client certificate issuer configuration: {0}", n = self.name())]
     IssuerConfig(#[from] IssuerConfigError<C::ClientCertificateIssuerConfig>),
 
     #[error("[{n}] Failed to get socket address for {host}:{port}: {error}", n = self.name())]

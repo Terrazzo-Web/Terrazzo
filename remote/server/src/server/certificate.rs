@@ -40,7 +40,7 @@ impl Server {
     }
 
     fn make_pem_cert(
-        self: Arc<Self>,
+        &self,
         request: GetCertificateRequest<AuthCode>,
     ) -> Result<String, GetCertificateError> {
         let mut validity = self.issuer_config.validity;
@@ -66,7 +66,7 @@ impl Server {
     }
 
     fn assemble_pem_cert(
-        self: Arc<Self>,
+        &self,
         request: GetCertificateRequest<AuthCode>,
         validity: Validity,
         signed_extension: X509Extension,

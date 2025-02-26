@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use tempfile::TempDir;
 use tokio::time::error::Elapsed;
 use tracing::Instrument as _;
 use tracing::info;
@@ -60,12 +59,11 @@ impl<'t> EndToEnd<'t> {
         ));
 
         let auth_code = AuthCode::current().to_string();
-        let client_cert_dir = TempDir::new().expect("TempDir::new()");
         let client_certificate = Arc::new(
             load_client_certificate(
                 client_config.clone(),
                 auth_code.into(),
-                CLIENT_CERT_FILENAME.map(|filename| client_cert_dir.path().join(filename)),
+                CLIENT_CERT_FILENAME.map(|filename| temp_dir.path().join(filename)),
             )
             .await
             .map_err(EndToEndError::LoadClientCertificate)?,

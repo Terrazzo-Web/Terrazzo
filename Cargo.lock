@@ -3323,7 +3323,6 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tower 0.5.2",
- "tower-http",
  "tracing",
  "trz-gateway-common",
  "uuid",

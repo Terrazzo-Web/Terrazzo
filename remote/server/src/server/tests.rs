@@ -288,8 +288,13 @@ fn make_tls_config() -> Result<<TestConfig as GatewayConfig>::TlsConfig, Box<dyn
 static TEMP_DIR: Fixture<TempDir> = Fixture::new();
 
 fn use_temp_dir() -> Arc<TempDir> {
+    use std::sync::atomic::AtomicI32;
+    use std::sync::atomic::Ordering::SeqCst;
+    static NEXT: AtomicI32 = AtomicI32::new(0);
     TEMP_DIR.get_or_init(|| {
-        TempDir::new()
+        tempfile::Builder::new()
+            .suffix(&NEXT.fetch_add(1, SeqCst).to_string())
+            .tempdir()
             .inspect(|temp_dir| debug!("Using tempprary folder {}", temp_dir.path().display()))
             .expect("TempDir::new()")
     })

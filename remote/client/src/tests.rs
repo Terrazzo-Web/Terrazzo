@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use end_to_end::EndToEndError;
 use futures::future::join_all;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
 use trz_gateway_common::protos::terrazzo::remote::tests::Value;
@@ -14,21 +15,21 @@ mod test_gateway_config;
 mod test_tunnel_config;
 
 #[tokio::test]
-async fn trivial() -> Result<(), Box<dyn std::error::Error>> {
-    EndToEnd::run(async |end_to_end| run_trivial_test(&end_to_end).await).await
+async fn trivial() -> Result<(), EndToEndError> {
+    EndToEnd::run(async |end_to_end| Ok(run_trivial_test(&end_to_end).await?)).await
 }
 
 #[tokio::test]
-async fn with_sleep() -> Result<(), Box<dyn std::error::Error>> {
+async fn with_sleep() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        run_trivial_test(&end_to_end).await
+        Ok(run_trivial_test(&end_to_end).await?)
     })
     .await
 }
 
 #[tokio::test]
-async fn with_close_client() -> Result<(), Box<dyn std::error::Error>> {
+async fn with_close_client() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         let () = run_trivial_test(&end_to_end).await?;
         let () = (end_to_end.client_handle)()
@@ -40,7 +41,7 @@ async fn with_close_client() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-async fn with_two_clients() -> Result<(), Box<dyn std::error::Error>> {
+async fn with_two_clients() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         let handle = end_to_end.client.run().await?;
         let () = run_trivial_test(&end_to_end).await?;
@@ -51,7 +52,7 @@ async fn with_two_clients() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-async fn with_many_calls() -> Result<(), Box<dyn std::error::Error>> {
+async fn with_many_calls() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         let _handle = end_to_end.client.run().await?;
         for result in join_all((0..100).map(|_| run_trivial_test(&end_to_end))).await {
@@ -66,7 +67,7 @@ async fn with_many_calls() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-async fn with_sequential_calls() -> Result<(), Box<dyn std::error::Error>> {
+async fn with_sequential_calls() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         let handle = end_to_end.client.run().await?;
         for _ in 0..100 {

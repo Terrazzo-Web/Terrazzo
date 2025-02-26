@@ -4,7 +4,6 @@ use std::sync::Arc;
 use autoclone::autoclone;
 use axum::Router;
 use axum::routing::get;
-use tower_http::trace::TraceLayer;
 use tracing::Instrument as _;
 use tracing::Span;
 
@@ -31,8 +30,7 @@ impl Server {
                         .tunnel(client_id, client_name, web_socket)
                         .instrument(span)
                 }),
-            )
-            .layer(TraceLayer::new_for_http());
+            );
         self.app_config.configure_app(router)
     }
 }

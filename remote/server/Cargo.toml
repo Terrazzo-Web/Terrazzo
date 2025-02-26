@@ -35,7 +35,6 @@ tokio-rustls = { workspace = true }
 tokio-util = { workspace = true }
 tonic = { workspace = true }
 tower = { workspace = true, features = ["balance", "buffer", "util"] }
-tower-http = { workspace = true, features = ["fs", "trace"] }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 

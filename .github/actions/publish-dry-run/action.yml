@@ -7,8 +7,12 @@ runs:
         cargo publish -p nameth-macro --dry-run
         cargo publish -p nameth --dry-run
         cargo publish -p autoclone --dry-run
+        cargo publish -p terrazzo-fixture --dry-run
         cargo publish -p terrazzo-macro --dry-run
         cargo publish -p terrazzo-client --dry-run
         cargo publish -p terrazzo-build --dry-run
         cargo publish -p terrazzo --dry-run
+        cargo publish -p trz-gateway-common --dry-run
+        cargo publish -p trz-gateway-server --dry-run
+        cargo publish -p trz-gateway-client --dry-run
       shell: bash

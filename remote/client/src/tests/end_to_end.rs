@@ -108,6 +108,7 @@ impl<'t> EndToEnd<'t> {
                 .map_err(EndToEndError::StopClient)?;
             info!("Client stopped");
         }
+        drop(temp_dir);
         Ok(())
     }
 }

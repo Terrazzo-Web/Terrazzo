@@ -136,7 +136,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autoclone"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "clone-macro",
  "darling",
@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "autoclone",
 ]
@@ -703,9 +703,9 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "either"
-version = "1.13.0"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+checksum = "b7914353092ddf589ad78f25c5c1c21b7f80b0ff8621e7c814c3485b5306da9d"
 
 [[package]]
 name = "encoding_rs"
@@ -1566,9 +1566,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.169"
+version = "0.2.170"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
+checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
 
 [[package]]
 name = "libloading"
@@ -1588,9 +1588,9 @@ checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
 name = "litemap"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ee93343901ab17bd981295f2cf0026d4ad018c7c31ba84549a4ddbb47a45104"
+checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
 
 [[package]]
 name = "lock_api"
@@ -1685,14 +1685,14 @@ checksum = "defc4c55412d89136f966bbb339008b474350e5e6e78d2714439c386b3137a03"
 
 [[package]]
 name = "nameth"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "darling",
  "quote",
@@ -1701,7 +1701,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nameth",
 ]
@@ -2255,9 +2255,9 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.10"
+version = "0.17.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d34b5020fcdea098ef7d95e9f89ec15952123a4a039badd09fabebe9e963e839"
+checksum = "da5349ae27d3887ca812fb375b45a4fbb36d8d12d2df394968cd86e35683fe73"
 dependencies = [
  "cc",
  "cfg-if",
@@ -2721,7 +2721,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "autoclone",
  "axum 0.8.1",
@@ -2744,7 +2744,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nameth",
  "thiserror 2.0.11",
@@ -2752,7 +2752,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "autoclone",
  "nameth",
@@ -2768,7 +2768,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nameth",
  "scopeguard",
@@ -2787,11 +2787,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.1.4"
+version = "0.1.5"
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "deluxe",
  "prettyplease",
@@ -3238,7 +3238,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "futures",
  "hostname",
@@ -3270,7 +3270,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "axum 0.8.1",
  "cms",
@@ -3295,7 +3295,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "autoclone",
  "axum 0.8.1",
@@ -3403,9 +3403,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.14.0"
+version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93d59ca99a559661b96bf898d8fce28ed87935fd2bea9f05983c1464dd6c71b1"
+checksum = "e0f540e3240398cce6128b64ba83fdbdd86129c16a3aa1a3a252efd66eb3d587"
 dependencies = [
  "getrandom 0.3.1",
 ]
@@ -3832,18 +3832,18 @@ dependencies = [
 
 [[package]]
 name = "zerofrom"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cff3ee08c995dee1859d998dea82f7374f2826091dd9cd47def953cae446cd2e"
+checksum = "50cc42e0333e05660c3587f3bf9d0478688e15d870fab3346451ce7f8c9fbea5"
 dependencies = [
  "zerofrom-derive",
 ]
 
 [[package]]
 name = "zerofrom-derive"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "595eed982f7d355beb85837f651fa22e90b3c044842dc7f2c2842c086f295808"
+checksum = "d71e5d6e06ab090c67b5e44993ec16b72dcbaabc526db883a360057678b48502"
 dependencies = [
  "proc-macro2",
  "quote",

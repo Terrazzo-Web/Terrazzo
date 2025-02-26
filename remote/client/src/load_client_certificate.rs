@@ -4,6 +4,7 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::x509::X509;
+use tracing::debug;
 use trz_gateway_common::certificate_info::CertificateError;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
@@ -36,11 +37,11 @@ pub async fn load_client_certificate<C: ClientConfig>(
             certificate: true,
             private_key: true,
         } => {
-            let root_ca = certificate_path
+            debug!("Loading client certificate from {certificate_path:?}");
+            let client_certificate = certificate_path
                 .try_map(std::fs::read_to_string)
                 .map_err(LoadClientCertificateError::Load)?;
-
-            Ok(root_ca.into())
+            Ok(client_certificate.into())
         }
         CertificateInfo {
             certificate: false,
@@ -56,6 +57,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
                 .zip(client_cert_pem.as_ref())
                 .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
                 .map_err(LoadClientCertificateError::Store)?;
+            debug!("Stored client certificate into {certificate_path:?}");
             Ok(client_cert_pem.into())
         }
         CertificateInfo {

@@ -4,10 +4,8 @@ use std::sync::Arc;
 use autoclone::autoclone;
 use axum::Router;
 use axum::routing::get;
-use tower_http::trace::DefaultMakeSpan;
 use tower_http::trace::TraceLayer;
 use tracing::Instrument as _;
-use tracing::Level;
 use tracing::Span;
 
 use super::Server;
@@ -34,10 +32,7 @@ impl Server {
                         .instrument(span)
                 }),
             )
-            .layer(
-                TraceLayer::new_for_http()
-                    .make_span_with(DefaultMakeSpan::default().level(Level::TRACE)),
-            );
+            .layer(TraceLayer::new_for_http());
         self.app_config.configure_app(router)
     }
 }

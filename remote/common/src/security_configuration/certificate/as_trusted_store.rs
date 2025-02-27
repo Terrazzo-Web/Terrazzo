@@ -12,7 +12,7 @@ use super::pem::PemCertificateError;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
 impl TrustedStoreConfig for PemCertificate {
-    type Error = PemTrustedStoreCertificateError<PemCertificateError>;
+    type Error = AsTrustedStoreError<PemCertificateError>;
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
         as_trusted_store(self)
     }
@@ -20,24 +20,24 @@ impl TrustedStoreConfig for PemCertificate {
 
 pub fn as_trusted_store<C: CertificateConfig>(
     certificate: &C,
-) -> Result<Arc<X509Store>, PemTrustedStoreCertificateError<C::Error>> {
+) -> Result<Arc<X509Store>, AsTrustedStoreError<C::Error>> {
     let mut trusted_roots =
-        X509StoreBuilder::new().map_err(PemTrustedStoreCertificateError::X509StoreBuilder)?;
+        X509StoreBuilder::new().map_err(AsTrustedStoreError::X509StoreBuilder)?;
     trusted_roots
         .add_cert(
             certificate
                 .certificate()
-                .map_err(PemTrustedStoreCertificateError::Certificate)?
+                .map_err(AsTrustedStoreError::Certificate)?
                 .certificate
                 .clone(),
         )
-        .map_err(PemTrustedStoreCertificateError::AddCert)?;
+        .map_err(AsTrustedStoreError::AddCert)?;
     Ok(Arc::new(trusted_roots.build()))
 }
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum PemTrustedStoreCertificateError<E: std::error::Error> {
+pub enum AsTrustedStoreError<E: std::error::Error> {
     #[error("[{n}] Failed to create X509StoreBuilder: {0}", n = self.name())]
     X509StoreBuilder(ErrorStack),
 

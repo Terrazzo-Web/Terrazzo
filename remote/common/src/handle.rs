@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;

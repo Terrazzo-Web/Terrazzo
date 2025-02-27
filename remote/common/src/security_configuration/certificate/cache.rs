@@ -35,6 +35,7 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
     }
 }
 
+#[derive(Clone)]
 pub struct CachedCertificate {
     intermediates: Arc<Vec<X509>>,
     certificate: Arc<X509CertificateInfo>,

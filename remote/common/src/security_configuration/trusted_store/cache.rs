@@ -1,10 +1,9 @@
-use std::marker::PhantomData;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use openssl::x509::store::X509Store;
 
 use super::TrustedStoreConfig;
-use super::empty::EmptyTrustedStoreConfig;
 use crate::security_configuration::common::get_or_init;
 
 pub struct MemoizedTrustedStoreConfig<C> {
@@ -28,31 +27,28 @@ impl<C: TrustedStoreConfig> TrustedStoreConfig for MemoizedTrustedStoreConfig<C>
     }
 }
 
-pub struct CachedTrustedStoreConfig<C> {
-    _base: PhantomData<C>,
+pub struct CachedTrustedStoreConfig {
     root_certificates: Arc<X509Store>,
 }
 
-impl<C: TrustedStoreConfig> CachedTrustedStoreConfig<C> {
-    pub fn new(base: C) -> Result<Self, C::Error> {
+impl CachedTrustedStoreConfig {
+    pub fn new<C: TrustedStoreConfig>(base: C) -> Result<Self, C::Error> {
         Ok(Self {
-            _base: PhantomData,
             root_certificates: base.root_certificates()?,
         })
     }
 }
 
-impl<C: TrustedStoreConfig> TrustedStoreConfig for CachedTrustedStoreConfig<C> {
-    type Error = C::Error;
+impl TrustedStoreConfig for CachedTrustedStoreConfig {
+    type Error = Infallible;
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
         Ok(self.root_certificates.clone())
     }
 }
 
-impl From<X509Store> for CachedTrustedStoreConfig<EmptyTrustedStoreConfig> {
+impl From<X509Store> for CachedTrustedStoreConfig {
     fn from(root_certificates: X509Store) -> Self {
         CachedTrustedStoreConfig {
-            _base: PhantomData,
             root_certificates: Arc::from(root_certificates),
         }
     }

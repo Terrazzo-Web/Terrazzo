@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use openssl::x509::X509;
@@ -35,30 +35,28 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
     }
 }
 
-pub struct CachedCertificate<C> {
-    _base: PhantomData<C>,
+pub struct CachedCertificate {
     intermediates: Arc<Vec<X509>>,
     certificate: Arc<X509CertificateInfo>,
 }
 
-impl<C: CertificateConfig> CachedCertificate<C> {
-    pub fn new(base: C) -> Result<Self, C::Error> {
+impl CachedCertificate {
+    pub fn new<C: CertificateConfig>(base: C) -> Result<Self, C::Error> {
         Ok(Self {
-            _base: PhantomData,
             intermediates: base.intermediates()?,
             certificate: base.certificate()?,
         })
     }
 }
 
-impl<C: CertificateConfig> CertificateConfig for CachedCertificate<C> {
-    type Error = C::Error;
+impl CertificateConfig for CachedCertificate {
+    type Error = Infallible;
 
-    fn intermediates(&self) -> Result<Arc<Vec<X509>>, C::Error> {
+    fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
         Ok(self.intermediates.clone())
     }
 
-    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, C::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         Ok(self.certificate.clone())
     }
 }

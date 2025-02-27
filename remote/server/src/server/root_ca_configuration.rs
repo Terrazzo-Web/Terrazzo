@@ -49,6 +49,16 @@ pub fn load_root_ca(
                 .zip(root_ca_pem.as_ref())
                 .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
                 .map_err(RootCaConfigError::Store)?;
+
+            #[cfg(unix)]
+            {
+                use std::fs::Permissions;
+                use std::os::unix::fs::PermissionsExt as _;
+                let permissions = Permissions::from_mode(0o644);
+                std::fs::set_permissions(root_ca_path.private_key, permissions)
+                    .map_err(RootCaConfigError::SetPrivateKeyFilePermissions)?;
+            }
+
             Ok(root_ca_pem.into())
         }
         CertificateInfo {
@@ -83,4 +93,8 @@ pub enum RootCaConfigError {
 
     #[error("[{n}] {0}", n = self.name())]
     PemString(#[from] CertificateError<PemAsStringError>),
+
+    #[cfg(unix)]
+    #[error("[{n}] {0}", n = self.name())]
+    SetPrivateKeyFilePermissions(std::io::Error),
 }

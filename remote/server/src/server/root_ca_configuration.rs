@@ -13,7 +13,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 
 pub fn load_root_ca(
-    name: &str,
+    name: CertitficateName,
     root_ca_path: CertificateInfo<impl AsRef<Path>>,
     default_validity: Validity,
 ) -> Result<PemCertificate, RootCaConfigError> {
@@ -32,14 +32,7 @@ pub fn load_root_ca(
             certificate: false,
             private_key: false,
         } => {
-            let root_ca = make_ca(
-                CertitficateName {
-                    common_name: Some(name),
-                    ..CertitficateName::default()
-                },
-                default_validity,
-            )
-            .map_err(Box::new)?;
+            let root_ca = make_ca(name, default_validity).map_err(Box::new)?;
             let root_ca_pem = CertificateInfo {
                 certificate: root_ca.certificate.to_pem(),
                 private_key: root_ca.private_key.private_key_to_pem_pkcs8(),

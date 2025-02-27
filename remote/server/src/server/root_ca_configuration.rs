@@ -13,7 +13,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 
 pub fn load_root_ca(
-    name: String,
+    name: &str,
     root_ca_path: CertificateInfo<impl AsRef<Path>>,
     default_validity: Validity,
 ) -> Result<PemCertificate, RootCaConfigError> {
@@ -34,7 +34,7 @@ pub fn load_root_ca(
         } => {
             let root_ca = make_ca(
                 CertitficateName {
-                    common_name: Some(name.as_str()),
+                    common_name: Some(name),
                     ..CertitficateName::default()
                 },
                 default_validity,

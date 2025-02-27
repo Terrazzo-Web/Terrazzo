@@ -84,7 +84,7 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
-        "Test Root CA".to_owned(),
+        "Test Root CA",
         ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)),
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)

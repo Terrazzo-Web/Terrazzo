@@ -13,7 +13,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 
 pub fn load_root_ca(
-    name: String,
+    name: CertitficateName,
     root_ca_path: CertificateInfo<impl AsRef<Path>>,
     default_validity: Validity,
 ) -> Result<PemCertificate, RootCaConfigError> {
@@ -32,14 +32,7 @@ pub fn load_root_ca(
             certificate: false,
             private_key: false,
         } => {
-            let root_ca = make_ca(
-                CertitficateName {
-                    common_name: Some(name.as_str()),
-                    ..CertitficateName::default()
-                },
-                default_validity,
-            )
-            .map_err(Box::new)?;
+            let root_ca = make_ca(name, default_validity).map_err(Box::new)?;
             let root_ca_pem = CertificateInfo {
                 certificate: root_ca.certificate.to_pem(),
                 private_key: root_ca.private_key.private_key_to_pem_pkcs8(),
@@ -49,6 +42,16 @@ pub fn load_root_ca(
                 .zip(root_ca_pem.as_ref())
                 .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
                 .map_err(RootCaConfigError::Store)?;
+
+            #[cfg(unix)]
+            {
+                use std::fs::Permissions;
+                use std::os::unix::fs::PermissionsExt as _;
+                let permissions = Permissions::from_mode(0o644);
+                std::fs::set_permissions(root_ca_path.private_key, permissions)
+                    .map_err(RootCaConfigError::SetPrivateKeyFilePermissions)?;
+            }
+
             Ok(root_ca_pem.into())
         }
         CertificateInfo {
@@ -83,4 +86,8 @@ pub enum RootCaConfigError {
 
     #[error("[{n}] {0}", n = self.name())]
     PemString(#[from] CertificateError<PemAsStringError>),
+
+    #[cfg(unix)]
+    #[error("[{n}] {0}", n = self.name())]
+    SetPrivateKeyFilePermissions(std::io::Error),
 }

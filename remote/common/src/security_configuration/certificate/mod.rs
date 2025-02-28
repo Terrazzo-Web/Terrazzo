@@ -8,6 +8,7 @@ use self::cache::MemoizedCertificate;
 use crate::certificate_info::X509CertificateInfo;
 use crate::is_global::IsGlobal;
 
+pub mod as_trusted_store;
 pub mod cache;
 pub mod pem;
 pub mod tls_server;
@@ -24,7 +25,7 @@ pub trait CertificateConfig: IsGlobal {
         MemoizedCertificate::new(self)
     }
 
-    fn cache(self) -> Result<CachedCertificate<MemoizedCertificate<Self>>, Self::Error>
+    fn cache(self) -> Result<CachedCertificate, Self::Error>
     where
         Self: Sized,
     {

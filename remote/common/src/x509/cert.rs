@@ -346,16 +346,13 @@ mod tests {
     fn signed_extension_wrong_signer() -> Result<(), Box<dyn Error>> {
         let test_case = SignedExtensionTestCase::new()?;
         for (t, common_name) in [(true, "Terrazzo Client"), (false, "NOT Terrazzo")] {
-            let signer = make_named_test_cert(
-                test_case.root.as_ref(),
-                CertitficateName {
-                    country: Some(['D', 'E']),
-                    state_or_province: Some("Bayern"),
-                    locality: Some("Munich"),
-                    organization: Some("Terrazzo"),
-                    common_name: Some(common_name),
-                },
-            )?;
+            let signer = make_named_test_cert(test_case.root.as_ref(), CertitficateName {
+                country: Some(['D', 'E']),
+                state_or_province: Some("Bayern"),
+                locality: Some("Munich"),
+                organization: Some("Terrazzo"),
+                common_name: Some(common_name),
+            })?;
             let extension = make_test_signed_extension(&SignedExtensionTestCase {
                 signer,
                 ..test_case.clone()
@@ -525,16 +522,13 @@ mod tests {
     }
 
     fn make_test_cert(ca: X509CertificateInfoRef) -> Result<X509CertificateInfo, Box<dyn Error>> {
-        make_named_test_cert(
-            ca,
-            CertitficateName {
-                country: Some(['D', 'E']),
-                state_or_province: Some("Bayern"),
-                locality: Some("Munich"),
-                organization: Some("Terrazzo"),
-                common_name: Some("Terrazzo Client"),
-            },
-        )
+        make_named_test_cert(ca, CertitficateName {
+            country: Some(['D', 'E']),
+            state_or_province: Some("Bayern"),
+            locality: Some("Munich"),
+            organization: Some("Terrazzo"),
+            common_name: Some("Terrazzo Client"),
+        })
     }
 
     fn make_named_test_cert(

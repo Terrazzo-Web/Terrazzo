@@ -61,3 +61,16 @@ impl CertificateConfig for CachedCertificate {
         Ok(self.certificate.clone())
     }
 }
+
+mod debug {
+    use super::CachedCertificate;
+
+    impl std::fmt::Debug for CachedCertificate {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("CachedCertificate")
+                .field("intermediates", &self.intermediates)
+                .field("certificate", &self.certificate)
+                .finish()
+        }
+    }
+}

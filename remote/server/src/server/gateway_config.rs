@@ -1,9 +1,12 @@
-use std::sync::Arc;
-
-use axum::Router;
 use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
+
+use self::app_config::AppConfig;
+
+pub mod app_config;
+mod arc;
+pub mod memoize;
 
 pub trait GatewayConfig: IsGlobal {
     fn enable_tracing(&self) -> bool {
@@ -35,46 +38,5 @@ pub trait GatewayConfig: IsGlobal {
 
     fn app_config(&self) -> impl AppConfig {
         |router| router
-    }
-}
-
-pub trait AppConfig: IsGlobal {
-    fn configure_app(&self, router: Router) -> Router;
-}
-
-impl<C: Fn(Router) -> Router + IsGlobal> AppConfig for C {
-    fn configure_app(&self, router: Router) -> Router {
-        self(router)
-    }
-}
-
-impl<T: GatewayConfig> GatewayConfig for Arc<T> {
-    fn enable_tracing(&self) -> bool {
-        self.as_ref().enable_tracing()
-    }
-    fn host(&self) -> &str {
-        self.as_ref().host()
-    }
-    fn port(&self) -> u16 {
-        self.as_ref().port()
-    }
-
-    type RootCaConfig = T::RootCaConfig;
-    fn root_ca(&self) -> Self::RootCaConfig {
-        self.as_ref().root_ca()
-    }
-
-    type TlsConfig = T::TlsConfig;
-    fn tls(&self) -> Self::TlsConfig {
-        self.as_ref().tls()
-    }
-
-    type ClientCertificateIssuerConfig = T::ClientCertificateIssuerConfig;
-    fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
-        self.as_ref().client_certificate_issuer()
-    }
-
-    fn app_config(&self) -> impl AppConfig {
-        self.as_ref().app_config()
     }
 }

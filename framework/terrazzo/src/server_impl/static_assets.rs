@@ -83,13 +83,10 @@ impl AssetBuilder {
                     HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap()
                 })
         };
-        add(
-            self.asset_name,
-            Asset {
-                mime,
-                content: self.content,
-            },
-        );
+        add(self.asset_name, Asset {
+            mime,
+            content: self.content,
+        });
     }
 }
 

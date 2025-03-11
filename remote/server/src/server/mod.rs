@@ -7,6 +7,7 @@ use axum_server::Handle;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
+use gateway_config::app_config::AppConfig;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -27,7 +28,6 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
 
-use self::gateway_config::AppConfig;
 use self::gateway_config::GatewayConfig;
 use self::issuer_config::IssuerConfig;
 use self::issuer_config::IssuerConfigError;
@@ -103,6 +103,7 @@ impl Server {
             port,
             error,
         })?;
+        drop(config);
 
         let mut terminated = vec![];
 

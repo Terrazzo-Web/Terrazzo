@@ -25,7 +25,6 @@ pub mod certificate;
 pub mod connect;
 mod connection;
 mod health;
-mod to_async_io;
 
 pub struct Client {
     pub client_name: ClientName,

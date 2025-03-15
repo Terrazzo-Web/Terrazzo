@@ -3278,7 +3278,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite",
- "tokio-util",
  "tonic",
  "tracing",
  "tracing-futures",
@@ -3292,7 +3291,9 @@ name = "trz-gateway-common"
 version = "0.1.5"
 dependencies = [
  "axum 0.8.1",
+ "bytes",
  "cms",
+ "futures",
  "nameth",
  "oid-registry",
  "openssl",
@@ -3305,6 +3306,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-util",
  "tonic",
  "tonic-build",
  "tracing",
@@ -3339,7 +3341,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tokio-rustls",
- "tokio-util",
  "tonic",
  "tower 0.5.2",
  "tracing",

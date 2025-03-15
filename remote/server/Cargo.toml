@@ -32,7 +32,6 @@ serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = { workspace = true }
-tokio-util = { workspace = true }
 tonic = { workspace = true }
 tower = { workspace = true, features = ["balance", "buffer", "util"] }
 tracing = { workspace = true }

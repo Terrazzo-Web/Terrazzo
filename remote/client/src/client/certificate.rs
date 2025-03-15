@@ -12,7 +12,7 @@ use trz_gateway_common::x509::PemString as _;
 use super::AuthCode;
 use crate::client_config::ClientConfig;
 
-/// API client to obtain client certificates from the Terrazzo Gateway.
+/// API to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
     client_config: impl ClientConfig,
     http_client: Client,

@@ -9,6 +9,7 @@ use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthService;
 
+/// Implements [HealthService].
 pub struct HealthServiceImpl;
 
 #[tonic::async_trait]

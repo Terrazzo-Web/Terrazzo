@@ -60,7 +60,16 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let response = send_certificate_request(&config, client, &private_key).await?;
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
+            auth_code: AuthCode::current(),
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::OK, response.status());
 
     let pem = response.text().await?;
@@ -68,7 +77,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     assert_eq!([0; 0], rest);
     let certificate = certificate.parse_x509()?;
     assert_eq!("CN=Test Root CA", certificate.issuer().to_string());
-    assert_eq!("CN=Test cert", certificate.subject().to_string());
+    assert_eq!("CN=Test client ID", certificate.subject().to_string());
 
     let () = handle.stop("End of test").await?;
     Ok(())
@@ -83,21 +92,16 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let public_key = private_key.public_key_to_pem().pem_string()?;
-
-    let request = client
-        .get(format!(
-            "https://{}:{}/remote/certificate",
-            config.host(),
-            config.port
-        ))
-        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
-        .body(serde_json::to_string(&GetCertificateRequest {
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
             auth_code: AuthCode::from("invalid-code"),
-            public_key,
-            name: "Test cert".into(),
-        })?);
-    let response = request.send().await?;
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::FORBIDDEN, response.status());
 
     let body = response.text().await?;
@@ -116,7 +120,16 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let response = send_certificate_request(&config, client, &private_key).await?;
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
+            auth_code: AuthCode::current(),
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::OK, response.status());
 
     let _pem = response.text().await?;
@@ -159,9 +172,9 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
 async fn send_certificate_request(
     config: &TestConfig,
     client: reqwest::Client,
-    private_key: &PKeyRef<impl HasPublic>,
+    request: GetCertificateRequest<AuthCode, &PKeyRef<impl HasPublic>>,
 ) -> Result<Response, Box<dyn Error>> {
-    let public_key = private_key.public_key_to_pem().pem_string()?;
+    let public_key = request.public_key.public_key_to_pem().pem_string()?;
     let request = client
         .get(format!(
             "https://{}:{}/remote/certificate",
@@ -170,9 +183,9 @@ async fn send_certificate_request(
         ))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
-            auth_code: AuthCode::current(),
+            auth_code: request.auth_code,
             public_key,
-            name: "Test cert".into(),
+            name: request.name,
         })?);
     Ok(request.send().await?)
 }

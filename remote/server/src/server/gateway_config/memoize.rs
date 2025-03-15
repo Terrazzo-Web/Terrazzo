@@ -4,14 +4,31 @@ use std::sync::OnceLock;
 use super::GatewayConfig;
 use super::app_config::AppConfig;
 
-pub(super) struct MemoizedGatewayConfig<C: GatewayConfig> {
+pub struct MemoizedGatewayConfig<C: GatewayConfig> {
+    enable_tracing: bool,
     gateway_config: OnceLock<C>,
     make_config: Mutex<Option<Box<dyn FnOnce() -> C + Send>>>,
 }
 
+impl<C: GatewayConfig> MemoizedGatewayConfig<C> {
+    pub fn new<E: std::error::Error>(
+        enable_tracing: bool,
+        f: impl FnOnce() -> Result<C, E> + Send + 'static,
+    ) -> Self {
+        Self {
+            enable_tracing,
+            gateway_config: OnceLock::new(),
+            make_config: Mutex::new(Some(Box::new(|| match f() {
+                Ok(config) => config,
+                Err(error) => panic!("Failed to load gateway config: {error}"),
+            }))),
+        }
+    }
+}
+
 impl<C: GatewayConfig + Clone> GatewayConfig for MemoizedGatewayConfig<C> {
     fn enable_tracing(&self) -> bool {
-        self.load().enable_tracing()
+        self.enable_tracing
     }
     fn host(&self) -> &str {
         self.load().host()
@@ -43,9 +60,9 @@ impl<C: GatewayConfig + Clone> GatewayConfig for MemoizedGatewayConfig<C> {
 impl<C: GatewayConfig + Clone> MemoizedGatewayConfig<C> {
     fn load(&self) -> &C {
         self.gateway_config.get_or_init(|| {
-            let maybe_f = self.make_config.lock().unwrap().take();
-            let f = maybe_f.unwrap();
-            return f();
+            let make_config = self.make_config.lock().unwrap().take();
+            let make_config = make_config.unwrap();
+            return make_config();
         })
     }
 }

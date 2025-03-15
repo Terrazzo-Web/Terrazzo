@@ -6,7 +6,6 @@ use self::app_config::AppConfig;
 
 pub mod app_config;
 mod arc;
-pub mod memoize;
 
 /// Configuration for the Terrazzo Gateway.
 pub trait GatewayConfig: IsGlobal {

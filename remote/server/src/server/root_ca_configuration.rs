@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::Path;
 
 use nameth::NamedEnumValues as _;
@@ -41,14 +42,14 @@ pub fn load_root_ca(
             .try_map(|maybe_pem| maybe_pem.pem_string())?;
             let _: CertificateInfo<()> = root_ca_path
                 .zip(root_ca_pem.as_ref())
-                .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
+                .try_map(write_pem_file)
                 .map_err(RootCaConfigError::Store)?;
 
             #[cfg(unix)]
             {
                 use std::fs::Permissions;
                 use std::os::unix::fs::PermissionsExt as _;
-                let permissions = Permissions::from_mode(0o644);
+                let permissions = Permissions::from_mode(0o600);
                 std::fs::set_permissions(root_ca_path.private_key, permissions)
                     .map_err(RootCaConfigError::SetPrivateKeyFilePermissions)?;
             }
@@ -91,4 +92,15 @@ pub enum RootCaConfigError {
     #[cfg(unix)]
     #[error("[{n}] {0}", n = self.name())]
     SetPrivateKeyFilePermissions(std::io::Error),
+}
+
+fn write_pem_file((path, pem): (&Path, &str)) -> Result<(), std::io::Error> {
+    let parent_dir = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("Failed to get parent folder of: {path:?}"),
+        )
+    })?;
+    std::fs::create_dir_all(parent_dir)?;
+    std::fs::write(path, pem)
 }

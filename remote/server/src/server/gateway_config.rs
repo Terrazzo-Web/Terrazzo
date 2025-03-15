@@ -8,15 +8,19 @@ pub mod app_config;
 mod arc;
 pub mod memoize;
 
+/// Configuration for the Terrazzo Gateway.
 pub trait GatewayConfig: IsGlobal {
+    /// Whether to enable tracing.
     fn enable_tracing(&self) -> bool {
         true
     }
 
+    /// Host to listen to.
     fn host(&self) -> &str {
         "127.0.0.1"
     }
 
+    /// Port to listen to.
     fn port(&self) -> u16 {
         if cfg!(debug_assertions) { 3000 } else { 3001 }
     }
@@ -36,6 +40,7 @@ pub trait GatewayConfig: IsGlobal {
     type ClientCertificateIssuerConfig: HasSecurityConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig;
 
+    /// Configures the routes served by Terrazzo Gateway HTTP server.
     fn app_config(&self) -> impl AppConfig {
         |router| router
     }

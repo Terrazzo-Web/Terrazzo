@@ -200,11 +200,11 @@ struct TestConfig {
 impl TestConfig {
     fn new() -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca_config = make_root_ca().expect("root_ca_config()");
+        let root_ca = make_root_ca().expect("root_ca_config()");
         let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
-            root_ca: root_ca_config,
+            root_ca,
             tls_config,
         })
     }
@@ -261,13 +261,13 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
 }
 
 fn make_tls_config() -> Result<<TestConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
-    let root_ca_config = make_root_ca()?;
-    let root_ca = root_ca_config.certificate()?;
-    let root_certificate_pem = root_ca_config.certificate_pem.clone();
-    let validity = root_ca.certificate.as_ref().try_into()?;
+    let root_ca = make_root_ca()?;
+    let root_certificate = root_ca.certificate()?;
+    let root_certificate_pem = root_ca.certificate_pem.clone();
+    let validity = root_certificate.certificate.as_ref().try_into()?;
 
     let intermediate = make_intermediate(
-        (*root_ca).as_ref(),
+        (*root_certificate).as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("Intermediate CA"),

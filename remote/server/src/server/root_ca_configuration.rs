@@ -12,6 +12,7 @@ use trz_gateway_common::x509::ca::make_ca;
 use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 
+/// Default implementation to load or create a Root CA stored as PEM file on disk.
 pub fn load_root_ca(
     name: CertitficateName,
     root_ca_path: CertificateInfo<impl AsRef<Path>>,

@@ -30,6 +30,7 @@ use trz_gateway_common::to_async_io::WebSocketIo;
 use super::Server;
 
 impl Server {
+    /// API to serve tunnel connections
     pub async fn tunnel(
         self: Arc<Self>,
         client_id: Option<ClientId>,

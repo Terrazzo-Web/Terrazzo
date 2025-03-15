@@ -26,6 +26,11 @@ pub mod connect;
 mod connection;
 mod health;
 
+/// The [Client].
+///
+/// It creates a WebSocket tunnel with the Terrazzo Gateway, and then runs a
+/// gRPC server that listens to requests sent or forwarded by the Terrazzo
+/// Gateway over the WebSocket tunnel.
 pub struct Client {
     pub client_name: ClientName,
     uri: String,
@@ -56,6 +61,7 @@ impl Client {
         })
     }
 
+    /// Runs the client and returns a handle to stop the client.
     pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
         let client_name = &self.client_name;
         let client_id = ClientId::from(Uuid::new_v4().to_string());

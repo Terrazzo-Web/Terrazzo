@@ -29,6 +29,7 @@ use crate::auth_code::AuthCode;
 static CERTIFICATE_VALIDITY: Duration = Duration::from_secs(3600 * 24 * 90);
 
 impl Server {
+    /// API to issue client certificates.
     pub async fn get_certificate(
         self: Arc<Self>,
         Json(request): Json<GetCertificateRequest<AuthCode>>,

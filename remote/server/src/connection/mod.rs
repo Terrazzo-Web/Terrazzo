@@ -29,12 +29,17 @@ mod balance;
 pub mod connection_id;
 mod pending_requests;
 
+/// The cache of all the channels connected to the Terrazzo Gateway,
+/// grouped by [ClientName].
 #[derive(Default)]
 pub struct Connections {
     cache: DashMap<ClientName, IncomingClients<Channel>>,
 }
 
 impl Connections {
+    /// Adds a connection to the cache and schedules the periodic keep-alive.
+    ///
+    /// The connection is removed from the cache, and closed, if the keep-alive fails.
     pub fn add(self: &Arc<Self>, client_name: ClientName, channel: Channel) {
         let connection_id = ConnectionId::next();
         let _span = info_span!("Connection", %connection_id).entered();
@@ -65,6 +70,10 @@ impl Connections {
         );
     }
 
+    /// Runs the keep-alive.
+    ///   1. First, run a quick ping/pong check
+    ///   2. Then, send a ping and expect a response after [PERIOD]
+    ///   3. go back to step 1
     async fn channel_health_check(
         self: Arc<Connections>,
         client_name: ClientName,

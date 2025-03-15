@@ -42,8 +42,7 @@ impl Client {
     pub async fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
         let tls_client = config
             .gateway_pki()
-            .to_tls_client(ChainOnlyServerCertificateVerifier)
-            .await?;
+            .to_tls_client(ChainOnlyServerCertificateVerifier)?;
         let tls_server = config.client_certificate().to_tls_server().await?;
         Ok(Client {
             client_name: config.client_name(),

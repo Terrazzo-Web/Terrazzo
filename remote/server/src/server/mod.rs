@@ -82,8 +82,7 @@ impl Server {
                 store: CachedTrustedStoreConfig::new(client_certificate_issuer)
                     .map_err(GatewayError::CachedTrustedStoreConfig)?,
                 signer_name: issuer_config.signer_name.clone(),
-            })
-            .await?;
+            })?;
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {

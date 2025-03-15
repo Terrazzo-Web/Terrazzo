@@ -4,6 +4,9 @@ use tokio::sync::oneshot;
 use tracing::info;
 use tracing::warn;
 
+/// A handle to a server running in the background.
+///
+/// Dropping the handle or explicitly calling [ServerHandle::stop] stops the server.
 #[must_use]
 pub struct ServerHandle<R> {
     shutdown_tx: Option<oneshot::Sender<String>>,
@@ -11,6 +14,10 @@ pub struct ServerHandle<R> {
 }
 
 impl<R> ServerHandle<R> {
+    /// Creates a new [ServerHandle].
+    ///
+    /// This method should be called by the server on startup, it also returns
+    /// signals that the server can communicate termination.
     pub fn new() -> (impl Future<Output = ()>, oneshot::Sender<R>, Self) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let shutdown_rx = async move {
@@ -27,6 +34,7 @@ impl<R> ServerHandle<R> {
         (shutdown_rx, terminated_tx, handle)
     }
 
+    /// Stops the server and returns the result of stopping the server.
     pub async fn stop(mut self, reason: impl std::fmt::Display) -> Result<R, ServerStopError> {
         self.shutdown_tx
             .take()

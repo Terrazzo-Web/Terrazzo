@@ -12,6 +12,9 @@ use oid_registry::OID_X509_COMMON_NAME;
 use oid_registry::OID_X509_EXT_SUBJECT_KEY_IDENTIFIER;
 use x509_parser::prelude::X509Extension;
 
+/// Validates the custom X509 extension is signed by our issuer.
+///
+/// The validation of the issuer happens in [super::signature::verify_signature]
 pub fn verify_signer(
     signer_name: &str,
     signed_extension: &X509Extension<'_>,

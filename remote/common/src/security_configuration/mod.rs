@@ -13,6 +13,19 @@ mod common;
 pub mod custom_server_certificate_verifier;
 pub mod trusted_store;
 
+/// A security config has both a trusted store and a client certificate.
+///
+/// - This is used to configure the client certificate issuer: we need both
+///     1. When issuing client certificates: the certificate (+intermediates)
+///        to sign the CMS extension.
+///     2. When validating client certificates: the trusted roots to validate
+///        the issuing cert in the signed CMS extension
+/// - This is also used to configure the Root CA
+///     - The Root CA doesn't need to be secure. It's just there to sanity
+///       check client certs are owned by us before the custom validation logic
+///       kicks in.
+///     - The Root CA is the issuer of client certificates. Technically we need
+///       an issuer, but the real validation is the CMS extension.
 #[derive(Clone, Debug)]
 pub struct SecurityConfig<T, C> {
     pub trusted_store: T,

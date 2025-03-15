@@ -7,6 +7,8 @@ use super::CertificateConfig;
 use super::X509CertificateInfo;
 use crate::security_configuration::common::get_or_init;
 
+/// A [CertificateConfig] that computes the certificate and intermediates once,
+/// and then memoizes the results.
 pub struct MemoizedCertificate<C> {
     base: C,
     intermediates: std::sync::Mutex<Option<Arc<Vec<X509>>>>,
@@ -14,6 +16,7 @@ pub struct MemoizedCertificate<C> {
 }
 
 impl<C> MemoizedCertificate<C> {
+    /// Creates a [MemoizedCertificate] based on a certificate.
     pub fn new(base: C) -> Self {
         Self {
             base,
@@ -35,6 +38,9 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
     }
 }
 
+/// A [CertificateConfig] that contains the pre-computed X509 objects.
+///
+/// Computing certificate and intermediates from a [CachedCertificate] is thus an infallible operation.
 #[derive(Clone)]
 pub struct CachedCertificate {
     intermediates: Arc<Vec<X509>>,
@@ -42,6 +48,7 @@ pub struct CachedCertificate {
 }
 
 impl CachedCertificate {
+    /// Creates a [CachedCertificate] based on a certificate.
     pub fn new<C: CertificateConfig>(base: C) -> Result<Self, C::Error> {
         Ok(Self {
             intermediates: base.intermediates()?,

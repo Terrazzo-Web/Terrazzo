@@ -16,6 +16,7 @@ pub mod stack;
 pub mod time;
 pub mod validity;
 
+/// Helper to parse a `[u8]` into a utf-8 string representing a PEM artifact.
 pub trait PemString {
     fn pem_string(self) -> Result<String, PemAsStringError>;
 }

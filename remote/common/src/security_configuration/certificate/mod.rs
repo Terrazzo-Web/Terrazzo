@@ -13,11 +13,17 @@ pub mod cache;
 pub mod pem;
 pub mod tls_server;
 
+/// Trait for X509 certificate along with the intermediates.
 pub trait CertificateConfig: IsGlobal {
     type Error: std::error::Error;
+
+    /// Computes the list of intermediate certificates.
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error>;
+
+    /// Computes the X509 leaf certificate
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error>;
 
+    /// Returns a memoized [CertificateConfig].
     fn memoize(self) -> MemoizedCertificate<Self>
     where
         Self: Sized,
@@ -25,6 +31,7 @@ pub trait CertificateConfig: IsGlobal {
         MemoizedCertificate::new(self)
     }
 
+    /// Returns a cached [CertificateConfig].
     fn cache(self) -> Result<CachedCertificate, Self::Error>
     where
         Self: Sized,
@@ -34,6 +41,7 @@ pub trait CertificateConfig: IsGlobal {
 }
 
 impl X509CertificateInfo {
+    /// Prints a textual representation of a certificate.
     pub fn display(&self) -> impl std::fmt::Display {
         display_x509_certificate(&self.certificate)
     }

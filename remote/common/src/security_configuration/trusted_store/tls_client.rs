@@ -24,14 +24,14 @@ pub trait ToTlsClient: TrustedStoreConfig + Sized {
     fn to_tls_client(
         &self,
         server_certificate_verifier: impl CustomServerCertificateVerifier + 'static,
-    ) -> impl Future<Output = Result<ClientConfig, ToTlsClientError<Self::Error>>> {
+    ) -> Result<ClientConfig, ToTlsClientError<Self::Error>> {
         to_tls_client_impl(self, server_certificate_verifier)
     }
 }
 
 impl<T: TrustedStoreConfig> ToTlsClient for T {}
 
-async fn to_tls_client_impl<T, V>(
+fn to_tls_client_impl<T, V>(
     trusted_store_config: &T,
     server_certificate_verifier: V,
 ) -> Result<ClientConfig, ToTlsClientError<T::Error>>
@@ -39,7 +39,7 @@ where
     T: TrustedStoreConfig,
     V: CustomServerCertificateVerifier + 'static,
 {
-    let root_store = Arc::new(trusted_store_config.to_root_cert_store().await?);
+    let root_store = Arc::new(trusted_store_config.to_root_cert_store()?);
     let builder = if V::has_custom_logic() {
         ClientConfig::builder()
             .dangerous()

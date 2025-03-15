@@ -6,6 +6,8 @@ use openssl::x509::store::X509Store;
 use super::TrustedStoreConfig;
 use crate::security_configuration::common::get_or_init;
 
+/// A [TrustedStoreConfig] that computes the [X509Store] once,
+/// and then memoizes it.
 pub struct MemoizedTrustedStoreConfig<C> {
     base: C,
     root_certificates: std::sync::Mutex<Option<Arc<X509Store>>>,
@@ -27,6 +29,9 @@ impl<C: TrustedStoreConfig> TrustedStoreConfig for MemoizedTrustedStoreConfig<C>
     }
 }
 
+/// A [TrustedStoreConfig] that contains the pre-computed X509 store.
+///
+/// Computing the [X509Store] is thus an infallible operation.
 pub struct CachedTrustedStoreConfig {
     root_certificates: Arc<X509Store>,
 }

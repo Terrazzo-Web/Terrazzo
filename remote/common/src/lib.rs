@@ -1,5 +1,6 @@
 pub mod api;
 pub mod certificate_info;
+pub mod crypto_provider;
 pub mod handle;
 pub mod http_error;
 pub mod id;

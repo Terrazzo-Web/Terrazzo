@@ -110,9 +110,9 @@ where
                     }
                     debug!(pos, ?buffer, "Polling stream header: Buffer full");
 
-                    let is_tls = &buffer[..3] == &[0x16, 0x3, 0x1] // TLS 1.0 record header
+                    let is_tls = buffer[..3] == [0x16, 0x3, 0x1] // TLS 1.0 record header
                         && buffer[5] == 1 // Client hello
-                        && &buffer[9..11] == &[3, 3]; // TLS 1.2
+                        && buffer[9..11] == [3, 3]; // TLS 1.2
 
                     let FuturePeekStreamImpl::Header {
                         stream,

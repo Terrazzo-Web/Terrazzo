@@ -74,7 +74,7 @@ where
     Undefined,
 }
 
-type StreamHeader = [u8; 15]; // TODO
+type StreamHeader = [u8; 11];
 
 impl<T, P, S> Future for FuturePeekStream<T, P, S>
 where
@@ -110,13 +110,9 @@ where
                     }
                     debug!(pos, ?buffer, "Polling stream header: Buffer full");
 
-                    let is_tls = match &buffer[..3] {
-                        // TLS 1.0 !!!
-                        &[0x16, 0x3, 0x1] => true,
-                        // TLS 1.2 | TLS 1.3
-                        &[0x16, 0x3, 0x3] | [0x16, 0x3, 0x4] => true,
-                        _ => false,
-                    };
+                    let is_tls = &buffer[..3] == &[0x16, 0x3, 0x1] // TLS 1.0 record header
+                        && buffer[5] == 1 // Client hello
+                        && &buffer[9..11] == &[3, 3]; // TLS 1.2
 
                     let FuturePeekStreamImpl::Header {
                         stream,

@@ -4,10 +4,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use axum_server::Handle;
+use axum_server::accept::DefaultAcceptor;
+use axum_server::tls_rustls::RustlsAcceptor;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
 use gateway_config::app_config::AppConfig;
+use http_or_https::HttpOrHttps;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -36,6 +39,7 @@ use crate::connection::Connections;
 mod app;
 mod certificate;
 pub mod gateway_config;
+mod http_or_https;
 mod issuer_config;
 pub mod root_ca_configuration;
 mod tunnel;
@@ -142,8 +146,12 @@ impl Server {
         let app = self.make_app(span);
 
         let handle = Handle::new();
-        let axum_server =
-            axum_server::bind_rustls(socket_addr, self.tls_server.clone()).handle(handle.clone());
+        let axum_server = axum_server::bind(socket_addr)
+            .acceptor(HttpOrHttps {
+                tls: RustlsAcceptor::new(self.tls_server.clone()),
+                plaintext: DefaultAcceptor,
+            })
+            .handle(handle.clone());
 
         let shutdown = self.shutdown.clone();
         tokio::spawn(

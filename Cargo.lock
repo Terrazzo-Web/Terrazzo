@@ -3321,6 +3321,7 @@ dependencies = [
  "nameth",
  "openssl",
  "pem",
+ "pin-project",
  "portpicker",
  "prost-types",
  "reqwest",

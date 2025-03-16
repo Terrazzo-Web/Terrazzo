@@ -25,6 +25,7 @@ hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
 openssl = { workspace = true }
 pem = { workspace = true }
+pin-project = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }
 scopeguard = { workspace = true }

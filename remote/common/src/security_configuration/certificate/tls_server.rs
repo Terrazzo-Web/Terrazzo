@@ -2,6 +2,7 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 use rustls::ServerConfig;
+use rustls::version::TLS13;
 use tracing::debug;
 
 use super::CertificateConfig;
@@ -53,7 +54,7 @@ async fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
         .try_into()
         .map_err(ToTlsServerError::ToPrivateKey)?;
 
-    let mut server_config = ServerConfig::builder()
+    let mut server_config = ServerConfig::builder_with_protocol_versions(&[&TLS13])
         .with_no_client_auth()
         .with_single_cert(certificate_chain, private_key)
         .map_err(ToTlsServerError::ServerConfig)?;

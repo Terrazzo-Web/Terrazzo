@@ -11,4 +11,5 @@ pub mod to_async_io;
 pub mod tracing;
 pub mod x509;
 
-use serde as _;
+// Ensures ring crate version is called out in Cargo.toml so dependabot keeps it up-to-date.
+use ring as _;

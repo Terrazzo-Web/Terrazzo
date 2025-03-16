@@ -3291,6 +3291,7 @@ dependencies = [
  "openssl",
  "prost",
  "prost-types",
+ "ring",
  "rustls",
  "rustls-native-certs",
  "scopeguard",

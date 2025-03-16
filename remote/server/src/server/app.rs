@@ -39,6 +39,6 @@ impl Server {
                         .instrument(span)
                 }),
             );
-        self.app_config.configure_app(router)
+        self.app_config.configure_app(self.clone(), router)
     }
 }

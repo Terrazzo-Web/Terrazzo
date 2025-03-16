@@ -7,6 +7,9 @@ use tower::load::CompleteOnResponse;
 use tower::load::Load;
 use tower::load::completion::TrackCompletionFuture;
 
+/// A [Service] that keeps a count of ongoing requests.
+///
+/// This is used by the load-balancing algorithm.
 #[derive(Clone)]
 pub struct PendingRequests<S> {
     service: S,

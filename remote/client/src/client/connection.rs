@@ -5,7 +5,7 @@ use pin_project::pin_project;
 use tokio_rustls::server::TlsStream;
 use tonic::transport::server::Connected;
 
-// A wrapper for [TlsStream] that implements [Connected].
+/// A wrapper for [TlsStream] that implements [Connected].
 #[pin_project]
 pub struct Connection<C> {
     #[pin]

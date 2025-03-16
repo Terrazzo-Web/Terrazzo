@@ -18,6 +18,7 @@ use crate::certificate_info::CertificateInfo;
 use crate::certificate_info::X509CertificateInfo;
 use crate::certificate_info::X509CertificateInfoRef;
 
+/// Makes a Root CA certificate.
 pub fn make_ca(
     subject_name: CertitficateName,
     validity: Validity,
@@ -25,6 +26,7 @@ pub fn make_ca(
     make_impl(None, subject_name, validity)
 }
 
+/// Makes an intermediate CA certificate.
 pub fn make_intermediate(
     root: X509CertificateInfoRef,
     subject_name: CertitficateName,

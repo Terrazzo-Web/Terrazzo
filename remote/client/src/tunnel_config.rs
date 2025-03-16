@@ -10,6 +10,7 @@ pub trait TunnelConfig: ClientConfig {
     type ClientCertificate: CertificateConfig;
     fn client_certificate(&self) -> Self::ClientCertificate;
 
+    /// Returns a [ClientService] to configure the gRPC server running in the client.
     fn client_service(&self) -> impl ClientService;
 }
 

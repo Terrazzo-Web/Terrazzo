@@ -7,6 +7,7 @@ use openssl::x509::store::X509StoreBuilder;
 
 use super::TrustedStoreConfig;
 
+/// A [TrustedStoreConfig] that doesn't contain any trusted certificates.
 pub struct EmptyTrustedStoreConfig;
 
 impl TrustedStoreConfig for EmptyTrustedStoreConfig {

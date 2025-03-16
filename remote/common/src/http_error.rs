@@ -2,10 +2,12 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 
+/// A trait implemented by errors that translate to HTTP status codes.
 pub trait IsHttpError: std::error::Error + Sized {
     fn status_code(&self) -> StatusCode;
 }
 
+/// A wrapper to translate errors into http [Response]s.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error(transparent)]
 pub struct HttpError<E>(#[from] E);

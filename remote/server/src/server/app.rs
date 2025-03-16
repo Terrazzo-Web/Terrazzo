@@ -10,6 +10,14 @@ use tracing::Span;
 use super::Server;
 
 impl Server {
+    /// Configures the Terrazzo Gateway HTTP server.
+    ///
+    /// By default, the only available routes are
+    /// - status
+    /// - issue a new client certificate
+    /// - connect a WebSocket tunnel
+    ///
+    /// More routes can be configured using [super::gateway_config::app_config::AppConfig].
     #[autoclone]
     pub(super) fn make_app(self: &Arc<Self>, span: Span) -> Router {
         let server = self.clone();

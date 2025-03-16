@@ -11,6 +11,7 @@ use crate::x509::signed_extension::cms_options;
 use crate::x509::signed_extension::make_certificate_properties_hash;
 use crate::x509::validity::Validity;
 
+/// Validates the custom X509 extension matches the client certificate.
 pub fn verify_signature(
     store: &impl TrustedStoreConfig,
     certificate: &X509Certificate<'_>,

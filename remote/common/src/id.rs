@@ -4,6 +4,7 @@ use axum::extract::OptionalFromRequestParts;
 use axum::http::HeaderName;
 use axum::http::request::Parts;
 
+/// A macro to declare string-based identifiers.
 #[macro_export]
 macro_rules! declare_identifier {
     ($name:ident) => {

@@ -87,7 +87,7 @@ pub enum LoadClientCertificateError<C: ClientConfig> {
     #[error("[{n}] Failed to store certificate: {0}", n = self.name())]
     Store(CertificateError<std::io::Error>),
 
-    #[error("[{n}] Inconsistent state: root_ca_exists:{root_ca_exists} private_key_exists:{private_key_exists}", n = self.name())]
+    #[error("[{n}] Inconsistent state: root_ca_exists:{root_ca_exists} ≠ private_key_exists:{private_key_exists}", n = self.name())]
     InconsistentState {
         root_ca_exists: bool,
         private_key_exists: bool,

@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
@@ -9,6 +7,7 @@ use tracing::debug;
 use super::CertificateConfig;
 use crate::security_configuration::certificate::display_x509_certificate;
 
+/// Create a RusTLS [ServerConfig] from a [CertificateConfig].
 pub trait ToTlsServer: CertificateConfig {
     fn to_tls_server(
         &self,

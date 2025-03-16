@@ -21,6 +21,7 @@ use super::validity::Validity;
 use crate::certificate_info::X509CertificateInfoRef;
 use crate::http_error::IsHttpError;
 
+/// Makes a leaf certificate.
 pub fn make_cert(
     issuer: X509CertificateInfoRef,
     name: CertitficateName,

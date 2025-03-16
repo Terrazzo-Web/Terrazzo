@@ -25,8 +25,12 @@ pub mod certificate;
 pub mod connect;
 mod connection;
 mod health;
-mod to_async_io;
 
+/// The [Client].
+///
+/// It creates a WebSocket tunnel with the Terrazzo Gateway, and then runs a
+/// gRPC server that listens to requests sent or forwarded by the Terrazzo
+/// Gateway over the WebSocket tunnel.
 pub struct Client {
     pub client_name: ClientName,
     uri: String,
@@ -42,8 +46,7 @@ impl Client {
     pub async fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
         let tls_client = config
             .gateway_pki()
-            .to_tls_client(ChainOnlyServerCertificateVerifier)
-            .await?;
+            .to_tls_client(ChainOnlyServerCertificateVerifier)?;
         let tls_server = config.client_certificate().to_tls_server().await?;
         Ok(Client {
             client_name: config.client_name(),
@@ -58,6 +61,7 @@ impl Client {
         })
     }
 
+    /// Runs the client and returns a handle to stop the client.
     pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
         let client_name = &self.client_name;
         let client_id = ClientId::from(Uuid::new_v4().to_string());

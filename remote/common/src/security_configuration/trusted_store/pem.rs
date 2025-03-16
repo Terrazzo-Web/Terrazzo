@@ -9,6 +9,7 @@ use openssl::x509::store::X509StoreBuilder;
 use super::TrustedStoreConfig;
 use crate::security_configuration::common::parse_pem_certificates;
 
+/// A [TrustedStoreConfig] based on PEM files stored on disk.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PemTrustedStore {
     pub root_certificates_pem: String,

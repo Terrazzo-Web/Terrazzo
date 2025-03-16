@@ -14,6 +14,13 @@ use super::time::SystemToAsn1TimeError;
 use super::time::asn1_to_system_time;
 use super::time::system_to_asn1_time;
 
+/// Represents the interval of time for certificate validity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Validity<T = SystemTime> {
+    pub from: T,
+    pub to: T,
+}
+
 pub(super) fn set_validity(
     builder: &mut X509Builder,
     validity: Validity<Asn1Time>,
@@ -25,12 +32,6 @@ pub(super) fn set_validity(
         .set_not_after(&validity.to)
         .map_err(ValidityError::NotAfter)?;
     Ok(())
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Validity<T = SystemTime> {
-    pub from: T,
-    pub to: T,
 }
 
 impl<T> Validity<T> {

@@ -7,6 +7,7 @@ use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use openssl::pkey::Private;
 
+/// Creates a key pair.
 pub fn make_key() -> Result<PKey<Private>, MakeKeyError> {
     let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).map_err(MakeKeyError::GetCurve)?;
     let ec_key = EcKey::generate(&group).map_err(MakeKeyError::Generate)?;

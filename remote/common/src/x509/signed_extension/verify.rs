@@ -15,6 +15,8 @@ use crate::security_configuration::trusted_store::TrustedStoreConfig;
 mod signature;
 mod signer;
 
+/// Validates the certifcate has a custom extension containing a CMS signed by
+/// our issuer certificate.
 pub fn validate_signed_extension(
     certificate: &CertificateDer,
     store: &impl TrustedStoreConfig,
@@ -51,4 +53,19 @@ pub enum ValidateSignedExtensionError {
 
     #[error("[{n}] {0}", n = self.name())]
     VerifySigner(#[from] VerifySignerError),
+}
+
+impl From<ValidateSignedExtensionError> for rustls::Error {
+    fn from(error: ValidateSignedExtensionError) -> Self {
+        rustls::Error::InvalidCertificate(match error {
+            ValidateSignedExtensionError::X509Certificate { .. } => {
+                rustls::CertificateError::BadEncoding
+            }
+            ValidateSignedExtensionError::SignedExtensionNotFound { .. }
+            | ValidateSignedExtensionError::VerifySignature { .. }
+            | ValidateSignedExtensionError::VerifySigner { .. } => {
+                rustls::CertificateError::ApplicationVerificationFailure
+            }
+        })
+    }
 }

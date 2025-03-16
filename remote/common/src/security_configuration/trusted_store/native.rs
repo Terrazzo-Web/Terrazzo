@@ -6,6 +6,7 @@ use openssl::x509::store::X509Store;
 use super::TrustedStoreConfig;
 use crate::x509::native_roots::native_roots;
 
+/// The [TrustedStoreConfig] for certificates trusted by the OS.
 #[derive(Clone, Copy, Debug)]
 pub struct NativeTrustedStoreConfig;
 

@@ -11,6 +11,7 @@ pub mod pem;
 pub mod root_cert_store;
 pub mod tls_client;
 
+/// Trait for configuration that holds a [X509Store].
 pub trait TrustedStoreConfig: IsGlobal {
     type Error: std::error::Error + 'static;
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error>;

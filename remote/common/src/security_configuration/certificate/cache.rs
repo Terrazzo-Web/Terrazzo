@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use openssl::x509::X509;
@@ -7,6 +7,8 @@ use super::CertificateConfig;
 use super::X509CertificateInfo;
 use crate::security_configuration::common::get_or_init;
 
+/// A [CertificateConfig] that computes the certificate and intermediates once,
+/// and then memoizes the results.
 pub struct MemoizedCertificate<C> {
     base: C,
     intermediates: std::sync::Mutex<Option<Arc<Vec<X509>>>>,
@@ -14,6 +16,7 @@ pub struct MemoizedCertificate<C> {
 }
 
 impl<C> MemoizedCertificate<C> {
+    /// Creates a [MemoizedCertificate] based on a certificate.
     pub fn new(base: C) -> Self {
         Self {
             base,
@@ -35,30 +38,46 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
     }
 }
 
-pub struct CachedCertificate<C> {
-    _base: PhantomData<C>,
+/// A [CertificateConfig] that contains the pre-computed X509 objects.
+///
+/// Computing certificate and intermediates from a [CachedCertificate] is thus an infallible operation.
+#[derive(Clone)]
+pub struct CachedCertificate {
     intermediates: Arc<Vec<X509>>,
     certificate: Arc<X509CertificateInfo>,
 }
 
-impl<C: CertificateConfig> CachedCertificate<C> {
-    pub fn new(base: C) -> Result<Self, C::Error> {
+impl CachedCertificate {
+    /// Creates a [CachedCertificate] based on a certificate.
+    pub fn new<C: CertificateConfig>(base: C) -> Result<Self, C::Error> {
         Ok(Self {
-            _base: PhantomData,
             intermediates: base.intermediates()?,
             certificate: base.certificate()?,
         })
     }
 }
 
-impl<C: CertificateConfig> CertificateConfig for CachedCertificate<C> {
-    type Error = C::Error;
+impl CertificateConfig for CachedCertificate {
+    type Error = Infallible;
 
-    fn intermediates(&self) -> Result<Arc<Vec<X509>>, C::Error> {
+    fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
         Ok(self.intermediates.clone())
     }
 
-    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, C::Error> {
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         Ok(self.certificate.clone())
+    }
+}
+
+mod debug {
+    use super::CachedCertificate;
+
+    impl std::fmt::Debug for CachedCertificate {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("CachedCertificate")
+                .field("intermediates", &self.intermediates)
+                .field("certificate", &self.certificate)
+                .finish()
+        }
     }
 }

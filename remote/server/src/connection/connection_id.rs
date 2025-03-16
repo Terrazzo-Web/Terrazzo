@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicUsize;
 
-/// A unique identifier for a workspace connection.
+/// A unique identifier for a client connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConnectionId(usize);
 

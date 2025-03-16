@@ -5,6 +5,7 @@ use openssl::x509::X509;
 use openssl::x509::store::X509Store;
 use openssl::x509::store::X509StoreBuilder;
 
+/// The native roots based on [rustls_native_certs].
 pub fn native_roots() -> &'static Arc<X509Store> {
     static NATIVE_ROOTS: OnceLock<Arc<X509Store>> = OnceLock::new();
     NATIVE_ROOTS.get_or_init(native_roots_impl)

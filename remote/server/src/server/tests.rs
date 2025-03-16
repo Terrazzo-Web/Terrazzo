@@ -60,7 +60,16 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let response = send_certificate_request(&config, client, &private_key).await?;
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
+            auth_code: AuthCode::current(),
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::OK, response.status());
 
     let pem = response.text().await?;
@@ -68,7 +77,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     assert_eq!([0; 0], rest);
     let certificate = certificate.parse_x509()?;
     assert_eq!("CN=Test Root CA", certificate.issuer().to_string());
-    assert_eq!("CN=Test cert", certificate.subject().to_string());
+    assert_eq!("CN=Test client ID", certificate.subject().to_string());
 
     let () = handle.stop("End of test").await?;
     Ok(())
@@ -83,21 +92,16 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let public_key = private_key.public_key_to_pem().pem_string()?;
-
-    let request = client
-        .get(format!(
-            "https://{}:{}/remote/certificate",
-            config.host(),
-            config.port
-        ))
-        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
-        .body(serde_json::to_string(&GetCertificateRequest {
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
             auth_code: AuthCode::from("invalid-code"),
-            public_key,
-            name: "Test cert".into(),
-        })?);
-    let response = request.send().await?;
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::FORBIDDEN, response.status());
 
     let body = response.text().await?;
@@ -116,7 +120,16 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     let client = make_client(&config).await?;
 
     let private_key = make_key()?;
-    let response = send_certificate_request(&config, client, &private_key).await?;
+    let response = send_certificate_request(
+        &config,
+        client,
+        GetCertificateRequest {
+            auth_code: AuthCode::current(),
+            public_key: &private_key,
+            name: "Test client ID".into(),
+        },
+    )
+    .await?;
     assert_eq!(StatusCode::OK, response.status());
 
     let _pem = response.text().await?;
@@ -159,9 +172,9 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
 async fn send_certificate_request(
     config: &TestConfig,
     client: reqwest::Client,
-    private_key: &PKeyRef<impl HasPublic>,
+    request: GetCertificateRequest<AuthCode, &PKeyRef<impl HasPublic>>,
 ) -> Result<Response, Box<dyn Error>> {
-    let public_key = private_key.public_key_to_pem().pem_string()?;
+    let public_key = request.public_key.public_key_to_pem().pem_string()?;
     let request = client
         .get(format!(
             "https://{}:{}/remote/certificate",
@@ -170,9 +183,9 @@ async fn send_certificate_request(
         ))
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
-            auth_code: AuthCode::current(),
+            auth_code: request.auth_code,
             public_key,
-            name: "Test cert".into(),
+            name: request.name,
         })?);
     Ok(request.send().await?)
 }
@@ -187,11 +200,11 @@ struct TestConfig {
 impl TestConfig {
     fn new() -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca_config = make_root_ca().expect("root_ca_config()");
+        let root_ca = make_root_ca().expect("root_ca_config()");
         let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
-            root_ca: root_ca_config,
+            root_ca,
             tls_config,
         })
     }
@@ -232,7 +245,10 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
-        "Test Root CA".to_owned(),
+        CertitficateName {
+            common_name: Some("Test Root CA"),
+            ..CertitficateName::default()
+        },
         ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)),
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)
@@ -245,13 +261,13 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
 }
 
 fn make_tls_config() -> Result<<TestConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
-    let root_ca_config = make_root_ca()?;
-    let root_ca = root_ca_config.certificate()?;
-    let root_certificate_pem = root_ca_config.certificate_pem.clone();
-    let validity = root_ca.certificate.as_ref().try_into()?;
+    let root_ca = make_root_ca()?;
+    let root_certificate = root_ca.certificate()?;
+    let root_certificate_pem = root_ca.certificate_pem.clone();
+    let validity = root_certificate.certificate.as_ref().try_into()?;
 
     let intermediate = make_intermediate(
-        (*root_ca).as_ref(),
+        (*root_certificate).as_ref(),
         CertitficateName {
             organization: Some("Terrazzo Test"),
             common_name: Some("Intermediate CA"),

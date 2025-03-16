@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::Path;
 
 use nameth::NamedEnumValues as _;
@@ -12,8 +13,9 @@ use trz_gateway_common::x509::ca::make_ca;
 use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 
+/// Default implementation to load or create a Root CA stored as PEM file on disk.
 pub fn load_root_ca(
-    name: String,
+    name: CertitficateName,
     root_ca_path: CertificateInfo<impl AsRef<Path>>,
     default_validity: Validity,
 ) -> Result<PemCertificate, RootCaConfigError> {
@@ -32,14 +34,7 @@ pub fn load_root_ca(
             certificate: false,
             private_key: false,
         } => {
-            let root_ca = make_ca(
-                CertitficateName {
-                    common_name: Some(name.as_str()),
-                    ..CertitficateName::default()
-                },
-                default_validity,
-            )
-            .map_err(Box::new)?;
+            let root_ca = make_ca(name, default_validity).map_err(Box::new)?;
             let root_ca_pem = CertificateInfo {
                 certificate: root_ca.certificate.to_pem(),
                 private_key: root_ca.private_key.private_key_to_pem_pkcs8(),
@@ -47,8 +42,18 @@ pub fn load_root_ca(
             .try_map(|maybe_pem| maybe_pem.pem_string())?;
             let _: CertificateInfo<()> = root_ca_path
                 .zip(root_ca_pem.as_ref())
-                .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
+                .try_map(write_pem_file)
                 .map_err(RootCaConfigError::Store)?;
+
+            #[cfg(unix)]
+            {
+                use std::fs::Permissions;
+                use std::os::unix::fs::PermissionsExt as _;
+                let permissions = Permissions::from_mode(0o600);
+                std::fs::set_permissions(root_ca_path.private_key, permissions)
+                    .map_err(RootCaConfigError::SetPrivateKeyFilePermissions)?;
+            }
+
             Ok(root_ca_pem.into())
         }
         CertificateInfo {
@@ -83,4 +88,19 @@ pub enum RootCaConfigError {
 
     #[error("[{n}] {0}", n = self.name())]
     PemString(#[from] CertificateError<PemAsStringError>),
+
+    #[cfg(unix)]
+    #[error("[{n}] {0}", n = self.name())]
+    SetPrivateKeyFilePermissions(std::io::Error),
+}
+
+fn write_pem_file((path, pem): (&Path, &str)) -> Result<(), std::io::Error> {
+    let parent_dir = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("Failed to get parent folder of: {path:?}"),
+        )
+    })?;
+    std::fs::create_dir_all(parent_dir)?;
+    std::fs::write(path, pem)
 }

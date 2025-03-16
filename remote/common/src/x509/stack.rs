@@ -4,6 +4,8 @@ use openssl::error::ErrorStack;
 use openssl::stack::Stack;
 use openssl::stack::Stackable;
 
+/// Helper to convert a list of certificates into a certificate chain,
+/// represented as a [Stack].
 pub fn make_stack<T: Stackable>(
     items: impl Iterator<Item = T>,
 ) -> Result<Stack<T>, MakeStackError> {

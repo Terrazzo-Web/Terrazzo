@@ -6,6 +6,12 @@ use openssl::pkey::Private;
 use openssl::x509::X509;
 use openssl::x509::X509Ref;
 
+/// Represents a certificate + private key.
+///
+/// The type is generic so it can be reused in the following various scenarios:
+/// - A pair of files reprenting the certificate + private key
+/// - A certificate and private key represented as PEM strings
+/// - A [X509] + [PKey] openssl objects
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CertificateInfo<X, Y = X> {
     pub certificate: X,

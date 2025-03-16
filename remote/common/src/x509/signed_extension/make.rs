@@ -14,6 +14,7 @@ use super::signed_extension_oid;
 use crate::certificate_info::X509CertificateInfoRef;
 use crate::x509::validity::Validity;
 
+/// Creates a custom [X509Extension] signed by our issuer.
 pub fn make_signed_extension(
     common_name: &str,
     validity: Validity,

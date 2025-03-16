@@ -5,24 +5,18 @@ use std::sync::Arc;
 
 use axum::extract::Path;
 use axum::extract::WebSocketUpgrade;
-use axum::extract::ws::Message;
-use axum::extract::ws::WebSocket;
+use axum::extract::ws;
 use axum::http::Uri;
 use axum::response::IntoResponse;
-use futures::SinkExt;
-use futures::StreamExt;
+use bytes::Bytes;
 use hyper_util::rt::TokioIo;
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use rustls::pki_types::DnsName;
 use rustls::pki_types::InvalidDnsNameError;
 use rustls::pki_types::ServerName;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio_util::io::CopyToBytes;
-use tokio_util::io::SinkWriter;
-use tokio_util::io::StreamReader;
 use tonic::transport::Channel;
 use tracing::Instrument as _;
 use tracing::Span;
@@ -31,10 +25,12 @@ use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::to_async_io::WebSocketIo;
 
 use super::Server;
 
 impl Server {
+    /// API to serve tunnel connections
     pub async fn tunnel(
         self: Arc<Self>,
         client_id: Option<ClientId>,
@@ -55,36 +51,8 @@ impl Server {
         })
     }
 
-    fn process_websocket(self: Arc<Self>, client_name: ClientName, web_socket: WebSocket) {
-        let (sink, stream) = web_socket.split();
-
-        let reader = {
-            #[nameth]
-            #[derive(thiserror::Error, Debug)]
-            #[error("[{n}] {0}", n = Self::type_name())]
-            struct ReadError(axum::Error);
-
-            StreamReader::new(stream.map(|message| {
-                message.map(Message::into_data).map_err(|error| {
-                    std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
-                })
-            }))
-        };
-
-        let writer = {
-            #[nameth]
-            #[derive(thiserror::Error, Debug)]
-            #[error("[{n}] {0}", n = Self::type_name())]
-            struct WriteError(axum::Error);
-
-            let sink = CopyToBytes::new(sink.with(|data| ready(Ok(Message::Binary(data)))))
-                .sink_map_err(|error| {
-                    std::io::Error::new(ErrorKind::ConnectionAborted, WriteError(error))
-                });
-            SinkWriter::new(sink)
-        };
-
-        let stream = tokio::io::join(reader, writer);
+    fn process_websocket(self: Arc<Self>, client_name: ClientName, web_socket: ws::WebSocket) {
+        let stream = AxumWebSocketIo::to_async_io(web_socket);
         tokio::spawn(
             self.process_connection(client_name, stream)
                 .in_current_span(),
@@ -165,4 +133,18 @@ pub enum TunnelError {
 
     #[error("[{n}] {0}", n = self.name())]
     GrpcConnectError(tonic::transport::Error),
+}
+
+struct AxumWebSocketIo;
+impl WebSocketIo for AxumWebSocketIo {
+    type Message = ws::Message;
+    type Error = axum::Error;
+
+    fn into_data(message: Self::Message) -> Bytes {
+        message.into_data()
+    }
+
+    fn into_messsge(bytes: Bytes) -> Self::Message {
+        ws::Message::Binary(bytes)
+    }
 }

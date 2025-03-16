@@ -14,13 +14,14 @@ use tracing_futures::Instrument as _;
 use trz_gateway_common::id::CLIENT_ID_HEADER;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
+use trz_gateway_common::to_async_io::WebSocketIo;
 
 use self::tungstenite::client::IntoClientRequest as _;
 use super::connection::Connection;
 use super::health::HealthServiceImpl;
-use super::to_async_io::to_async_io;
 
 impl super::Client {
+    /// API to create tunnels to the Terrazzo Gateway.
     pub async fn connect<F>(
         &self,
         client_id: ClientId,
@@ -48,7 +49,7 @@ impl super::Client {
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
 
-        let stream = to_async_io(web_socket);
+        let stream = TungsteniteWebSocketIo::to_async_io(web_socket);
 
         let tls_stream = self
             .tls_server
@@ -108,4 +109,18 @@ pub enum ConnectError {
 
     #[error("[{n}] The client got disconnected", n = self.name())]
     Disconnected,
+}
+
+struct TungsteniteWebSocketIo;
+impl WebSocketIo for TungsteniteWebSocketIo {
+    type Message = tungstenite::Message;
+    type Error = tungstenite::Error;
+
+    fn into_data(message: Self::Message) -> tungstenite::Bytes {
+        message.into_data()
+    }
+
+    fn into_messsge(bytes: tungstenite::Bytes) -> Self::Message {
+        tungstenite::Message::Binary(bytes)
+    }
 }

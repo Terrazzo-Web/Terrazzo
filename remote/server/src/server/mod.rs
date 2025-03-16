@@ -1,13 +1,16 @@
-use std::future::Future;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use axum_server::Handle;
+use axum_server::accept::DefaultAcceptor;
+use axum_server::tls_rustls::RustlsAcceptor;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::FutureExt;
 use futures::future::Shared;
+use gateway_config::app_config::AppConfig;
+use http_or_https::HttpOrHttps;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -28,7 +31,6 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use trz_gateway_common::tracing::EnableTracingError;
 
-use self::gateway_config::AppConfig;
 use self::gateway_config::GatewayConfig;
 use self::issuer_config::IssuerConfig;
 use self::issuer_config::IssuerConfigError;
@@ -37,6 +39,7 @@ use crate::connection::Connections;
 mod app;
 mod certificate;
 pub mod gateway_config;
+mod http_or_https;
 mod issuer_config;
 pub mod root_ca_configuration;
 mod tunnel;
@@ -83,8 +86,7 @@ impl Server {
                 store: CachedTrustedStoreConfig::new(client_certificate_issuer)
                     .map_err(GatewayError::CachedTrustedStoreConfig)?,
                 signer_name: issuer_config.signer_name.clone(),
-            })
-            .await?;
+            })?;
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {
@@ -104,6 +106,7 @@ impl Server {
             port,
             error,
         })?;
+        drop(config);
 
         let mut terminated = vec![];
 
@@ -143,8 +146,12 @@ impl Server {
         let app = self.make_app(span);
 
         let handle = Handle::new();
-        let axum_server =
-            axum_server::bind_rustls(socket_addr, self.tls_server.clone()).handle(handle.clone());
+        let axum_server = axum_server::bind(socket_addr)
+            .acceptor(HttpOrHttps {
+                tls: RustlsAcceptor::new(self.tls_server.clone()),
+                plaintext: DefaultAcceptor,
+            })
+            .handle(handle.clone());
 
         let shutdown = self.shutdown.clone();
         tokio::spawn(

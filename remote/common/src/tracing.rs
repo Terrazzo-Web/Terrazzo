@@ -32,9 +32,9 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
             .map(Location::to_string)
             .unwrap_or_else(|| "???".into());
         if let Some(panic_payload) = panic_payload {
-            warn!("Panic: {panic_payload} at {location}",);
+            warn!("Panic: {panic_payload} at {location}");
         } else {
-            warn!("Panic at {location}",);
+            warn!("Panic at {location}");
         }
     }));
     Ok(())

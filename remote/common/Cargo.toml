@@ -14,17 +14,21 @@ keywords = ["terrazzo", "gateway", "proxy", "agent"]
 
 [dependencies]
 axum = { workspace = true }
+bytes = { workspace = true }
 cms = { workspace = true }
+futures = { workspace = true }
 nameth = { workspace = true }
 oid-registry = { workspace = true }
 openssl = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
+ring = { workspace = true }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

@@ -17,6 +17,9 @@ use trz_gateway_common::is_global::IsGlobal;
 use super::connection_id::ConnectionId;
 use super::pending_requests::PendingRequests;
 
+/// A struct that maintains a list of channels for a given client.
+///
+/// A client can open multiple tunnels with the Terrazzo Gateway.
 pub struct IncomingClients<S: Service<http::Request<BoxBody>>> {
     channels: Vec<ChannelWithId<S>>,
     rng: HasherRng,
@@ -44,6 +47,7 @@ where
         }
     }
 
+    /// Adds a channel
     pub fn add_channel(&mut self, connection_id: ConnectionId, channel: S) {
         info!("Adding channel");
         let channel = PendingRequests::new(channel);
@@ -53,6 +57,7 @@ where
         });
     }
 
+    /// Removes a channel
     pub fn remove_channel(&mut self, connection_id: ConnectionId) {
         info!("Removing channel");
         self.channels = std::mem::take(&mut self.channels)
@@ -61,6 +66,10 @@ where
             .collect();
     }
 
+    /// Returns a channel.
+    ///
+    /// If a client has ≥ 2 tunnels, the load-balancing algorithm choses
+    /// channels that have less load based on the number of running requests.
     pub fn get_channel(
         &mut self,
     ) -> Option<

@@ -25,6 +25,7 @@ hyper-util = { workspace = true, features = ["tokio"] }
 nameth = { workspace = true }
 openssl = { workspace = true }
 pem = { workspace = true }
+pin-project = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }
 scopeguard = { workspace = true }
@@ -32,7 +33,6 @@ serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = { workspace = true }
-tokio-util = { workspace = true }
 tonic = { workspace = true }
 tower = { workspace = true, features = ["balance", "buffer", "util"] }
 tracing = { workspace = true }

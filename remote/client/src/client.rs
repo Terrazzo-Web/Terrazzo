@@ -1,10 +1,13 @@
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 
 use connect::ConnectError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tracing::Instrument as _;
 use tracing::info_span;
+use tracing::warn;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
@@ -19,6 +22,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use uuid::Uuid;
 
 use crate::client_service::ClientService;
+use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 
 pub mod certificate;
@@ -37,6 +41,7 @@ pub struct Client {
     tls_client: tokio_tungstenite::Connector,
     tls_server: tokio_rustls::TlsAcceptor,
     client_service: Arc<dyn ClientService>,
+    retry_strategy: RetryStrategy,
 }
 
 declare_identifier!(AuthCode);
@@ -58,6 +63,7 @@ impl Client {
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
             client_service: Arc::new(config.client_service()),
+            retry_strategy: config.retry_strategy(),
         })
     }
 
@@ -65,12 +71,25 @@ impl Client {
     pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
         let client_name = &self.client_name;
         let client_id = ClientId::from(Uuid::new_v4().to_string());
+        let mut retry_strategy = self.retry_strategy.clone();
         async {
-            let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
-            let () = self
-                .connect(client_id.clone(), shutdown_rx, terminated_tx)
-                .await?;
-            Ok(handle)
+            loop {
+                let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+                let start = Instant::now();
+                let result = self
+                    .connect(client_id.clone(), shutdown_rx, terminated_tx)
+                    .await;
+                let uptime = Instant::now() - start;
+                match result {
+                    Ok(()) => break Ok(handle),
+                    Err(error) if uptime < Duration::from_secs(15) => break Err(error)?,
+                    Err(error) => warn!(
+                        "Connection failed, retrying in {}... error={error}",
+                        humantime::format_duration(retry_strategy.delay)
+                    ),
+                }
+                retry_strategy.wait().await;
+            }
         }
         .instrument(info_span!("Run", %client_name, %client_id))
         .await

@@ -6,6 +6,7 @@ use crate::is_global::IsGlobal;
 
 pub mod cache;
 pub mod empty;
+pub mod load;
 pub mod native;
 pub mod pem;
 pub mod root_cert_store;

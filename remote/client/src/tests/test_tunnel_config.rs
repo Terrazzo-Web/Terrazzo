@@ -15,13 +15,13 @@ use crate::tunnel_config::TunnelConfig;
 
 #[derive(Debug)]
 pub struct TestTunnelConfig<G> {
-    client_config: Arc<TestClientConfig<G>>,
+    client_config: TestClientConfig<G>,
     client_certificate: Arc<PemCertificate>,
 }
 
 impl<G> TestTunnelConfig<G> {
     pub fn new(
-        client_config: Arc<TestClientConfig<G>>,
+        client_config: TestClientConfig<G>,
         client_certificate: Arc<PemCertificate>,
     ) -> Self {
         Self {

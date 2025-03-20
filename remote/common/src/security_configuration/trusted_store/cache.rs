@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
+use nameth::nameth;
 use openssl::x509::store::X509Store;
 
 use super::TrustedStoreConfig;
@@ -33,6 +34,7 @@ impl<C: TrustedStoreConfig> TrustedStoreConfig for MemoizedTrustedStoreConfig<C>
 ///
 /// Computing the [X509Store] is thus an infallible operation.
 #[derive(Clone)]
+#[nameth]
 pub struct CachedTrustedStoreConfig {
     root_certificates: Arc<X509Store>,
 }
@@ -56,6 +58,22 @@ impl From<X509Store> for CachedTrustedStoreConfig {
     fn from(root_certificates: X509Store) -> Self {
         CachedTrustedStoreConfig {
             root_certificates: Arc::from(root_certificates),
+        }
+    }
+}
+
+mod debug {
+    use std::fmt::Debug;
+    use std::fmt::Formatter;
+
+    use nameth::NamedType as _;
+
+    use super::CachedTrustedStoreConfig;
+
+    impl Debug for CachedTrustedStoreConfig {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct(CachedTrustedStoreConfig::type_name())
+                .finish()
         }
     }
 }

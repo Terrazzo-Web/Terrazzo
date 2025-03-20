@@ -48,11 +48,11 @@ declare_identifier!(AuthCode);
 
 impl Client {
     /// Creates a new [Client].
-    pub async fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
+    pub fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
         let tls_client = config
             .gateway_pki()
             .to_tls_client(ChainOnlyServerCertificateVerifier)?;
-        let tls_server = config.client_certificate().to_tls_server().await?;
+        let tls_server = config.client_certificate().to_tls_server()?;
         Ok(Client {
             client_name: config.client_name(),
             uri: format!(
@@ -68,7 +68,7 @@ impl Client {
     }
 
     /// Runs the client and returns a handle to stop the client.
-    pub async fn run(&self) -> Result<ServerHandle<()>, RunClientError> {
+    pub async fn run(&self) -> Result<ServerHandle<()>, ConnectError> {
         let client_name = &self.client_name;
         let client_id = ClientId::from(Uuid::new_v4().to_string());
         let mut retry_strategy = self.retry_strategy.clone();
@@ -104,11 +104,4 @@ pub enum NewClientError<C: TunnelConfig> {
 
     #[error("[{n}] {0}", n = self.name())]
     ToTlsServer(#[from] ToTlsServerError<<C::ClientCertificate as CertificateConfig>::Error>),
-}
-
-#[nameth]
-#[derive(thiserror::Error, Debug)]
-pub enum RunClientError {
-    #[error("[{n}] {0}", n = self.name())]
-    Connect(#[from] ConnectError),
 }

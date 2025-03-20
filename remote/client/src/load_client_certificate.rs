@@ -27,7 +27,7 @@ use crate::http_client::make_http_client;
 ///
 /// [TunnelConfig::client_certificate]: crate::tunnel_config::TunnelConfig::client_certificate
 pub async fn load_client_certificate<C: ClientConfig>(
-    client_config: C,
+    client_config: &C,
     auth_code: AuthCode,
     certificate_path: CertificateInfo<impl AsRef<Path>>,
 ) -> Result<PemCertificate, LoadClientCertificateError<C>> {
@@ -98,7 +98,7 @@ pub enum LoadClientCertificateError<C: ClientConfig> {
 }
 
 async fn make_client_certificate<C: ClientConfig>(
-    client_config: C,
+    client_config: &C,
     auth_code: AuthCode,
 ) -> Result<X509CertificateInfo, MakeClientCertificateError<C::GatewayPki>> {
     let key = make_key()?;

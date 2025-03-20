@@ -9,16 +9,14 @@ use crate::security_configuration::certificate::display_x509_certificate;
 
 /// Create a RusTLS [ServerConfig] from a [CertificateConfig].
 pub trait ToTlsServer: CertificateConfig {
-    fn to_tls_server(
-        &self,
-    ) -> impl Future<Output = Result<ServerConfig, ToTlsServerError<Self::Error>>> {
+    fn to_tls_server(&self) -> Result<ServerConfig, ToTlsServerError<Self::Error>> {
         to_tls_server_impl(self)
     }
 }
 
 impl<T: CertificateConfig> ToTlsServer for T {}
 
-async fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
+fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
     certificate_config: &T,
 ) -> Result<ServerConfig, ToTlsServerError<T::Error>> {
     let certificate = certificate_config

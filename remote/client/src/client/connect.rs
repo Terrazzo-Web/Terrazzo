@@ -22,7 +22,7 @@ use super::health::HealthServiceImpl;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
-    pub async fn connect<F>(
+    pub(super) async fn connect<F>(
         &self,
         client_id: ClientId,
         shutdown: F,

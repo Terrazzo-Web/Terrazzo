@@ -53,15 +53,12 @@ impl<'t> EndToEnd<'t> {
         info!("Started the server");
 
         let client_name = ClientName::from("EndToEndClient");
-        let client_config = Arc::new(TestClientConfig::new(
-            gateway_config.clone(),
-            client_name.clone(),
-        ));
+        let client_config = TestClientConfig::new(gateway_config.clone(), client_name.clone());
 
         let auth_code = AuthCode::current().to_string();
         let client_certificate = Arc::new(
             load_client_certificate(
-                client_config.clone(),
+                &client_config,
                 auth_code.into(),
                 CLIENT_CERT_FILENAME.map(|filename| temp_dir.path().join(filename)),
             )
@@ -70,8 +67,7 @@ impl<'t> EndToEnd<'t> {
         );
         info!("Got the client certificate");
 
-        let tunnel_config =
-            TestTunnelConfig::new(client_config.clone(), client_certificate.clone());
+        let tunnel_config = TestTunnelConfig::new(client_config, client_certificate.clone());
         let client = Client::new(tunnel_config)
             .await
             .map_err(EndToEndError::NewClient)?;
@@ -120,9 +116,7 @@ pub enum EndToEndError {
     SetupServer(GatewayError<Arc<TestGatewayConfig>>),
 
     #[error("[{n}] {0}", n = self.name())]
-    LoadClientCertificate(
-        LoadClientCertificateError<Arc<TestClientConfig<Arc<TestGatewayConfig>>>>,
-    ),
+    LoadClientCertificate(LoadClientCertificateError<TestClientConfig<Arc<TestGatewayConfig>>>),
 
     #[error("[{n}] {0}", n = self.name())]
     NewClient(NewClientError<TestTunnelConfig<Arc<TestGatewayConfig>>>),

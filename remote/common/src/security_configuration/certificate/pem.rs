@@ -12,7 +12,8 @@ use crate::certificate_info::CertificateInfo;
 use crate::security_configuration::common::parse_pem_certificates;
 
 /// A [CertificateConfig] based on PEM files stored on disk.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[nameth]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct PemCertificate {
     pub intermediates_pem: String,
     pub certificate_pem: String,
@@ -67,6 +68,21 @@ impl From<CertificateInfo<String>> for PemCertificate {
             intermediates_pem: String::default(),
             certificate_pem: value.certificate,
             private_key_pem: value.private_key,
+        }
+    }
+}
+
+mod debug {
+    use std::fmt::Debug;
+    use std::fmt::Formatter;
+
+    use nameth::NamedType as _;
+
+    use super::PemCertificate;
+
+    impl Debug for PemCertificate {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct(PemCertificate::type_name()).finish()
         }
     }
 }

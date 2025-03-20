@@ -77,7 +77,7 @@ impl Server {
         let client_certificate_issuer = config.client_certificate_issuer();
         let issuer_config = IssuerConfig::new(&client_certificate_issuer)?;
 
-        let tls_server = config.tls().to_tls_server().await?;
+        let tls_server = config.tls().to_tls_server()?;
         debug!("Got TLS server config");
 
         let tls_client = config

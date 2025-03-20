@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
@@ -7,6 +8,7 @@ use openssl::x509::store::X509Store;
 use openssl::x509::store::X509StoreBuilder;
 
 use super::CertificateConfig;
+use super::cache::CachedCertificate;
 use super::pem::PemCertificate;
 use super::pem::PemCertificateError;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
@@ -19,6 +21,14 @@ use crate::security_configuration::trusted_store::TrustedStoreConfig;
 /// the [PemCertificate] represents a single self-signed CA.
 impl TrustedStoreConfig for PemCertificate {
     type Error = AsTrustedStoreError<PemCertificateError>;
+    fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
+        as_trusted_store(self)
+    }
+}
+
+impl TrustedStoreConfig for CachedCertificate {
+    type Error = AsTrustedStoreError<Infallible>;
+
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
         as_trusted_store(self)
     }

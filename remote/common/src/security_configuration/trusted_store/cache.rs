@@ -32,6 +32,7 @@ impl<C: TrustedStoreConfig> TrustedStoreConfig for MemoizedTrustedStoreConfig<C>
 /// A [TrustedStoreConfig] that contains the pre-computed X509 store.
 ///
 /// Computing the [X509Store] is thus an infallible operation.
+#[derive(Clone)]
 pub struct CachedTrustedStoreConfig {
     root_certificates: Arc<X509Store>,
 }

@@ -1,12 +1,11 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 
-use crate::unwrap_infallible::UnwrapInfallible as _;
-
 use super::cache::CachedTrustedStoreConfig;
 use super::native::NativeTrustedStoreConfig;
 use super::pem::PemTrustedStore;
 use super::pem::PemTrustedStoreError;
+use crate::unwrap_infallible::UnwrapInfallible as _;
 
 pub enum LoadTrustedStore {
     Native,

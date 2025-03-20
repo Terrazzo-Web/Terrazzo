@@ -9,6 +9,7 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::x509::X509Extension;
 use pem::PemError;
+use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::http_error::IsHttpError;
@@ -35,6 +36,11 @@ impl Server {
         Json(request): Json<GetCertificateRequest<AuthCode>>,
     ) -> Result<String, HttpError<GetCertificateError>> {
         if !request.auth_code.is_valid() {
+            debug!(
+                "Invalid auth code. Got <{}> expected <{}>",
+                request.auth_code,
+                AuthCode::current()
+            );
             return Err(GetCertificateError::InvalidAuthCode)?;
         }
         Ok(self.make_pem_cert(request)?)

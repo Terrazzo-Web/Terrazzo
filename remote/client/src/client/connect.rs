@@ -49,7 +49,7 @@ impl super::Client {
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
 
-        let stream = TungsteniteWebSocketIo::to_async_io(web_socket);
+        let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
 
         let tls_stream = self
             .tls_server
@@ -80,7 +80,10 @@ impl super::Client {
 
         tokio::spawn(
             async move {
-                match grpc_server.serve_with_incoming(incoming).await {
+                match grpc_server
+                    .serve_with_incoming_shutdown(incoming, eos)
+                    .await
+                {
                     Ok(()) => info!("Finished"),
                     Err(error) => info!("Failed: {error}"),
                 }

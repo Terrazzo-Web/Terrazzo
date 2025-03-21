@@ -19,7 +19,8 @@ impl Server {
     ///
     /// More routes can be configured using [super::gateway_config::app_config::AppConfig].
     #[autoclone]
-    pub(super) fn make_app(self: &Arc<Self>, span: Span) -> Router {
+    pub(super) fn make_app(self: &Arc<Self>) -> Router {
+        let span = Span::current();
         let server = self.clone();
         let router = Router::new()
             .route("/status", get(|| ready("UP")))

@@ -5,6 +5,7 @@ use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::x509::X509;
 use tracing::debug;
+use tracing::info;
 use trz_gateway_common::certificate_info::CertificateError;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
@@ -37,7 +38,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
             certificate: true,
             private_key: true,
         } => {
-            debug!("Loading client certificate from {certificate_path:?}");
+            info! { "Loading client certificate from {certificate_path:?}" };
             let client_certificate = certificate_path
                 .try_map(std::fs::read_to_string)
                 .map_err(LoadClientCertificateError::Load)?;
@@ -47,7 +48,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
             certificate: false,
             private_key: false,
         } => {
-            debug! { "Loading client certificate from {}", client_config.base_url() };
+            info! { "Loading client certificate from {}", client_config.base_url() };
             let client_cert = make_client_certificate(client_config, auth_code).await?;
             let client_cert_pem = CertificateInfo {
                 certificate: client_cert.certificate.to_pem(),

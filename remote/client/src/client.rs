@@ -5,7 +5,7 @@ use std::time::Instant;
 use connect::ConnectError;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use tracing::Instrument as _;
+use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::declare_identifier;
@@ -70,7 +70,9 @@ impl Client {
     /// Runs the client and returns a handle to stop the client.
     pub async fn run(&self) -> Result<ServerHandle<()>, ConnectError> {
         let client_name = &self.client_name;
+        let _span = info_span!("Run", %client_name).entered();
         let client_id = ClientId::from(Uuid::new_v4().to_string());
+        info!(%client_id, "Allocated new client id");
         let mut retry_strategy = self.retry_strategy.clone();
         async {
             loop {
@@ -91,7 +93,6 @@ impl Client {
                 retry_strategy.wait().await;
             }
         }
-        .instrument(info_span!("Run", %client_name, %client_id))
         .await
     }
 }

@@ -84,11 +84,14 @@ impl Connections {
         let mut health_client = HealthServiceClient::new(channel);
         let health_check_loop = async move {
             loop {
+                let start = Instant::now();
                 let pong = health_client.ping_pong(Ping {
                     connection_id: connection_id.to_string(),
                     ..Ping::default()
                 });
                 timeout(TIMEOUT, pong).await??;
+                let latency = Instant::now() - start;
+                info!(?latency, "Ping");
 
                 let start = Instant::now();
                 let pong = health_client.ping_pong(Ping {

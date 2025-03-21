@@ -16,8 +16,9 @@ use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_rustls::TlsConnector;
 use tracing::Instrument as _;
-use tracing::Span;
 use tracing::debug;
+use tracing::info;
+use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
@@ -65,6 +66,8 @@ impl Server {
             trz_gateway_common::tracing::enable_tracing()?;
         }
 
+        let _span = info_span!("Server").entered();
+
         let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
         let shutdown_rx: Pin<Box<dyn Future<Output = ()> + Send + Sync>> = Box::pin(shutdown_rx);
 
@@ -72,10 +75,16 @@ impl Server {
             .root_ca()
             .certificate()
             .map_err(|error| GatewayError::RootCa(error.into()))?;
-        debug!("Got Root CA: {}", root_ca.display());
+        info!("Root CA: {:?}", root_ca.certificate.subject_name());
+        debug!("Root CA details: {}", root_ca.display());
 
         let client_certificate_issuer = config.client_certificate_issuer();
         let issuer_config = IssuerConfig::new(&client_certificate_issuer)?;
+        info!("Signer certificate: {:?}", issuer_config.signer_name);
+        debug!(
+            "Signer certificate details: {}",
+            issuer_config.signer.display()
+        );
 
         let tls_server = config.tls().to_tls_server()?;
         debug!("Got TLS server config");
@@ -111,17 +120,21 @@ impl Server {
         let mut terminated = vec![];
 
         for socket_addr in socket_addrs {
-            debug!("Setup server on {socket_addr}");
-            let task = server.clone().run_endpoint(socket_addr, Span::current());
+            let _span = info_span!("Listen", %socket_addr).entered();
+            info!("Setup server");
+            let task = server.clone().run_endpoint(socket_addr);
             let (terminated_tx, terminated_rx) = oneshot::channel();
             terminated.push(terminated_rx);
-            tokio::spawn(async move {
-                match task.await {
-                    Ok(()) => (),
-                    Err(error) => warn!("Failed {error}"),
+            tokio::spawn(
+                async move {
+                    match task.await {
+                        Ok(()) => (),
+                        Err(error) => warn!("Failed {error}"),
+                    }
+                    let _: Result<(), ()> = terminated_tx.send(());
                 }
-                let _: Result<(), ()> = terminated_tx.send(());
-            });
+                .in_current_span(),
+            );
         }
 
         {
@@ -138,12 +151,8 @@ impl Server {
         Ok((server, handle))
     }
 
-    async fn run_endpoint(
-        self: Arc<Self>,
-        socket_addr: SocketAddr,
-        span: Span,
-    ) -> Result<(), RunGatewayError> {
-        let app = self.make_app(span);
+    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {
+        let app = self.make_app();
 
         let handle = Handle::new();
         let axum_server = axum_server::bind(socket_addr)
@@ -162,12 +171,12 @@ impl Server {
             .in_current_span(),
         );
 
-        debug!("Serving...");
+        info!("Serving...");
         let () = axum_server
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await
             .map_err(RunGatewayError::Serve)?;
-        debug!("Serving: done");
+        info!("Serving: done");
         Ok(())
     }
 

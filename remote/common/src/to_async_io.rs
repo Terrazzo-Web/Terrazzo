@@ -6,11 +6,14 @@ use futures::Sink;
 use futures::SinkExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
+use futures::stream::Once;
 use nameth::NamedType as _;
 use nameth::nameth;
+use tokio::sync::oneshot;
 use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
 use tokio_util::io::StreamReader;
+use tracing::info;
 
 /// Helper to convert
 /// - an object implementing [Stream] + [Sink]
@@ -25,7 +28,10 @@ pub trait WebSocketIo {
     fn to_async_io(
         web_socket: impl Stream<Item = Result<Self::Message, Self::Error>>
         + Sink<Self::Message, Error = Self::Error>,
-    ) -> impl tokio::io::AsyncRead + tokio::io::AsyncWrite
+    ) -> (
+        impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
+        impl Future<Output = ()>,
+    )
     where
         Self: Sized,
     {
@@ -46,15 +52,23 @@ struct WriteError<E>(E);
 fn to_async_io_impl<IO: WebSocketIo>(
     web_socket: impl Stream<Item = Result<IO::Message, IO::Error>>
     + Sink<IO::Message, Error = IO::Error>,
-) -> impl tokio::io::AsyncRead + tokio::io::AsyncWrite {
+) -> (
+    impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    impl Future<Output = ()>,
+) {
+    let (signal_tx, signal_rx) = oneshot::channel();
     let (sink, stream) = web_socket.split();
 
     let reader = {
-        StreamReader::new(stream.map(|message| {
-            message.map(IO::into_data).map_err(|error: IO::Error| {
-                std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
-            })
-        }))
+        StreamReader::new(
+            stream
+                .map(|message| {
+                    message.map(IO::into_data).map_err(|error: IO::Error| {
+                        std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
+                    })
+                })
+                .chain(end_of_stream(signal_tx)),
+        )
     };
 
     let writer = {
@@ -65,5 +79,18 @@ fn to_async_io_impl<IO: WebSocketIo>(
         SinkWriter::new(sink)
     };
 
-    tokio::io::join(reader, writer)
+    let eos = Box::pin(async {
+        let _ = signal_rx.await;
+    });
+    (tokio::io::join(reader, writer), eos)
+}
+
+fn end_of_stream(
+    signal: oneshot::Sender<()>,
+) -> Once<impl Future<Output = Result<bytes::Bytes, std::io::Error>>> {
+    futures::stream::once(Box::pin(async {
+        info!("EOS");
+        let _ = signal.send(());
+        Ok(bytes::Bytes::new())
+    }))
 }

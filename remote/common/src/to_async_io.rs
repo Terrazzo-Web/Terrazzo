@@ -6,14 +6,12 @@ use futures::Sink;
 use futures::SinkExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
-use futures::stream::Once;
 use nameth::NamedType as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
 use tokio_util::io::StreamReader;
-use tracing::info;
 
 /// Helper to convert
 /// - an object implementing [Stream] + [Sink]
@@ -30,7 +28,7 @@ pub trait WebSocketIo {
         + Sink<Self::Message, Error = Self::Error>,
     ) -> (
         impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
-        impl Future<Output = ()>,
+        impl Future<Output = std::io::Result<()>>,
     )
     where
         Self: Sized,
@@ -54,21 +52,22 @@ fn to_async_io_impl<IO: WebSocketIo>(
     + Sink<IO::Message, Error = IO::Error>,
 ) -> (
     impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
-    impl Future<Output = ()>,
+    impl Future<Output = std::io::Result<()>>,
 ) {
-    let (signal_tx, signal_rx) = oneshot::channel();
+    let (error_tx, error_rx) = oneshot::channel();
+    let mut error_tx = Some(error_tx);
     let (sink, stream) = web_socket.split();
 
     let reader = {
-        StreamReader::new(
-            stream
-                .map(|message| {
-                    message.map(IO::into_data).map_err(|error: IO::Error| {
-                        std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
-                    })
-                })
-                .chain(end_of_stream(signal_tx)),
-        )
+        StreamReader::new(stream.map(move |message| {
+            let message = message.map(IO::into_data).map_err(|error: IO::Error| {
+                let error = std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error));
+                let error_tx = error_tx.take();
+                error_tx.map(|error_tx| error_tx.send(error));
+                return ErrorKind::ConnectionAborted;
+            });
+            return message;
+        }))
     };
 
     let writer = {
@@ -80,17 +79,13 @@ fn to_async_io_impl<IO: WebSocketIo>(
     };
 
     let eos = Box::pin(async {
-        let _ = signal_rx.await;
+        match error_rx.await {
+            // The stream raised an error.
+            Ok(error) => Err(error),
+
+            // The stream was dropped, finished without raising an error.
+            Err(oneshot::error::RecvError { .. }) => Ok(()),
+        }
     });
     (tokio::io::join(reader, writer), eos)
-}
-
-fn end_of_stream(
-    signal: oneshot::Sender<()>,
-) -> Once<impl Future<Output = Result<bytes::Bytes, std::io::Error>>> {
-    futures::stream::once(Box::pin(async {
-        info!("EOS");
-        let _ = signal.send(());
-        Ok(bytes::Bytes::new())
-    }))
 }

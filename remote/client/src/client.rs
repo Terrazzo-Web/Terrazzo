@@ -1,10 +1,12 @@
 use std::sync::Arc;
-use std::time::Duration;
 use std::time::Instant;
 
 use connect::ConnectError;
+use futures::FutureExt;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tracing::Instrument;
+use tracing::error;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
@@ -68,32 +70,45 @@ impl Client {
     }
 
     /// Runs the client and returns a handle to stop the client.
-    pub async fn run(&self) -> Result<ServerHandle<()>, ConnectError> {
+    pub async fn run(self) -> Result<ServerHandle<()>, ConnectError> {
         let client_name = &self.client_name;
         let _span = info_span!("Run", %client_name).entered();
         let client_id = ClientId::from(Uuid::new_v4().to_string());
         info!(%client_id, "Allocated new client id");
-        let mut retry_strategy = self.retry_strategy.clone();
-        async {
+        let retry_strategy0 = self.retry_strategy.clone();
+        let mut retry_strategy = retry_strategy0.clone();
+        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+        let shutdown_rx = shutdown_rx.shared();
+
+        let task = async move {
             loop {
-                let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
                 let start = Instant::now();
-                let result = self
-                    .connect(client_id.clone(), shutdown_rx, terminated_tx)
-                    .await;
+                let result = self.connect(client_id.clone(), shutdown_rx.clone()).await;
+                if let Some(()) = shutdown_rx.peek() {
+                    break;
+                }
                 let uptime = Instant::now() - start;
                 match result {
-                    Ok(()) => break Ok(handle),
-                    Err(error) if uptime < Duration::from_secs(15) => break Err(error)?,
+                    Ok(()) => info!(
+                        "Connection closed, retrying in {}...",
+                        humantime::format_duration(retry_strategy.delay)
+                    ),
                     Err(error) => warn!(
-                        "Connection failed, retrying in {}... error={error}",
+                        %error,
+                        "Connection failed, retrying in {}...",
                         humantime::format_duration(retry_strategy.delay)
                     ),
                 }
-                retry_strategy.wait().await;
+                if uptime < retry_strategy0.max_delay {
+                    retry_strategy.wait().await;
+                } else {
+                    retry_strategy = retry_strategy0.clone();
+                }
             }
-        }
-        .await
+            let _ = terminated_tx.send(());
+        };
+        tokio::spawn(task.in_current_span());
+        Ok(handle)
     }
 }
 

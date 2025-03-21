@@ -52,7 +52,7 @@ impl Server {
     }
 
     fn process_websocket(self: Arc<Self>, client_name: ClientName, web_socket: ws::WebSocket) {
-        let stream = AxumWebSocketIo::to_async_io(web_socket);
+        let (stream, _) = AxumWebSocketIo::to_async_io(web_socket);
         tokio::spawn(
             self.process_connection(client_name, stream)
                 .in_current_span(),

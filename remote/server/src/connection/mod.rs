@@ -126,7 +126,7 @@ const TIMEOUT: Duration = if cfg!(debug_assertions) {
 };
 
 const PERIOD: Duration = if cfg!(debug_assertions) {
-    Duration::from_secs(10)
+    Duration::from_secs(5)
 } else {
     Duration::from_secs(3 * 60 + 45)
 };

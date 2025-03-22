@@ -7,13 +7,15 @@ use super::pem::PemTrustedStore;
 use super::pem::PemTrustedStoreError;
 use crate::unwrap_infallible::UnwrapInfallible as _;
 
-pub enum LoadTrustedStore {
+#[derive(Clone, Copy)]
+pub enum LoadTrustedStore<'t> {
     Native,
-    PEM(String),
+    PEM(&'t str),
+    File(&'t str),
 }
 
-impl LoadTrustedStore {
-    pub fn load(&self) -> Result<CachedTrustedStoreConfig, LoadTrustedStoreError> {
+impl<'t> LoadTrustedStore<'t> {
+    pub fn load(self) -> Result<CachedTrustedStoreConfig, LoadTrustedStoreError> {
         match self {
             LoadTrustedStore::Native => {
                 Ok(CachedTrustedStoreConfig::new(NativeTrustedStoreConfig).unwrap_infallible())
@@ -22,6 +24,9 @@ impl LoadTrustedStore {
                 Ok(CachedTrustedStoreConfig::new(PemTrustedStore {
                     root_certificates_pem: root_certificates_pem.to_owned(),
                 })?)
+            }
+            LoadTrustedStore::File(pem_file) => {
+                LoadTrustedStore::PEM(&std::fs::read_to_string(pem_file)?).load()
             }
         }
     }
@@ -32,4 +37,7 @@ impl LoadTrustedStore {
 pub enum LoadTrustedStoreError {
     #[error("[{n}] {0}", n = self.name())]
     LoadPem(#[from] PemTrustedStoreError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    LoadFile(#[from] std::io::Error),
 }

@@ -20,6 +20,7 @@ use wasm_bindgen::prelude::Closure;
 /// ```
 pub trait DoDebounce {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
+    fn with_max_delay(self) -> impl DoDebounce;
 }
 
 /// Advanced usage for [DoDebounce].
@@ -38,9 +39,16 @@ impl DoDebounce for Duration {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         Debounce {
             delay: self,
-            max_delay: Some(self),
+            max_delay: None,
         }
         .debounce(f)
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        Debounce {
+            delay: self,
+            max_delay: Some(self),
+        }
     }
 }
 
@@ -83,6 +91,13 @@ impl DoDebounce for Debounce {
                 )
                 .or_throw("set_timeout");
             state.scheduled_run = Some(ScheduledRun { timeout_id, arg });
+        }
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        Debounce {
+            delay: self.delay,
+            max_delay: Some(self.delay),
         }
     }
 }

@@ -93,7 +93,7 @@ impl DoDebounce for Debounce {
             let timeout_id = window
                 .set_timeout_with_callback_and_timeout_and_arguments_0(
                     closure.as_ref().unchecked_ref(),
-                    (self.delay.as_secs() * 1000) as i32,
+                    (self.delay.as_secs_f64() * 1000.) as i32,
                 )
                 .or_throw("set_timeout");
             state.scheduled_run = Some(ScheduledRun { timeout_id, arg });

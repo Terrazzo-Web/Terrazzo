@@ -9,6 +9,8 @@ use terrazzo_client::prelude::OrElseLog as _;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 
+use super::cancellable::Cancellable;
+
 /// Avoids executing a function too often.
 /// Goal is to avoid flickering and improve UI performance.
 ///
@@ -18,12 +20,16 @@ use wasm_bindgen::prelude::Closure;
 /// // wait > 1 second ...
 /// f(2); // Now this executes the callback and prints "2". "1" never gets printed.
 /// ```
-pub trait DoDebounce {
+pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
     fn with_max_delay(self) -> impl DoDebounce;
+    fn cancellable(self) -> Cancellable<Self> {
+        Cancellable::new(self)
+    }
 }
 
 /// Advanced usage for [DoDebounce].
+#[derive(Clone, Copy)]
 pub struct Debounce {
     /// The inactive delay before the callback gets executed.
     pub delay: Duration,

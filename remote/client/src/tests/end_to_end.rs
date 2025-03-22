@@ -32,7 +32,7 @@ const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
 };
 
 pub struct EndToEnd<'t> {
-    pub client: Client,
+    pub client: Arc<Client>,
     #[expect(unused)]
     pub client_certificate: Arc<PemCertificate>,
     pub server: Arc<Server>,
@@ -47,7 +47,7 @@ impl<'t> EndToEnd<'t> {
 
         let gateway_config = TestGatewayConfig::new();
         let (server, server_handle) = Server::run(gateway_config.clone())
-            .instrument(info_span!("Server"))
+            .instrument(info_span!("TestServer"))
             .await
             .map_err(EndToEndError::SetupServer)?;
         info!("Started the server");
@@ -71,7 +71,7 @@ impl<'t> EndToEnd<'t> {
         let client = Client::new(tunnel_config).map_err(EndToEndError::NewClient)?;
         let client_handle = client
             .run()
-            .instrument(info_span!("Client"))
+            .instrument(info_span!("TestClient"))
             .await
             .map_err(EndToEndError::RunClientError)?;
         info!("The client is running");

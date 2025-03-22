@@ -6,6 +6,7 @@ use futures::StreamExt as _;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite;
 use tonic::transport::Server;
 use tracing::Span;
@@ -27,6 +28,7 @@ impl super::Client {
         &self,
         client_id: ClientId,
         shutdown: F,
+        serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError>
     where
         F: std::future::Future<Output = ()> + Send + Sync + 'static,
@@ -80,6 +82,10 @@ impl super::Client {
             .add_service(HealthServiceServer::new(HealthServiceImpl));
 
         info!("Serving");
+
+        // Signal first time client is ready to serve.
+        serving.take().map(|serving| serving.send(()));
+
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)
             .await?;

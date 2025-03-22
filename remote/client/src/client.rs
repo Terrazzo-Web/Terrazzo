@@ -5,6 +5,7 @@ use connect::ConnectError;
 use futures::FutureExt;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tokio::sync::oneshot;
 use tracing::Instrument;
 use tracing::error;
 use tracing::info;
@@ -50,12 +51,12 @@ declare_identifier!(AuthCode);
 
 impl Client {
     /// Creates a new [Client].
-    pub fn new<C: TunnelConfig>(config: C) -> Result<Self, NewClientError<C>> {
+    pub fn new<C: TunnelConfig>(config: C) -> Result<Arc<Self>, NewClientError<C>> {
         let tls_client = config
             .gateway_pki()
             .to_tls_client(ChainOnlyServerCertificateVerifier)?;
         let tls_server = config.client_certificate().to_tls_server()?;
-        Ok(Client {
+        Ok(Arc::new(Client {
             client_name: config.client_name(),
             uri: format!(
                 "{}/remote/tunnel/{}",
@@ -66,24 +67,29 @@ impl Client {
             tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
             client_service: Arc::new(config.client_service()),
             retry_strategy: config.retry_strategy(),
-        })
+        }))
     }
 
     /// Runs the client and returns a handle to stop the client.
-    pub async fn run(self) -> Result<ServerHandle<()>, ConnectError> {
-        let client_name = &self.client_name;
+    pub async fn run(self: &Arc<Self>) -> Result<ServerHandle<()>, ConnectError> {
+        let this = self.clone();
+        let client_name = &this.client_name;
         let _span = info_span!("Run", %client_name).entered();
         let client_id = ClientId::from(Uuid::new_v4().to_string());
         info!(%client_id, "Allocated new client id");
-        let retry_strategy0 = self.retry_strategy.clone();
+        let retry_strategy0 = this.retry_strategy.clone();
         let mut retry_strategy = retry_strategy0.clone();
         let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
         let shutdown_rx = shutdown_rx.shared();
+        let (serving_tx, serving_rx) = oneshot::channel();
 
         let task = async move {
+            let mut serving_tx = Some(serving_tx);
             loop {
                 let start = Instant::now();
-                let result = self.connect(client_id.clone(), shutdown_rx.clone()).await;
+                let result = this
+                    .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
+                    .await;
                 if let Some(()) = shutdown_rx.peek() {
                     break;
                 }
@@ -108,6 +114,7 @@ impl Client {
             let _ = terminated_tx.send(());
         };
         tokio::spawn(task.in_current_span());
+        let _ = serving_rx.await;
         Ok(handle)
     }
 }

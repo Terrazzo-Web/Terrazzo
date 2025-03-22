@@ -66,6 +66,10 @@ where
             .collect();
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.channels.is_empty()
+    }
+
     /// Returns a channel.
     ///
     /// If a client has ≥ 2 tunnels, the load-balancing algorithm choses

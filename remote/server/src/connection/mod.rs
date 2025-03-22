@@ -112,10 +112,13 @@ impl Connections {
     }
 
     fn remove(self: &Arc<Self>, client_name: ClientName, connection_id: ConnectionId) {
-        let Some(mut connections) = self.cache.get_mut(&client_name) else {
+        let dashmap::Entry::Occupied(mut connections) = self.cache.entry(client_name) else {
             return;
         };
-        connections.value_mut().remove_channel(connection_id);
+        connections.get_mut().remove_channel(connection_id);
+        if connections.get_mut().is_empty() {
+            connections.remove();
+        }
     }
 }
 
@@ -134,7 +137,7 @@ const PERIOD: Duration = if cfg!(debug_assertions) {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum ChannelHealthError {
-    #[error("[{n}]  {0}", n = self.name())]
+    #[error("[{n}] {0}", n = self.name())]
     GrpcError(#[from] tonic::Status),
 
     #[error("[{n}] {0}", n = self.name())]

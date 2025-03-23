@@ -14,7 +14,7 @@ pub enum LoadTrustedStore<'t> {
     File(&'t str),
 }
 
-impl<'t> LoadTrustedStore<'t> {
+impl LoadTrustedStore<'_> {
     pub fn load(self) -> Result<CachedTrustedStoreConfig, LoadTrustedStoreError> {
         match self {
             LoadTrustedStore::Native => {

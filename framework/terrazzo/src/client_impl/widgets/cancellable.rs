@@ -74,6 +74,12 @@ impl Cancellable<()> {
     }
 }
 
+impl Default for Cancellable<()> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S> Cancellable<S> {
     pub fn cancel(&self) {
         self.version.fetch_add(1, SeqCst);

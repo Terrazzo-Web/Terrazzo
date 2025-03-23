@@ -8,14 +8,13 @@ use self::inner::CancellableInner;
 use self::inner::CancellableState;
 use super::debounce::DoDebounce;
 
-#[derive(Clone)]
-pub struct Cancellable<D>(Rc<CancellableInner<D>>);
+pub struct Cancellable<S>(Rc<CancellableInner<S>>);
 
 impl<D: DoDebounce> Cancellable<D> {
-    pub(super) fn new(do_debounce: D) -> Self {
+    pub(super) fn of(do_debounce: D) -> Self {
         Self(Rc::new(CancellableInner {
             version: AtomicUsize::new(0),
-            do_debounce,
+            state: do_debounce,
         }))
     }
 
@@ -26,19 +25,11 @@ impl<D: DoDebounce> Cancellable<D> {
                 f(arg);
             }
         };
-        let f = self.do_debounce.debounce(f);
+        let f = self.state.debounce(f);
 
         let this = self.clone();
         let f = move |arg| f((this.current_version(), arg));
         return f;
-    }
-
-    pub fn cancel(&self) {
-        self.version.fetch_add(1, SeqCst);
-    }
-
-    fn current_version(&self) -> CancellableState {
-        CancellableState(self.version.load(SeqCst))
     }
 }
 
@@ -50,7 +41,7 @@ mod inner {
 
     pub struct CancellableInner<D> {
         pub(super) version: AtomicUsize,
-        pub(super) do_debounce: D,
+        pub(super) state: D,
     }
 
     impl<D> Deref for Cancellable<D> {
@@ -63,4 +54,53 @@ mod inner {
 
     #[derive(PartialEq, Eq)]
     pub(super) struct CancellableState(pub(super) usize);
+}
+
+impl Cancellable<()> {
+    pub fn new() -> Self {
+        ().cancellable()
+    }
+
+    pub fn capture<I, O>(&self, f: impl Fn(I) -> O + 'static) -> impl Fn(I) -> Option<O> + 'static {
+        let this = self.clone();
+        let v = this.current_version();
+        move |i| {
+            if this.current_version() == v {
+                Some(f(i))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl<S> Cancellable<S> {
+    pub fn cancel(&self) {
+        self.version.fetch_add(1, SeqCst);
+    }
+
+    fn current_version(&self) -> CancellableState {
+        CancellableState(self.version.load(SeqCst))
+    }
+}
+
+impl<S> Clone for Cancellable<S> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::widgets::debounce::DoDebounce;
+
+    #[test]
+    fn cancellable_function() {
+        let handle = ().cancellable();
+        let f = handle.capture(|a: i32| a * a);
+        assert_eq!(Some(4), f(2));
+        assert_eq!(Some(4), f(2));
+        handle.cancel();
+        assert_eq!(None, f(2));
+    }
 }

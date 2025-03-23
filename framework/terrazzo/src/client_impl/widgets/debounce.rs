@@ -24,7 +24,7 @@ pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
-        Cancellable::new(self)
+        Cancellable::of(self)
     }
 }
 
@@ -105,6 +105,16 @@ impl DoDebounce for Debounce {
             delay: self.delay,
             max_delay: Some(self.delay),
         }
+    }
+}
+
+impl DoDebounce for () {
+    fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
+        f
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        self
     }
 }
 

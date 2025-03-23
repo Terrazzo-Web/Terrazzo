@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use bytes::Bytes;
 use connection_id::ConnectionId;
 use dashmap::DashMap;
 use nameth::NamedEnumValues as _;
@@ -10,11 +9,7 @@ use nameth::nameth;
 use scopeguard::defer;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
-use tonic::body::BoxBody;
-use tonic::client::GrpcService;
-use tonic::transport::Body;
 use tonic::transport::Channel;
-use tower::BoxError;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
@@ -158,12 +153,7 @@ impl Connections {
     pub fn get_client(
         &self,
         client_name: &ClientName,
-    ) -> Option<
-        impl GrpcService<
-            BoxBody,
-            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
-        > + use<>,
-    > {
+    ) -> Option<pending_requests::PendingRequests<Channel>> {
         self.cache
             .get_mut(client_name)
             .and_then(|mut c| c.get_channel())

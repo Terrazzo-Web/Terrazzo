@@ -1,12 +1,6 @@
-use std::marker::Send;
-
 use axum::http;
-use bytes::Bytes;
 use tonic::body::BoxBody;
-use tonic::client::GrpcService;
-use tonic::transport::Body;
 use tonic::transport::channel::ResponseFuture;
-use tower::BoxError;
 use tower::Service;
 use tower::load::Load as _;
 use tower::util::rng::HasherRng;
@@ -74,14 +68,7 @@ where
     ///
     /// If a client has ≥ 2 tunnels, the load-balancing algorithm choses
     /// channels that have less load based on the number of running requests.
-    pub fn get_channel(
-        &mut self,
-    ) -> Option<
-        impl GrpcService<
-            BoxBody,
-            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
-        > + use<S>,
-    > {
+    pub fn get_channel(&mut self) -> Option<PendingRequests<S>> {
         let count = self.channels.len();
         if count < 2 {
             return if count == 0 {

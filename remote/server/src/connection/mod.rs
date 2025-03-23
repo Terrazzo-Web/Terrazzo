@@ -146,8 +146,8 @@ pub enum ChannelHealthError {
 }
 
 impl Connections {
-    pub fn clients(&self) -> impl Iterator<Item = ClientName> + '_ {
-        self.cache.iter().map(|entry| entry.key().clone())
+    pub fn clients(&self) -> Vec<ClientName> {
+        self.cache.iter().map(|entry| entry.key().clone()).collect()
     }
 
     pub fn get_client(

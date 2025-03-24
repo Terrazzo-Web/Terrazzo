@@ -83,11 +83,11 @@ proc-macro2 = { version = "1.0.94" }
 prost = { version = "0.13.5" }
 prost-types = { version = "0.13.5" }
 quote = { version = "1.0.40" }
-reqwest = { version = "0.12.14" }
+reqwest = { version = "0.12.15" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rsass-macros = { version = "0.29.0" }
-rustix = { version = "1.0.2" }
+rustix = { version = "1.0.3" }
 rustls = { version = "0.23.25" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
@@ -96,7 +96,7 @@ serde_json = { version = "1.0.140" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.5.5" }
 syn = { version = "2.0.100" }
-tempfile = { version = "3.19.0" }
+tempfile = { version = "3.19.1" }
 thiserror = { version = "2.0.12" }
 tokio = { version = "1.44.1" }
 tokio-rustls = { version = "0.26.2" }

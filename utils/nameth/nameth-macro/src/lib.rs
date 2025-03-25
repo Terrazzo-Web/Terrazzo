@@ -51,9 +51,10 @@ fn process_struct(crate_name: &Ident, item_struct: syn::ItemStruct) -> TokenStre
         ident, generics, ..
     } = item_struct;
     let name = ident.to_string();
+    let without_defaults = without_defaults(&generics);
     let param_names_only = param_names_only(&generics);
     quote! {
-        impl #generics #crate_name::NamedType for #ident #param_names_only {
+        impl #without_defaults #crate_name::NamedType for #ident #param_names_only {
             fn type_name() -> &'static str {
                 return #name;
             }
@@ -78,15 +79,16 @@ fn process_enum(crate_name: &Ident, item_enum: syn::ItemEnum) -> TokenStream {
         })
         .collect();
 
+    let without_defaults = without_defaults(&generics);
     let param_names_only = param_names_only(&generics);
     let name = ident.to_string();
     quote! {
-        impl #generics #crate_name::NamedType for #ident #param_names_only {
+        impl #without_defaults #crate_name::NamedType for #ident #param_names_only {
             fn type_name() -> &'static str {
                 return #name;
             }
         }
-        impl #generics #crate_name::NamedEnumValues for #ident #param_names_only {
+        impl #without_defaults #crate_name::NamedEnumValues for #ident #param_names_only {
             fn name(&self) -> &'static str {
                 match self {
                     #(#cases)*
@@ -114,34 +116,44 @@ struct NamedMacroArgs {
 }
 
 fn param_names_only(generics: &syn::Generics) -> syn::Generics {
-    let mut generics = generics.clone();
+    let mut generics = without_defaults(generics);
     for param in &mut generics.params {
         match param {
             syn::GenericParam::Lifetime(syn::LifetimeParam {
-                attrs,
                 colon_token,
                 bounds,
                 ..
             }) => {
-                *attrs = vec![];
                 *colon_token = None;
                 *bounds = syn::punctuated::Punctuated::default()
             }
             syn::GenericParam::Type(syn::TypeParam {
-                attrs,
                 colon_token,
                 bounds,
-                eq_token,
-                default,
                 ..
             }) => {
-                *attrs = vec![];
                 *colon_token = None;
                 *bounds = syn::punctuated::Punctuated::default();
+            }
+            syn::GenericParam::Const(syn::ConstParam {
+                eq_token, default, ..
+            }) => {
                 *eq_token = None;
                 *default = None;
             }
-            syn::GenericParam::Const(syn::ConstParam {
+        }
+    }
+    generics
+}
+
+fn without_defaults(generics: &syn::Generics) -> syn::Generics {
+    let mut generics = generics.clone();
+    for param in &mut generics.params {
+        match param {
+            syn::GenericParam::Lifetime(syn::LifetimeParam { attrs, .. }) => {
+                *attrs = vec![];
+            }
+            syn::GenericParam::Type(syn::TypeParam {
                 attrs,
                 eq_token,
                 default,
@@ -150,6 +162,9 @@ fn param_names_only(generics: &syn::Generics) -> syn::Generics {
                 *attrs = vec![];
                 *eq_token = None;
                 *default = None;
+            }
+            syn::GenericParam::Const(syn::ConstParam { attrs, .. }) => {
+                *attrs = vec![];
             }
         }
     }

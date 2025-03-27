@@ -145,18 +145,18 @@ pub enum MakeCertError {
 impl IsHttpError for MakeCertError {
     fn status_code(&self) -> StatusCode {
         match self {
-            MakeCertError::ParsePublicKey { .. } => StatusCode::BAD_REQUEST,
-            MakeCertError::MakeName(error) => error.status_code(),
-            MakeCertError::SetCommonFieldsError(error) => error.status_code(),
-            MakeCertError::AppendCustomExtension { .. } => StatusCode::BAD_REQUEST,
-            MakeCertError::NewBuilder { .. }
-            | MakeCertError::SetPublicKey { .. }
-            | MakeCertError::BasicConstraints { .. }
-            | MakeCertError::KeyUsage { .. }
-            | MakeCertError::ExtendedKeyUsage { .. }
-            | MakeCertError::AuthorityKeyIdentifier { .. }
-            | MakeCertError::SubjectAlternativeName { .. }
-            | MakeCertError::Sign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ParsePublicKey { .. } => StatusCode::BAD_REQUEST,
+            Self::MakeName(error) => error.status_code(),
+            Self::SetCommonFieldsError(error) => error.status_code(),
+            Self::AppendCustomExtension { .. } => StatusCode::BAD_REQUEST,
+            Self::NewBuilder { .. }
+            | Self::SetPublicKey { .. }
+            | Self::BasicConstraints { .. }
+            | Self::KeyUsage { .. }
+            | Self::ExtendedKeyUsage { .. }
+            | Self::AuthorityKeyIdentifier { .. }
+            | Self::SubjectAlternativeName { .. }
+            | Self::Sign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

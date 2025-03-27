@@ -62,9 +62,9 @@ pub enum MakeNameError {
 impl IsHttpError for MakeNameError {
     fn status_code(&self) -> StatusCode {
         match self {
-            MakeNameError::NewBuilder { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MakeNameError::InvalidValue { .. } => StatusCode::BAD_REQUEST,
-            MakeNameError::InvalidField { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::NewBuilder { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidValue { .. } => StatusCode::BAD_REQUEST,
+            Self::InvalidField { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

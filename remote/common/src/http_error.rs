@@ -12,7 +12,7 @@ pub trait IsHttpError: std::error::Error + Sized {
 /// A wrapper to translate errors into http [Response]s.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error(transparent)]
-pub struct HttpError<E>(#[from] E);
+pub struct HttpError<E: IsHttpError>(#[from] E);
 
 impl<E: IsHttpError> IntoResponse for HttpError<E> {
     fn into_response(self) -> Response {

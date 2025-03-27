@@ -124,11 +124,11 @@ pub enum MakePemCertificateError {
 impl IsHttpError for GetCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
-            GetCertificateError::InvalidAuthCode => StatusCode::FORBIDDEN,
-            GetCertificateError::MakeCert(error) => error.status_code(),
-            GetCertificateError::Validity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            GetCertificateError::InvalidPublicKeyPem { .. } => StatusCode::BAD_REQUEST,
-            GetCertificateError::MakeSignedExtension { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidAuthCode => StatusCode::FORBIDDEN,
+            Self::MakeCert(error) => error.status_code(),
+            Self::Validity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidPublicKeyPem { .. } => StatusCode::BAD_REQUEST,
+            Self::MakeSignedExtension { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -136,8 +136,8 @@ impl IsHttpError for GetCertificateError {
 impl IsHttpError for MakePemCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
-            MakePemCertificateError::MakeCert(error) => error.status_code(),
-            MakePemCertificateError::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::MakeCert(error) => error.status_code(),
+            Self::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

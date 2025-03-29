@@ -1,5 +1,5 @@
 use axum::http;
-use tonic::body::BoxBody;
+use tonic::body::Body;
 use tonic::transport::channel::ResponseFuture;
 use tower::Service;
 use tower::load::Load as _;
@@ -14,7 +14,7 @@ use super::pending_requests::PendingRequests;
 /// A struct that maintains a list of channels for a given client.
 ///
 /// A client can open multiple tunnels with the Terrazzo Gateway.
-pub struct IncomingClients<S: Service<http::Request<BoxBody>>> {
+pub struct IncomingClients<S: Service<http::Request<Body>>> {
     channels: Vec<ChannelWithId<S>>,
     rng: HasherRng,
 }
@@ -27,8 +27,8 @@ struct ChannelWithId<S> {
 impl<S> IncomingClients<S>
 where
     S: Service<
-            http::Request<BoxBody>,
-            Response = http::Response<BoxBody>,
+            http::Request<Body>,
+            Response = http::Response<Body>,
             Future = ResponseFuture,
             Error = tonic::transport::Error,
         > + Clone

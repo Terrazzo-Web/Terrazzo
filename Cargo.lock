@@ -114,7 +114,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autoclone"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "clone-macro",
  "darling",
@@ -126,7 +126,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "autoclone",
 ]
@@ -1600,14 +1600,14 @@ checksum = "defc4c55412d89136f966bbb339008b474350e5e6e78d2714439c386b3137a03"
 
 [[package]]
 name = "nameth"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "darling",
  "quote",
@@ -1616,7 +1616,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "nameth",
 ]
@@ -2641,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "autoclone",
  "axum",
@@ -2664,7 +2664,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "nameth",
  "thiserror 2.0.12",
@@ -2672,7 +2672,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "autoclone",
  "nameth",
@@ -2688,7 +2688,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "nameth",
  "scopeguard",
@@ -2707,11 +2707,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "deluxe",
  "prettyplease",
@@ -3137,7 +3137,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "futures",
  "hostname",
@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "axum",
  "bytes",
@@ -3197,7 +3197,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "autoclone",
  "axum",

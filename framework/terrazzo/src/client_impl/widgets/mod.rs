@@ -1,5 +1,6 @@
 //! Reusable UI components.
 
+pub mod cancellable;
 pub mod debounce;
 pub mod editable;
 pub mod link;

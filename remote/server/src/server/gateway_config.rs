@@ -41,6 +41,6 @@ pub trait GatewayConfig: IsGlobal {
 
     /// Configures the routes served by Terrazzo Gateway HTTP server.
     fn app_config(&self) -> impl AppConfig {
-        |router| router
+        |_server, router| router
     }
 }

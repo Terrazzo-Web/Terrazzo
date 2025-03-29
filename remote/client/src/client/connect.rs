@@ -1,5 +1,7 @@
 use std::future::ready;
+use std::sync::Arc;
 
+use futures::FutureExt;
 use futures::StreamExt as _;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
@@ -22,11 +24,11 @@ use super::health::HealthServiceImpl;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
-    pub async fn connect<F>(
+    pub(super) async fn connect<F>(
         &self,
         client_id: ClientId,
         shutdown: F,
-        terminated: oneshot::Sender<()>,
+        serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError>
     where
         F: std::future::Future<Output = ()> + Send + Sync + 'static,
@@ -49,8 +51,8 @@ impl super::Client {
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
 
-        let stream = TungsteniteWebSocketIo::to_async_io(web_socket);
-
+        let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
+        let eos = eos.map(|r| r.map_err(Arc::new)).shared();
         let tls_stream = self
             .tls_server
             .accept(stream)
@@ -58,9 +60,10 @@ impl super::Client {
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
+        let eos2 = eos.clone();
         let incoming = futures::stream::once(ready(Ok(connection)))
             .chain(futures::stream::once(async move {
-                let () = shutdown.await;
+                let () = eos2.await.map_err(ConnectError::Stream)?;
                 Err(ConnectError::Disconnected)
             }))
             .in_current_span();
@@ -78,16 +81,18 @@ impl super::Client {
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl));
 
-        tokio::spawn(
-            async move {
-                match grpc_server.serve_with_incoming(incoming).await {
-                    Ok(()) => info!("Finished"),
-                    Err(error) => info!("Failed: {error}"),
-                }
-                let _ = terminated.send(());
-            }
-            .in_current_span(),
-        );
+        info!("Serving");
+
+        // Signal first time client is ready to serve.
+        serving.take().map(|serving| serving.send(()));
+
+        let () = grpc_server
+            .serve_with_incoming_shutdown(incoming, shutdown)
+            .await?;
+        if let Some(eos) = eos.peek().cloned() {
+            let () = eos.map_err(ConnectError::Stream)?;
+        }
+        info!("Done");
         Ok(())
     }
 }
@@ -105,7 +110,10 @@ pub enum ConnectError {
     Accept(std::io::Error),
 
     #[error("[{n}] {0}", n = self.name())]
-    TunnelFailure(#[from] tonic::transport::Error),
+    Tunnel(#[from] tonic::transport::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    Stream(Arc<std::io::Error>),
 
     #[error("[{n}] The client got disconnected", n = self.name())]
     Disconnected,

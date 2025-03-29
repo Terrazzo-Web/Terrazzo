@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use bytes::Bytes;
 use connection_id::ConnectionId;
 use dashmap::DashMap;
 use nameth::NamedEnumValues as _;
@@ -10,11 +9,7 @@ use nameth::nameth;
 use scopeguard::defer;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
-use tonic::body::BoxBody;
-use tonic::client::GrpcService;
-use tonic::transport::Body;
 use tonic::transport::Channel;
-use tower::BoxError;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
@@ -84,11 +79,14 @@ impl Connections {
         let mut health_client = HealthServiceClient::new(channel);
         let health_check_loop = async move {
             loop {
+                let start = Instant::now();
                 let pong = health_client.ping_pong(Ping {
                     connection_id: connection_id.to_string(),
                     ..Ping::default()
                 });
                 timeout(TIMEOUT, pong).await??;
+                let latency = Instant::now() - start;
+                info!(?latency, "Ping");
 
                 let start = Instant::now();
                 let pong = health_client.ping_pong(Ping {
@@ -109,10 +107,13 @@ impl Connections {
     }
 
     fn remove(self: &Arc<Self>, client_name: ClientName, connection_id: ConnectionId) {
-        let Some(mut connections) = self.cache.get_mut(&client_name) else {
+        let dashmap::Entry::Occupied(mut connections) = self.cache.entry(client_name) else {
             return;
         };
-        connections.value_mut().remove_channel(connection_id);
+        connections.get_mut().remove_channel(connection_id);
+        if connections.get_mut().is_empty() {
+            connections.remove();
+        }
     }
 }
 
@@ -123,7 +124,7 @@ const TIMEOUT: Duration = if cfg!(debug_assertions) {
 };
 
 const PERIOD: Duration = if cfg!(debug_assertions) {
-    Duration::from_secs(10)
+    Duration::from_secs(5)
 } else {
     Duration::from_secs(3 * 60 + 45)
 };
@@ -131,7 +132,7 @@ const PERIOD: Duration = if cfg!(debug_assertions) {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum ChannelHealthError {
-    #[error("[{n}]  {0}", n = self.name())]
+    #[error("[{n}] {0}", n = self.name())]
     GrpcError(#[from] tonic::Status),
 
     #[error("[{n}] {0}", n = self.name())]
@@ -145,19 +146,14 @@ pub enum ChannelHealthError {
 }
 
 impl Connections {
-    pub fn clients(&self) -> impl Iterator<Item = ClientName> + '_ {
-        self.cache.iter().map(|entry| entry.key().clone())
+    pub fn clients(&self) -> Vec<ClientName> {
+        self.cache.iter().map(|entry| entry.key().clone()).collect()
     }
 
     pub fn get_client(
         &self,
         client_name: &ClientName,
-    ) -> Option<
-        impl GrpcService<
-            BoxBody,
-            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<>> + use<>,
-        > + use<>,
-    > {
+    ) -> Option<pending_requests::PendingRequests<Channel>> {
         self.cache
             .get_mut(client_name)
             .and_then(|mut c| c.get_channel())

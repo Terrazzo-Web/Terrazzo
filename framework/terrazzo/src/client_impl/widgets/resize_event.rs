@@ -26,11 +26,13 @@ impl ResizeEvent {
     /// This method must be called once at page start-up time.
     pub fn set_up(window: &Window) {
         let closure = owned_closure::XOwnedClosure::new1(|self_drop| {
-            Duration::from_millis(200).debounce(move |resize_event: JsValue| {
-                let _self_drop = &self_drop;
-                debug!("Window resized: {resize_event:?}");
-                ResizeEvent::signal().force(())
-            })
+            Duration::from_millis(200)
+                .with_max_delay()
+                .debounce(move |resize_event: JsValue| {
+                    let _self_drop = &self_drop;
+                    debug!("Window resized: {resize_event:?}");
+                    ResizeEvent::signal().force(())
+                })
         });
         let function = closure.as_function().or_throw("as_function()");
         window

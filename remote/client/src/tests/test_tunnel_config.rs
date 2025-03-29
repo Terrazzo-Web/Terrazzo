@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelServiceServer;
@@ -9,17 +10,18 @@ use super::calculator;
 use super::test_client_config::TestClientConfig;
 use crate::client_config::ClientConfig;
 use crate::client_service::ClientService;
+use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 
 #[derive(Debug)]
 pub struct TestTunnelConfig<G> {
-    client_config: Arc<TestClientConfig<G>>,
+    client_config: TestClientConfig<G>,
     client_certificate: Arc<PemCertificate>,
 }
 
 impl<G> TestTunnelConfig<G> {
     pub fn new(
-        client_config: Arc<TestClientConfig<G>>,
+        client_config: TestClientConfig<G>,
         client_certificate: Arc<PemCertificate>,
     ) -> Self {
         Self {
@@ -53,6 +55,14 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
     fn client_service(&self) -> impl ClientService {
         |mut server: tonic::transport::Server| {
             server.add_service(TestTunnelServiceServer::new(calculator::Calculator))
+        }
+    }
+
+    fn retry_strategy(&self) -> RetryStrategy {
+        RetryStrategy {
+            delay: Duration::from_secs(1),
+            exponent: 2.,
+            max_delay: Duration::from_secs(60),
         }
     }
 }

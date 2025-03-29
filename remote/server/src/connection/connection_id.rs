@@ -1,14 +1,15 @@
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::SeqCst;
 
 /// A unique identifier for a client connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConnectionId(usize);
 
-static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(0);
+static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
 
 impl ConnectionId {
     pub fn next() -> Self {
-        Self(NEXT_CONNECTION_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst))
+        Self(NEXT_CONNECTION_ID.fetch_add(1, SeqCst))
     }
 }
 

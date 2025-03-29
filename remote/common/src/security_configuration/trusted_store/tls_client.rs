@@ -11,6 +11,8 @@ use rustls::pki_types::CertificateDer;
 use rustls::pki_types::ServerName;
 use rustls::pki_types::UnixTime;
 use rustls::server::VerifierBuilderError;
+use tracing::info;
+use tracing::info_span;
 
 use super::TrustedStoreConfig;
 use super::root_cert_store::ToRootCertStore;
@@ -39,8 +41,10 @@ where
     T: TrustedStoreConfig,
     V: CustomServerCertificateVerifier + 'static,
 {
+    let _span = info_span!("Setup TLS client").entered();
     let root_store = Arc::new(trusted_store_config.to_root_cert_store()?);
     let builder = if V::has_custom_logic() {
+        info!("Use root certificates + custom server certificate verifier");
         ClientConfig::builder()
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(CustomWebPkiServerVerifier {
@@ -48,6 +52,7 @@ where
                 chain: WebPkiServerVerifier::builder(root_store).build()?,
             }))
     } else {
+        info!("Use root certificates");
         ClientConfig::builder().with_root_certificates(root_store)
     };
     Ok(builder.with_no_client_auth())

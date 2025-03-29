@@ -21,6 +21,13 @@ fn nameth_struct() {
     #[nameth]
     struct GenericStruct<T, U: std::fmt::Display>(T, U);
     assert_eq!("GenericStruct", GenericStruct::<i32, i32>::type_name());
+
+    #[nameth]
+    struct GenericStructWithDefaults<T = String, U: std::fmt::Display = &'static str>(T, U);
+    assert_eq!(
+        "GenericStructWithDefaults",
+        GenericStructWithDefaults::<i32, i32>::type_name()
+    );
 }
 
 #[test]
@@ -51,6 +58,17 @@ fn nameth_enum() {
         B(U),
     }
     assert_eq!("GenericEnum", GenericEnum::<i32, i32>::type_name());
+
+    #[nameth]
+    #[expect(unused)]
+    enum GenericEnumWithDefaults<T = usize, U: std::fmt::Display = String> {
+        A(T),
+        B(U),
+    }
+    assert_eq!(
+        "GenericEnumWithDefaults",
+        GenericEnumWithDefaults::<i32, i32>::type_name()
+    );
 }
 
 #[test]

@@ -3,31 +3,37 @@ use nameth::nameth;
 use openssl::error::ErrorStack;
 use rustls::ServerConfig;
 use tracing::debug;
+use tracing::info;
+use tracing::info_span;
 
 use super::CertificateConfig;
 use crate::security_configuration::certificate::display_x509_certificate;
 
 /// Create a RusTLS [ServerConfig] from a [CertificateConfig].
 pub trait ToTlsServer: CertificateConfig {
-    fn to_tls_server(
-        &self,
-    ) -> impl Future<Output = Result<ServerConfig, ToTlsServerError<Self::Error>>> {
+    fn to_tls_server(&self) -> Result<ServerConfig, ToTlsServerError<Self::Error>> {
         to_tls_server_impl(self)
     }
 }
 
 impl<T: CertificateConfig> ToTlsServer for T {}
 
-async fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
+fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
     certificate_config: &T,
 ) -> Result<ServerConfig, ToTlsServerError<T::Error>> {
+    let _span = info_span!("Setup TLS server certificate").entered();
     let certificate = certificate_config
         .certificate()
         .map_err(ToTlsServerError::Certificate)?;
 
     let mut certificate_chain = vec![];
     {
-        debug!("Add leaf certificate: {}", certificate.display());
+        info!(
+            "Server certificate: {:?} issued by {:?}",
+            certificate.certificate.subject_name(),
+            certificate.certificate.issuer_name()
+        );
+        debug!("Server certificate details:  {}", certificate.display());
         let certificate = certificate.certificate.to_der();
         let certificate = certificate.map_err(ToTlsServerError::CertificateToDer)?;
         certificate_chain.push(certificate.into());
@@ -37,8 +43,13 @@ async fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
         .map_err(ToTlsServerError::Intermediates)?
         .iter()
     {
+        info!(
+            "Intermediate certificate: {:?} issued by {:?}",
+            intermediate.subject_name(),
+            intermediate.issuer_name()
+        );
         debug!(
-            "Add intermediate: {}",
+            "Intermediate certificate details:  {}",
             display_x509_certificate(intermediate)
         );
         let intermediate = intermediate.to_der();

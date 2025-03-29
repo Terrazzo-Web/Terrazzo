@@ -1,12 +1,6 @@
-use std::marker::Send;
-
 use axum::http;
-use bytes::Bytes;
-use tonic::body::BoxBody;
-use tonic::client::GrpcService;
-use tonic::transport::Body;
+use tonic::body::Body;
 use tonic::transport::channel::ResponseFuture;
-use tower::BoxError;
 use tower::Service;
 use tower::load::Load as _;
 use tower::util::rng::HasherRng;
@@ -20,7 +14,7 @@ use super::pending_requests::PendingRequests;
 /// A struct that maintains a list of channels for a given client.
 ///
 /// A client can open multiple tunnels with the Terrazzo Gateway.
-pub struct IncomingClients<S: Service<http::Request<BoxBody>>> {
+pub struct IncomingClients<S: Service<http::Request<Body>>> {
     channels: Vec<ChannelWithId<S>>,
     rng: HasherRng,
 }
@@ -33,8 +27,8 @@ struct ChannelWithId<S> {
 impl<S> IncomingClients<S>
 where
     S: Service<
-            http::Request<BoxBody>,
-            Response = http::Response<BoxBody>,
+            http::Request<Body>,
+            Response = http::Response<Body>,
             Future = ResponseFuture,
             Error = tonic::transport::Error,
         > + Clone
@@ -66,18 +60,15 @@ where
             .collect();
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.channels.is_empty()
+    }
+
     /// Returns a channel.
     ///
     /// If a client has ≥ 2 tunnels, the load-balancing algorithm choses
     /// channels that have less load based on the number of running requests.
-    pub fn get_channel(
-        &mut self,
-    ) -> Option<
-        impl GrpcService<
-            BoxBody,
-            ResponseBody = impl Body<Data = Bytes, Error = impl Into<BoxError> + Send + use<S>> + use<S>,
-        > + use<S>,
-    > {
+    pub fn get_channel(&mut self) -> Option<PendingRequests<S>> {
         let count = self.channels.len();
         if count < 2 {
             return if count == 0 {

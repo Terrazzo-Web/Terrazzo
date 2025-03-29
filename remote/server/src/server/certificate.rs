@@ -9,6 +9,7 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::x509::X509Extension;
 use pem::PemError;
+use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::http_error::IsHttpError;
@@ -35,6 +36,11 @@ impl Server {
         Json(request): Json<GetCertificateRequest<AuthCode>>,
     ) -> Result<String, HttpError<GetCertificateError>> {
         if !request.auth_code.is_valid() {
+            info!(
+                "Invalid auth code. Got '{}' expected '{}'",
+                request.auth_code,
+                AuthCode::current()
+            );
             return Err(GetCertificateError::InvalidAuthCode)?;
         }
         Ok(self.make_pem_cert(request)?)
@@ -118,11 +124,11 @@ pub enum MakePemCertificateError {
 impl IsHttpError for GetCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
-            GetCertificateError::InvalidAuthCode => StatusCode::FORBIDDEN,
-            GetCertificateError::MakeCert(error) => error.status_code(),
-            GetCertificateError::Validity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            GetCertificateError::InvalidPublicKeyPem { .. } => StatusCode::BAD_REQUEST,
-            GetCertificateError::MakeSignedExtension { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidAuthCode => StatusCode::FORBIDDEN,
+            Self::MakeCert(error) => error.status_code(),
+            Self::Validity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidPublicKeyPem { .. } => StatusCode::BAD_REQUEST,
+            Self::MakeSignedExtension { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -130,8 +136,8 @@ impl IsHttpError for GetCertificateError {
 impl IsHttpError for MakePemCertificateError {
     fn status_code(&self) -> StatusCode {
         match self {
-            MakePemCertificateError::MakeCert(error) => error.status_code(),
-            MakePemCertificateError::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::MakeCert(error) => error.status_code(),
+            Self::PemString { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

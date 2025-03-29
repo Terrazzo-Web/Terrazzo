@@ -9,6 +9,7 @@ pub mod protos;
 pub mod security_configuration;
 pub mod to_async_io;
 pub mod tracing;
+pub mod unwrap_infallible;
 pub mod x509;
 
 // Ensures ring crate version is called out in Cargo.toml so dependabot keeps it up-to-date.

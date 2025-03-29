@@ -9,6 +9,8 @@ use terrazzo_client::prelude::OrElseLog as _;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 
+use super::cancellable::Cancellable;
+
 /// Avoids executing a function too often.
 /// Goal is to avoid flickering and improve UI performance.
 ///
@@ -18,11 +20,16 @@ use wasm_bindgen::prelude::Closure;
 /// // wait > 1 second ...
 /// f(2); // Now this executes the callback and prints "2". "1" never gets printed.
 /// ```
-pub trait DoDebounce {
+pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
+    fn with_max_delay(self) -> impl DoDebounce;
+    fn cancellable(self) -> Cancellable<Self> {
+        Cancellable::of(self)
+    }
 }
 
 /// Advanced usage for [DoDebounce].
+#[derive(Clone, Copy)]
 pub struct Debounce {
     /// The inactive delay before the callback gets executed.
     pub delay: Duration,
@@ -38,9 +45,16 @@ impl DoDebounce for Duration {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         Debounce {
             delay: self,
-            max_delay: Some(self),
+            max_delay: None,
         }
         .debounce(f)
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        Debounce {
+            delay: self,
+            max_delay: Some(self),
+        }
     }
 }
 
@@ -79,11 +93,28 @@ impl DoDebounce for Debounce {
             let timeout_id = window
                 .set_timeout_with_callback_and_timeout_and_arguments_0(
                     closure.as_ref().unchecked_ref(),
-                    (self.delay.as_secs() * 1000) as i32,
+                    (self.delay.as_secs_f64() * 1000.) as i32,
                 )
                 .or_throw("set_timeout");
             state.scheduled_run = Some(ScheduledRun { timeout_id, arg });
         }
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        Debounce {
+            delay: self.delay,
+            max_delay: Some(self.delay),
+        }
+    }
+}
+
+impl DoDebounce for () {
+    fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
+        f
+    }
+
+    fn with_max_delay(self) -> impl DoDebounce {
+        self
     }
 }
 

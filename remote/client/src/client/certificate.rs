@@ -14,7 +14,7 @@ use crate::client_config::ClientConfig;
 
 /// API to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
-    client_config: impl ClientConfig,
+    client_config: &impl ClientConfig,
     http_client: Client,
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,

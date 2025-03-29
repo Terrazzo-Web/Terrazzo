@@ -22,7 +22,7 @@ use super::test_gateway_config::use_temp_dir;
 use super::test_tunnel_config::TestTunnelConfig;
 use crate::client::Client;
 use crate::client::NewClientError;
-use crate::client::RunClientError;
+use crate::client::connect::ConnectError;
 use crate::load_client_certificate::LoadClientCertificateError;
 use crate::load_client_certificate::load_client_certificate;
 
@@ -32,7 +32,7 @@ const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
 };
 
 pub struct EndToEnd<'t> {
-    pub client: Client,
+    pub client: Arc<Client>,
     #[expect(unused)]
     pub client_certificate: Arc<PemCertificate>,
     pub server: Arc<Server>,
@@ -47,21 +47,18 @@ impl<'t> EndToEnd<'t> {
 
         let gateway_config = TestGatewayConfig::new();
         let (server, server_handle) = Server::run(gateway_config.clone())
-            .instrument(info_span!("Server"))
+            .instrument(info_span!("TestServer"))
             .await
             .map_err(EndToEndError::SetupServer)?;
         info!("Started the server");
 
         let client_name = ClientName::from("EndToEndClient");
-        let client_config = Arc::new(TestClientConfig::new(
-            gateway_config.clone(),
-            client_name.clone(),
-        ));
+        let client_config = TestClientConfig::new(gateway_config.clone(), client_name.clone());
 
         let auth_code = AuthCode::current().to_string();
         let client_certificate = Arc::new(
             load_client_certificate(
-                client_config.clone(),
+                &client_config,
                 auth_code.into(),
                 CLIENT_CERT_FILENAME.map(|filename| temp_dir.path().join(filename)),
             )
@@ -70,14 +67,11 @@ impl<'t> EndToEnd<'t> {
         );
         info!("Got the client certificate");
 
-        let tunnel_config =
-            TestTunnelConfig::new(client_config.clone(), client_certificate.clone());
-        let client = Client::new(tunnel_config)
-            .await
-            .map_err(EndToEndError::NewClient)?;
+        let tunnel_config = TestTunnelConfig::new(client_config, client_certificate.clone());
+        let client = Client::new(tunnel_config).map_err(EndToEndError::NewClient)?;
         let client_handle = client
             .run()
-            .instrument(info_span!("Client"))
+            .instrument(info_span!("TestClient"))
             .await
             .map_err(EndToEndError::RunClientError)?;
         info!("The client is running");
@@ -120,15 +114,13 @@ pub enum EndToEndError {
     SetupServer(GatewayError<Arc<TestGatewayConfig>>),
 
     #[error("[{n}] {0}", n = self.name())]
-    LoadClientCertificate(
-        LoadClientCertificateError<Arc<TestClientConfig<Arc<TestGatewayConfig>>>>,
-    ),
+    LoadClientCertificate(LoadClientCertificateError<TestClientConfig<Arc<TestGatewayConfig>>>),
 
     #[error("[{n}] {0}", n = self.name())]
     NewClient(NewClientError<TestTunnelConfig<Arc<TestGatewayConfig>>>),
 
     #[error("[{n}] {0}", n = self.name())]
-    RunClientError(RunClientError),
+    RunClientError(ConnectError),
 
     #[error("[{n}] {0}", n = self.name())]
     TestTimeout(Elapsed),

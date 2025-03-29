@@ -8,6 +8,7 @@ use futures::Stream;
 use futures::StreamExt as _;
 use nameth::NamedType as _;
 use nameth::nameth;
+use tokio::sync::oneshot;
 use tokio_util::io::CopyToBytes;
 use tokio_util::io::SinkWriter;
 use tokio_util::io::StreamReader;
@@ -25,7 +26,10 @@ pub trait WebSocketIo {
     fn to_async_io(
         web_socket: impl Stream<Item = Result<Self::Message, Self::Error>>
         + Sink<Self::Message, Error = Self::Error>,
-    ) -> impl tokio::io::AsyncRead + tokio::io::AsyncWrite
+    ) -> (
+        impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
+        impl Future<Output = std::io::Result<()>>,
+    )
     where
         Self: Sized,
     {
@@ -46,14 +50,23 @@ struct WriteError<E>(E);
 fn to_async_io_impl<IO: WebSocketIo>(
     web_socket: impl Stream<Item = Result<IO::Message, IO::Error>>
     + Sink<IO::Message, Error = IO::Error>,
-) -> impl tokio::io::AsyncRead + tokio::io::AsyncWrite {
+) -> (
+    impl tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    impl Future<Output = std::io::Result<()>>,
+) {
+    let (error_tx, error_rx) = oneshot::channel();
+    let mut error_tx = Some(error_tx);
     let (sink, stream) = web_socket.split();
 
     let reader = {
-        StreamReader::new(stream.map(|message| {
-            message.map(IO::into_data).map_err(|error: IO::Error| {
-                std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error))
-            })
+        StreamReader::new(stream.map(move |message| {
+            let message = message.map(IO::into_data).map_err(|error: IO::Error| {
+                let error = std::io::Error::new(ErrorKind::ConnectionAborted, ReadError(error));
+                let error_tx = error_tx.take();
+                error_tx.map(|error_tx| error_tx.send(error));
+                return ErrorKind::ConnectionAborted;
+            });
+            return message;
         }))
     };
 
@@ -65,5 +78,14 @@ fn to_async_io_impl<IO: WebSocketIo>(
         SinkWriter::new(sink)
     };
 
-    tokio::io::join(reader, writer)
+    let eos = Box::pin(async {
+        match error_rx.await {
+            // The stream raised an error.
+            Ok(error) => Err(error),
+
+            // The stream was dropped, finished without raising an error.
+            Err(oneshot::error::RecvError { .. }) => Ok(()),
+        }
+    });
+    (tokio::io::join(reader, writer), eos)
 }

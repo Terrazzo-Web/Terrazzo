@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,23 +45,23 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.6", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.6", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.6", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.6", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.6", path = "framework/build" }
-terrazzo-client = { version = "0.1.6", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.6", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.6", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.6", path = "remote/client" }
-trz-gateway-common = { version = "0.1.6", path = "remote/common" }
-trz-gateway-server = { version = "0.1.6", path = "remote/server" }
+autoclone = { version = "0.1.7", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.7", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.7", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.7", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.7", path = "framework/build" }
+terrazzo-client = { version = "0.1.7", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.7", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.7", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.7", path = "remote/client" }
+trz-gateway-common = { version = "0.1.7", path = "remote/common" }
+trz-gateway-server = { version = "0.1.7", path = "remote/server" }
 
-axum = { version = "0.8.1" }
+axum = { version = "0.8.3" }
 axum-server = { version = "0.7.2" }
 bytes = { version = "1.10.1" }
 cms = { version = "0.2.3" }
-darling = { version = "0.20.10" }
+darling = { version = "0.20.11" }
 dashmap = { version = "6.1.0" }
 deluxe = { version = "0.5.0" }
 futures = { version = "0.3.31" }
@@ -102,8 +102,8 @@ tokio = { version = "1.44.1" }
 tokio-rustls = { version = "0.26.2" }
 tokio-tungstenite = { version = "0.26.1" }
 tokio-util = { version = "0.7.14" }
-tonic = { version = "0.12.3" }
-tonic-build = { version = "0.12.3" }
+tonic = { version = "0.13.0" }
+tonic-build = { version = "0.13.0" }
 tower = { version = "0.5.2" }
 tower-http = { version = "0.6.2" }
 tracing = { version = "0.1.41" }

@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use axum_server::Handle;
 use axum_server::accept::DefaultAcceptor;
@@ -17,9 +18,9 @@ use tokio::sync::oneshot;
 use tokio_rustls::TlsConnector;
 use tracing::Instrument as _;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
@@ -61,7 +62,14 @@ pub struct Server {
 impl Server {
     pub async fn run<C: GatewayConfig>(
         config: C,
-    ) -> Result<(Arc<Self>, ServerHandle<()>), GatewayError<C>> {
+    ) -> Result<
+        (
+            Arc<Self>,
+            ServerHandle<()>,
+            oneshot::Receiver<RunGatewayError>,
+        ),
+        GatewayError<C>,
+    > {
         if config.enable_tracing() {
             trz_gateway_common::tracing::enable_tracing()?;
         }
@@ -119,17 +127,27 @@ impl Server {
 
         let mut terminated = vec![];
 
+        let (server_crash_tx, server_crash_rx) = oneshot::channel();
+        let server_crash_tx = Arc::new(Mutex::new(Some(server_crash_tx)));
         for socket_addr in socket_addrs {
             let _span = info_span!("Listen", %socket_addr).entered();
             info!("Setup server");
             let task = server.clone().run_endpoint(socket_addr);
             let (terminated_tx, terminated_rx) = oneshot::channel();
             terminated.push(terminated_rx);
+            let server_crash_tx = server_crash_tx.clone();
             tokio::spawn(
                 async move {
                     match task.await {
                         Ok(()) => (),
-                        Err(error) => warn!("Failed {error}"),
+                        Err(error) => {
+                            error!("Failed {error}");
+                            if let Some(server_crash_tx) =
+                                server_crash_tx.lock().expect("server_crash_tx").take()
+                            {
+                                let _ = server_crash_tx.send(error);
+                            }
+                        }
                     }
                     let _: Result<(), ()> = terminated_tx.send(());
                 }
@@ -148,7 +166,7 @@ impl Server {
                 .in_current_span(),
             );
         }
-        Ok((server, handle))
+        Ok((server, handle, server_crash_rx))
     }
 
     async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {

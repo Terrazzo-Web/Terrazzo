@@ -76,7 +76,7 @@ impl Server {
 
         let _span = info_span!("Server").entered();
 
-        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Server");
         let shutdown_rx: Pin<Box<dyn Future<Output = ()> + Send + Sync>> = Box::pin(shutdown_rx);
 
         let root_ca = config

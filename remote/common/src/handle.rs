@@ -9,6 +9,7 @@ use tracing::warn;
 /// Dropping the handle or explicitly calling [ServerHandle::stop] stops the server.
 #[must_use]
 pub struct ServerHandle<R> {
+    name: String,
     shutdown_tx: Option<oneshot::Sender<String>>,
     terminated_rx: Option<oneshot::Receiver<R>>,
 }
@@ -18,7 +19,7 @@ impl<R> ServerHandle<R> {
     ///
     /// This method should be called by the server on startup, it also returns
     /// signals that the server can communicate termination.
-    pub fn new() -> (impl Future<Output = ()>, oneshot::Sender<R>, Self) {
+    pub fn new(name: impl Into<String>) -> (impl Future<Output = ()>, oneshot::Sender<R>, Self) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let shutdown_rx = async move {
             match shutdown_rx.await {
@@ -28,6 +29,7 @@ impl<R> ServerHandle<R> {
         };
         let (terminated_tx, terminated_rx) = oneshot::channel();
         let handle = Self {
+            name: name.into(),
             shutdown_tx: Some(shutdown_tx),
             terminated_rx: Some(terminated_rx),
         };
@@ -56,7 +58,7 @@ impl<R> ServerHandle<R> {
 impl<R> Drop for ServerHandle<R> {
     fn drop(&mut self) {
         if self.terminated_rx.is_some() && !std::thread::panicking() {
-            warn!("The server was not shutdown");
+            warn!("The server '{}' was not shutdown", self.name);
         }
     }
 }

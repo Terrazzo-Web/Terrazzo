@@ -79,7 +79,7 @@ impl Client {
         info!(%client_id, "Allocated new client id");
         let retry_strategy0 = this.retry_strategy.clone();
         let mut retry_strategy = retry_strategy0.clone();
-        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new();
+        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Client");
         let shutdown_rx = shutdown_rx.shared();
         let (serving_tx, serving_rx) = oneshot::channel();
 

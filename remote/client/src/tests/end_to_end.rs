@@ -46,7 +46,7 @@ impl<'t> EndToEnd<'t> {
         let temp_dir = use_temp_dir();
 
         let gateway_config = TestGatewayConfig::new();
-        let (server, server_handle) = Server::run(gateway_config.clone())
+        let (server, server_handle, _crash) = Server::run(gateway_config.clone())
             .instrument(info_span!("TestServer"))
             .await
             .map_err(EndToEndError::SetupServer)?;

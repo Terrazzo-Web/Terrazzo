@@ -9,6 +9,12 @@ pub trait IsHttpError: std::error::Error + Sized {
     fn status_code(&self) -> StatusCode;
 }
 
+impl<T: IsHttpError> IsHttpError for Box<T> {
+    fn status_code(&self) -> StatusCode {
+        self.as_ref().status_code()
+    }
+}
+
 /// A wrapper to translate errors into http [Response]s.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error(transparent)]

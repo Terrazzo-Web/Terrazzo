@@ -10,8 +10,8 @@ use tracing::warn;
 pub fn enable_tracing() -> Result<(), EnableTracingError> {
     let subscriber = tracing_subscriber::fmt()
         .compact()
-        .with_file(true)
-        .with_line_number(true)
+        .with_file(cfg!(debug_assertions))
+        .with_line_number(cfg!(debug_assertions))
         .with_target(false)
         .with_max_level(LevelFilter::DEBUG)
         .finish();

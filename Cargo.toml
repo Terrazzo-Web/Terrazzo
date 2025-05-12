@@ -88,7 +88,7 @@ reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rsass-macros = { version = "0.29.0" }
 rustix = { version = "1.0.7" }
-rustls = { version = "0.23.26" }
+rustls = { version = "0.23.27" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
@@ -96,16 +96,16 @@ serde_json = { version = "1.0.140" }
 serde_urlencoded = { version = "0.7.1" }
 stylance = { version = "0.6.0" }
 syn = { version = "2.0.101" }
-tempfile = { version = "3.19.1" }
+tempfile = { version = "3.20.0" }
 thiserror = { version = "2.0.12" }
-tokio = { version = "1.44.2" }
+tokio = { version = "1.45.0" }
 tokio-rustls = { version = "0.26.2" }
 tokio-tungstenite = { version = "0.26.1" }
 tokio-util = { version = "0.7.15" }
 tonic = { version = "0.13.1" }
 tonic-build = { version = "0.13.1" }
 tower = { version = "0.5.2" }
-tower-http = { version = "0.6.2" }
+tower-http = { version = "0.6.4" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.19" }

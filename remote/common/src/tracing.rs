@@ -13,7 +13,7 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
         .with_file(cfg!(debug_assertions))
         .with_line_number(cfg!(debug_assertions))
         .with_target(false)
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
     debug!("Tracing enabled");

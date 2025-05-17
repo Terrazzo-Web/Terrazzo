@@ -38,6 +38,7 @@ use self::issuer_config::IssuerConfig;
 use self::issuer_config::IssuerConfigError;
 use crate::connection::Connections;
 
+mod acme;
 mod app;
 mod certificate;
 pub mod gateway_config;

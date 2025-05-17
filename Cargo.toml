@@ -84,6 +84,7 @@ proc-macro2 = { version = "1.0.95" }
 prost = { version = "0.13.5" }
 prost-types = { version = "0.13.5" }
 quote = { version = "1.0.40" }
+rcgen = { version = "0.13.2" }
 reqwest = { version = "0.12.15" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }

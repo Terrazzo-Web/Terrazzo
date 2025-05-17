@@ -12,6 +12,10 @@ keywords = ["terrazzo", "gateway", "proxy"]
 
 [lib]
 
+[features]
+default = []
+acme = ["dep:rcgen"]
+
 [dependencies]
 trz-gateway-common = { workspace = true }
 
@@ -26,6 +30,7 @@ instant-acme = { workspace = true }
 nameth = { workspace = true }
 openssl = { workspace = true }
 pem = { workspace = true }
+rcgen = { workspace = true, optional = true }
 pin-project = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }

@@ -1,5 +1,7 @@
 #![cfg(feature = "acme")]
+#![allow(unused)]
 
+use std::ops::ControlFlow;
 use std::time::Duration;
 
 use instant_acme::Account;
@@ -18,7 +20,6 @@ use rcgen::CertificateParams;
 use rcgen::DistinguishedName;
 use rcgen::KeyPair;
 use tokio::time::sleep;
-use tracing::debug;
 use tracing::info;
 
 pub struct AcmeConfig {
@@ -28,7 +29,13 @@ pub struct AcmeConfig {
     domain: String,
 }
 
-async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
+pub struct AcmeCertificate {
+    pub certificate: String,
+    pub private_key: String,
+    pub credentials: Option<AccountCredentials>,
+}
+
+pub async fn get_certificate(config: AcmeConfig) -> Result<AcmeCertificate, AcmeError> {
     let (account, credentials) = if let Some(credentials) = config.credentials {
         let a = Account::from_credentials(credentials)
             .await
@@ -37,7 +44,7 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
     } else {
         let (a, c) = Account::create(
             &NewAccount {
-                contact: &[],
+                contact: &[&config.contact],
                 terms_of_service_agreed: true,
                 only_return_existing: false,
             },
@@ -49,6 +56,8 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
         (a, Some(c))
     };
 
+    info!("Got account ID = {}", account.id());
+
     let identifier = Identifier::Dns(config.domain.clone());
     let mut order = account
         .new_order(&NewOrder {
@@ -58,7 +67,7 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
         .map_err(AcmeError::NewOrder)?;
 
     let state = order.state();
-    debug!("Order state: {:?}", state);
+    info!("Order created in state: {:?}", state);
     debug_assert!(matches!(state.status, OrderStatus::Pending));
 
     let authorizations = order
@@ -79,19 +88,20 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
             }
         }
 
-        // We'll use the DNS challenges for this example, but you could
-        // pick something else to use here.
-
         let challenge = authorization
             .challenges
             .iter()
             .find(|c| c.r#type == ChallengeType::Http01)
             .ok_or(AcmeError::Http01ChallengeMissing)?;
+        info!("Found challenge {challenge:?}");
 
         let Identifier::Dns(identifier) = &authorization.identifier;
+        info!("The identifier is {identifier}");
 
-        debug!("The identifier is {identifier}");
         // TODO: Serve the http01 challenge
+        // http://pavy.one/.well-known/acme-challenge/{token} --> {key_authorization.as_str()}
+        let token = challenge.token.as_str();
+        let key_authorization = order.key_authorization(challenge);
 
         challenges.push(&challenge.url);
     }
@@ -104,11 +114,12 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
             .await
             .map_err(AcmeError::SetChallengeReady)?;
     }
+    info!("Set challenges as ready");
 
     // Exponentially back off until the order becomes ready or invalid.
 
     let status = poll(&mut order, 5, Duration::from_millis(250)).await?;
-    debug!("Order status: {:?}", status);
+    info!("Order status: {:?}", status);
 
     // If the order is ready, we can provision the certificate.
     // Use the rcgen library to create a Certificate Signing Request.
@@ -124,16 +135,18 @@ async fn get_certificate(config: AcmeConfig) -> Result<(), AcmeError> {
         .finalize(csr.der())
         .await
         .map_err(AcmeError::Finalize)?;
-    let cert_chain_pem = loop {
+    let certificate = loop {
         match order.certificate().await.map_err(AcmeError::Certificate)? {
-            Some(cert_chain_pem) => break cert_chain_pem,
+            Some(certificate) => break certificate,
             None => sleep(Duration::from_secs(1)).await,
         }
     };
 
-    info!("certficate chain:\n\n{}", cert_chain_pem);
-    info!("private key:\n\n{}", private_key.serialize_pem());
-    Ok(())
+    Ok(AcmeCertificate {
+        certificate,
+        private_key: private_key.serialize_pem(),
+        credentials,
+    })
 }
 
 #[nameth]
@@ -179,26 +192,69 @@ pub enum AcmeError {
     CertificateGeneration(#[from] rcgen::Error),
 }
 
-async fn poll(
-    order: &mut Order,
+async fn poll(order: &mut Order, tries: i32, delay: Duration) -> Result<OrderStatus, AcmeError> {
+    let mut status = OrderStatus::Pending;
+    if let Some(result) = poll2(
+        async |last_status| {
+            let state = match order.refresh().await.map_err(AcmeError::Refresh) {
+                Ok(state) => state,
+                Err(error) => return ControlFlow::Break(Err(error)),
+            };
+            *last_status = state.status;
+            info!("Order is now in state: {last_status:?}");
+            let result = match last_status {
+                OrderStatus::Pending | OrderStatus::Processing => return ControlFlow::Continue(()),
+                OrderStatus::Ready | OrderStatus::Valid => Ok(*last_status),
+                OrderStatus::Invalid => Err(AcmeError::OrderFailed(*last_status)),
+            };
+            return ControlFlow::Break(result);
+        },
+        &mut status,
+        tries,
+        delay,
+    )
+    .await
+    {
+        return result;
+    }
+
+    return Err(AcmeError::OrderTimeout(status));
+}
+
+async fn poll2<S, R>(
+    mut f: impl AsyncFnMut(&mut S) -> ControlFlow<R, ()>,
+    state: &mut S,
     mut tries: i32,
     mut delay: Duration,
-) -> Result<OrderStatus, AcmeError> {
-    let mut status = OrderStatus::Pending;
+) -> Option<R> {
     while tries > 0 {
         tokio::time::sleep(delay).await;
-        let state = order.refresh().await.map_err(AcmeError::Refresh)?;
-        status = state.status;
-        debug!("Order is now in state: {status:?}");
-        match status {
-            OrderStatus::Pending => (),
-            OrderStatus::Ready | OrderStatus::Valid => return Ok(status),
-            OrderStatus::Processing => (),
-            OrderStatus::Invalid => return Err(AcmeError::OrderFailed(status)),
+        match f(state).await {
+            ControlFlow::Continue(()) => (),
+            ControlFlow::Break(result) => return Some(result),
         }
-
         delay *= 2;
         tries -= 1;
     }
-    return Err(AcmeError::OrderTimeout(status));
+    return None;
+}
+
+#[cfg(test)]
+mod tests {
+    use trz_gateway_common::crypto_provider::crypto_provider;
+    use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
+
+    #[tokio::test]
+    async fn get_certificate() {
+        enable_tracing_for_tests();
+        crypto_provider();
+        let result = super::get_certificate(super::AcmeConfig {
+            environment: instant_acme::LetsEncrypt::Staging,
+            credentials: None,
+            contact: "info@pavy.one".into(),
+            domain: "pavy.one".into(),
+        })
+        .await;
+        assert!(result.is_ok());
+    }
 }

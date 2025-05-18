@@ -29,11 +29,12 @@ impl ActiveChallenges {
     }
 
     pub fn add(&self, token: &str, key_authorization: KeyAuthorization) -> ActiveChallenge {
-        let old = {
+        let duplicate = {
             let mut active_challenges = self.0.write().unwrap();
             active_challenges.insert(token.to_owned(), key_authorization)
-        };
-        if old.is_some() {
+        }
+        .is_some();
+        if duplicate {
             warn!("Duplicate token: {token}");
         }
         ActiveChallenge {

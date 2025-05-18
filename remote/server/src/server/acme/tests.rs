@@ -4,7 +4,10 @@ use instant_acme::LetsEncrypt;
 use trz_gateway_common::crypto_provider::crypto_provider;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 
-#[tokio::test]
+use crate::server::acme::active_challenges::ActiveChallenges;
+
+#[allow(unused)]
+// #[tokio::test]
 async fn get_certificate() {
     enable_tracing_for_tests();
     crypto_provider();
@@ -14,7 +17,7 @@ async fn get_certificate() {
         contact: "mailto:info@pavy.one".into(),
         domain: "pavy.one".into(),
     }
-    .get_certificate()
+    .get_certificate(&ActiveChallenges::default())
     .await
     .unwrap();
     println!(

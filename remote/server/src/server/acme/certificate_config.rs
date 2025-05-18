@@ -9,13 +9,29 @@ use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 
 use super::AcmeConfig;
 use super::AcmeError;
+use super::active_challenges::ActiveChallenges;
 
+#[derive(Clone)]
 pub struct AcmeCertificateConfig {
-    state: Arc<std::sync::Mutex<(AcmeConfig, AcmeCertificateState)>>,
+    acme_config: Arc<AcmeConfig>,
+    state: Arc<std::sync::Mutex<AcmeCertificateState>>,
+    active_challenges: ActiveChallenges,
+}
+
+impl AcmeCertificateConfig {
+    pub fn new(acme_config: Arc<AcmeConfig>, active_challenges: ActiveChallenges) -> Self {
+        Self {
+            acme_config,
+            state: Default::default(),
+            active_challenges,
+        }
+    }
 }
 
 impl CertificateConfig for AcmeCertificateConfig {
     type Error = AcmeError;
+
+    // TODO get intermediates+certificate should be atomic.
 
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
         return self.get_or_initialize(|state| &state.intermediates);
@@ -23,6 +39,10 @@ impl CertificateConfig for AcmeCertificateConfig {
 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         return self.get_or_initialize(|state| &state.certificate);
+    }
+
+    fn is_dynamic(&self) -> bool {
+        true
     }
 }
 
@@ -48,24 +68,25 @@ impl AcmeCertificateConfig {
         f: impl FnOnce(&AcmeCertificate) -> &R,
     ) -> Result<R, AcmeError> {
         let mut lock = self.state.lock().unwrap();
-        let (acme_config, maybe_state) = &mut *lock;
-        let error = match maybe_state {
+        let state = &mut *lock;
+        let error = match state {
             AcmeCertificateState::Done(state) => return Ok(f(state).to_owned()),
             AcmeCertificateState::Pending => return Err(AcmeError::Pending),
             AcmeCertificateState::Failed(acme_error) => AcmeError::Arc(acme_error.clone()),
             AcmeCertificateState::NotSet => AcmeError::Pending,
         };
-        *maybe_state = AcmeCertificateState::Pending;
-        tokio::spawn(Self::initialize(acme_config.clone(), self.state.clone()));
+        *state = AcmeCertificateState::Pending;
+        tokio::spawn(self.clone().initialize());
         return Err(error);
     }
 
-    async fn initialize(
-        acme_config: AcmeConfig,
-        state: Arc<std::sync::Mutex<(AcmeConfig, AcmeCertificateState)>>,
-    ) -> Result<(), AcmeError> {
+    async fn initialize(self) -> Result<(), AcmeError> {
         let acme_certificate: Result<AcmeCertificate, AcmeError> = async move {
-            let result = acme_config.get_certificate().await?;
+            let result = self
+                .acme_config
+                .get_certificate(&self.active_challenges)
+                .await?;
+            // TODO do something with result.credentials
             let mut chain = parse_pem_certificates(&result.certificate);
             let certificate = chain.next().ok_or(AcmeError::CertificateChain)??;
             let mut intermediates = vec![];
@@ -81,7 +102,7 @@ impl AcmeCertificateConfig {
             })
         }
         .await;
-        state.lock().unwrap().1 = match acme_certificate {
+        *self.state.lock().unwrap() = match acme_certificate {
             Ok(acme_certificate) => AcmeCertificateState::Done(acme_certificate),
             Err(error) => AcmeCertificateState::Failed(Arc::new(error)),
         };

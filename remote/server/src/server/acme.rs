@@ -11,7 +11,8 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 
-mod certificate_config;
+pub mod active_challenges;
+pub mod certificate_config;
 mod environment_serde;
 mod get_certificate;
 mod tests;
@@ -19,10 +20,10 @@ mod tests;
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AcmeConfig {
     #[serde(with = "environment_serde")]
-    environment: LetsEncrypt,
-    credentials: Option<AccountCredentials>,
-    contact: String,
-    domain: String,
+    pub environment: LetsEncrypt,
+    pub credentials: Option<AccountCredentials>,
+    pub contact: String,
+    pub domain: String,
 }
 
 #[nameth]
@@ -91,17 +92,7 @@ impl std::fmt::Debug for AcmeConfig {
     }
 }
 
-impl Clone for AcmeConfig {
-    fn clone(&self) -> Self {
-        let credentials = self.credentials.as_ref().map(|credentials| {
-            let credentials = serde_json::to_string(credentials).expect("Serialize credentials");
-            serde_json::from_str(&credentials).expect("Deserialize credentials")
-        });
-        Self {
-            environment: self.environment,
-            credentials,
-            contact: self.contact.clone(),
-            domain: self.domain.clone(),
-        }
-    }
+fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredentials {
+    let credentials = serde_json::to_string(credentials).expect("Serialize credentials");
+    serde_json::from_str(&credentials).expect("Deserialize credentials")
 }

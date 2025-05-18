@@ -22,6 +22,8 @@ use tracing::info;
 
 use super::AcmeConfig;
 use super::AcmeError;
+use super::active_challenges::ActiveChallenges;
+use crate::server::acme::clone_account_credentials;
 
 pub struct GetAcmeCertificateResult {
     pub certificate: String,
@@ -30,14 +32,17 @@ pub struct GetAcmeCertificateResult {
 }
 
 impl AcmeConfig {
-    pub async fn get_certificate(self) -> Result<GetAcmeCertificateResult, AcmeError> {
-        let (account, credentials) = if let Some(credentials) = self.credentials {
-            let a = Account::from_credentials(credentials)
+    pub(super) async fn get_certificate(
+        &self,
+        active_challenges: &ActiveChallenges,
+    ) -> Result<GetAcmeCertificateResult, AcmeError> {
+        let (account, credentials) = if let Some(credentials) = &self.credentials {
+            let account = Account::from_credentials(clone_account_credentials(credentials))
                 .await
                 .map_err(AcmeError::FromCredentials)?;
-            (a, None)
+            (account, None)
         } else {
-            let (a, c) = Account::create(
+            let (account, credentials) = Account::create(
                 &NewAccount {
                     contact: &[&self.contact],
                     terms_of_service_agreed: true,
@@ -48,7 +53,7 @@ impl AcmeConfig {
             )
             .await
             .map_err(AcmeError::CreateAccount)?;
-            (a, Some(c))
+            (account, Some(credentials))
         };
 
         info!("Got account ID = {}", account.id());
@@ -72,6 +77,7 @@ impl AcmeConfig {
         info!("Order has {} authorizations", authorizations.len());
         let mut challenges = Vec::with_capacity(authorizations.len());
 
+        let mut registrations = vec![];
         for authorization in &authorizations {
             match authorization.status {
                 AuthorizationStatus::Pending => {}
@@ -93,12 +99,9 @@ impl AcmeConfig {
             let Identifier::Dns(identifier) = &authorization.identifier;
             info!("The identifier is {identifier}");
 
-            // TODO: Serve the http01 challenge
-            // http://pavy.one/.well-known/acme-challenge/{token} --> {key_authorization.as_str()}
-            #[expect(unused)]
             let token = challenge.token.as_str();
-            #[expect(unused)]
             let key_authorization = order.key_authorization(challenge);
+            registrations.push(active_challenges.add(token, key_authorization));
 
             challenges.push(&challenge.url);
         }
@@ -121,7 +124,7 @@ impl AcmeConfig {
         // If the order is ready, we can provision the certificate.
         // Use the rcgen library to create a Certificate Signing Request.
 
-        let mut params = CertificateParams::new(vec![self.domain])?;
+        let mut params = CertificateParams::new(vec![self.domain.clone()])?;
         params.distinguished_name = DistinguishedName::new();
         let private_key = KeyPair::generate()?;
         let csr = params.serialize_request(&private_key)?;
@@ -138,6 +141,8 @@ impl AcmeConfig {
                 None => sleep(Duration::from_secs(1)).await,
             }
         };
+
+        drop(registrations);
 
         Ok(GetAcmeCertificateResult {
             certificate,

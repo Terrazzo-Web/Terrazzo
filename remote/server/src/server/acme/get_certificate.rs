@@ -1,10 +1,6 @@
-#![expect(unused)]
-
 use std::ops::ControlFlow;
 use std::time::Duration;
 
-use futures::future::LocalBoxFuture;
-use futures::task::LocalSpawn;
 use instant_acme::Account;
 use instant_acme::AccountCredentials;
 use instant_acme::AuthorizationStatus;
@@ -28,6 +24,8 @@ use crate::server::acme::clone_account_credentials;
 pub struct GetAcmeCertificateResult {
     pub certificate: String,
     pub private_key: String,
+
+    #[allow(unused)] // TODO do something with result.credentials
     pub credentials: Option<AccountCredentials>,
 }
 
@@ -158,7 +156,7 @@ async fn poll_order(
     delay: Duration,
 ) -> Result<OrderStatus, AcmeError> {
     let poll_task = poll(
-        |(order, last_status)| async {
+        |(order, _last_status)| async {
             let state = match order.refresh().await.map_err(AcmeError::Refresh) {
                 Ok(state) => state,
                 Err(error) => return ControlFlow::Break(Err(error)),

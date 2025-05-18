@@ -64,7 +64,7 @@ impl Client {
                 config.client_name()
             ),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
-            tls_server: tokio_rustls::TlsAcceptor::from(Arc::new(tls_server)),
+            tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),
             retry_strategy: config.retry_strategy(),
         }))

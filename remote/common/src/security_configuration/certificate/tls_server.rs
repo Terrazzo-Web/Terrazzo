@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
@@ -10,17 +12,17 @@ use super::CertificateConfig;
 use crate::security_configuration::certificate::display_x509_certificate;
 
 /// Create a RusTLS [ServerConfig] from a [CertificateConfig].
-pub trait ToTlsServer: CertificateConfig {
-    fn to_tls_server(&self) -> Result<ServerConfig, ToTlsServerError<Self::Error>> {
+pub trait ToTlsServer: CertificateConfig + Sized {
+    fn to_tls_server(self) -> Result<Arc<ServerConfig>, ToTlsServerError<Self::Error>> {
         to_tls_server_impl(self)
     }
 }
 
 impl<T: CertificateConfig> ToTlsServer for T {}
 
-fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
-    certificate_config: &T,
-) -> Result<ServerConfig, ToTlsServerError<T::Error>> {
+fn to_tls_server_impl<T: CertificateConfig>(
+    certificate_config: T,
+) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
     let _span = info_span!("Setup TLS server certificate").entered();
     let certificate = certificate_config
         .certificate()
@@ -69,7 +71,7 @@ fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
         .with_single_cert(certificate_chain, private_key)
         .map_err(ToTlsServerError::ServerConfig)?;
     server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
-    Ok(server_config)
+    Ok(Arc::new(server_config))
 }
 
 #[nameth]

@@ -103,7 +103,11 @@ impl<T: CertificateConfig> ServerCertificateResolver<T> {
             }
         }
 
-        info!("Use server certificate {}", certificate.display());
+        info!(
+            "Use server certificate {:?}",
+            certificate.certificate.subject_name()
+        );
+        debug!("Server certificate {}", certificate.display());
         let certified_key = self.make_certified_key(&certificate, &intermediates)?;
         *state = Some(CertResolverState {
             certified_key: certified_key.clone(),

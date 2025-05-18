@@ -23,6 +23,11 @@ pub trait CertificateConfig: IsGlobal {
     /// Computes the X509 leaf certificate
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error>;
 
+    /// Whether the certificate can change over time, ie Let's Encrypt certificates.
+    fn is_dynamic(&self) -> bool {
+        false
+    }
+
     /// Returns a memoized [CertificateConfig].
     fn memoize(self) -> MemoizedCertificate<Self>
     where
@@ -64,5 +69,9 @@ impl<T: CertificateConfig> CertificateConfig for Arc<T> {
 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         self.as_ref().certificate()
+    }
+
+    fn is_dynamic(&self) -> bool {
+        self.as_ref().is_dynamic()
     }
 }

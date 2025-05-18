@@ -18,8 +18,8 @@ impl<L: TrustedStoreConfig, R: TrustedStoreConfig> TrustedStoreConfig for Either
 
     fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
         match self {
-            Self::Left(store) => store.root_certificates().map_err(EitherConfig::Left),
-            Self::Right(store) => store.root_certificates().map_err(EitherConfig::Right),
+            Self::Left(s) => s.root_certificates().map_err(EitherConfig::Left),
+            Self::Right(s) => s.root_certificates().map_err(EitherConfig::Right),
         }
     }
 }
@@ -29,15 +29,22 @@ impl<L: CertificateConfig, R: CertificateConfig> CertificateConfig for EitherCon
 
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
         match self {
-            Self::Left(store) => store.intermediates().map_err(EitherConfig::Left),
+            Self::Left(s) => s.intermediates().map_err(EitherConfig::Left),
             Self::Right(store) => store.intermediates().map_err(EitherConfig::Right),
         }
     }
 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         match self {
-            Self::Left(store) => store.certificate().map_err(EitherConfig::Left),
-            Self::Right(store) => store.certificate().map_err(EitherConfig::Right),
+            Self::Left(s) => s.certificate().map_err(EitherConfig::Left),
+            Self::Right(s) => s.certificate().map_err(EitherConfig::Right),
+        }
+    }
+
+    fn is_dynamic(&self) -> bool {
+        match self {
+            Self::Left(s) => s.is_dynamic(),
+            Self::Right(s) => s.is_dynamic(),
         }
     }
 }

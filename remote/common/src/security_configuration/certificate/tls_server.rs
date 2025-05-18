@@ -5,6 +5,8 @@ use nameth::nameth;
 use openssl::error::ErrorStack;
 use openssl::x509::X509;
 use rustls::ServerConfig;
+use rustls::pki_types::CertificateDer;
+use rustls::pki_types::PrivateKeyDer;
 use rustls::server::ClientHello;
 use rustls::server::ResolvesServerCert;
 use rustls::sign::CertifiedKey;
@@ -31,14 +33,68 @@ fn to_tls_server_impl<T: CertificateConfig>(
     certificate_config: T,
 ) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
     let _span = info_span!("Setup TLS server certificate").entered();
-    let mut server_config = ServerConfig::builder()
-        .with_no_client_auth()
-        .with_cert_resolver(Arc::new(ServerCertificateResolver {
+    let server_config = ServerConfig::builder().with_no_client_auth();
+    let mut server_config = if certificate_config.is_dynamic() {
+        server_config.with_cert_resolver(Arc::new(ServerCertificateResolver {
             state: Default::default(),
             certificate_config,
-        }));
+        }))
+    } else {
+        let (certificate_chain, private_key) = build_single_cert::<T>(
+            &*certificate_config
+                .certificate()
+                .map_err(ToTlsServerError::Certificate)?,
+            &certificate_config
+                .intermediates()
+                .map_err(ToTlsServerError::Intermediates)?,
+        )?;
+        server_config
+            .with_single_cert(certificate_chain, private_key)
+            .map_err(ToTlsServerError::ServerConfig)?
+    };
     server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     Ok(Arc::new(server_config))
+}
+
+fn build_single_cert<T: CertificateConfig>(
+    certificate: &X509CertificateInfo,
+    intermediates: &[X509],
+) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>), ToTlsServerError<T::Error>> {
+    let mut certificate_chain = vec![];
+    {
+        info!(
+            "Server certificate: {:?} issued by {:?}",
+            certificate.certificate.subject_name(),
+            certificate.certificate.issuer_name()
+        );
+        debug!("Server certificate details:  {}", certificate.display());
+        let certificate = certificate.certificate.to_der();
+        let certificate = certificate.map_err(ToTlsServerError::CertificateToDer)?;
+        certificate_chain.push(certificate.into());
+    }
+    for intermediate in intermediates.iter() {
+        info!(
+            "Intermediate certificate: {:?} issued by {:?}",
+            intermediate.subject_name(),
+            intermediate.issuer_name()
+        );
+        debug!(
+            "Intermediate certificate details: {}",
+            display_x509_certificate(intermediate)
+        );
+        let intermediate = intermediate.to_der();
+        let intermediate = intermediate.map_err(ToTlsServerError::IntermediateToDer)?;
+        certificate_chain.push(intermediate.into());
+    }
+
+    let private_key = certificate
+        .private_key
+        .private_key_to_der()
+        .map_err(ToTlsServerError::PrivateKeyToDer)?
+        .try_into()
+        .map_err(ToTlsServerError::ToPrivateKey)?;
+
+    Ok((certificate_chain, private_key))
 }
 
 struct ServerCertificateResolver<T> {
@@ -122,43 +178,11 @@ impl<T: CertificateConfig> ServerCertificateResolver<T> {
         certificate: &X509CertificateInfo,
         intermediates: &[X509],
     ) -> Result<Arc<CertifiedKey>, ToTlsServerError<T::Error>> {
-        let mut certificate_chain = vec![];
-        {
-            info!(
-                "Server certificate: {:?} issued by {:?}",
-                certificate.certificate.subject_name(),
-                certificate.certificate.issuer_name()
-            );
-            debug!("Server certificate details:  {}", certificate.display());
-            let certificate = certificate.certificate.to_der();
-            let certificate = certificate.map_err(ToTlsServerError::CertificateToDer)?;
-            certificate_chain.push(certificate.into());
-        }
-        for intermediate in intermediates.iter() {
-            info!(
-                "Intermediate certificate: {:?} issued by {:?}",
-                intermediate.subject_name(),
-                intermediate.issuer_name()
-            );
-            debug!(
-                "Intermediate certificate details: {}",
-                display_x509_certificate(intermediate)
-            );
-            let intermediate = intermediate.to_der();
-            let intermediate = intermediate.map_err(ToTlsServerError::IntermediateToDer)?;
-            certificate_chain.push(intermediate.into());
-        }
-
-        let private_key = certificate
-            .private_key
-            .private_key_to_der()
-            .map_err(ToTlsServerError::PrivateKeyToDer)?
-            .try_into()
-            .map_err(ToTlsServerError::ToPrivateKey)?;
-        Ok(Arc::new(
+        let (certificate_chain, private_key) = build_single_cert::<T>(certificate, intermediates)?;
+        let certified_key =
             CertifiedKey::from_der(certificate_chain, private_key, crypto_provider())
-                .map_err(ToTlsServerError::CertifiedKey)?,
-        ))
+                .map_err(ToTlsServerError::CertifiedKey)?;
+        Ok(Arc::new(certified_key))
     }
 }
 
@@ -182,6 +206,9 @@ pub enum ToTlsServerError<E: std::error::Error> {
 
     #[error("[{n}] {0}", n = self.name())]
     ToPrivateKey(&'static str),
+
+    #[error("[{n}] {0}", n = self.name())]
+    ServerConfig(rustls::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     CertifiedKey(rustls::Error),

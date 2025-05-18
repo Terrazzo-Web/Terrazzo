@@ -51,6 +51,10 @@ impl<T: IsGlobal, C: CertificateConfig> CertificateConfig for SecurityConfig<T, 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         self.certificate.certificate()
     }
+
+    fn is_dynamic(&self) -> bool {
+        self.certificate.is_dynamic()
+    }
 }
 
 pub trait HasSecurityConfig: TrustedStoreConfig + CertificateConfig {}

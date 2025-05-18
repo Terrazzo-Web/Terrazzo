@@ -1,5 +1,4 @@
 #![cfg(feature = "acme")]
-#![allow(unused)]
 
 use std::ops::ControlFlow;
 use std::time::Duration;
@@ -48,7 +47,7 @@ pub async fn get_certificate(config: AcmeConfig) -> Result<AcmeCertificate, Acme
                 terms_of_service_agreed: true,
                 only_return_existing: false,
             },
-            LetsEncrypt::Staging.url(),
+            config.environment.url(),
             None,
         )
         .await
@@ -118,7 +117,7 @@ pub async fn get_certificate(config: AcmeConfig) -> Result<AcmeCertificate, Acme
 
     // Exponentially back off until the order becomes ready or invalid.
 
-    let status = poll(&mut order, 5, Duration::from_millis(250)).await?;
+    let status = poll_order(&mut order, 5, Duration::from_millis(250)).await?;
     info!("Order status: {:?}", status);
 
     // If the order is ready, we can provision the certificate.
@@ -192,9 +191,13 @@ pub enum AcmeError {
     CertificateGeneration(#[from] rcgen::Error),
 }
 
-async fn poll(order: &mut Order, tries: i32, delay: Duration) -> Result<OrderStatus, AcmeError> {
+async fn poll_order(
+    order: &mut Order,
+    tries: i32,
+    delay: Duration,
+) -> Result<OrderStatus, AcmeError> {
     let mut status = OrderStatus::Pending;
-    if let Some(result) = poll2(
+    if let Some(result) = poll(
         async |last_status| {
             let state = match order.refresh().await.map_err(AcmeError::Refresh) {
                 Ok(state) => state,
@@ -221,7 +224,7 @@ async fn poll(order: &mut Order, tries: i32, delay: Duration) -> Result<OrderSta
     return Err(AcmeError::OrderTimeout(status));
 }
 
-async fn poll2<S, R>(
+async fn poll<S, R>(
     mut f: impl AsyncFnMut(&mut S) -> ControlFlow<R, ()>,
     state: &mut S,
     mut tries: i32,

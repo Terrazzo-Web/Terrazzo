@@ -11,6 +11,7 @@ use crate::is_global::IsGlobal;
 pub mod certificate;
 mod common;
 pub mod custom_server_certificate_verifier;
+pub mod either;
 pub mod trusted_store;
 
 /// A security config has both a trusted store and a client certificate.

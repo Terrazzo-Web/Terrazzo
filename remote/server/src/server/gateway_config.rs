@@ -35,7 +35,8 @@ pub trait GatewayConfig: IsGlobal {
     type TlsConfig: CertificateConfig;
     fn tls(&self) -> Self::TlsConfig;
 
-    /// The certificate used to sign the custom extension of X509 certificates.
+    /// The certificate used to sign and validate the custom extension
+    /// of client X509 certificates.
     type ClientCertificateIssuerConfig: HasSecurityConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig;
 

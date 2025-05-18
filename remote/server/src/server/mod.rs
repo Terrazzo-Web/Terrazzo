@@ -80,8 +80,8 @@ impl Server {
         let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Server");
         let shutdown_rx: Pin<Box<dyn Future<Output = ()> + Send + Sync>> = Box::pin(shutdown_rx);
 
-        let root_ca = config
-            .root_ca()
+        let root_ca_config = config.root_ca();
+        let root_ca = root_ca_config
             .certificate()
             .map_err(|error| GatewayError::RootCa(error.into()))?;
         info!("Root CA: {:?}", root_ca.certificate.subject_name());
@@ -98,13 +98,11 @@ impl Server {
         let tls_server = config.tls().to_tls_server()?;
         debug!("Got TLS server config");
 
-        let tls_client = config
-            .root_ca()
-            .to_tls_client(SignedExtensionCertificateVerifier {
-                store: CachedTrustedStoreConfig::new(client_certificate_issuer)
-                    .map_err(GatewayError::CachedTrustedStoreConfig)?,
-                signer_name: issuer_config.signer_name.clone(),
-            })?;
+        let tls_client = root_ca_config.to_tls_client(SignedExtensionCertificateVerifier {
+            store: CachedTrustedStoreConfig::new(client_certificate_issuer)
+                .map_err(GatewayError::CachedTrustedStoreConfig)?,
+            signer_name: issuer_config.signer_name.clone(),
+        })?;
         debug!("Got TLS client config");
 
         let server = Arc::new(Self {

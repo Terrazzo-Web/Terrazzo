@@ -1,49 +1,31 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
-use openssl::x509::X509;
 use rustls::ServerConfig;
 use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 
 use super::CertificateConfig;
-use crate::certificate_info::X509CertificateInfo;
 use crate::security_configuration::certificate::display_x509_certificate;
 
 /// Create a RusTLS [ServerConfig] from a [CertificateConfig].
-pub trait ToTlsServer<E: std::error::Error> {
-    fn to_tls_server(&self) -> Result<Arc<ServerConfig>, ToTlsServerError<E>>;
-
-    fn dynamic(self) -> DynamicTlsServer<Self>
-    where
-        Self: CertificateConfig + Sized,
-    {
-        DynamicTlsServer {
-            certificate_config: self,
-            cache: Mutex::default(),
-        }
+pub trait ToTlsServer: CertificateConfig {
+    fn to_tls_server(&self) -> Result<ServerConfig, ToTlsServerError<Self::Error>> {
+        to_tls_server_impl(self)
     }
 }
 
-impl<T: CertificateConfig> ToTlsServer<T::Error> for T {
-    fn to_tls_server(&self) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
-        let certificate = self.certificate().map_err(ToTlsServerError::Certificate)?;
-        let intermediates = self
-            .intermediates()
-            .map_err(ToTlsServerError::Intermediates)?;
-        to_tls_server_impl::<Self>(certificate, intermediates)
-    }
-}
+impl<T: CertificateConfig> ToTlsServer for T {}
 
 fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
-    certificate: Arc<X509CertificateInfo>,
-    intermediates: Arc<Vec<X509>>,
-) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
+    certificate_config: &T,
+) -> Result<ServerConfig, ToTlsServerError<T::Error>> {
     let _span = info_span!("Setup TLS server certificate").entered();
+    let certificate = certificate_config
+        .certificate()
+        .map_err(ToTlsServerError::Certificate)?;
+
     let mut certificate_chain = vec![];
     {
         info!(
@@ -56,7 +38,11 @@ fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
         let certificate = certificate.map_err(ToTlsServerError::CertificateToDer)?;
         certificate_chain.push(certificate.into());
     }
-    for intermediate in intermediates.iter() {
+    for intermediate in certificate_config
+        .intermediates()
+        .map_err(ToTlsServerError::Intermediates)?
+        .iter()
+    {
         info!(
             "Intermediate certificate: {:?} issued by {:?}",
             intermediate.subject_name(),
@@ -80,11 +66,10 @@ fn to_tls_server_impl<T: CertificateConfig + ?Sized>(
 
     let mut server_config = ServerConfig::builder()
         .with_no_client_auth()
-        .with_cert_resolver(cert_resolver)
         .with_single_cert(certificate_chain, private_key)
         .map_err(ToTlsServerError::ServerConfig)?;
     server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
-    Ok(Arc::new(server_config))
+    Ok(server_config)
 }
 
 #[nameth]
@@ -110,47 +95,4 @@ pub enum ToTlsServerError<E: std::error::Error> {
 
     #[error("[{n}] {0}", n = self.name())]
     ServerConfig(rustls::Error),
-}
-
-pub struct DynamicTlsServer<T: CertificateConfig> {
-    certificate_config: T,
-    cache: std::sync::Mutex<Option<DynamicTlsServerState>>,
-}
-
-struct DynamicTlsServerState {
-    certificate: Arc<X509CertificateInfo>,
-    intermediates: Arc<Vec<X509>>,
-    server_config: Arc<ServerConfig>,
-}
-
-impl<T: CertificateConfig> ToTlsServer<T::Error> for DynamicTlsServer<T> {
-    fn to_tls_server(&self) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
-        let certificate = self
-            .certificate_config
-            .certificate()
-            .map_err(ToTlsServerError::Certificate)?;
-        let intermediates = self
-            .certificate_config
-            .intermediates()
-            .map_err(ToTlsServerError::Intermediates)?;
-
-        let mut lock = self.cache.lock().unwrap();
-        if let Some(cache) = &*lock {
-            if Arc::ptr_eq(&cache.certificate, &certificate)
-                && Arc::ptr_eq(&cache.intermediates, &intermediates)
-            {
-                return Ok(cache.server_config.clone());
-            }
-        }
-
-        to_tls_server_impl::<T>(certificate.clone(), intermediates.clone()).inspect(
-            |server_config| {
-                *lock = Some(DynamicTlsServerState {
-                    certificate: certificate,
-                    intermediates: intermediates,
-                    server_config: server_config.clone(),
-                })
-            },
-        )
-    }
 }

@@ -8,6 +8,7 @@ use instant_acme::ChallengeType;
 use instant_acme::LetsEncrypt;
 use instant_acme::OrderStatus;
 use nameth::NamedEnumValues as _;
+use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 
@@ -17,6 +18,7 @@ mod environment_serde;
 mod get_certificate;
 mod tests;
 
+#[nameth]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AcmeConfig {
     #[serde(with = "environment_serde")]
@@ -83,7 +85,7 @@ pub enum AcmeError {
 
 impl std::fmt::Debug for AcmeConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AcmeConfig")
+        f.debug_struct(AcmeConfig::type_name())
             .field("environment", &self.environment)
             .field("credentials", &self.credentials.is_some())
             .field("contact", &self.contact)

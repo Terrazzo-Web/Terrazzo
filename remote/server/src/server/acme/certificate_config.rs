@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use nameth::NamedType as _;
+use nameth::nameth;
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateInfo;
@@ -11,6 +13,7 @@ use super::AcmeConfig;
 use super::AcmeError;
 use super::active_challenges::ActiveChallenges;
 
+#[nameth]
 #[derive(Clone)]
 pub struct AcmeCertificateConfig {
     acme_config: Arc<AcmeConfig>,
@@ -107,5 +110,13 @@ impl AcmeCertificateConfig {
             Err(error) => AcmeCertificateState::Failed(Arc::new(error)),
         };
         Ok(())
+    }
+}
+
+impl std::fmt::Debug for AcmeCertificateConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(AcmeCertificateConfig::type_name())
+            .field("environment", &self.acme_config.environment)
+            .finish()
     }
 }

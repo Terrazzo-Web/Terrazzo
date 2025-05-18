@@ -38,7 +38,7 @@ use self::issuer_config::IssuerConfig;
 use self::issuer_config::IssuerConfigError;
 use crate::connection::Connections;
 
-mod acme;
+pub mod acme;
 mod app;
 mod certificate;
 pub mod gateway_config;
@@ -108,7 +108,7 @@ impl Server {
         let server = Arc::new(Self {
             shutdown: shutdown_rx.shared(),
             root_ca,
-            tls_server: RustlsConfig::from_config(Arc::from(tls_server)),
+            tls_server: RustlsConfig::from_config(tls_server),
             tls_client: TlsConnector::from(Arc::new(tls_client)),
             connections: Arc::new(Connections::default()),
             issuer_config,

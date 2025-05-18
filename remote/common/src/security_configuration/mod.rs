@@ -9,7 +9,7 @@ use crate::certificate_info::X509CertificateInfo;
 use crate::is_global::IsGlobal;
 
 pub mod certificate;
-mod common;
+pub mod common;
 pub mod custom_server_certificate_verifier;
 pub mod either;
 pub mod trusted_store;

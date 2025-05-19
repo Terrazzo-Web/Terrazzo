@@ -6,6 +6,7 @@ use openssl::pkey::PKey;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
+use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 
@@ -16,15 +17,18 @@ use super::active_challenges::ActiveChallenges;
 #[nameth]
 #[derive(Clone)]
 pub struct AcmeCertificateConfig {
-    acme_config: Arc<AcmeConfig>,
+    acme_config: Arc<DynamicConfig<Arc<AcmeConfig>>>,
     state: Arc<std::sync::Mutex<AcmeCertificateState>>,
     active_challenges: ActiveChallenges,
 }
 
 impl AcmeCertificateConfig {
-    pub fn new(acme_config: Arc<AcmeConfig>, active_challenges: ActiveChallenges) -> Self {
+    pub fn new(
+        acme_config: DynamicConfig<Arc<AcmeConfig>>,
+        active_challenges: ActiveChallenges,
+    ) -> Self {
         Self {
-            acme_config,
+            acme_config: Arc::new(acme_config),
             state: Default::default(),
             active_challenges,
         }
@@ -87,9 +91,21 @@ impl AcmeCertificateConfig {
         let acme_certificate: Result<AcmeCertificate, AcmeError> = async move {
             let result = self
                 .acme_config
+                .get()
                 .get_certificate(&self.active_challenges)
                 .await?;
-            // TODO do something with result.credentials
+
+            if let Some(new_credentials) = result.credentials {
+                self.acme_config.set(|old| {
+                    Arc::new(AcmeConfig {
+                        environment: old.environment.clone(),
+                        credentials: Some(new_credentials),
+                        contact: old.contact.clone(),
+                        domain: old.domain.clone(),
+                    })
+                });
+            }
+
             let mut chain = parse_pem_certificates(&result.certificate);
             let certificate = chain.next().ok_or(AcmeError::CertificateChain)??;
             let mut intermediates = vec![];
@@ -116,7 +132,7 @@ impl AcmeCertificateConfig {
 impl std::fmt::Debug for AcmeCertificateConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(AcmeCertificateConfig::type_name())
-            .field("environment", &self.acme_config.environment)
+            .field("environment", &self.acme_config.get().environment)
             .finish()
     }
 }

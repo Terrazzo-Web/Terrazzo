@@ -24,8 +24,6 @@ use crate::server::acme::clone_account_credentials;
 pub struct GetAcmeCertificateResult {
     pub certificate: String,
     pub private_key: String,
-
-    #[allow(unused)] // TODO do something with result.credentials
     pub credentials: Option<AccountCredentials>,
 }
 

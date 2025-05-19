@@ -3,22 +3,26 @@ use std::sync::RwLock;
 #[derive(Default)]
 pub struct DynamicConfig<T> {
     config: std::sync::RwLock<Option<T>>,
-    notify: Vec<Box<dyn Fn(&T) + Send + Sync + 'static>>,
+    notify: std::sync::RwLock<Vec<Box<dyn Fn(&T) + Send + Sync + 'static>>>,
 }
 
 impl<T> From<T> for DynamicConfig<T> {
     fn from(config: T) -> Self {
         Self {
             config: RwLock::new(Some(config)),
-            notify: vec![],
+            notify: RwLock::default(),
         }
     }
 }
 
 impl<T> DynamicConfig<T> {
-    pub fn notify(mut self, f: impl Into<Box<dyn Fn(&T) + Send + Sync + 'static>>) -> Self {
-        self.notify.push(f.into());
+    pub fn with_notify(mut self, f: impl Into<Box<dyn Fn(&T) + Send + Sync + 'static>>) -> Self {
+        self.notify.get_mut().expect("mut notify").push(f.into());
         self
+    }
+
+    pub fn add_notify(&self, f: impl Into<Box<dyn Fn(&T) + Send + Sync + 'static>>) {
+        self.notify.write().expect("write notify").push(f.into());
     }
 }
 
@@ -43,7 +47,7 @@ impl<T: Clone> DynamicConfig<T> {
         #[cfg(debug_assertions)]
         let _ = self.get();
 
-        for notify in &self.notify {
+        for notify in &*self.notify.read().expect("read notify") {
             notify(&new_config);
         }
     }

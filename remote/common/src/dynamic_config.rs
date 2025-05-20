@@ -36,12 +36,18 @@ impl<T> DynamicConfig<T> {
     }
 }
 
-impl<T: Clone> DynamicConfig<T> {
-    pub fn get(&self) -> T {
+impl<T> DynamicConfig<T> {
+    pub fn get(&self) -> T
+    where
+        T: Clone,
+    {
         self.with(T::clone)
     }
 
-    pub fn set(&self, make_new_config: impl FnOnce(T) -> T) {
+    pub fn set(&self, make_new_config: impl FnOnce(T) -> T)
+    where
+        T: Clone,
+    {
         let new_config;
         {
             let mut lock = self.config.write().expect("write lock");
@@ -65,7 +71,7 @@ impl<T: Clone> DynamicConfig<T> {
         from: impl Fn(T, &U) -> Option<T> + IsGlobal,
     ) -> Arc<DynamicConfig<U>>
     where
-        T: IsGlobal,
+        T: Clone + IsGlobal,
     {
         let main = self.clone();
         let derived = Arc::new(DynamicConfig::from(self.with(|m: &T| to(m))));
@@ -97,6 +103,23 @@ impl<T: Clone> DynamicConfig<T> {
             .unwrap()
             .push(Box::new(move || drop(on_main_change)));
         return derived;
+    }
+
+    pub fn if_change<U>(
+        from: impl Fn(&T, &U) -> Option<T> + 'static,
+    ) -> impl Fn(T, &U) -> Option<T> + 'static
+    where
+        T: Eq,
+    {
+        move |old_t, u| from(&old_t, u).filter(|new_t| *new_t != old_t)
+    }
+}
+
+impl<T> DynamicConfig<Arc<T>> {
+    pub fn if_ptr_change<U>(
+        from: impl Fn(&Arc<T>, &U) -> Option<Arc<T>> + 'static,
+    ) -> impl Fn(Arc<T>, &U) -> Option<Arc<T>> + 'static {
+        move |old_t, u| from(&old_t, u).filter(|new_t| !Arc::ptr_eq(new_t, &old_t))
     }
 }
 
@@ -255,5 +278,39 @@ mod tests {
 
         drop(derived);
         assert_eq!(0, main.notify.read().table.len());
+    }
+
+    #[test]
+    fn derive_eq() {
+        let main = Arc::new(DynamicConfig::from("hello".to_owned()));
+        let derived = main.derive(
+            |main| Box::new(main.to_uppercase()),
+            DynamicConfig::if_change(|_m, d: &Box<String>| Some(d.to_lowercase())),
+        );
+        assert_eq!("hello", main.get());
+        assert_eq!("HELLO", *derived.get());
+
+        derived.set(|_| Box::new("HELLO_WORLD".to_owned()));
+        assert_eq!("hello_world", main.get());
+        assert_eq!("HELLO_WORLD", *derived.get());
+    }
+
+    #[test]
+    fn derive_ptr() {
+        let main = Arc::new(DynamicConfig::from(Arc::new("hello".to_string())));
+        let derived = main.derive(
+            |main| Arc::new(main.to_uppercase()),
+            DynamicConfig::if_ptr_change(|m: &Arc<String>, _| Some(m.clone())),
+        );
+        assert_eq!("hello", *main.get());
+        assert_eq!("HELLO", *derived.get());
+
+        derived.set(|_| Arc::new("HELLO_WORLD".to_owned()));
+        assert_eq!("hello", *main.get());
+        assert_eq!("HELLO_WORLD", *derived.get());
+
+        main.set(|_| Arc::new("hello2".to_owned()));
+        assert_eq!("hello2", *main.get());
+        assert_eq!("HELLO2", *derived.get());
     }
 }

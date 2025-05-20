@@ -10,6 +10,7 @@ use crate::is_global::IsGlobal;
 
 pub mod as_trusted_store;
 pub mod cache;
+pub mod dynamic;
 pub mod pem;
 pub mod tls_server;
 

@@ -1,8 +1,7 @@
+use std::collections::HashMap;
+use std::collections::hash_map;
 use std::fmt::Debug;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::sync::Arc;
-use std::sync::LockResult;
 use std::sync::RwLock;
 
 use serde::Deserialize;
@@ -14,36 +13,27 @@ use crate::is_global::IsGlobal;
 #[derive(Default)]
 pub struct DynamicConfig<T> {
     config: std::sync::RwLock<Option<T>>,
-    notify: std::sync::RwLock<Vec<Box<dyn Fn(&T) + Send + Sync + 'static>>>,
+    notify: Arc<Registry<Box<dyn Fn(&T) + Send + Sync + 'static>>>,
+    on_drop: std::sync::Mutex<Vec<Box<dyn FnOnce() + Send + Sync + 'static>>>,
 }
 
 impl<T> From<T> for DynamicConfig<T> {
     fn from(config: T) -> Self {
         Self {
             config: RwLock::new(Some(config)),
-            notify: RwLock::default(),
+            notify: Default::default(),
+            on_drop: Default::default(),
         }
     }
 }
 
 impl<T> DynamicConfig<T> {
-    pub fn with_notify(mut self, f: impl Fn(&T) + IsGlobal) -> Self {
-        add_notify_impl(self.notify.get_mut(), f);
-        self
+    pub fn add_notify(
+        &self,
+        f: impl Fn(&T) + IsGlobal,
+    ) -> RegistryHandle<Box<dyn Fn(&T) + Send + Sync + 'static>> {
+        self.notify.add(Box::new(f))
     }
-
-    pub fn add_notify(&self, f: impl Fn(&T) + IsGlobal) {
-        add_notify_impl(self.notify.write(), f);
-    }
-}
-
-fn add_notify_impl<T>(
-    notify: LockResult<
-        impl Deref<Target = Vec<Box<dyn Fn(&T) + Send + Sync + 'static>>> + DerefMut,
-    >,
-    f: impl Fn(&T) + IsGlobal,
-) {
-    notify.expect("write notify").push(Box::new(f));
 }
 
 impl<T: Clone> DynamicConfig<T> {
@@ -62,13 +52,15 @@ impl<T: Clone> DynamicConfig<T> {
         #[cfg(debug_assertions)]
         let _ = self.get();
 
-        for notify in &*self.notify.read().expect("read notify") {
-            notify(&new_config);
-        }
+        self.notify.with(|notify| {
+            for notify in notify {
+                notify(&new_config);
+            }
+        });
     }
 
     pub fn derive<U: Clone + IsGlobal>(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
         from: impl Fn(T, &U) -> Option<T> + IsGlobal,
     ) -> Arc<DynamicConfig<U>>
@@ -76,20 +68,34 @@ impl<T: Clone> DynamicConfig<T> {
         T: IsGlobal,
     {
         let main = self.clone();
-        let derived = DynamicConfig::from(self.with(|m: &T| to(m)));
-        let derived = derived.with_notify({
-            let main = main.clone();
+        let derived = Arc::new(DynamicConfig::from(self.with(|m: &T| to(m))));
+        let on_derived_change = derived.add_notify({
+            let main_weak = Arc::downgrade(&main);
             move |d: &U| {
-                if let Some(m) = from(main.get(), d) {
-                    main.set(|_| m);
+                if let Some(main) = main_weak.upgrade() {
+                    if let Some(m) = from(main.get(), d) {
+                        main.set(|_| m);
+                    }
                 }
             }
         });
-        let derived = Arc::new(derived);
-        main.add_notify(Box::new({
-            let derived = derived.clone();
-            move |m: &T| derived.set(|_| to(m))
+        main.on_drop
+            .lock()
+            .unwrap()
+            .push(Box::new(move || drop(on_derived_change)));
+        let on_main_change = main.add_notify(Box::new({
+            let derived_weak = Arc::downgrade(&derived);
+            move |m: &T| {
+                if let Some(derived) = derived_weak.upgrade() {
+                    derived.set(|_| to(m))
+                }
+            }
         }));
+        derived
+            .on_drop
+            .lock()
+            .unwrap()
+            .push(Box::new(move || drop(on_main_change)));
         return derived;
     }
 }
@@ -130,5 +136,124 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for DynamicConfig<T> {
         D: Deserializer<'de>,
     {
         Ok(T::deserialize(deserializer)?.into())
+    }
+}
+
+struct Registry<T>(std::sync::RwLock<RegistryInner<T>>);
+
+struct RegistryInner<T> {
+    next: i32,
+    table: HashMap<i32, T>,
+}
+
+#[must_use]
+pub struct RegistryHandle<T> {
+    registry: Arc<Registry<T>>,
+    key: i32,
+}
+
+impl<T> Registry<T> {
+    fn add(self: &Arc<Self>, value: T) -> RegistryHandle<T> {
+        let mut lock = self.write();
+        let RegistryInner { next, table } = &mut *lock;
+        *next += 1;
+        let prev = table.insert(*next, value);
+        assert!(prev.is_none());
+        return RegistryHandle {
+            registry: self.clone(),
+            key: *next,
+        };
+    }
+
+    fn read(&self) -> std::sync::RwLockReadGuard<RegistryInner<T>> {
+        self.0.read().expect("registry")
+    }
+
+    fn write(&self) -> std::sync::RwLockWriteGuard<RegistryInner<T>> {
+        self.0.write().expect("registry")
+    }
+}
+
+impl<T> Registry<T> {
+    pub fn with<R>(&self, f: impl Fn(hash_map::Values<'_, i32, T>) -> R) -> R {
+        f(self.read().table.values())
+    }
+}
+
+impl<T> Default for Registry<T> {
+    fn default() -> Self {
+        Self(RwLock::new(RegistryInner {
+            next: 0,
+            table: HashMap::new(),
+        }))
+    }
+}
+
+impl<T> Drop for RegistryHandle<T> {
+    fn drop(&mut self) {
+        let mut lock = self.registry.write();
+        let removed = lock.table.remove(&self.key);
+        debug_assert!(removed.is_some());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::Mutex;
+
+    use super::DynamicConfig;
+
+    #[test]
+    fn set() {
+        let cfg = DynamicConfig::from("hello".to_owned());
+        let () = cfg.set(|old| format!("{old} world"));
+        assert_eq!("hello world", cfg.get());
+    }
+
+    #[test]
+    fn add_notify() {
+        let cfg = DynamicConfig::from("hello".to_owned());
+        let last = Arc::new(Mutex::new(None));
+        let last2 = last.clone();
+        let notify =
+            cfg.add_notify(move |current| *last2.lock().unwrap() = Some(current.to_owned()));
+
+        let () = cfg.set(|old| format!("{old} world"));
+        assert_eq!(Some("hello world"), last.lock().unwrap().as_deref());
+        assert_eq!("hello world", cfg.get());
+
+        let () = cfg.set(|old| format!("{old}!"));
+        assert_eq!(Some("hello world!"), last.lock().unwrap().as_deref());
+        assert_eq!("hello world!", cfg.get());
+
+        drop(notify);
+        let () = cfg.set(|old| format!("{old}!!"));
+        assert_eq!(Some("hello world!"), last.lock().unwrap().as_deref());
+        assert_eq!("hello world!!!", cfg.get());
+    }
+
+    #[test]
+    fn derive() {
+        let main = Arc::new(DynamicConfig::from("hello".to_owned()));
+        let derived = main.derive(
+            |main| Box::new(main.to_uppercase()),
+            |m, d| {
+                let new_main = d.to_lowercase();
+                if new_main != m { Some(new_main) } else { None }
+            },
+        );
+        assert_eq!("hello", main.get());
+        assert_eq!("HELLO", *derived.get());
+
+        derived.set(|_| Box::new("HELLO_WORLD".to_owned()));
+        assert_eq!("hello_world", main.get());
+        assert_eq!("HELLO_WORLD", *derived.get());
+
+        assert_eq!(1, main.notify.read().table.len());
+        assert_eq!(1, derived.notify.read().table.len());
+
+        drop(derived);
+        assert_eq!(0, main.notify.read().table.len());
     }
 }

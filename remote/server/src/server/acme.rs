@@ -1,5 +1,6 @@
 #![cfg(feature = "acme")]
 
+use std::ops::Deref;
 use std::sync::Arc;
 
 use instant_acme::AccountCredentials;
@@ -11,6 +12,7 @@ use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
+use trz_gateway_common::dynamic_config::DynamicConfig;
 
 pub mod active_challenges;
 pub mod certificate_config;
@@ -97,4 +99,21 @@ impl std::fmt::Debug for AcmeConfig {
 fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredentials {
     let credentials = serde_json::to_string(credentials).expect("Serialize credentials");
     serde_json::from_str(&credentials).expect("Deserialize credentials")
+}
+
+#[derive(Clone)]
+pub struct DynamicAcmeConfig(Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>);
+
+impl Deref for DynamicAcmeConfig {
+    type Target = Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>> for DynamicAcmeConfig {
+    fn from(value: Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>) -> Self {
+        Self(value)
+    }
 }

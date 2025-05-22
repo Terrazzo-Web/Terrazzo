@@ -116,12 +116,9 @@ impl Server {
         });
 
         let (host, port) = (config.host(), config.port());
-        let socket_addrs = (host, port).to_socket_addrs();
-        let socket_addrs = socket_addrs.map_err(|error| GatewayError::ToSocketAddrs {
-            host: host.to_owned(),
-            port,
-            error,
-        })?;
+        let socket_addrs = (host.as_str(), port)
+            .to_socket_addrs()
+            .map_err(|error| GatewayError::ToSocketAddrs { host, port, error })?;
         drop(config);
 
         let mut terminated = vec![];

@@ -215,8 +215,8 @@ impl GatewayConfig for TestConfig {
         false
     }
 
-    fn host(&self) -> &str {
-        "localhost"
+    fn host(&self) -> String {
+        "localhost".into()
     }
 
     fn port(&self) -> u16 {

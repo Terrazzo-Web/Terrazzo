@@ -6,29 +6,32 @@ use openssl::pkey::PKey;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
-use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 
 use super::AcmeConfig;
 use super::AcmeError;
+use super::DynamicAcmeConfig;
 use super::active_challenges::ActiveChallenges;
 
 #[nameth]
 #[derive(Clone)]
 pub struct AcmeCertificateConfig {
-    acme_config: Arc<DynamicConfig<Arc<AcmeConfig>>>,
+    acme_config_dyn: DynamicAcmeConfig,
+    acme_config: Arc<AcmeConfig>,
     state: Arc<std::sync::Mutex<AcmeCertificateState>>,
     active_challenges: ActiveChallenges,
 }
 
 impl AcmeCertificateConfig {
     pub fn new(
-        acme_config: DynamicConfig<Arc<AcmeConfig>>,
+        acme_config_dyn: DynamicAcmeConfig,
+        acme_config: Arc<AcmeConfig>,
         active_challenges: ActiveChallenges,
     ) -> Self {
         Self {
-            acme_config: Arc::new(acme_config),
+            acme_config,
+            acme_config_dyn,
             state: Default::default(),
             active_challenges,
         }
@@ -46,10 +49,6 @@ impl CertificateConfig for AcmeCertificateConfig {
 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         return self.get_or_initialize(|state| &state.certificate);
-    }
-
-    fn is_dynamic(&self) -> bool {
-        true
     }
 }
 
@@ -91,18 +90,20 @@ impl AcmeCertificateConfig {
         let acme_certificate: Result<AcmeCertificate, AcmeError> = async move {
             let result = self
                 .acme_config
-                .get()
                 .get_certificate(&self.active_challenges)
                 .await?;
 
             if let Some(new_credentials) = result.credentials {
-                self.acme_config.set(|old| {
-                    Arc::new(AcmeConfig {
+                self.acme_config_dyn.silent_set(|old| {
+                    let Some(old) = old else {
+                        return None;
+                    };
+                    Some(Arc::new(AcmeConfig {
                         environment: old.environment.clone(),
                         credentials: Some(new_credentials),
                         contact: old.contact.clone(),
                         domain: old.domain.clone(),
-                    })
+                    }))
                 });
             }
 
@@ -132,7 +133,7 @@ impl AcmeCertificateConfig {
 impl std::fmt::Debug for AcmeCertificateConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(AcmeCertificateConfig::type_name())
-            .field("environment", &self.acme_config.get().environment)
+            .field("environment", &self.acme_config.environment)
             .finish()
     }
 }

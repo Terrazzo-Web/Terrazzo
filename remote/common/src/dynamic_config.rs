@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::collections::hash_map;
+use std::convert::Infallible;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -9,34 +11,60 @@ use serde::Deserializer;
 use serde::Serialize;
 
 use crate::is_global::IsGlobal;
+use crate::unwrap_infallible::UnwrapInfallible as _;
 
 #[derive(Default)]
-pub struct DynamicConfig<T> {
+pub struct DynamicConfig<T, M = mode::RW> {
     config: std::sync::RwLock<Option<T>>,
     notify: Arc<Registry<Box<dyn Fn(&T) + Send + Sync + 'static>>>,
     on_drop: std::sync::Mutex<Vec<Box<dyn FnOnce() + Send + Sync + 'static>>>,
+    _mode: PhantomData<M>,
 }
 
-impl<T> From<T> for DynamicConfig<T> {
+pub mod mode {
+    use crate::is_global::IsGlobal;
+
+    pub trait Mode: IsGlobal {}
+
+    pub enum RW {}
+    pub enum RO {}
+
+    impl Mode for RW {}
+    impl Mode for RO {}
+}
+
+impl<T> From<T> for DynamicConfig<T, mode::RW> {
     fn from(config: T) -> Self {
-        Self {
-            config: RwLock::new(Some(config)),
-            notify: Default::default(),
-            on_drop: Default::default(),
-        }
+        from_impl(config)
     }
 }
 
-impl<T> DynamicConfig<T> {
+fn from_impl<T, M: mode::Mode>(config: T) -> DynamicConfig<T, M> {
+    DynamicConfig {
+        config: RwLock::new(Some(config)),
+        notify: Default::default(),
+        on_drop: Default::default(),
+        _mode: PhantomData,
+    }
+}
+
+impl<T> DynamicConfig<T, mode::RW> {
     pub fn add_notify(
         &self,
         f: impl Fn(&T) + IsGlobal,
     ) -> RegistryHandle<Box<dyn Fn(&T) + Send + Sync + 'static>> {
-        self.notify.add(Box::new(f))
+        add_notify(self, f)
     }
 }
 
-impl<T> DynamicConfig<T> {
+fn add_notify<T, M: mode::Mode>(
+    this: &DynamicConfig<T, M>,
+    f: impl Fn(&T) + IsGlobal,
+) -> RegistryHandle<Box<dyn Fn(&T) + Send + Sync + 'static>> {
+    this.notify.add(Box::new(f))
+}
+
+impl<T, M: mode::Mode> DynamicConfig<T, M> {
     pub fn get(&self) -> T
     where
         T: Clone,
@@ -44,14 +72,158 @@ impl<T> DynamicConfig<T> {
         self.with(T::clone)
     }
 
+    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        f(self
+            .config
+            .read()
+            .expect("read lock")
+            .as_ref()
+            .expect("option not present"))
+    }
+
+    pub fn view<U: Clone + IsGlobal>(
+        self: &Arc<Self>,
+        to: impl Fn(&T) -> U + IsGlobal,
+    ) -> Arc<DynamicConfig<U, mode::RO>>
+    where
+        T: Clone + IsGlobal,
+    {
+        derive_impl(self.clone(), to, |_, _| Option::<T>::None)
+    }
+}
+
+impl<T> DynamicConfig<T, mode::RW> {
     pub fn set(&self, make_new_config: impl FnOnce(T) -> T)
+    where
+        T: Clone,
+    {
+        self.try_set(|t| Ok::<_, Infallible>(make_new_config(t)))
+            .unwrap_infallible()
+    }
+
+    pub fn try_set<E>(&self, make_new_config: impl FnOnce(T) -> Result<T, E>) -> Result<(), E>
+    where
+        T: Clone,
+    {
+        self.try_set_impl(make_new_config)
+    }
+
+    pub fn silent_set(&self, make_new_config: impl FnOnce(T) -> T)
+    where
+        T: Clone,
+    {
+        self.silent_try_set(|t| Ok::<_, Infallible>(make_new_config(t)))
+            .unwrap_infallible()
+    }
+
+    pub fn silent_try_set<E>(
+        &self,
+        make_new_config: impl FnOnce(T) -> Result<T, E>,
+    ) -> Result<(), E>
+    where
+        T: Clone,
+    {
+        {
+            let mut lock = self.config.write().expect("write lock");
+            let new_config = make_new_config(lock.take().expect("option not present"))?;
+            *lock = Some(new_config);
+        }
+
+        #[cfg(debug_assertions)]
+        let _ = self.get();
+
+        Ok(())
+    }
+
+    pub fn derive<U>(
+        self: &Arc<Self>,
+        to: impl Fn(&T) -> U + IsGlobal,
+        from: impl Fn(T, &U) -> Option<T> + IsGlobal,
+    ) -> Arc<DynamicConfig<U, mode::RW>>
+    where
+        T: Clone + IsGlobal,
+        U: Clone + IsGlobal,
+    {
+        derive_impl(self.clone(), to, from)
+    }
+}
+
+fn derive_impl<T, MT: mode::Mode, U, MU: mode::Mode>(
+    main: Arc<DynamicConfig<T, MT>>,
+    to: impl Fn(&T) -> U + IsGlobal,
+    from: impl Fn(T, &U) -> Option<T> + IsGlobal,
+) -> Arc<DynamicConfig<U, MU>>
+where
+    T: Clone + IsGlobal,
+    U: Clone + IsGlobal,
+{
+    let derived: Arc<DynamicConfig<U, MU>> = Arc::new(from_impl(main.with(|m| to(m))));
+    let on_derived_change = add_notify(&derived, {
+        let main_weak = Arc::downgrade(&main);
+        move |d| {
+            if let Some(main) = main_weak.upgrade() {
+                if let Some(m) = from(main.get(), d) {
+                    main.try_set_impl(|_| Ok(m)).unwrap_infallible();
+                }
+            }
+        }
+    });
+    main.on_drop
+        .lock()
+        .unwrap()
+        .push(Box::new(move || drop(on_derived_change)));
+    let on_main_change = add_notify(&main, {
+        let derived_weak = Arc::downgrade(&derived);
+        move |m| {
+            if let Some(derived) = derived_weak.upgrade() {
+                derived.try_set_impl(|_| Ok(to(m))).unwrap_infallible()
+            }
+        }
+    });
+    derived
+        .on_drop
+        .lock()
+        .unwrap()
+        .push(Box::new(move || drop(on_main_change)));
+    return derived;
+}
+
+impl<T> DynamicConfig<T> {
+    pub fn if_change<U>(
+        from: impl Fn(&T, &U) -> T + 'static,
+    ) -> impl Fn(T, &U) -> Option<T> + 'static
+    where
+        T: Eq,
+    {
+        move |old_t, u| {
+            let new_t = from(&old_t, u);
+            if new_t != old_t { Some(new_t) } else { None }
+        }
+    }
+
+    pub fn if_ptr_change<U>(
+        from: impl Fn(&Arc<T>, &U) -> Arc<T> + 'static,
+    ) -> impl Fn(Arc<T>, &U) -> Option<Arc<T>> + 'static {
+        move |old_t, u| {
+            let new_t = from(&old_t, u);
+            if !Arc::ptr_eq(&new_t, &old_t) {
+                Some(new_t)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl<T, M: mode::Mode> DynamicConfig<T, M> {
+    fn try_set_impl<E>(&self, make_new_config: impl FnOnce(T) -> Result<T, E>) -> Result<(), E>
     where
         T: Clone,
     {
         let new_config;
         {
             let mut lock = self.config.write().expect("write lock");
-            new_config = make_new_config(lock.take().expect("option not present"));
+            new_config = make_new_config(lock.take().expect("option not present"))?;
             *lock = Some(new_config.clone());
         }
 
@@ -63,74 +235,7 @@ impl<T> DynamicConfig<T> {
                 notify(&new_config);
             }
         });
-    }
-
-    pub fn derive<U: Clone + IsGlobal>(
-        self: &Arc<Self>,
-        to: impl Fn(&T) -> U + IsGlobal,
-        from: impl Fn(T, &U) -> Option<T> + IsGlobal,
-    ) -> Arc<DynamicConfig<U>>
-    where
-        T: Clone + IsGlobal,
-    {
-        let main = self.clone();
-        let derived = Arc::new(DynamicConfig::from(self.with(|m: &T| to(m))));
-        let on_derived_change = derived.add_notify({
-            let main_weak = Arc::downgrade(&main);
-            move |d: &U| {
-                if let Some(main) = main_weak.upgrade() {
-                    if let Some(m) = from(main.get(), d) {
-                        main.set(|_| m);
-                    }
-                }
-            }
-        });
-        main.on_drop
-            .lock()
-            .unwrap()
-            .push(Box::new(move || drop(on_derived_change)));
-        let on_main_change = main.add_notify(Box::new({
-            let derived_weak = Arc::downgrade(&derived);
-            move |m: &T| {
-                if let Some(derived) = derived_weak.upgrade() {
-                    derived.set(|_| to(m))
-                }
-            }
-        }));
-        derived
-            .on_drop
-            .lock()
-            .unwrap()
-            .push(Box::new(move || drop(on_main_change)));
-        return derived;
-    }
-
-    pub fn if_change<U>(
-        from: impl Fn(&T, &U) -> Option<T> + 'static,
-    ) -> impl Fn(T, &U) -> Option<T> + 'static
-    where
-        T: Eq,
-    {
-        move |old_t, u| from(&old_t, u).filter(|new_t| *new_t != old_t)
-    }
-}
-
-impl<T> DynamicConfig<Arc<T>> {
-    pub fn if_ptr_change<U>(
-        from: impl Fn(&Arc<T>, &U) -> Option<Arc<T>> + 'static,
-    ) -> impl Fn(Arc<T>, &U) -> Option<Arc<T>> + 'static {
-        move |old_t, u| from(&old_t, u).filter(|new_t| !Arc::ptr_eq(new_t, &old_t))
-    }
-}
-
-impl<T> DynamicConfig<T> {
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(self
-            .config
-            .read()
-            .expect("read lock")
-            .as_ref()
-            .expect("option not present"))
+        Ok(())
     }
 }
 
@@ -281,11 +386,23 @@ mod tests {
     }
 
     #[test]
+    fn view() {
+        let main = Arc::new(DynamicConfig::from("hello".to_owned()));
+        let view = main.view(|main| Box::new(main.to_uppercase()));
+        assert_eq!("hello", main.get());
+        assert_eq!("HELLO", *view.get());
+
+        main.set(|_| "Hello World".to_owned());
+        assert_eq!("Hello World", main.get());
+        assert_eq!("HELLO WORLD", *view.get());
+    }
+
+    #[test]
     fn derive_eq() {
         let main = Arc::new(DynamicConfig::from("hello".to_owned()));
         let derived = main.derive(
             |main| Box::new(main.to_uppercase()),
-            DynamicConfig::if_change(|_m, d: &Box<String>| Some(d.to_lowercase())),
+            DynamicConfig::if_change(|_m, d: &Box<String>| d.to_lowercase()),
         );
         assert_eq!("hello", main.get());
         assert_eq!("HELLO", *derived.get());
@@ -300,7 +417,7 @@ mod tests {
         let main = Arc::new(DynamicConfig::from(Arc::new("hello".to_string())));
         let derived = main.derive(
             |main| Arc::new(main.to_uppercase()),
-            DynamicConfig::if_ptr_change(|m: &Arc<String>, _| Some(m.clone())),
+            DynamicConfig::if_ptr_change(|m: &Arc<String>, _| m.clone()),
         );
         assert_eq!("hello", *main.get());
         assert_eq!("HELLO", *derived.get());

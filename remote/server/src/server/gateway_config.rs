@@ -15,8 +15,8 @@ pub trait GatewayConfig: IsGlobal {
     }
 
     /// Host to listen to.
-    fn host(&self) -> &str {
-        "127.0.0.1"
+    fn host(&self) -> String {
+        "127.0.0.1".into()
     }
 
     /// Port to listen to.

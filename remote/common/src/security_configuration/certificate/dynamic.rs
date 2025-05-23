@@ -41,3 +41,11 @@ impl<C: TrustedStoreConfig, M: Mode> TrustedStoreConfig for DynamicCertificate<C
         self.0.with(|config| config.root_certificates())
     }
 }
+
+impl<C: Clone + std::fmt::Debug, M: Mode> std::fmt::Debug for DynamicCertificate<C, M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("DynamicCertificate")
+            .field(&self.0.get())
+            .finish()
+    }
+}

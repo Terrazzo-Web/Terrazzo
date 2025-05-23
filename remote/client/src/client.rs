@@ -74,48 +74,52 @@ impl Client {
     pub async fn run(self: &Arc<Self>) -> Result<ServerHandle<()>, ConnectError> {
         let this = self.clone();
         let client_name = &this.client_name;
-        let _span = info_span!("Run", %client_name).entered();
-        let client_id = ClientId::from(Uuid::new_v4().to_string());
-        info!(%client_id, "Allocated new client id");
-        let retry_strategy0 = this.retry_strategy.clone();
-        let mut retry_strategy = retry_strategy0.clone();
-        let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Client");
-        let shutdown_rx = shutdown_rx.shared();
-        let (serving_tx, serving_rx) = oneshot::channel();
+        let span = info_span!("Run", %client_name);
+        async move {
+            let client_id = ClientId::from(Uuid::new_v4().to_string());
+            info!(%client_id, "Allocated new client id");
+            let retry_strategy0 = this.retry_strategy.clone();
+            let mut retry_strategy = retry_strategy0.clone();
+            let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Client");
+            let shutdown_rx = shutdown_rx.shared();
+            let (serving_tx, serving_rx) = oneshot::channel();
 
-        let task = async move {
-            let mut serving_tx = Some(serving_tx);
-            loop {
-                let start = Instant::now();
-                let result = this
-                    .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
-                    .await;
-                if let Some(()) = shutdown_rx.peek() {
-                    break;
+            let task = async move {
+                let mut serving_tx = Some(serving_tx);
+                loop {
+                    let start = Instant::now();
+                    let result = this
+                        .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
+                        .await;
+                    if let Some(()) = shutdown_rx.peek() {
+                        break;
+                    }
+                    let uptime = Instant::now() - start;
+                    match result {
+                        Ok(()) => info!(
+                            "Connection closed, retrying in {}...",
+                            humantime::format_duration(retry_strategy.delay)
+                        ),
+                        Err(error) => warn!(
+                            %error,
+                            "Connection failed, retrying in {}...",
+                            humantime::format_duration(retry_strategy.delay)
+                        ),
+                    }
+                    if uptime < retry_strategy0.max_delay {
+                        retry_strategy.wait().await;
+                    } else {
+                        retry_strategy = retry_strategy0.clone();
+                    }
                 }
-                let uptime = Instant::now() - start;
-                match result {
-                    Ok(()) => info!(
-                        "Connection closed, retrying in {}...",
-                        humantime::format_duration(retry_strategy.delay)
-                    ),
-                    Err(error) => warn!(
-                        %error,
-                        "Connection failed, retrying in {}...",
-                        humantime::format_duration(retry_strategy.delay)
-                    ),
-                }
-                if uptime < retry_strategy0.max_delay {
-                    retry_strategy.wait().await;
-                } else {
-                    retry_strategy = retry_strategy0.clone();
-                }
-            }
-            let _ = terminated_tx.send(());
-        };
-        tokio::spawn(task.in_current_span());
-        let _ = serving_rx.await;
-        Ok(handle)
+                let _ = terminated_tx.send(());
+            };
+            tokio::spawn(task.in_current_span());
+            let _ = serving_rx.await;
+            Ok(handle)
+        }
+        .instrument(span)
+        .await
     }
 }
 

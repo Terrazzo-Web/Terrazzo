@@ -1,6 +1,7 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
+use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
@@ -24,7 +25,7 @@ impl<R> ServerHandle<R> {
         let shutdown_rx = async move {
             match shutdown_rx.await {
                 Ok(message) => info!("Server shutdown: {message}"),
-                Err(oneshot::error::RecvError { .. }) => warn!("Server handle dropped!"),
+                Err(oneshot::error::RecvError { .. }) => debug!("Server handle dropped!"),
             }
         };
         let (terminated_tx, terminated_rx) = oneshot::channel();

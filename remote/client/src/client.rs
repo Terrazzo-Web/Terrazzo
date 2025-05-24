@@ -1,8 +1,11 @@
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::SeqCst;
 use std::time::Instant;
 
 use connect::ConnectError;
 use futures::FutureExt;
+use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
@@ -78,42 +81,9 @@ impl Client {
         async move {
             let client_id = ClientId::from(Uuid::new_v4().to_string());
             info!(%client_id, "Allocated new client id");
-            let retry_strategy0 = this.retry_strategy.clone();
-            let mut retry_strategy = retry_strategy0.clone();
             let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Client");
-            let shutdown_rx = shutdown_rx.shared();
             let (serving_tx, serving_rx) = oneshot::channel();
-
-            let task = async move {
-                let mut serving_tx = Some(serving_tx);
-                loop {
-                    let start = Instant::now();
-                    let result = this
-                        .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
-                        .await;
-                    if let Some(()) = shutdown_rx.peek() {
-                        break;
-                    }
-                    let uptime = Instant::now() - start;
-                    match result {
-                        Ok(()) => info!(
-                            "Connection closed, retrying in {}...",
-                            humantime::format_duration(retry_strategy.delay)
-                        ),
-                        Err(error) => warn!(
-                            %error,
-                            "Connection failed, retrying in {}...",
-                            humantime::format_duration(retry_strategy.delay)
-                        ),
-                    }
-                    if uptime < retry_strategy0.max_delay {
-                        retry_strategy.wait().await;
-                    } else {
-                        retry_strategy = retry_strategy0.clone();
-                    }
-                }
-                let _ = terminated_tx.send(());
-            };
+            let task = run_impl(this, client_id, serving_tx, shutdown_rx, terminated_tx);
             tokio::spawn(task.in_current_span());
             let _ = serving_rx.await;
             Ok(handle)
@@ -121,6 +91,65 @@ impl Client {
         .instrument(span)
         .await
     }
+}
+
+async fn run_impl(
+    this: Arc<Client>,
+    client_id: ClientId,
+
+    // Set when the client is serving connections
+    serving_tx: oneshot::Sender<()>,
+
+    // Set when the client should start shutting down
+    shutdown_rx: impl Future<Output = ()> + Send + 'static,
+
+    // Set when the client has shut down
+    terminated_tx: oneshot::Sender<()>,
+) {
+    let retry_strategy0 = this.retry_strategy.clone();
+    let mut retry_strategy = retry_strategy0.clone();
+    let shutdown_rx = shutdown_rx.shared();
+
+    let is_shutdown = is_shutdown(shutdown_rx.clone());
+
+    let mut serving_tx: Option<oneshot::Sender<()>> = Some(serving_tx);
+    loop {
+        let start = Instant::now();
+        let result = this
+            .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
+            .await;
+        if is_shutdown.load(SeqCst) {
+            break;
+        }
+        let uptime = Instant::now() - start;
+        if uptime < retry_strategy0.max_delay {
+            match result {
+                Ok(()) => {
+                    info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.delay) }
+                }
+                Err(error) => {
+                    warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.delay) }
+                }
+            }
+            let _wait =
+                futures::future::select(Box::pin(retry_strategy.wait()), shutdown_rx.clone()).await;
+        } else {
+            retry_strategy = retry_strategy0.clone();
+        }
+    }
+    let _ = terminated_tx.send(());
+}
+
+fn is_shutdown(shutdown_rx: Shared<impl Future<Output = ()> + Send + 'static>) -> Arc<AtomicBool> {
+    let is_shutdown = Arc::new(AtomicBool::new(false));
+    tokio::spawn({
+        let is_shutdown = is_shutdown.clone();
+        async move {
+            let _ = shutdown_rx.await;
+            is_shutdown.store(true, SeqCst);
+        }
+    });
+    return is_shutdown;
 }
 
 #[nameth]

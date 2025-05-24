@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use mode_impl::ModeImpl;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -22,15 +23,37 @@ pub struct DynamicConfig<T, M = mode::RW> {
 }
 
 pub mod mode {
+    pub use super::mode_impl::Mode;
+    pub use super::mode_impl::RO;
+    pub use super::mode_impl::RW;
+}
+
+mod mode_impl {
     use crate::is_global::IsGlobal;
 
-    pub trait Mode: IsGlobal {}
+    pub trait Mode: IsGlobal {
+        fn mode() -> ModeImpl;
+    }
 
     pub enum RW {}
     pub enum RO {}
 
-    impl Mode for RW {}
-    impl Mode for RO {}
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum ModeImpl {
+        RW,
+        RO,
+    }
+
+    impl Mode for RW {
+        fn mode() -> ModeImpl {
+            ModeImpl::RW
+        }
+    }
+    impl Mode for RO {
+        fn mode() -> ModeImpl {
+            ModeImpl::RO
+        }
+    }
 }
 
 impl<T> From<T> for DynamicConfig<T, mode::RW> {
@@ -93,7 +116,7 @@ impl<T, M: mode::Mode> DynamicConfig<T, M> {
 }
 
 impl<T> DynamicConfig<T, mode::RW> {
-    pub fn set(&self, make_new_config: impl FnOnce(T) -> T)
+    pub fn set(&self, make_new_config: impl FnOnce(&T) -> T)
     where
         T: Clone,
     {
@@ -101,14 +124,14 @@ impl<T> DynamicConfig<T, mode::RW> {
             .unwrap_infallible()
     }
 
-    pub fn try_set<E>(&self, make_new_config: impl FnOnce(T) -> Result<T, E>) -> Result<(), E>
+    pub fn try_set<E>(&self, make_new_config: impl FnOnce(&T) -> Result<T, E>) -> Result<(), E>
     where
         T: Clone,
     {
         self.try_set_impl(make_new_config)
     }
 
-    pub fn silent_set(&self, make_new_config: impl FnOnce(T) -> T)
+    pub fn silent_set(&self, make_new_config: impl FnOnce(&T) -> T)
     where
         T: Clone,
     {
@@ -118,14 +141,14 @@ impl<T> DynamicConfig<T, mode::RW> {
 
     pub fn silent_try_set<E>(
         &self,
-        make_new_config: impl FnOnce(T) -> Result<T, E>,
+        make_new_config: impl FnOnce(&T) -> Result<T, E>,
     ) -> Result<(), E>
     where
         T: Clone,
     {
         {
             let mut lock = self.config.write().expect("write lock");
-            let new_config = make_new_config(lock.take().expect("option not present"))?;
+            let new_config = make_new_config(lock.as_ref().expect("option not present"))?;
             *lock = Some(new_config);
         }
 
@@ -158,20 +181,22 @@ where
     U: Clone + IsGlobal,
 {
     let derived: Arc<DynamicConfig<U, MU>> = Arc::new(from_impl(main.with(|m| to(m))));
-    let on_derived_change = add_notify(&derived, {
-        let main_weak = Arc::downgrade(&main);
-        move |d| {
-            if let Some(main) = main_weak.upgrade() {
-                if let Some(m) = from(main.get(), d) {
-                    main.try_set_impl(|_| Ok(m)).unwrap_infallible();
+    if MU::mode() == ModeImpl::RW {
+        let on_derived_change = add_notify(&derived, {
+            let main_weak = Arc::downgrade(&main);
+            move |d| {
+                if let Some(main) = main_weak.upgrade() {
+                    if let Some(m) = from(main.get(), d) {
+                        main.try_set_impl(|_| Ok(m)).unwrap_infallible();
+                    }
                 }
             }
-        }
-    });
-    main.on_drop
-        .lock()
-        .unwrap()
-        .push(Box::new(move || drop(on_derived_change)));
+        });
+        main.on_drop
+            .lock()
+            .unwrap()
+            .push(Box::new(move || drop(on_derived_change)));
+    }
     let on_main_change = add_notify(&main, {
         let derived_weak = Arc::downgrade(&derived);
         move |m| {
@@ -216,14 +241,14 @@ impl<T> DynamicConfig<T> {
 }
 
 impl<T, M: mode::Mode> DynamicConfig<T, M> {
-    fn try_set_impl<E>(&self, make_new_config: impl FnOnce(T) -> Result<T, E>) -> Result<(), E>
+    fn try_set_impl<E>(&self, make_new_config: impl FnOnce(&T) -> Result<T, E>) -> Result<(), E>
     where
         T: Clone,
     {
         let new_config;
         {
             let mut lock = self.config.write().expect("write lock");
-            new_config = make_new_config(lock.take().expect("option not present"))?;
+            new_config = make_new_config(&lock.take().expect("option not present"))?;
             *lock = Some(new_config.clone());
         }
 
@@ -336,6 +361,20 @@ mod tests {
     fn set() {
         let cfg = DynamicConfig::from("hello".to_owned());
         let () = cfg.set(|old| format!("{old} world"));
+        assert_eq!("hello world", cfg.get());
+    }
+
+    #[test]
+    fn try_set() {
+        let cfg = DynamicConfig::from("hello".to_owned());
+        let Ok(()): Result<(), ()> = cfg.try_set(|old| Ok(format!("{old} world"))) else {
+            panic!();
+        };
+        assert_eq!("hello world", cfg.get());
+
+        let Err(()): Result<(), ()> = cfg.try_set(|_| Err(())) else {
+            panic!();
+        };
         assert_eq!("hello world", cfg.get());
     }
 

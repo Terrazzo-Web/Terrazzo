@@ -119,7 +119,8 @@ impl<T: CertificateConfig> ResolvesServerCert for ServerCertificateResolver<T> {
         let _span = info_span!(
             "Resolve server certificate",
             host = client_hello.server_name()
-        );
+        )
+        .entered();
         let mut state = self.state.lock().unwrap();
         match self.resolve_impl(&mut state) {
             Ok(certified_key) => Some(certified_key),

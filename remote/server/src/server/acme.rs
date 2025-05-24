@@ -13,6 +13,8 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 use trz_gateway_common::dynamic_config::DynamicConfig;
+use trz_gateway_common::dynamic_config::has_diff::DiffArc;
+use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 
 pub mod active_challenges;
 pub mod certificate_config;
@@ -102,18 +104,18 @@ fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredent
 }
 
 #[derive(Clone)]
-pub struct DynamicAcmeConfig(Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>);
+pub struct DynamicAcmeConfig(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>);
 
 impl Deref for DynamicAcmeConfig {
-    type Target = Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>;
+    type Target = Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>> for DynamicAcmeConfig {
-    fn from(value: Arc<DynamicConfig<Option<Arc<AcmeConfig>>>>) -> Self {
+impl From<Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>> for DynamicAcmeConfig {
+    fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>) -> Self {
         Self(value)
     }
 }

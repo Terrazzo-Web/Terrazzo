@@ -6,6 +6,8 @@ use openssl::pkey::PKey;
 use openssl::x509::X509;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
+use trz_gateway_common::dynamic_config::has_diff::DiffArc;
+use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 
@@ -18,7 +20,7 @@ use super::active_challenges::ActiveChallenges;
 #[derive(Clone)]
 pub struct AcmeCertificateConfig {
     acme_config_dyn: DynamicAcmeConfig,
-    acme_config: Arc<AcmeConfig>,
+    acme_config: DiffArc<AcmeConfig>,
     state: Arc<std::sync::Mutex<AcmeCertificateState>>,
     active_challenges: ActiveChallenges,
 }
@@ -26,7 +28,7 @@ pub struct AcmeCertificateConfig {
 impl AcmeCertificateConfig {
     pub fn new(
         acme_config_dyn: DynamicAcmeConfig,
-        acme_config: Arc<AcmeConfig>,
+        acme_config: DiffArc<AcmeConfig>,
         active_challenges: ActiveChallenges,
     ) -> Self {
         Self {
@@ -95,10 +97,10 @@ impl AcmeCertificateConfig {
 
             if let Some(new_credentials) = result.credentials {
                 self.acme_config_dyn.silent_set(|old| {
-                    let Some(old) = old else {
-                        return None;
+                    let Some(old) = &**old else {
+                        return DiffOption::default();
                     };
-                    Some(Arc::new(AcmeConfig {
+                    DiffOption::from(DiffArc::from(AcmeConfig {
                         environment: old.environment.clone(),
                         credentials: Some(new_credentials),
                         contact: old.contact.clone(),

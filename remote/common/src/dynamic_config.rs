@@ -62,7 +62,10 @@ impl<T> From<T> for DynamicConfig<T, mode::RW> {
     }
 }
 
-fn from_impl<T, M: mode::Mode>(config: T) -> DynamicConfig<T, M> {
+fn from_impl<T, M>(config: T) -> DynamicConfig<T, M>
+where
+    M: mode::Mode,
+{
     DynamicConfig {
         config: RwLock::new(Some(config)),
         notify: Default::default(),
@@ -80,14 +83,17 @@ impl<T> DynamicConfig<T, mode::RW> {
     }
 }
 
-fn add_notify<T, M: mode::Mode>(
-    this: &DynamicConfig<T, M>,
+fn add_notify<T>(
+    this: &DynamicConfig<T, impl mode::Mode>,
     f: impl Fn(&T) + IsGlobal,
 ) -> RegistryHandle<Box<dyn Fn(&T) + Send + Sync + 'static>> {
     this.notify.add(Box::new(f))
 }
 
-impl<T, M: mode::Mode> DynamicConfig<T, M> {
+impl<T, M> DynamicConfig<T, M>
+where
+    M: mode::Mode,
+{
     pub fn get(&self) -> T
     where
         T: Clone,
@@ -104,14 +110,26 @@ impl<T, M: mode::Mode> DynamicConfig<T, M> {
             .expect("option not present"))
     }
 
-    pub fn view<U: Clone + IsGlobal>(
+    pub fn view_diff<U>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
     ) -> Arc<DynamicConfig<U, mode::RO>>
     where
         T: Clone + IsGlobal,
+        U: Clone + IsGlobal + HasDiff,
     {
-        derive_impl(self.clone(), to, |_, _| Option::<T>::None)
+        derive_impl(self.clone(), to, |_, _| Option::<T>::None, U::is_same)
+    }
+
+    pub fn view<U>(
+        self: &Arc<Self>,
+        to: impl Fn(&T) -> U + IsGlobal,
+    ) -> Arc<DynamicConfig<U, mode::RO>>
+    where
+        T: Clone + IsGlobal,
+        U: Clone + IsGlobal,
+    {
+        derive_impl(self.clone(), to, |_, _| Option::<T>::None, always_changed)
     }
 }
 
@@ -128,7 +146,7 @@ impl<T> DynamicConfig<T, mode::RW> {
     where
         T: Clone,
     {
-        self.try_set_impl(make_new_config)
+        self.try_set_impl(make_new_config, always_changed)
     }
 
     pub fn silent_set(&self, make_new_config: impl FnOnce(&T) -> T)
@@ -158,27 +176,29 @@ impl<T> DynamicConfig<T, mode::RW> {
         Ok(())
     }
 
-    pub fn derive<U: HasDiff>(
+    pub fn derive<U>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
         from: impl Fn(T, &U) -> Option<T> + IsGlobal,
     ) -> Arc<DynamicConfig<U, mode::RW>>
     where
         T: Clone + IsGlobal,
-        U: Clone + IsGlobal,
+        U: Clone + IsGlobal + HasDiff,
     {
-        derive_impl(self.clone(), to, from)
+        derive_impl(self.clone(), to, from, U::is_same)
     }
 }
 
-fn derive_impl<T, MT: mode::Mode, U: HasDiff, MU: mode::Mode>(
-    main: Arc<DynamicConfig<T, MT>>,
+fn derive_impl<T, U, MU>(
+    main: Arc<DynamicConfig<T, impl mode::Mode>>,
     to: impl Fn(&T) -> U + IsGlobal,
     from: impl Fn(T, &U) -> Option<T> + IsGlobal,
+    is_same: impl FnOnce(&U, &U) -> bool + IsGlobal + Copy,
 ) -> Arc<DynamicConfig<U, MU>>
 where
     T: Clone + IsGlobal,
     U: Clone + IsGlobal,
+    MU: mode::Mode,
 {
     let derived: Arc<DynamicConfig<U, MU>> = Arc::new(from_impl(main.with(|m| to(m))));
     if MU::mode() == mode_impl::ModeImpl::RW {
@@ -187,7 +207,8 @@ where
             move |d| {
                 if let Some(main) = main_weak.upgrade() {
                     if let Some(m) = from(main.get(), d) {
-                        main.try_set_impl(|_| Ok(m)).unwrap_infallible();
+                        main.try_set_impl(|_| Ok(m), always_changed)
+                            .unwrap_infallible();
                     }
                 }
             }
@@ -201,7 +222,9 @@ where
         let derived_weak = Arc::downgrade(&derived);
         move |m| {
             if let Some(derived) = derived_weak.upgrade() {
-                derived.try_set_impl(|_old| Ok(to(m))).unwrap_infallible()
+                derived
+                    .try_set_impl(|_old| Ok(to(m)), is_same)
+                    .unwrap_infallible()
             }
         }
     });
@@ -240,15 +263,26 @@ impl<T> DynamicConfig<T> {
     }
 }
 
-impl<T, M: mode::Mode> DynamicConfig<T, M> {
-    fn try_set_impl<E>(&self, make_new_config: impl FnOnce(&T) -> Result<T, E>) -> Result<(), E>
+impl<T, M> DynamicConfig<T, M>
+where
+    M: mode::Mode,
+{
+    fn try_set_impl<E>(
+        &self,
+        make_new_config: impl FnOnce(&T) -> Result<T, E>,
+        is_same: impl FnOnce(&T, &T) -> bool,
+    ) -> Result<(), E>
     where
         T: Clone,
     {
         let new_config;
         {
             let mut lock = self.config.write().expect("write lock");
-            new_config = make_new_config(&lock.as_ref().expect("option not present"))?;
+            let old_config = lock.as_ref().expect("option not present");
+            new_config = make_new_config(old_config)?;
+            if is_same(old_config, &new_config) {
+                return Ok(());
+            }
             *lock = Some(new_config.clone());
         }
 
@@ -374,7 +408,8 @@ pub mod has_diff {
         }
     }
 
-    #[derive(Debug, Default, Serialize, Deserialize)]
+    #[derive(Default, Serialize, Deserialize)]
+    #[serde(transparent)]
     pub struct DiffArc<T>(Arc<T>);
 
     impl<T> HasDiff for DiffArc<T> {
@@ -409,7 +444,14 @@ pub mod has_diff {
         }
     }
 
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    impl<T: std::fmt::Debug> std::fmt::Debug for DiffArc<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(&self.0, f)
+        }
+    }
+
+    #[derive(Clone, Serialize, Deserialize)]
+    #[serde(transparent)]
     pub struct DiffOption<T>(Option<T>);
 
     impl<T: HasDiff> HasDiff for DiffOption<T> {
@@ -448,6 +490,42 @@ pub mod has_diff {
             &self.0
         }
     }
+
+    impl<T: std::fmt::Debug> std::fmt::Debug for DiffOption<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(&self.0, f)
+        }
+    }
+
+    #[derive(Clone, Default, Serialize, Deserialize)]
+    #[serde(transparent)]
+    pub struct DiffItem<T>(T);
+
+    impl<T> HasDiff for DiffItem<T> {}
+
+    impl<T> From<T> for DiffItem<T> {
+        fn from(value: T) -> Self {
+            Self(value)
+        }
+    }
+
+    impl<T> Deref for DiffItem<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<T: std::fmt::Debug> std::fmt::Debug for DiffItem<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(&self.0, f)
+        }
+    }
+}
+
+fn always_changed<T>(_: &T, _: &T) -> bool {
+    false
 }
 
 #[cfg(test)]

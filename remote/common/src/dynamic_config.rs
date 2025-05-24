@@ -248,7 +248,7 @@ impl<T, M: mode::Mode> DynamicConfig<T, M> {
         let new_config;
         {
             let mut lock = self.config.write().expect("write lock");
-            new_config = make_new_config(&lock.take().expect("option not present"))?;
+            new_config = make_new_config(&lock.as_ref().expect("option not present"))?;
             *lock = Some(new_config.clone());
         }
 

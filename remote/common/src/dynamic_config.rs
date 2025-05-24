@@ -6,11 +6,11 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use mode_impl::ModeImpl;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 
+use self::has_diff::HasDiff;
 use crate::is_global::IsGlobal;
 use crate::unwrap_infallible::UnwrapInfallible as _;
 
@@ -158,7 +158,7 @@ impl<T> DynamicConfig<T, mode::RW> {
         Ok(())
     }
 
-    pub fn derive<U>(
+    pub fn derive<U: HasDiff>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
         from: impl Fn(T, &U) -> Option<T> + IsGlobal,
@@ -171,7 +171,7 @@ impl<T> DynamicConfig<T, mode::RW> {
     }
 }
 
-fn derive_impl<T, MT: mode::Mode, U, MU: mode::Mode>(
+fn derive_impl<T, MT: mode::Mode, U: HasDiff, MU: mode::Mode>(
     main: Arc<DynamicConfig<T, MT>>,
     to: impl Fn(&T) -> U + IsGlobal,
     from: impl Fn(T, &U) -> Option<T> + IsGlobal,
@@ -181,7 +181,7 @@ where
     U: Clone + IsGlobal,
 {
     let derived: Arc<DynamicConfig<U, MU>> = Arc::new(from_impl(main.with(|m| to(m))));
-    if MU::mode() == ModeImpl::RW {
+    if MU::mode() == mode_impl::ModeImpl::RW {
         let on_derived_change = add_notify(&derived, {
             let main_weak = Arc::downgrade(&main);
             move |d| {
@@ -201,7 +201,7 @@ where
         let derived_weak = Arc::downgrade(&derived);
         move |m| {
             if let Some(derived) = derived_weak.upgrade() {
-                derived.try_set_impl(|_| Ok(to(m))).unwrap_infallible()
+                derived.try_set_impl(|_old| Ok(to(m))).unwrap_infallible()
             }
         }
     });
@@ -347,6 +347,106 @@ impl<T> Drop for RegistryHandle<T> {
         let mut lock = self.registry.write();
         let removed = lock.table.remove(&self.key);
         debug_assert!(removed.is_some());
+    }
+}
+
+pub mod has_diff {
+    use std::ops::Deref;
+    use std::sync::Arc;
+
+    use serde::Deserialize;
+    use serde::Serialize;
+
+    pub trait HasDiff {
+        #[expect(unused)]
+        fn is_same(lhs: &Self, rhs: &Self) -> bool {
+            false
+        }
+
+        fn is_diff(lhs: &Self, rhs: &Self) -> bool {
+            !Self::is_same(lhs, rhs)
+        }
+    }
+
+    impl<T: Eq> HasDiff for T {
+        fn is_same(lhs: &Self, rhs: &Self) -> bool {
+            PartialEq::eq(lhs, rhs)
+        }
+    }
+
+    #[derive(Debug, Default, Serialize, Deserialize)]
+    pub struct DiffArc<T>(Arc<T>);
+
+    impl<T> HasDiff for DiffArc<T> {
+        fn is_same(lhs: &Self, rhs: &Self) -> bool {
+            Arc::ptr_eq(&lhs.0, &rhs.0)
+        }
+    }
+
+    impl<T> From<T> for DiffArc<T> {
+        fn from(value: T) -> Self {
+            Self(value.into())
+        }
+    }
+
+    impl<T> From<Arc<T>> for DiffArc<T> {
+        fn from(value: Arc<T>) -> Self {
+            Self(value)
+        }
+    }
+
+    impl<T> Deref for DiffArc<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<T> Clone for DiffArc<T> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct DiffOption<T>(Option<T>);
+
+    impl<T: HasDiff> HasDiff for DiffOption<T> {
+        fn is_same(lhs: &Self, rhs: &Self) -> bool {
+            match (&lhs.0, &rhs.0) {
+                (None, None) => true,
+                (None, Some(_)) => false,
+                (Some(_), None) => false,
+                (Some(lhs), Some(rhs)) => T::is_same(lhs, rhs),
+            }
+        }
+    }
+
+    impl<T> From<T> for DiffOption<T> {
+        fn from(value: T) -> Self {
+            Self(value.into())
+        }
+    }
+
+    impl<T> Default for DiffOption<T> {
+        fn default() -> Self {
+            Self(Option::default())
+        }
+    }
+
+    impl<T> From<Option<T>> for DiffOption<T> {
+        fn from(value: Option<T>) -> Self {
+            Self(value)
+        }
+    }
+
+    impl<T> Deref for DiffOption<T> {
+        type Target = Option<T>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
     }
 }
 

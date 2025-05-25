@@ -1,3 +1,5 @@
+//! The Terrazzo Gateway [Client].
+
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
@@ -27,14 +29,16 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use uuid::Uuid;
 
-use crate::client_service::ClientService;
+use self::service::ClientService;
 use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 
 pub mod certificate;
+pub mod config;
 pub mod connect;
 mod connection;
 mod health;
+pub mod service;
 
 /// The [Client].
 ///
@@ -106,6 +110,7 @@ async fn run_impl(
     // Set when the client has shut down
     terminated_tx: oneshot::Sender<()>,
 ) {
+    scopeguard::defer! { let _ = terminated_tx.send(()); };
     let retry_strategy0 = this.retry_strategy.clone();
     let mut retry_strategy = retry_strategy0.clone();
     let shutdown_rx = shutdown_rx.shared();
@@ -119,7 +124,7 @@ async fn run_impl(
             .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
             .await;
         if is_shutdown.load(SeqCst) {
-            break;
+            return;
         }
         let uptime = Instant::now() - start;
         if uptime < retry_strategy0.max_delay {
@@ -131,13 +136,15 @@ async fn run_impl(
                     warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.delay) }
                 }
             }
-            let _wait =
-                futures::future::select(Box::pin(retry_strategy.wait()), shutdown_rx.clone()).await;
+            if let futures::future::Either::Right(((), _retry_strategy_wait)) =
+                futures::future::select(Box::pin(retry_strategy.wait()), shutdown_rx.clone()).await
+            {
+                return;
+            }
         } else {
             retry_strategy = retry_strategy0.clone();
         }
     }
-    let _ = terminated_tx.send(());
 }
 
 fn is_shutdown(shutdown_rx: Shared<impl Future<Output = ()> + Send + 'static>) -> Arc<AtomicBool> {

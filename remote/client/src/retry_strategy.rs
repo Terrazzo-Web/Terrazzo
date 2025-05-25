@@ -1,5 +1,8 @@
+//! Retry strategy.
+
 use std::time::Duration;
 
+/// Retry strategy with exponential backoff.
 #[derive(Clone, Debug)]
 pub struct RetryStrategy {
     pub delay: Duration,

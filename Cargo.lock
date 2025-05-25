@@ -3201,6 +3201,7 @@ dependencies = [
  "portpicker",
  "prost-types",
  "reqwest",
+ "scopeguard",
  "serde",
  "serde_json",
  "tempfile",

@@ -25,6 +25,7 @@ use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::is_global::IsGlobalError;
 use trz_gateway_common::to_async_io::WebSocketIo;
 
 use super::Server;
@@ -70,6 +71,8 @@ impl Server {
     ) -> Result<(), TunnelError> {
         let tls_stream = self
             .tls_client
+            .get()
+            .map_err(TunnelError::IssuerConfig)?
             .connect(
                 ServerName::DnsName(DnsName::try_from(client_name.to_string())?),
                 connection,
@@ -137,6 +140,9 @@ pub enum TunnelError {
 
     #[error("[{n}] {0}", n = self.name())]
     GrpcConnectError(tonic::transport::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    IssuerConfig(Arc<dyn IsGlobalError>),
 }
 
 struct AxumWebSocketIo;

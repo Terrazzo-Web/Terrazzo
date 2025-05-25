@@ -2,3 +2,7 @@
 pub trait IsGlobal: Send + Sync + 'static {}
 
 impl<C: Send + Sync + 'static> IsGlobal for C {}
+
+pub trait IsGlobalError: IsGlobal + std::error::Error {}
+
+impl<E: IsGlobal + std::error::Error> IsGlobalError for E {}

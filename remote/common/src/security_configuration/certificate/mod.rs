@@ -7,6 +7,7 @@ use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;
 use crate::certificate_info::X509CertificateInfo;
 use crate::is_global::IsGlobal;
+use crate::is_global::IsGlobalError;
 
 pub mod as_trusted_store;
 pub mod cache;
@@ -16,7 +17,7 @@ pub mod tls_server;
 
 /// Trait for X509 certificate along with the intermediates.
 pub trait CertificateConfig: IsGlobal {
-    type Error: std::error::Error;
+    type Error: IsGlobalError;
 
     /// Computes the list of intermediate certificates.
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error>;

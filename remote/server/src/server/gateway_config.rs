@@ -9,7 +9,7 @@ pub mod app_config;
 mod arc;
 
 /// Configuration for the Terrazzo Gateway.
-pub trait GatewayConfig: IsGlobal {
+pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
     /// Whether to enable tracing.
     fn enable_tracing(&self) -> bool {
         true
@@ -29,16 +29,16 @@ pub trait GatewayConfig: IsGlobal {
     ///
     /// This asset is never rotated, even if the private key leaks.
     /// Security is based on the signed extension of client certificates.
-    type RootCaConfig: HasSecurityConfig;
+    type RootCaConfig: HasSecurityConfig + Clone + std::fmt::Debug;
     fn root_ca(&self) -> Self::RootCaConfig;
 
     /// The TLS certificate used to listen to HTTPS connections.
-    type TlsConfig: CertificateConfig;
+    type TlsConfig: CertificateConfig + std::fmt::Debug;
     fn tls(&self) -> Self::TlsConfig;
 
     /// The certificate used to sign and validate the custom extension
     /// of client X509 certificates.
-    type ClientCertificateIssuerConfig: HasDynamicSecurityConfig;
+    type ClientCertificateIssuerConfig: HasDynamicSecurityConfig + std::fmt::Debug;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig;
 
     /// Configures the routes served by Terrazzo Gateway HTTP server.

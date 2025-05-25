@@ -17,12 +17,11 @@ use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 
-use crate::server::acme::get_certificate::GetAcmeCertificateResult;
-
 use super::AcmeConfig;
 use super::AcmeError;
 use super::DynamicAcmeConfig;
 use super::active_challenges::ActiveChallenges;
+use crate::server::acme::get_certificate::GetAcmeCertificateResult;
 
 #[nameth]
 #[derive(Clone)]

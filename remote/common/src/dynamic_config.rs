@@ -298,7 +298,7 @@ where
     }
 }
 
-impl<T: Debug> std::fmt::Debug for DynamicConfig<T> {
+impl<T: Debug, M: mode::Mode> std::fmt::Debug for DynamicConfig<T, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.with(|config| {
             f.debug_struct("DynamicConfig")

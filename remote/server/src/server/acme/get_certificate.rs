@@ -14,7 +14,9 @@ use rcgen::CertificateParams;
 use rcgen::DistinguishedName;
 use rcgen::KeyPair;
 use tokio::time::sleep;
+use tracing::debug;
 use tracing::info;
+use trz_gateway_common::certificate_info::CertificateInfo;
 
 use super::AcmeConfig;
 use super::AcmeError;
@@ -22,8 +24,7 @@ use super::active_challenges::ActiveChallenges;
 use crate::server::acme::clone_account_credentials;
 
 pub struct GetAcmeCertificateResult {
-    pub certificate: String,
-    pub private_key: String,
+    pub certificate: CertificateInfo<String>,
     pub credentials: Option<AccountCredentials>,
 }
 
@@ -32,7 +33,8 @@ impl AcmeConfig {
         &self,
         active_challenges: &ActiveChallenges,
     ) -> Result<GetAcmeCertificateResult, AcmeError> {
-        let (account, credentials) = if let Some(credentials) = &self.credentials {
+        debug!("Get or create Let's Encrypt account");
+        let (account, credentials) = if let Some(credentials) = self.credentials.as_ref() {
             let account = Account::from_credentials(clone_account_credentials(credentials))
                 .await
                 .map_err(AcmeError::FromCredentials)?;
@@ -64,7 +66,6 @@ impl AcmeConfig {
 
         let state = order.state();
         info!("Order created in state: {:?}", state);
-        debug_assert!(matches!(state.status, OrderStatus::Pending));
 
         let authorizations = order
             .authorizations()
@@ -141,8 +142,10 @@ impl AcmeConfig {
         drop(registrations);
 
         Ok(GetAcmeCertificateResult {
-            certificate,
-            private_key: private_key.serialize_pem(),
+            certificate: CertificateInfo {
+                certificate,
+                private_key: private_key.serialize_pem(),
+            },
             credentials,
         })
     }

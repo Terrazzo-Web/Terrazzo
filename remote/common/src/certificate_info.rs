@@ -12,7 +12,7 @@ use openssl::x509::X509Ref;
 /// - A pair of files reprenting the certificate + private key
 /// - A certificate and private key represented as PEM strings
 /// - A [X509] + [PKey] openssl objects
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct CertificateInfo<X, Y = X> {
     pub certificate: X,
     pub private_key: Y,

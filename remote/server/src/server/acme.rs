@@ -3,6 +3,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+pub use instant_acme;
 use instant_acme::AccountCredentials;
 use instant_acme::AuthorizationStatus;
 use instant_acme::ChallengeType;
@@ -12,6 +13,7 @@ use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
+use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
@@ -27,9 +29,10 @@ mod tests;
 pub struct AcmeConfig {
     #[serde(with = "environment_serde")]
     pub environment: LetsEncrypt,
-    pub credentials: Option<AccountCredentials>,
+    pub credentials: Arc<Option<AccountCredentials>>,
     pub contact: String,
     pub domain: String,
+    pub certificate: Option<CertificateInfo<String>>,
 }
 
 #[nameth]

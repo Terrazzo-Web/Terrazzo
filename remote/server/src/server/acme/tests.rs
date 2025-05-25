@@ -13,9 +13,10 @@ async fn get_certificate() {
     crypto_provider();
     let result = super::AcmeConfig {
         environment: LetsEncrypt::Staging,
-        credentials: None,
+        credentials: None.into(),
         contact: "mailto:info@pavy.one".into(),
         domain: "pavy.one".into(),
+        certificate: None,
     }
     .get_certificate(&ActiveChallenges::default())
     .await

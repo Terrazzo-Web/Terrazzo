@@ -6,6 +6,8 @@ use openssl::x509::store::X509Store;
 use self::certificate::CertificateConfig;
 use self::trusted_store::TrustedStoreConfig;
 use crate::certificate_info::X509CertificateInfo;
+use crate::dynamic_config::DynamicConfig;
+use crate::dynamic_config::mode::Mode;
 use crate::is_global::IsGlobal;
 
 pub mod certificate;
@@ -59,3 +61,20 @@ impl<T: IsGlobal, C: CertificateConfig> CertificateConfig for SecurityConfig<T, 
 
 pub trait HasSecurityConfig: TrustedStoreConfig + CertificateConfig {}
 impl<T: TrustedStoreConfig + CertificateConfig> HasSecurityConfig for T {}
+
+pub trait HasDynamicSecurityConfig {
+    type HasSecurityConfig: HasSecurityConfig + Clone + std::fmt::Debug;
+    fn as_dyn(&self) -> Arc<DynamicConfig<Self::HasSecurityConfig, impl Mode>>;
+}
+
+impl<T, M> HasDynamicSecurityConfig for Arc<DynamicConfig<T, M>>
+where
+    T: HasSecurityConfig + Clone + std::fmt::Debug,
+    M: Mode,
+{
+    type HasSecurityConfig = T;
+
+    fn as_dyn(&self) -> Arc<DynamicConfig<Self::HasSecurityConfig, impl Mode>> {
+        self.clone()
+    }
+}

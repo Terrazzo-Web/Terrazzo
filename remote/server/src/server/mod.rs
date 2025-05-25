@@ -23,6 +23,7 @@ use tracing::info;
 use tracing::info_span;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
+use trz_gateway_common::security_configuration::HasDynamicSecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
@@ -87,8 +88,9 @@ impl Server {
         info!("Root CA: {:?}", root_ca.certificate.subject_name());
         debug!("Root CA details: {}", root_ca.display());
 
+        // TODO: The issuer is dynamic
         let client_certificate_issuer = config.client_certificate_issuer();
-        let issuer_config = IssuerConfig::new(&client_certificate_issuer)?;
+        let issuer_config = IssuerConfig::new(&client_certificate_issuer.as_dyn().get())?;
         info!("Signer certificate: {:?}", issuer_config.signer_name);
         debug!(
             "Signer certificate details: {}",
@@ -99,7 +101,7 @@ impl Server {
         debug!("Got TLS server config");
 
         let tls_client = root_ca_config.to_tls_client(SignedExtensionCertificateVerifier {
-            store: CachedTrustedStoreConfig::new(client_certificate_issuer)
+            store: CachedTrustedStoreConfig::new(client_certificate_issuer.as_dyn().get())
                 .map_err(GatewayError::CachedTrustedStoreConfig)?,
             signer_name: issuer_config.signer_name.clone(),
         })?;
@@ -209,7 +211,7 @@ pub enum GatewayError<C: GatewayConfig> {
     RootCa(Box<dyn std::error::Error>),
 
     #[error("[{n}] Failed to get the client certificate issuer configuration: {0}", n = self.name())]
-    IssuerConfig(#[from] IssuerConfigError<C::ClientCertificateIssuerConfig>),
+    IssuerConfig(#[from] IssuerConfigError<<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig>),
 
     #[error("[{n}] Failed to get socket address for {host}:{port}: {error}", n = self.name())]
     ToSocketAddrs {
@@ -225,7 +227,7 @@ pub enum GatewayError<C: GatewayConfig> {
     ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
-    CachedTrustedStoreConfig(<C::ClientCertificateIssuerConfig as TrustedStoreConfig>::Error),
+    CachedTrustedStoreConfig(<<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig as TrustedStoreConfig>::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     RunGatewayError(#[from] RunGatewayError),

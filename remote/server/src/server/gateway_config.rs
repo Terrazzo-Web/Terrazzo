@@ -1,4 +1,5 @@
 use trz_gateway_common::is_global::IsGlobal;
+use trz_gateway_common::security_configuration::HasDynamicSecurityConfig;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 
@@ -37,7 +38,7 @@ pub trait GatewayConfig: IsGlobal {
 
     /// The certificate used to sign and validate the custom extension
     /// of client X509 certificates.
-    type ClientCertificateIssuerConfig: HasSecurityConfig;
+    type ClientCertificateIssuerConfig: HasDynamicSecurityConfig;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig;
 
     /// Configures the routes served by Terrazzo Gateway HTTP server.

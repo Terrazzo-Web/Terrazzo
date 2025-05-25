@@ -16,6 +16,7 @@ use terrazzo_fixture::Fixture;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
+use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
@@ -233,9 +234,9 @@ impl GatewayConfig for TestConfig {
         self.tls_config.clone()
     }
 
-    type ClientCertificateIssuerConfig = Self::TlsConfig;
+    type ClientCertificateIssuerConfig = Arc<DynamicConfig<Self::TlsConfig>>;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
-        self.tls_config.clone()
+        Arc::new(DynamicConfig::from(self.tls_config.clone()))
     }
 }
 

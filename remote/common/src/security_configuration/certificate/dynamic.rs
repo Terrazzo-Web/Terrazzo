@@ -1,3 +1,4 @@
+/// Dynamic [CertificateConfig].
 use std::sync::Arc;
 
 use openssl::x509::X509;
@@ -9,7 +10,7 @@ use crate::dynamic_config::DynamicConfig;
 use crate::dynamic_config::mode::Mode;
 use crate::security_configuration::trusted_store::TrustedStoreConfig;
 
-/// A [CertificateConfig] that is dynamic.
+/// Adaptor for [CertificateConfig] based on a certificate configured [dynamically](DynamicConfig).
 pub struct DynamicCertificate<C, M: Mode>(Arc<DynamicConfig<C, M>>);
 
 impl<C, M: Mode> From<Arc<DynamicConfig<C, M>>> for DynamicCertificate<C, M> {

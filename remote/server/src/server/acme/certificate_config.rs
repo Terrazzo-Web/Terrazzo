@@ -1,3 +1,5 @@
+//! [CertificateConfig] based on Let's encrypt certificates.
+
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -23,6 +25,7 @@ use super::DynamicAcmeConfig;
 use super::active_challenges::ActiveChallenges;
 use crate::server::acme::get_certificate::GetAcmeCertificateResult;
 
+/// A [CertificateConfig] generated with Let's Encrypt.
 #[nameth]
 #[derive(Clone)]
 pub struct AcmeCertificateConfig {

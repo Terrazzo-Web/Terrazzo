@@ -1,3 +1,5 @@
+//! Implementation for [HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/#http-01-challenge).
+
 use std::collections::HashMap;
 use std::future::ready;
 use std::sync::Arc;
@@ -9,10 +11,12 @@ use axum::routing::get;
 use instant_acme::KeyAuthorization;
 use tracing::warn;
 
+/// Pending HTTP-01 challenges.
 #[derive(Clone, Default)]
 pub struct ActiveChallenges(Arc<std::sync::RwLock<HashMap<String, KeyAuthorization>>>);
 
 impl ActiveChallenges {
+    /// Axum router to respond to HTTP-01 challenges.
     pub fn route(&self) -> Router {
         let this = self.to_owned();
         Router::new().route(
@@ -28,6 +32,7 @@ impl ActiveChallenges {
         )
     }
 
+    /// Registers a challenge to performe certificate generation.
     pub fn add(&self, token: &str, key_authorization: KeyAuthorization) -> ActiveChallenge {
         let duplicate = {
             let mut active_challenges = self.0.write().unwrap();
@@ -44,6 +49,7 @@ impl ActiveChallenges {
     }
 }
 
+/// A holder that unregisters an active challenge on [Drop].
 pub struct ActiveChallenge {
     active_challenges: ActiveChallenges,
     token: String,

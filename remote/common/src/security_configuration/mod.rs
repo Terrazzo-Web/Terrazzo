@@ -59,9 +59,13 @@ impl<T: IsGlobal, C: CertificateConfig> CertificateConfig for SecurityConfig<T, 
     }
 }
 
+/// A trait that combines [TrustedStoreConfig] + [CertificateConfig]
+///
+/// Typically implemented using [SecurityConfig] struct.
 pub trait HasSecurityConfig: TrustedStoreConfig + CertificateConfig {}
 impl<T: TrustedStoreConfig + CertificateConfig> HasSecurityConfig for T {}
 
+/// A trait similar to [HasSecurityConfig] but dynamic.
 pub trait HasDynamicSecurityConfig {
     type HasSecurityConfig: HasSecurityConfig + Clone + std::fmt::Debug;
     fn as_dyn(&self) -> Arc<DynamicConfig<Self::HasSecurityConfig, impl Mode>>;

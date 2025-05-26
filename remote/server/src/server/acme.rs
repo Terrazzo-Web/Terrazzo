@@ -1,5 +1,7 @@
 #![cfg(feature = "acme")]
 
+//! Configuration for integration with [Let's Encrypt](https://letsencrypt.org).
+
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -24,13 +26,35 @@ mod environment_serde;
 mod get_certificate;
 mod tests;
 
+/// ACME configuration to generate certificates with [Let's Encrypt](https://letsencrypt.org).
 #[nameth]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AcmeConfig {
+    /// Use [Production](LetsEncrypt::Production) or [Staging](LetsEncrypt::Staging)
     #[serde(with = "environment_serde")]
     pub environment: LetsEncrypt,
+
+    /// Let's Encrypt credentials.
+    ///
+    /// An account is automatically created and added to configuration if necessary.
+    ///
+    /// Certificates are implemented using [AcmeCertificateConfig](certificate_config::AcmeCertificateConfig)
+    /// based on a [DynamicAcmeConfig].
+    ///
+    /// The dynamic configuration is updated with the account credentials when
+    /// the certificate generation logic runs.
     pub credentials: Arc<Option<AccountCredentials>>,
+
+    /// Contact info used to register an account.
+    ///
+    /// Use "mailto:email@address.com" format.
     pub contact: String,
+
+    /// The domain name to generate certificate.
+    ///
+    /// Routes from [ActiveChallenges](active_challenges::ActiveChallenges)
+    /// must be available under port 80 for this domain name, to prove domain
+    /// name ownership.
     pub domain: String,
     pub certificate: Option<CertificateInfo<String>>,
 }

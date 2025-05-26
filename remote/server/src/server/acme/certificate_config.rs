@@ -12,6 +12,7 @@ use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info;
 use tracing::info_span;
+use tracing::warn;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
@@ -125,12 +126,12 @@ impl AcmeCertificateConfig {
             };
 
             let acme_certificate =
-                parse_acme_certificate(&result.certificate).inspect_err(|_| {
+                parse_acme_certificate(&result.certificate).inspect_err(|error| {
                     self.acme_config_dyn.set(|old| {
+                        warn!("The cached certificate was invalid: {error}");
                         let Some(old) = &**old else {
                             return DiffOption::default();
                         };
-                        info!("Update Let's Encrypt certificate");
                         DiffOption::from(DiffArc::from(AcmeConfig {
                             certificate: None,
                             ..AcmeConfig::clone(&old)

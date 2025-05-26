@@ -56,6 +56,8 @@ pub struct AcmeConfig {
     /// must be available under port 80 for this domain name, to prove domain
     /// name ownership.
     pub domain: String,
+
+    /// The generated certificate.
     pub certificate: Option<CertificateInfo<String>>,
 }
 
@@ -112,6 +114,35 @@ pub enum AcmeError {
 
     #[error("[{n}] {0}", n = self.name())]
     Arc(Arc<Self>),
+}
+
+impl PartialEq for AcmeConfig {
+    fn eq(&self, other: &Self) -> bool {
+        (match (self.environment, other.environment) {
+            (LetsEncrypt::Production, LetsEncrypt::Production)
+            | (LetsEncrypt::Staging, LetsEncrypt::Staging) => true,
+            _ => false,
+        }) && credentials_eq(&self.credentials, &other.credentials)
+            && self.contact == other.contact
+            && self.domain == other.domain
+            && self.certificate == other.certificate
+    }
+}
+
+impl Eq for AcmeConfig {}
+
+fn credentials_eq(a: &Option<AccountCredentials>, b: &Option<AccountCredentials>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (None, Some(_)) | (Some(_), None) => false,
+        (Some(a), Some(b)) => {
+            if let (Ok(a), Ok(b)) = (serde_json::to_string(a), serde_json::to_string(b)) {
+                a == b
+            } else {
+                false
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for AcmeConfig {

@@ -66,7 +66,6 @@ pub fn make_cert(
             .critical()
             .server_auth()
             .client_auth()
-            .email_protection()
             .build()?;
         builder.append_extension(key_usage)?;
         Ok(())
@@ -391,7 +390,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .starts_with("[VerifySignature] [SignedCmsInvalid] ")
+                .starts_with("[VerifySigner] [VerifySignerChainError] [ValidationFailed] ")
         );
         Ok(())
     }
@@ -436,7 +435,7 @@ mod tests {
         defer_on_unwind!(eprintln!("{error}"));
         assert!(
             error.to_string().starts_with(
-                "[VerifySignature] [SignedCmsInvalid] Failed to verify the Signed CMS"
+                "[VerifySigner] [VerifySignerChainError] [ValidationFailed] The signer certificate is invalid"
             )
         );
         Ok(())

@@ -1,5 +1,6 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use openssl::cms::CMSOptions;
 use openssl::cms::CmsContentInfo;
 use openssl::error::ErrorStack;
 use x509_parser::prelude::X509Certificate;
@@ -32,7 +33,7 @@ pub fn verify_signature(
             store,
             None,
             Some(&mut signed_cms_content),
-            cms_options(),
+            cms_options() | CMSOptions::NO_SIGNER_CERT_VERIFY,
         )
         .map_err(VerifySignatureError::SignedCmsInvalid)?;
 

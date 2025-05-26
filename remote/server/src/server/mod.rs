@@ -108,9 +108,9 @@ impl Server {
             config
                 .client_certificate_issuer()
                 .as_dyn()
-                .view(|client_certificate_issuer| {
+                .view(move |client_certificate_issuer| {
                     Arc::new(
-                        make_client_config_view(client_certificate_issuer)
+                        make_client_config_view(&root_ca_config, client_certificate_issuer)
                             .map_err(Arc::<GatewayError<C>>::new),
                     )
                 });
@@ -221,7 +221,8 @@ impl Server {
 }
 
 fn make_client_config_view<C: GatewayConfig>(
-    client_certificate_issuer: &<<C as GatewayConfig>::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig,
+    root_ca: &C::RootCaConfig,
+    client_certificate_issuer: &<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig,
 ) -> Result<ClientConfigView, GatewayError<C>> {
     let issuer_config = IssuerConfig::new(client_certificate_issuer)?;
     info!("Signer certificate: {:?}", issuer_config.signer_name);
@@ -230,13 +231,14 @@ fn make_client_config_view<C: GatewayConfig>(
         issuer_config.signer.display()
     );
 
-    // The TLS client uses the same PKI as the client certificate issuer.
-    let tls_client =
-        client_certificate_issuer.to_tls_client(SignedExtensionCertificateVerifier {
-            store: CachedTrustedStoreConfig::new(client_certificate_issuer.clone())
-                .map_err(GatewayError::CachedTrustedStoreConfig)?,
-            signer_name: issuer_config.signer_name.clone(),
-        })?;
+    // The TLS client uses:
+    // - the Root CA for the client certificate validation,
+    // - the same PKI as the client certificate issuer for extension validation.
+    let tls_client = root_ca.to_tls_client(SignedExtensionCertificateVerifier {
+        store: CachedTrustedStoreConfig::new(client_certificate_issuer.clone())
+            .map_err(GatewayError::CachedTrustedStoreConfig)?,
+        signer_name: issuer_config.signer_name.clone(),
+    })?;
     debug!("Got TLS client config");
     Ok(ClientConfigView {
         issuer_config: Arc::new(issuer_config),
@@ -272,7 +274,7 @@ pub enum GatewayError<C: GatewayConfig> {
     ToTlsServerConfig(#[from] ToTlsServerError<<C::TlsConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
-    ToTlsClientConfig(#[from] ToTlsClientError<<<<C as GatewayConfig>::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig as TrustedStoreConfig>::Error>),
+    ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     CachedTrustedStoreConfig(<<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig as TrustedStoreConfig>::Error),

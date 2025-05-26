@@ -24,7 +24,7 @@ pub fn validate_signed_extension(
 ) -> Result<(), ValidateSignedExtensionError> {
     let (_rest, certificate) = X509Certificate::from_der(certificate)?;
     let signed_extension = find_signed_extension(&certificate)?;
-    let () = verify_signer(signer_name, signed_extension)?;
+    let () = verify_signer(store, signer_name, signed_extension)?;
     let () = verify_signature(store, &certificate, signed_extension)?;
     Ok(())
 }

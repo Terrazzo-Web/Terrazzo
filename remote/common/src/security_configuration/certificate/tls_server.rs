@@ -155,7 +155,7 @@ impl<T: CertificateConfig> ServerCertificateResolver<T> {
             if Arc::ptr_eq(&certificate, &state.certificate)
                 && Arc::ptr_eq(&intermediates, &state.intermediates)
             {
-                info!("Reuse cached server certificate");
+                debug!("Reuse cached server certificate");
                 return Ok(state.certified_key.clone());
             }
         }

@@ -106,16 +106,17 @@ where
                     let old_pos = *pos;
                     ready!(Pin::new(stream).poll_read(cx, &mut buf))?;
                     *pos = buf.filled().len();
-                    if *pos < buffer.len() {
-                        debug!(pos, ?buffer, "Polling stream header: Continue");
-                        continue;
-                    }
                     if *pos == old_pos {
+                        debug!("Failed to read a TLS header");
                         return Err(std::io::Error::new(
                             ErrorKind::ConnectionAborted,
                             "Failed to read a TLS header",
                         ))
                         .into();
+                    }
+                    if *pos < buffer.len() {
+                        debug!(pos, ?buffer, "Polling stream header: Continue");
+                        continue;
                     }
                     debug!(pos, ?buffer, "Polling stream header: Buffer full");
 

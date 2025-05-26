@@ -1,3 +1,5 @@
+//! Utils for certificate + private key.
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::pkey::PKey;
@@ -19,6 +21,7 @@ pub struct CertificateInfo<X, Y = X> {
 }
 
 impl<X> CertificateInfo<X> {
+    /// Applies a transformation to the certificate and private key.
     pub fn map<F: Fn(X) -> Y, Y>(self, f: F) -> CertificateInfo<Y> {
         CertificateInfo {
             certificate: f(self.certificate),
@@ -26,6 +29,7 @@ impl<X> CertificateInfo<X> {
         }
     }
 
+    /// Applies a fallible transformation to the certificate and private key.
     pub fn try_map<F: Fn(X) -> Result<Y, E>, Y, E: std::error::Error>(
         self,
         f: F,
@@ -38,6 +42,7 @@ impl<X> CertificateInfo<X> {
 }
 
 impl<X, Y> CertificateInfo<X, Y> {
+    /// Zips two [CertificateInfo] into a single struct containing tuples.
     pub fn zip<XX, YY>(self, other: CertificateInfo<XX, YY>) -> CertificateInfo<(X, XX), (Y, YY)> {
         CertificateInfo {
             certificate: (self.certificate, other.certificate),
@@ -47,6 +52,9 @@ impl<X, Y> CertificateInfo<X, Y> {
 }
 
 impl<X, Y> CertificateInfo<X, Y> {
+    /// Converts from `&CertificateInfo<T>` to `CertificateInfo<&T>`.
+    ///
+    /// Similar to [Option::as_ref]
     pub fn as_ref<XX, YY>(&self) -> CertificateInfo<&XX, &YY>
     where
         X: AsRef<XX>,
@@ -61,6 +69,7 @@ impl<X, Y> CertificateInfo<X, Y> {
     }
 }
 
+/// Error type for [CertificateInfo::try_map].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum CertificateError<E: std::error::Error> {
@@ -71,5 +80,8 @@ pub enum CertificateError<E: std::error::Error> {
     PrivateKey(E),
 }
 
+/// Alias for [CertificateInfo] containing an OpenSSL certificate.
 pub type X509CertificateInfo = CertificateInfo<X509, PKey<Private>>;
+
+/// Alias for [CertificateInfo] containing an OpenSSL certificate ref.
 pub type X509CertificateInfoRef<'t> = CertificateInfo<&'t X509Ref, &'t PKeyRef<Private>>;

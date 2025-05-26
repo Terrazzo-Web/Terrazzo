@@ -33,6 +33,8 @@ static CERTIFICATE_VALIDITY: Duration = Duration::from_secs(3600 * 24 * 90);
 
 impl Server {
     /// API to issue client certificates.
+    ///
+    /// Endpoint: "/remote/certificate"
     pub async fn get_certificate(
         self: Arc<Self>,
         Json(request): Json<GetCertificateRequest<AuthCode>>,

@@ -1,3 +1,5 @@
+//! Dynamic configuration.
+
 use std::collections::HashMap;
 use std::collections::hash_map;
 use std::convert::Infallible;
@@ -14,6 +16,7 @@ use self::has_diff::HasDiff;
 use crate::is_global::IsGlobal;
 use crate::unwrap_infallible::UnwrapInfallible as _;
 
+/// A struct that contains a piece of configuration that can change.
 #[derive(Default)]
 pub struct DynamicConfig<T, M = mode::RW> {
     config: std::sync::RwLock<Option<T>>,
@@ -35,7 +38,11 @@ mod mode_impl {
         fn mode() -> ModeImpl;
     }
 
+    /// Marker for dynamic configurations that can be modified.
     pub enum RW {}
+
+    /// Marker for dynamic configurations that are readonly.
+    /// Such configuration can change only if the source they are derived from changes as well.
     pub enum RO {}
 
     #[derive(Debug, PartialEq, Eq)]
@@ -75,6 +82,9 @@ where
 }
 
 impl<T> DynamicConfig<T, mode::RW> {
+    /// Registers a callback to be notified when the configuration changes.
+    ///
+    /// Prefer to use [derive()](DynamicConfig::derive) or [view()](DynamicConfig::view).
     pub fn add_notify(
         &self,
         f: impl Fn(&T) + IsGlobal,
@@ -94,6 +104,9 @@ impl<T, M> DynamicConfig<T, M>
 where
     M: mode::Mode,
 {
+    /// Returns the current value.
+    ///
+    /// Note: the returned value is not dynamic.
     pub fn get(&self) -> T
     where
         T: Clone,
@@ -101,6 +114,9 @@ where
         self.with(T::clone)
     }
 
+    /// Computes a result based on the current configuration value.
+    ///
+    /// Useful when the configuration is not [Copy] and [get()](DynamicConfig::get) cannot be used.
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
         f(self
             .config
@@ -110,6 +126,9 @@ where
             .expect("option not present"))
     }
 
+    /// Returns a derived [mode::RO] dynamic configuration.
+    ///
+    /// The derived configuration is updated only if the value actually changes.
     pub fn view_diff<U>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
@@ -121,6 +140,9 @@ where
         derive_impl(self.clone(), to, |_, _| Option::<T>::None, U::is_same)
     }
 
+    /// Returns a derived [mode::RO] dynamic configuration.
+    ///
+    /// Use [view_diff()](DynamicConfig::view_diff) so the derived config doesn't notify unless the value actually changes.
     pub fn view<U>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,
@@ -134,6 +156,9 @@ where
 }
 
 impl<T> DynamicConfig<T, mode::RW> {
+    /// Modifies the current configuration.
+    ///
+    /// This will trigger all handlers registered with [add_notify()](DynamicConfig::add_notify), such as views or derived configurations.
     pub fn set(&self, make_new_config: impl FnOnce(&T) -> T)
     where
         T: Clone,
@@ -142,6 +167,9 @@ impl<T> DynamicConfig<T, mode::RW> {
             .unwrap_infallible()
     }
 
+    /// Modifies the current configuration.
+    ///
+    /// Same as [set()](DynamicConfig::set) but accepts a mutation that could return an error.
     pub fn try_set<E>(&self, make_new_config: impl FnOnce(&T) -> Result<T, E>) -> Result<(), E>
     where
         T: Clone,
@@ -149,6 +177,9 @@ impl<T> DynamicConfig<T, mode::RW> {
         self.try_set_impl(make_new_config, always_changed)
     }
 
+    /// Modifies the current configuration.
+    ///
+    /// Same as [set()](DynamicConfig::set) but will not trigger notify.
     pub fn silent_set(&self, make_new_config: impl FnOnce(&T) -> T)
     where
         T: Clone,
@@ -157,6 +188,9 @@ impl<T> DynamicConfig<T, mode::RW> {
             .unwrap_infallible()
     }
 
+    /// Modifies the current configuration.
+    ///
+    /// Does not trigger notify and accepts a mutation that could return an error.
     pub fn silent_try_set<E>(
         &self,
         make_new_config: impl FnOnce(&T) -> Result<T, E>,
@@ -176,6 +210,10 @@ impl<T> DynamicConfig<T, mode::RW> {
         Ok(())
     }
 
+    /// Returns a derived piece of configuration.
+    ///
+    /// Unlike [view()](DynamicConfig::view), changes made to the derived configuration are
+    /// applied back to the original configuration.
     pub fn derive<U>(
         self: &Arc<Self>,
         to: impl Fn(&T) -> U + IsGlobal,

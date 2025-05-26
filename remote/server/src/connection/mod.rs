@@ -1,3 +1,5 @@
+//! Cache of client connections to the Terrazzo Gateway.
+
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -146,10 +148,14 @@ pub enum ChannelHealthError {
 }
 
 impl Connections {
+    /// Returns the list of connected clients.
     pub fn clients(&self) -> Vec<ClientName> {
         self.cache.iter().map(|entry| entry.key().clone()).collect()
     }
 
+    /// Returns a connection for the given client.
+    ///
+    /// Multiple connections for the same [ClientName] are load-balanced.
     pub fn get_client(
         &self,
         client_name: &ClientName,

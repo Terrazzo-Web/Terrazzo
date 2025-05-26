@@ -32,6 +32,8 @@ use super::Server;
 
 impl Server {
     /// API to serve tunnel connections
+    ///
+    /// Endpoint: "/remote/tunnel/{client_name}"
     pub async fn tunnel(
         self: Arc<Self>,
         client_id: Option<ClientId>,

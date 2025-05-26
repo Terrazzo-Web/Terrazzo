@@ -1,3 +1,5 @@
+//! Terrazzo Gateway server implementation.
+
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
@@ -55,6 +57,7 @@ mod tunnel;
 #[cfg(test)]
 mod tests;
 
+/// The Terrazzo Gateway server.
 pub struct Server {
     shutdown: Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     root_ca: Arc<X509CertificateInfo>,
@@ -66,6 +69,12 @@ pub struct Server {
 }
 
 impl Server {
+    /// Runs the server with the given configuration.
+    ///
+    /// The server runs in the background, the method returns
+    /// a [ServerHandle] to stop the server.
+    ///
+    /// It also returns future [RunGatewayError] in case the server fails to start-up.
     pub async fn run<C: GatewayConfig>(
         config: C,
     ) -> Result<
@@ -104,7 +113,6 @@ impl Server {
             .client_certificate_issuer()
             .as_dyn()
             .view(move |client_certificate_issuer| {
-                let root_ca_config = root_ca_config.clone();
                 let make = move || {
                     let issuer_config = IssuerConfig::new(client_certificate_issuer)?;
                     info!("Signer certificate: {:?}", issuer_config.signer_name);
@@ -113,12 +121,14 @@ impl Server {
                         issuer_config.signer.display()
                     );
 
-                    let tls_client =
-                        root_ca_config.to_tls_client(SignedExtensionCertificateVerifier {
+                    // The TLS client uses the same PKI as the client certificate issuer
+                    let tls_client = client_certificate_issuer.to_tls_client(
+                        SignedExtensionCertificateVerifier {
                             store: CachedTrustedStoreConfig::new(client_certificate_issuer.clone())
                                 .map_err(GatewayError::CachedTrustedStoreConfig)?,
                             signer_name: issuer_config.signer_name.clone(),
-                        })?;
+                        },
+                    )?;
                     debug!("Got TLS client config");
                     Ok((Arc::new(issuer_config), Arc::new(tls_client)))
                 };
@@ -224,6 +234,7 @@ impl Server {
         Ok(())
     }
 
+    /// Returns the list of client connections.
     pub fn connections(&self) -> &Connections {
         &self.connections
     }
@@ -252,7 +263,7 @@ pub enum GatewayError<C: GatewayConfig> {
     ToTlsServerConfig(#[from] ToTlsServerError<<C::TlsConfig as CertificateConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
-    ToTlsClientConfig(#[from] ToTlsClientError<<C::RootCaConfig as TrustedStoreConfig>::Error>),
+    ToTlsClientConfig(#[from] ToTlsClientError<<<<C as GatewayConfig>::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig as TrustedStoreConfig>::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     CachedTrustedStoreConfig(<<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig as TrustedStoreConfig>::Error),

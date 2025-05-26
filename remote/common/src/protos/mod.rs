@@ -1,3 +1,7 @@
+//! Shared Protobufs.
+//!
+//! Used for health checks the (ping-pong API).
+
 pub mod terrazzo {
     pub mod remote {
         pub mod health {

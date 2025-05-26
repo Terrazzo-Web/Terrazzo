@@ -13,9 +13,11 @@ use trz_gateway_common::declare_identifier;
 use uuid::Uuid;
 
 const AUTH_CODE_UPDATE_PERIOD: Duration = Duration::from_secs(60);
+
 declare_identifier!(AuthCode);
 
 impl AuthCode {
+    /// The [AuthCode] that is currently valid.
     pub fn current() -> Self {
         let mut lock = CURRENT_CODE.lock().unwrap();
         if let Some(current_code) = &*lock {
@@ -35,6 +37,9 @@ impl AuthCode {
         return current;
     }
 
+    /// Checks if this [AuthCode] matches the [current](Self::current) one.
+    ///
+    /// The previous auth code is also valid
     pub fn is_valid(&self) -> bool {
         let lock = CURRENT_CODE.lock().unwrap();
         let Some(current_code) = &*lock else {
@@ -43,6 +48,10 @@ impl AuthCode {
         return *self == current_code.current || *self == current_code.previous;
     }
 
+    /// Stop periodic [AuthCode] updates.
+    ///
+    /// Calls to [current](Self::current) automatically kicks off a periodic task to
+    /// rotate a random [AuthCode]. This function stops it.
     pub fn stop_periodic_updates() -> Result<(), StopPeriodicUpdatesError> {
         CURRENT_CODE
             .lock()
@@ -59,6 +68,7 @@ impl AuthCode {
     }
 }
 
+/// Errors thrown by [stop_periodic_updates](AuthCode::stop_periodic_updates).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum StopPeriodicUpdatesError {

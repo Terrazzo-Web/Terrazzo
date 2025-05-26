@@ -131,11 +131,9 @@ impl AcmeCertificateConfig {
                     };
                     info!("Update Let's Encrypt account");
                     DiffOption::from(DiffArc::from(AcmeConfig {
-                        environment: old.environment.clone(),
                         credentials: Some(new_credentials).into(),
-                        contact: old.contact.clone(),
-                        domain: old.domain.clone(),
                         certificate: Some(result.certificate.clone()),
+                        ..AcmeConfig::clone(&old)
                     }))
                 });
             } else if Some(&result.certificate) != self.acme_config.certificate.as_ref() {
@@ -145,11 +143,8 @@ impl AcmeCertificateConfig {
                     };
                     info!("Update Let's Encrypt certificate");
                     DiffOption::from(DiffArc::from(AcmeConfig {
-                        environment: old.environment.clone(),
-                        credentials: old.credentials.clone(),
-                        contact: old.contact.clone(),
-                        domain: old.domain.clone(),
                         certificate: Some(result.certificate.clone()),
+                        ..AcmeConfig::clone(&old)
                     }))
                 });
             }

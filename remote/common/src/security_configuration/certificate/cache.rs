@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
+use nameth::nameth;
 use openssl::x509::X509;
 
 use super::CertificateConfig;
@@ -41,6 +42,7 @@ impl<C: CertificateConfig> CertificateConfig for MemoizedCertificate<C> {
 /// A [CertificateConfig] that contains the pre-computed X509 objects.
 ///
 /// Computing certificate and intermediates from a [CachedCertificate] is thus an infallible operation.
+#[nameth]
 #[derive(Clone)]
 pub struct CachedCertificate {
     intermediates: Arc<Vec<X509>>,
@@ -70,11 +72,13 @@ impl CertificateConfig for CachedCertificate {
 }
 
 mod debug {
+    use nameth::NamedType as _;
+
     use super::CachedCertificate;
 
     impl std::fmt::Debug for CachedCertificate {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("CachedCertificate")
+            f.debug_struct(CachedCertificate::type_name())
                 .field("intermediates", &self.intermediates)
                 .field("certificate", &self.certificate)
                 .finish()

@@ -7,7 +7,7 @@ use super::TrustedStoreConfig;
 use crate::x509::native_roots::native_roots;
 
 /// The [TrustedStoreConfig] for certificates trusted by the OS.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NativeTrustedStoreConfig;
 
 impl TrustedStoreConfig for NativeTrustedStoreConfig {

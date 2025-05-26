@@ -7,7 +7,7 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn enable_tracing(&self) -> bool {
         self.as_ref().enable_tracing()
     }
-    fn host(&self) -> &str {
+    fn host(&self) -> String {
         self.as_ref().host()
     }
     fn port(&self) -> u16 {

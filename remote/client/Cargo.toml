@@ -25,6 +25,7 @@ openssl = { workspace = true }
 pin-project = { workspace = true }
 prost-types = { workspace = true }
 reqwest = { workspace = true }
+scopeguard = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -12,6 +12,10 @@ keywords = ["terrazzo", "gateway", "proxy"]
 
 [lib]
 
+[features]
+default = []
+acme = ["dep:instant-acme", "dep:rcgen", "dep:serde_json"]
+
 [dependencies]
 trz-gateway-common = { workspace = true }
 
@@ -22,9 +26,12 @@ bytes = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = ["tokio"] }
+instant-acme = { workspace = true, optional = true }
 nameth = { workspace = true }
 openssl = { workspace = true }
 pem = { workspace = true }
+serde_json = { workspace = true, optional = true }
+rcgen = { workspace = true, optional = true }
 pin-project = { workspace = true }
 prost-types = { workspace = true }
 rustls = { workspace = true }

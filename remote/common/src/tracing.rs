@@ -1,3 +1,5 @@
+//! Utils to enable [::tracing].
+
 use std::panic::Location;
 
 use nameth::NamedEnumValues as _;
@@ -7,6 +9,7 @@ use tracing::level_filters::LevelFilter;
 use tracing::subscriber::SetGlobalDefaultError;
 use tracing::warn;
 
+/// Enables tracing and registers a [panic hook](std::panic::set_hook).
 pub fn enable_tracing() -> Result<(), EnableTracingError> {
     let subscriber = tracing_subscriber::fmt()
         .compact()
@@ -40,6 +43,7 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
     Ok(())
 }
 
+/// Errors thrown by [enable_tracing] when trying to enable tracing multiple times.
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum EnableTracingError {
@@ -47,6 +51,7 @@ pub enum EnableTracingError {
     SetGlobalDefault(#[from] SetGlobalDefaultError),
 }
 
+#[cfg(debug_assertions)]
 pub mod test_utils {
     use std::sync::Once;
 

@@ -1,3 +1,8 @@
+//! Self-signed Root CA.
+//!
+//! This Root CA is not used as the trust anchor, it is used to issue client
+//! certificates but the security comes from the signed extension.
+
 use std::io::ErrorKind;
 use std::path::Path;
 

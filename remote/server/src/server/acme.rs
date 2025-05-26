@@ -28,7 +28,7 @@ mod tests;
 
 /// ACME configuration to generate certificates with [Let's Encrypt](https://letsencrypt.org).
 #[nameth]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct AcmeConfig {
     /// Use [Production](LetsEncrypt::Production) or [Staging](LetsEncrypt::Staging)
     #[serde(with = "environment_serde")]

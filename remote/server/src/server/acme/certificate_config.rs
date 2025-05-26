@@ -124,6 +124,20 @@ impl AcmeCertificateConfig {
                 }
             };
 
+            let acme_certificate =
+                parse_acme_certificate(&result.certificate).inspect_err(|_| {
+                    self.acme_config_dyn.set(|old| {
+                        let Some(old) = &**old else {
+                            return DiffOption::default();
+                        };
+                        info!("Update Let's Encrypt certificate");
+                        DiffOption::from(DiffArc::from(AcmeConfig {
+                            certificate: None,
+                            ..AcmeConfig::clone(&old)
+                        }))
+                    });
+                })?;
+
             if let Some(new_credentials) = result.credentials {
                 self.acme_config_dyn.set(|old| {
                     let Some(old) = &**old else {
@@ -149,7 +163,7 @@ impl AcmeCertificateConfig {
                 });
             }
 
-            parse_acme_certificate(&result.certificate)
+            return Ok(acme_certificate);
         }
         .instrument(info_span!("Initializing certificate"))
         .await;

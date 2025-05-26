@@ -97,6 +97,7 @@ impl super::Client {
     }
 }
 
+/// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum ConnectError {

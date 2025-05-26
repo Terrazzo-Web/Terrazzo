@@ -1,3 +1,5 @@
+//! The gRPC server that runs in the client.
+
 use tonic::transport::Server;
 use tonic::transport::server::Router;
 use trz_gateway_common::is_global::IsGlobal;

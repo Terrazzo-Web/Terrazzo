@@ -1,7 +1,7 @@
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
-use crate::client_config::ClientConfig;
+use crate::client::config::ClientConfig;
 
 #[derive(Debug)]
 pub struct TestClientConfig<G> {

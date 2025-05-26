@@ -1,5 +1,10 @@
+//! Utils for [Infallible].
+
 use core::convert::Infallible;
 
+/// Helper to unwrap [Result<_, Infallible>].
+///
+/// Such errors are always safe to unwrap without checking.
 pub trait UnwrapInfallible {
     type Ok;
     fn unwrap_infallible(self) -> Self::Ok;

@@ -1,3 +1,5 @@
+//! Adapt Rust errors to HTTP status codes.
+
 use std::convert::Infallible;
 
 use axum::http::StatusCode;

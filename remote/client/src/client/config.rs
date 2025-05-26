@@ -1,3 +1,5 @@
+//! Configuration for the Terrazzo [Client](super::Client).
+
 use std::ffi::OsString;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -26,6 +28,9 @@ pub trait ClientConfig: IsGlobal {
         format!("https://localhost:{port}")
     }
 
+    /// A unique name for the client.
+    ///
+    /// Defaults to the hostname.
     fn client_name(&self) -> ClientName {
         static CLIENT_ID: OnceLock<ClientName> = OnceLock::new();
         fn make_default_hostname() -> ClientName {
@@ -40,6 +45,7 @@ pub trait ClientConfig: IsGlobal {
         CLIENT_ID.get_or_init(make_default_hostname).clone()
     }
 
+    /// The PKI to trust when connecting to the Terrazzo Gateway.
     type GatewayPki: TrustedStoreConfig;
 
     /// The trust anchors for the Terrazzo Gateway server certificate.

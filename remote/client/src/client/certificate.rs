@@ -1,3 +1,5 @@
+//! Client certificates from the Terrazzo Gateway.
+
 use http::header::CONTENT_TYPE;
 use mime::APPLICATION_JSON;
 use nameth::NamedEnumValues as _;
@@ -10,7 +12,7 @@ use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
-use crate::client_config::ClientConfig;
+use super::config::ClientConfig;
 
 /// API to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
@@ -31,6 +33,7 @@ pub async fn get_certifiate(
     Ok(request.send().await?.text().await?)
 }
 
+/// Errors returned by [get_certifiate].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum GetCertificateError {

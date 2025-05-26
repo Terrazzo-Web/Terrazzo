@@ -1,11 +1,18 @@
+//! Configuration for the Terrazzo tunnel.
+
 use std::sync::Arc;
 
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 
-use super::client_config::ClientConfig;
-use crate::client_service::ClientService;
+use super::client::config::ClientConfig;
+use crate::client::service::ClientService;
 use crate::retry_strategy::RetryStrategy;
 
+/// Configuration for the Terrazzo tunnel.
+///
+/// - Parent [ClientConfig] specifies the endpoint and PKI of the Gateway
+/// - This [TunnelConfig] provides the client certificate and the gRPC service
+///   to use to communicate over the tunnel.
 pub trait TunnelConfig: ClientConfig {
     /// The TLS certificate issued by the Terrazzo Gateway.
     type ClientCertificate: CertificateConfig;
@@ -14,6 +21,7 @@ pub trait TunnelConfig: ClientConfig {
     /// Returns a [ClientService] to configure the gRPC server running in the client.
     fn client_service(&self) -> impl ClientService;
 
+    /// The retry strategy for reconnecting to the Terrazzo Gateway on connection failure.
     fn retry_strategy(&self) -> RetryStrategy;
 }
 

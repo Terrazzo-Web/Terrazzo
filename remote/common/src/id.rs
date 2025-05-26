@@ -1,3 +1,5 @@
+//! Utils to generate string-based identifiers.
+
 use std::convert::Infallible;
 
 use axum::extract::OptionalFromRequestParts;
@@ -58,6 +60,10 @@ macro_rules! declare_identifier {
 
 declare_identifier!(ClientName);
 declare_identifier!(ClientId);
+
+/// Name of the header to pass the [ClientId].
+///
+/// This is used to trace connections from a client.
 pub static CLIENT_ID_HEADER: HeaderName = HeaderName::from_static("x-client-id");
 
 impl<S> OptionalFromRequestParts<S> for ClientId

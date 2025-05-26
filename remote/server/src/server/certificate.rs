@@ -13,6 +13,7 @@ use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::http_error::IsHttpError;
+use trz_gateway_common::is_global::IsGlobalError;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
 use trz_gateway_common::x509::cert::MakeCertError;
@@ -24,6 +25,7 @@ use trz_gateway_common::x509::time::Asn1ToSystemTimeError;
 use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_common::x509::validity::ValidityError;
 
+use super::IssuerConfig;
 use super::Server;
 use crate::auth_code::AuthCode;
 
@@ -31,6 +33,8 @@ static CERTIFICATE_VALIDITY: Duration = Duration::from_secs(3600 * 24 * 90);
 
 impl Server {
     /// API to issue client certificates.
+    ///
+    /// Endpoint: "/remote/certificate"
     pub async fn get_certificate(
         self: Arc<Self>,
         Json(request): Json<GetCertificateRequest<AuthCode>>,
@@ -50,14 +54,19 @@ impl Server {
         &self,
         request: GetCertificateRequest<AuthCode>,
     ) -> Result<String, GetCertificateError> {
-        let mut validity = self.issuer_config.validity;
+        let issuer_config = self
+            .issuer_config
+            .get()
+            .map_err(GetCertificateError::IssuerConfig)?;
+        let mut validity = issuer_config.validity;
         validity.to = SystemTime::min(validity.to, validity.from + CERTIFICATE_VALIDITY);
-        let signed_extension = self.make_signed_extension(&request, validity)?;
+        let signed_extension = self.make_signed_extension(&issuer_config, &request, validity)?;
         Ok(self.assemble_pem_cert(request, validity, signed_extension)?)
     }
 
     fn make_signed_extension(
         &self,
+        issuer_config: &IssuerConfig,
         request: &GetCertificateRequest<AuthCode>,
         validity: Validity,
     ) -> Result<X509Extension, GetCertificateError> {
@@ -67,8 +76,8 @@ impl Server {
             pem::parse(&request.public_key)
                 .map_err(GetCertificateError::InvalidPublicKeyPem)?
                 .contents(),
-            Some(&self.issuer_config.intermediates),
-            (*self.issuer_config.signer).as_ref(),
+            Some(&issuer_config.intermediates),
+            (*issuer_config.signer).as_ref(),
         )?)
     }
 
@@ -109,6 +118,9 @@ pub enum GetCertificateError {
 
     #[error("[{n}] {0}", n = self.name())]
     MakeCert(#[from] MakePemCertificateError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    IssuerConfig(Arc<dyn IsGlobalError>),
 }
 
 #[nameth]
@@ -129,6 +141,7 @@ impl IsHttpError for GetCertificateError {
             Self::Validity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::InvalidPublicKeyPem { .. } => StatusCode::BAD_REQUEST,
             Self::MakeSignedExtension { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::IssuerConfig { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

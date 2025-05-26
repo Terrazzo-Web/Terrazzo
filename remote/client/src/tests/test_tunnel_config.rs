@@ -8,8 +8,8 @@ use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use super::calculator;
 use super::test_client_config::TestClientConfig;
-use crate::client_config::ClientConfig;
-use crate::client_service::ClientService;
+use crate::client::config::ClientConfig;
+use crate::client::service::ClientService;
 use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 

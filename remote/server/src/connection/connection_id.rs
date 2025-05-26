@@ -1,3 +1,5 @@
+//! Unique identifier for a client connection.
+
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 

@@ -7,21 +7,28 @@ use self::cache::CachedCertificate;
 use self::cache::MemoizedCertificate;
 use crate::certificate_info::X509CertificateInfo;
 use crate::is_global::IsGlobal;
+use crate::is_global::IsGlobalError;
 
 pub mod as_trusted_store;
 pub mod cache;
+pub mod dynamic;
 pub mod pem;
 pub mod tls_server;
 
 /// Trait for X509 certificate along with the intermediates.
 pub trait CertificateConfig: IsGlobal {
-    type Error: std::error::Error;
+    type Error: IsGlobalError;
 
     /// Computes the list of intermediate certificates.
     fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error>;
 
     /// Computes the X509 leaf certificate
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error>;
+
+    /// Whether the certificate can change over time, ie Let's Encrypt certificates.
+    fn is_dynamic(&self) -> bool {
+        false
+    }
 
     /// Returns a memoized [CertificateConfig].
     fn memoize(self) -> MemoizedCertificate<Self>
@@ -64,5 +71,9 @@ impl<T: CertificateConfig> CertificateConfig for Arc<T> {
 
     fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
         self.as_ref().certificate()
+    }
+
+    fn is_dynamic(&self) -> bool {
+        self.as_ref().is_dynamic()
     }
 }

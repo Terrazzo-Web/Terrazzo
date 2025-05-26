@@ -1,8 +1,11 @@
+//! Utils for [CryptoProvider]s.
+
 use std::sync::Arc;
 
 use rustls::crypto::CryptoProvider;
 use rustls::crypto::aws_lc_rs;
 
+/// Install and use the [CryptoProvider] from [aws_lc_rs].
 pub fn crypto_provider() -> &'static Arc<CryptoProvider> {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {

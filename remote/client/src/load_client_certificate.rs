@@ -1,3 +1,5 @@
+//! Utils to load client certificates from PEM files.
+
 use std::path::Path;
 
 use nameth::NamedEnumValues as _;
@@ -19,7 +21,7 @@ use trz_gateway_common::x509::key::make_key;
 use crate::client::AuthCode;
 use crate::client::certificate::GetCertificateError;
 use crate::client::certificate::get_certifiate;
-use crate::client_config::ClientConfig;
+use crate::client::config::ClientConfig;
 use crate::http_client::MakeHttpClientError;
 use crate::http_client::make_http_client;
 
@@ -74,6 +76,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
     }
 }
 
+/// Errors returned by [load_client_certificate].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum LoadClientCertificateError<C: ClientConfig> {
@@ -114,6 +117,8 @@ async fn make_client_certificate<C: ClientConfig>(
     })
 }
 
+/// Errors returned by [load_client_certificate] when creating a new
+/// certificate, from a new keypair.
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum MakeClientCertificateError<C: TrustedStoreConfig> {

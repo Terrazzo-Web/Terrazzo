@@ -59,10 +59,6 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
     }
 
     fn retry_strategy(&self) -> RetryStrategy {
-        RetryStrategy {
-            delay: Duration::from_secs(1),
-            exponent: 2.,
-            max_delay: Duration::from_secs(60),
-        }
+        RetryStrategy::from(Duration::from_secs(1)).exponential_backoff(2., Duration::from_secs(60))
     }
 }

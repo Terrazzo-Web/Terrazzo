@@ -7,7 +7,6 @@ use std::hash::RandomState;
 use std::ops::Add;
 use std::ops::Mul;
 use std::time::Duration;
-use std::u64;
 
 /// Retry strategy with exponential backoff.
 #[derive(Clone, Debug)]
@@ -61,7 +60,7 @@ impl RetryStrategy {
         Self::ExponentialBackoff {
             base: Box::new(self),
             exponent,
-            max_delay: max_delay.into(),
+            max_delay,
         }
     }
 
@@ -241,8 +240,8 @@ impl RetryStrategy {
 
     pub fn array<const N: usize>(&mut self) -> [Duration; N] {
         let mut result: [Duration; N] = [Duration::ZERO; N];
-        for i in 0..N {
-            result[i] = self.delay();
+        for next in &mut result {
+            *next = self.delay();
         }
         result
     }

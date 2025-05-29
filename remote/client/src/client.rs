@@ -127,13 +127,13 @@ async fn run_impl(
             return;
         }
         let uptime = Instant::now() - start;
-        if uptime < retry_strategy0.max_delay {
+        if uptime < retry_strategy0.max_delay() {
             match result {
                 Ok(()) => {
-                    info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.delay) }
+                    info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
                 }
                 Err(error) => {
-                    warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.delay) }
+                    warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
                 }
             }
             if let futures::future::Either::Right(((), _retry_strategy_wait)) =

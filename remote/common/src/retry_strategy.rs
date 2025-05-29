@@ -1,27 +1,28 @@
 //! Retry strategy.
 
-use std::hash::BuildHasher;
 use std::hash::DefaultHasher;
 use std::hash::Hasher;
-use std::hash::RandomState;
 use std::ops::Add;
 use std::ops::Mul;
 use std::time::Duration;
 
 /// Retry strategy with exponential backoff.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum RetryStrategy {
     Fixed {
+        #[serde(with = "serde_duration")]
         delay: Duration,
     },
     ExponentialBackoff {
         base: Box<RetryStrategy>,
         exponent: f64,
+        #[serde(with = "serde_duration")]
         max_delay: Duration,
     },
     Random {
         base: Box<RetryStrategy>,
         factor: f64,
+        #[serde(skip, default = "helpers::new_random")]
         random: DefaultHasher,
     },
     Mult {
@@ -37,6 +38,51 @@ pub enum RetryStrategy {
         times: u32,
         then: Box<RetryStrategy>,
     },
+}
+
+mod helpers {
+    use std::hash::BuildHasher as _;
+    use std::hash::DefaultHasher;
+
+    pub(super) fn new_random() -> DefaultHasher {
+        use std::hash::RandomState;
+        RandomState::new().build_hasher()
+    }
+}
+
+mod serde_duration {
+    use std::time::Duration;
+
+    use serde::Deserializer;
+    use serde::Serializer;
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&humantime::format_duration(*duration).to_string())
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Duration, D::Error> {
+        struct Visitor;
+
+        impl serde::de::Visitor<'_> for Visitor {
+            type Value = Duration;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a Duration")
+            }
+
+            fn visit_str<E>(self, duration: &str) -> Result<Duration, E>
+            where
+                E: serde::de::Error,
+            {
+                humantime::parse_duration(duration).map_err(serde::de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
 }
 
 impl Default for RetryStrategy {
@@ -68,7 +114,7 @@ impl RetryStrategy {
         Self::Random {
             base: Box::new(self),
             factor,
-            random: RandomState::new().build_hasher(),
+            random: helpers::new_random(),
         }
     }
 }
@@ -277,6 +323,73 @@ impl Iterator for RetryStrategy {
     }
 }
 
+impl Eq for RetryStrategy {}
+
+impl PartialEq for RetryStrategy {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Fixed { delay: l_delay }, Self::Fixed { delay: r_delay }) => l_delay == r_delay,
+            (
+                Self::ExponentialBackoff {
+                    base: l_base,
+                    exponent: l_exponent,
+                    max_delay: l_max_delay,
+                },
+                Self::ExponentialBackoff {
+                    base: r_base,
+                    exponent: r_exponent,
+                    max_delay: r_max_delay,
+                },
+            ) => l_base == r_base && l_exponent == r_exponent && l_max_delay == r_max_delay,
+            (
+                Self::Random {
+                    base: l_base,
+                    factor: l_factor,
+                    random: _,
+                },
+                Self::Random {
+                    base: r_base,
+                    factor: r_factor,
+                    random: _,
+                },
+            ) => l_base == r_base && l_factor == r_factor,
+            (
+                Self::Mult {
+                    base: l_base,
+                    factor: l_factor,
+                },
+                Self::Mult {
+                    base: r_base,
+                    factor: r_factor,
+                },
+            ) => l_base == r_base && l_factor == r_factor,
+            (
+                Self::Plus {
+                    left: l_left,
+                    right: l_right,
+                },
+                Self::Plus {
+                    left: r_left,
+                    right: r_right,
+                },
+            ) => l_left == r_left && l_right == r_right,
+            (
+                Self::Sequence {
+                    first: l_first,
+                    times: l_times,
+                    then: l_then,
+                },
+                Self::Sequence {
+                    first: r_first,
+                    times: r_times,
+                    then: r_then,
+                },
+            ) => l_first == r_first && l_times == r_times && l_then == r_then,
+            _ => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -405,6 +518,123 @@ mod tests {
                 panic!()
             };
             assert!(matches!(**left, RetryStrategy::Fixed { .. }));
+        }
+    }
+
+    #[test]
+    fn serde_json() {
+        for (retry_strategy, serialized) in [
+            (
+                RetryStrategy::fixed(Duration::from_secs(1)),
+                r#"{
+                  "Fixed": {
+                    "delay": "1s"
+                  }
+                }"#,
+            ),
+            (
+                RetryStrategy::fixed(Duration::from_secs(1))
+                    .exponential_backoff(2., Duration::from_secs(1)),
+                r#"{
+                  "ExponentialBackoff": {
+                    "base": {
+                      "Fixed": {
+                        "delay": "1s"
+                      }
+                    },
+                    "exponent": 2.0,
+                    "max_delay": "1s"
+                  }
+                }"#,
+            ),
+            (
+                RetryStrategy::fixed(Duration::from_secs(1))
+                    .exponential_backoff(2., Duration::from_secs(1))
+                    .random(0.3),
+                r#"{
+                  "Random": {
+                    "base": {
+                      "ExponentialBackoff": {
+                        "base": {
+                          "Fixed": {
+                            "delay": "1s"
+                          }
+                        },
+                        "exponent": 2.0,
+                        "max_delay": "1s"
+                      }
+                    },
+                    "factor": 0.3
+                  }
+                }"#,
+            ),
+        ] {
+            assert_eq!(
+                serde_json::to_string_pretty(&retry_strategy)
+                    .unwrap()
+                    .replace("\n", "\n                "),
+                serialized
+            );
+            assert_eq!(retry_strategy, serde_json::from_str(serialized).unwrap());
+        }
+    }
+
+    #[test]
+    fn serde_toml() {
+        for (retry_strategy, serialized) in [
+            (
+                RetryStrategy::fixed(Duration::from_secs(1)),
+                r#"{
+                  "Fixed": {
+                    "delay": "1s"
+                  }
+                }"#,
+            ),
+            (
+                RetryStrategy::fixed(Duration::from_secs(1))
+                    .exponential_backoff(2., Duration::from_secs(1)),
+                r#"{
+                  "ExponentialBackoff": {
+                    "base": {
+                      "Fixed": {
+                        "delay": "1s"
+                      }
+                    },
+                    "exponent": 2.0,
+                    "max_delay": "1s"
+                  }
+                }"#,
+            ),
+            (
+                RetryStrategy::fixed(Duration::from_secs(1))
+                    .exponential_backoff(2., Duration::from_secs(1))
+                    .random(0.3),
+                r#"{
+                  "Random": {
+                    "base": {
+                      "ExponentialBackoff": {
+                        "base": {
+                          "Fixed": {
+                            "delay": "1s"
+                          }
+                        },
+                        "exponent": 2.0,
+                        "max_delay": "1s"
+                      }
+                    },
+                    "factor": 0.3
+                  }
+                }"#,
+            ),
+        ] {
+            assert_eq!(
+                toml::to_string_pretty(&retry_strategy)
+                    .inspect_err(|e| println!("{e}"))
+                    .unwrap()
+                    .replace("\n", "\n                "),
+                serialized
+            );
+            assert_eq!(retry_strategy, toml::from_str(serialized).unwrap());
         }
     }
 }

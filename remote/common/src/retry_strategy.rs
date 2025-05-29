@@ -7,37 +7,69 @@ use std::ops::Mul;
 use std::time::Duration;
 
 /// Retry strategy with exponential backoff.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+
 pub enum RetryStrategy {
-    Fixed {
-        #[serde(with = "serde_duration")]
-        delay: Duration,
-    },
-    ExponentialBackoff {
-        base: Box<RetryStrategy>,
-        exponent: f64,
-        #[serde(with = "serde_duration")]
-        max_delay: Duration,
-    },
-    Random {
-        base: Box<RetryStrategy>,
-        factor: f64,
-        #[serde(skip, default = "helpers::new_random")]
-        random: DefaultHasher,
-    },
-    Mult {
-        base: Box<RetryStrategy>,
-        factor: f64,
-    },
-    Plus {
-        left: Box<RetryStrategy>,
-        right: Box<RetryStrategy>,
-    },
-    Sequence {
-        first: Box<RetryStrategy>,
-        times: u32,
-        then: Box<RetryStrategy>,
-    },
+    Fixed(#[serde(with = "serde_duration")] Duration),
+    ExponentialBackoff(ExponentialBackoff),
+    Random(Random),
+    Mult(Mult),
+    Plus(Plus),
+    Sequence(Sequence),
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ExponentialBackoff {
+    base: Box<RetryStrategy>,
+    exponent: f64,
+    #[serde(with = "serde_duration")]
+    max_delay: Duration,
+}
+
+impl Eq for ExponentialBackoff {}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Random {
+    base: Box<RetryStrategy>,
+    factor: f64,
+    #[serde(skip, default = "helpers::new_random")]
+    random: DefaultHasher,
+}
+
+impl PartialEq for Random {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.factor == other.factor
+    }
+}
+
+impl Eq for Random {}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Mult {
+    base: Box<RetryStrategy>,
+    factor: f64,
+}
+
+impl PartialEq for Mult {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.factor == other.factor
+    }
+}
+
+impl Eq for Mult {}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Plus {
+    left: Box<RetryStrategy>,
+    right: Box<RetryStrategy>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Sequence {
+    first: Box<RetryStrategy>,
+    times: u32,
+    then: Box<RetryStrategy>,
 }
 
 mod helpers {
@@ -93,29 +125,29 @@ impl Default for RetryStrategy {
 
 impl From<Duration> for RetryStrategy {
     fn from(delay: Duration) -> Self {
-        Self::Fixed { delay }
+        Self::fixed(delay)
     }
 }
 
 impl RetryStrategy {
     pub fn fixed(delay: Duration) -> Self {
-        Self::Fixed { delay }
+        Self::Fixed(delay)
     }
 
     pub fn exponential_backoff(self, exponent: f64, max_delay: Duration) -> Self {
-        Self::ExponentialBackoff {
+        Self::ExponentialBackoff(ExponentialBackoff {
             base: Box::new(self),
             exponent,
             max_delay,
-        }
+        })
     }
 
     pub fn random(self, factor: f64) -> Self {
-        Self::Random {
+        Self::Random(Random {
             base: Box::new(self),
             factor,
             random: helpers::new_random(),
-        }
+        })
     }
 }
 
@@ -124,35 +156,28 @@ impl Mul<f64> for RetryStrategy {
 
     fn mul(self, f: f64) -> Self {
         match self {
-            Self::Fixed { delay } => Self::Fixed {
-                delay: delay.div_f64(f),
-            },
-            Self::ExponentialBackoff { .. } => Self::Mult {
+            Self::Fixed(delay) => delay.div_f64(f).into(),
+            Self::ExponentialBackoff { .. } => Self::Mult(Mult {
                 base: self.into(),
                 factor: f,
-            },
-            Self::Random {
-                base,
-                factor,
-                random,
-            } => RetryStrategy::Random {
-                base: Box::new((*base).clone() * f),
-                factor,
-                random,
-            },
-            Self::Mult { base, factor } => Self::Mult {
-                base,
-                factor: factor * f,
-            },
-            Self::Plus { left, right } => Self::Plus {
-                left: Box::new((*left).clone() * f),
-                right: Box::new((*right).clone() * f),
-            },
-            Self::Sequence { first, times, then } => Self::Sequence {
-                first: Box::new((*first).clone() * f),
-                times,
-                then: Box::new((*then).clone() * f),
-            },
+            }),
+            Self::Random(random) => Self::Random(Random {
+                base: Box::new((*random.base).clone() * f),
+                ..random
+            }),
+            Self::Mult(mult) => Self::Mult(Mult {
+                factor: mult.factor * f,
+                ..mult
+            }),
+            Self::Plus(plus) => Self::Plus(Plus {
+                left: Box::new((*plus.left).clone() * f),
+                right: Box::new((*plus.right).clone() * f),
+            }),
+            Self::Sequence(sequence) => Self::Sequence(Sequence {
+                first: Box::new((*sequence.first).clone() * f),
+                then: Box::new((*sequence.then).clone() * f),
+                ..sequence
+            }),
         }
     }
 }
@@ -161,10 +186,10 @@ impl Add for RetryStrategy {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::Plus {
+        Self::Plus(Plus {
             left: self.into(),
             right: rhs.into(),
-        }
+        })
     }
 }
 
@@ -179,11 +204,11 @@ impl RetryStrategy {
 
 impl RetryStrategyTimes {
     pub fn then(self, then: RetryStrategy) -> RetryStrategy {
-        RetryStrategy::Sequence {
+        RetryStrategy::Sequence(Sequence {
             first: self.retry_strategy.into(),
             times: self.times,
             then: then.into(),
-        }
+        })
     }
 }
 
@@ -195,15 +220,15 @@ pub struct RetryStrategyTimes {
 impl RetryStrategy {
     pub fn peek(&self) -> Duration {
         match self {
-            RetryStrategy::Fixed { delay } => *delay,
-            RetryStrategy::ExponentialBackoff {
+            RetryStrategy::Fixed(delay) => *delay,
+            RetryStrategy::ExponentialBackoff(ExponentialBackoff {
                 base, max_delay, ..
-            } => Ord::min(base.peek(), *max_delay),
-            RetryStrategy::Random {
+            }) => Ord::min(base.peek(), *max_delay),
+            RetryStrategy::Random(Random {
                 base,
                 factor,
                 random,
-            } => {
+            }) => {
                 let r: u64 = random.finish();
 
                 // generate a random number between [0..1]
@@ -214,9 +239,9 @@ impl RetryStrategy {
 
                 return base.peek().mul_f64(r);
             }
-            RetryStrategy::Mult { base, factor } => base.peek().mul_f64(*factor),
-            RetryStrategy::Plus { left, right } => left.peek() + right.peek(),
-            RetryStrategy::Sequence { first, times, then } => {
+            RetryStrategy::Mult(Mult { base, factor }) => base.peek().mul_f64(*factor),
+            RetryStrategy::Plus(Plus { left, right }) => left.peek() + right.peek(),
+            RetryStrategy::Sequence(Sequence { first, times, then }) => {
                 if *times > 0 { first } else { then }.peek()
             }
         }
@@ -224,14 +249,14 @@ impl RetryStrategy {
 
     pub fn max_delay(&self) -> Duration {
         match self {
-            RetryStrategy::Fixed { delay } => *delay,
-            RetryStrategy::ExponentialBackoff { max_delay, .. } => *max_delay,
-            RetryStrategy::Random { base, factor, .. } => {
+            RetryStrategy::Fixed(delay) => *delay,
+            RetryStrategy::ExponentialBackoff(ExponentialBackoff { max_delay, .. }) => *max_delay,
+            RetryStrategy::Random(Random { base, factor, .. }) => {
                 base.max_delay().mul_f64(1.0 + factor / 2.0)
             }
-            RetryStrategy::Mult { base, factor } => base.max_delay().mul_f64(*factor),
-            RetryStrategy::Plus { left, right } => left.max_delay() + right.max_delay(),
-            RetryStrategy::Sequence { first, then, .. } => {
+            RetryStrategy::Mult(Mult { base, factor }) => base.max_delay().mul_f64(*factor),
+            RetryStrategy::Plus(Plus { left, right }) => left.max_delay() + right.max_delay(),
+            RetryStrategy::Sequence(Sequence { first, then, .. }) => {
                 Duration::max(first.max_delay(), then.max_delay())
             }
         }
@@ -241,11 +266,11 @@ impl RetryStrategy {
         let next = self.peek();
         match self {
             RetryStrategy::Fixed { .. } => (),
-            RetryStrategy::ExponentialBackoff {
+            RetryStrategy::ExponentialBackoff(ExponentialBackoff {
                 base,
                 exponent,
                 max_delay,
-            } => {
+            }) => {
                 let exponent = *exponent;
                 let max_delay = *max_delay;
                 let _ = base.delay();
@@ -255,18 +280,18 @@ impl RetryStrategy {
                     *self = max_delay.into();
                 }
             }
-            RetryStrategy::Random { base, random, .. } => {
+            RetryStrategy::Random(Random { base, random, .. }) => {
                 let _ = base.delay();
                 random.write_u128(next.as_nanos());
             }
-            RetryStrategy::Mult { base, .. } => {
+            RetryStrategy::Mult(Mult { base, .. }) => {
                 let _ = base.delay();
             }
-            RetryStrategy::Plus { left, right } => {
+            RetryStrategy::Plus(Plus { left, right }) => {
                 let _ = left.delay();
                 let _ = right.delay();
             }
-            RetryStrategy::Sequence { first, times, then } => {
+            RetryStrategy::Sequence(Sequence { first, times, then }) => {
                 if *times > 0 {
                     if *times == 1 {
                         let d = first.delay();
@@ -298,16 +323,15 @@ impl RetryStrategy {
 
     fn multiply(&mut self, f: f64) {
         match self {
-            RetryStrategy::Fixed { delay } => *delay = delay.mul_f64(f),
-            RetryStrategy::ExponentialBackoff { base, .. } | RetryStrategy::Random { base, .. } => {
-                base.multiply(f)
-            }
-            RetryStrategy::Mult { factor, .. } => *factor *= f,
-            RetryStrategy::Plus { left, right } => {
+            RetryStrategy::Fixed(delay) => *delay = delay.mul_f64(f),
+            RetryStrategy::ExponentialBackoff(ExponentialBackoff { base, .. })
+            | RetryStrategy::Random(Random { base, .. }) => base.multiply(f),
+            RetryStrategy::Mult(Mult { factor, .. }) => *factor *= f,
+            RetryStrategy::Plus(Plus { left, right }) => {
                 left.multiply(f);
                 right.multiply(f);
             }
-            RetryStrategy::Sequence { first, then, .. } => {
+            RetryStrategy::Sequence(Sequence { first, then, .. }) => {
                 first.multiply(f);
                 then.multiply(f);
             }
@@ -323,77 +347,11 @@ impl Iterator for RetryStrategy {
     }
 }
 
-impl Eq for RetryStrategy {}
-
-impl PartialEq for RetryStrategy {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Fixed { delay: l_delay }, Self::Fixed { delay: r_delay }) => l_delay == r_delay,
-            (
-                Self::ExponentialBackoff {
-                    base: l_base,
-                    exponent: l_exponent,
-                    max_delay: l_max_delay,
-                },
-                Self::ExponentialBackoff {
-                    base: r_base,
-                    exponent: r_exponent,
-                    max_delay: r_max_delay,
-                },
-            ) => l_base == r_base && l_exponent == r_exponent && l_max_delay == r_max_delay,
-            (
-                Self::Random {
-                    base: l_base,
-                    factor: l_factor,
-                    random: _,
-                },
-                Self::Random {
-                    base: r_base,
-                    factor: r_factor,
-                    random: _,
-                },
-            ) => l_base == r_base && l_factor == r_factor,
-            (
-                Self::Mult {
-                    base: l_base,
-                    factor: l_factor,
-                },
-                Self::Mult {
-                    base: r_base,
-                    factor: r_factor,
-                },
-            ) => l_base == r_base && l_factor == r_factor,
-            (
-                Self::Plus {
-                    left: l_left,
-                    right: l_right,
-                },
-                Self::Plus {
-                    left: r_left,
-                    right: r_right,
-                },
-            ) => l_left == r_left && l_right == r_right,
-            (
-                Self::Sequence {
-                    first: l_first,
-                    times: l_times,
-                    then: l_then,
-                },
-                Self::Sequence {
-                    first: r_first,
-                    times: r_times,
-                    then: r_then,
-                },
-            ) => l_first == r_first && l_times == r_times && l_then == r_then,
-            _ => false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
+    use super::Plus;
     use super::RetryStrategy;
 
     #[test]
@@ -501,7 +459,7 @@ mod tests {
             + Duration::from_secs(100).into();
         {
             assert!(matches!(retry_strategy, RetryStrategy::Plus { .. }));
-            let RetryStrategy::Plus { left, .. } = &retry_strategy else {
+            let RetryStrategy::Plus(Plus { left, .. }) = &retry_strategy else {
                 panic!()
             };
             assert!(matches!(**left, RetryStrategy::Sequence { .. }));
@@ -514,7 +472,7 @@ mod tests {
 
         {
             assert!(matches!(retry_strategy, RetryStrategy::Plus { .. }));
-            let RetryStrategy::Plus { left, .. } = &retry_strategy else {
+            let RetryStrategy::Plus(Plus { left, .. }) = &retry_strategy else {
                 panic!()
             };
             assert!(matches!(**left, RetryStrategy::Fixed { .. }));
@@ -527,20 +485,16 @@ mod tests {
             (
                 RetryStrategy::fixed(Duration::from_secs(1)),
                 r#"{
-                  "Fixed": {
-                    "delay": "1s"
-                  }
+                  "fixed": "1s"
                 }"#,
             ),
             (
                 RetryStrategy::fixed(Duration::from_secs(1))
                     .exponential_backoff(2., Duration::from_secs(1)),
                 r#"{
-                  "ExponentialBackoff": {
+                  "exponential-backoff": {
                     "base": {
-                      "Fixed": {
-                        "delay": "1s"
-                      }
+                      "fixed": "1s"
                     },
                     "exponent": 2.0,
                     "max_delay": "1s"
@@ -552,13 +506,11 @@ mod tests {
                     .exponential_backoff(2., Duration::from_secs(1))
                     .random(0.3),
                 r#"{
-                  "Random": {
+                  "random": {
                     "base": {
-                      "ExponentialBackoff": {
+                      "exponential-backoff": {
                         "base": {
-                          "Fixed": {
-                            "delay": "1s"
-                          }
+                          "fixed": "1s"
                         },
                         "exponent": 2.0,
                         "max_delay": "1s"
@@ -584,53 +536,38 @@ mod tests {
         for (retry_strategy, serialized) in [
             (
                 RetryStrategy::fixed(Duration::from_secs(1)),
-                r#"{
-                  "Fixed": {
-                    "delay": "1s"
-                  }
-                }"#,
+                r#"fixed = "1s""#,
             ),
             (
                 RetryStrategy::fixed(Duration::from_secs(1))
                     .exponential_backoff(2., Duration::from_secs(1)),
-                r#"{
-                  "ExponentialBackoff": {
-                    "base": {
-                      "Fixed": {
-                        "delay": "1s"
-                      }
-                    },
-                    "exponent": 2.0,
-                    "max_delay": "1s"
-                  }
-                }"#,
+                r#"[exponential-backoff]
+                exponent = 2.0
+                max_delay = "1s"
+                
+                [exponential-backoff.base]
+                fixed = "1s""#,
             ),
             (
                 RetryStrategy::fixed(Duration::from_secs(1))
                     .exponential_backoff(2., Duration::from_secs(1))
                     .random(0.3),
-                r#"{
-                  "Random": {
-                    "base": {
-                      "ExponentialBackoff": {
-                        "base": {
-                          "Fixed": {
-                            "delay": "1s"
-                          }
-                        },
-                        "exponent": 2.0,
-                        "max_delay": "1s"
-                      }
-                    },
-                    "factor": 0.3
-                  }
-                }"#,
+                r#"[random]
+                factor = 0.3
+                
+                [random.base.exponential-backoff]
+                exponent = 2.0
+                max_delay = "1s"
+                
+                [random.base.exponential-backoff.base]
+                fixed = "1s""#,
             ),
         ] {
             assert_eq!(
-                toml::to_string_pretty(&retry_strategy)
+                toml::to_string(&retry_strategy)
                     .inspect_err(|e| println!("{e}"))
                     .unwrap()
+                    .trim()
                     .replace("\n", "\n                "),
                 serialized
             );

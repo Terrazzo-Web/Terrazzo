@@ -17,6 +17,7 @@ axum = { workspace = true }
 bytes = { workspace = true }
 cms = { workspace = true }
 futures = { workspace = true }
+humantime = { workspace = true }
 nameth = { workspace = true }
 oid-registry = { workspace = true }
 openssl = { workspace = true }
@@ -37,6 +38,7 @@ x509-parser = { workspace = true }
 [dev-dependencies]
 scopeguard = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 
 [build-dependencies]
 tonic-build = { workspace = true, features = ["prost"] }

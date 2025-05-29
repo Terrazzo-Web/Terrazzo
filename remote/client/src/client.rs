@@ -20,6 +20,7 @@ use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServerError;
@@ -30,7 +31,6 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use uuid::Uuid;
 
 use self::service::ClientService;
-use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 
 pub mod certificate;

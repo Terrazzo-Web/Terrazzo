@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelServiceServer;
+use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
@@ -10,7 +11,6 @@ use super::calculator;
 use super::test_client_config::TestClientConfig;
 use crate::client::config::ClientConfig;
 use crate::client::service::ClientService;
-use crate::retry_strategy::RetryStrategy;
 use crate::tunnel_config::TunnelConfig;
 
 #[derive(Debug)]

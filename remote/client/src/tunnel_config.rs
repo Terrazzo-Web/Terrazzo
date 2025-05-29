@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
+use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 
 use super::client::config::ClientConfig;
 use crate::client::service::ClientService;
-use crate::retry_strategy::RetryStrategy;
 
 /// Configuration for the Terrazzo tunnel.
 ///

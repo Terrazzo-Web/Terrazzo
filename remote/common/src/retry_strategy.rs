@@ -9,7 +9,6 @@ use std::time::Duration;
 /// Retry strategy with exponential backoff.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
-
 pub enum RetryStrategy {
     Fixed(#[serde(with = "serde_duration")] Duration),
     ExponentialBackoff(ExponentialBackoff),

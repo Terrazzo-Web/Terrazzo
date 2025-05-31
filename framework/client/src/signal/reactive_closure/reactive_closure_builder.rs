@@ -1,5 +1,4 @@
 use std::panic::Location;
-use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
 use autoclone::autoclone;
@@ -18,6 +17,7 @@ use crate::signal::producers::producer::Producer;
 use crate::signal::version::Version;
 use crate::string::XString;
 use crate::template::IsTemplate;
+use crate::utils::Ptr;
 
 /// A builder for ReactiveClosure.
 ///
@@ -96,7 +96,7 @@ impl<F: Fn() + 'static> ReactiveClosureBuilder<F> {
             reactive_closure,
             producers,
         } = self;
-        let reactive_closure = Arc::new(ReactiveClosure {
+        let reactive_closure = Ptr::new(ReactiveClosure {
             name,
             reactive_closure,
             last_version: AtomicUsize::new(0),

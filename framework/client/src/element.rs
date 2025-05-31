@@ -1,7 +1,5 @@
 //! Generated HTML elements
 
-use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use nameth::NamedType as _;
@@ -26,6 +24,7 @@ use crate::prelude::OrElseLog as _;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 use crate::template::IsTemplate;
+use crate::utils::Ptr;
 
 mod debug;
 mod merge_attributes;
@@ -132,7 +131,7 @@ pub struct XEvent {
     /// The callback that takes the [event] as parameter and is executed when the event fires.
     ///
     /// [event]: web_sys::Event
-    pub callback: Arc<dyn ClosureAsFunction>,
+    pub callback: Ptr<dyn ClosureAsFunction>,
 }
 
 pub trait ClosureAsFunction: std::fmt::Debug {
@@ -158,7 +157,7 @@ impl<T: ?Sized> ClosureAsFunction for Closure<T> {
 pub struct OnRenderCallback(pub Box<dyn Fn(Element)>);
 
 impl XElement {
-    pub fn merge(&mut self, template: &XTemplate, old: &mut Self, element_rc: Rc<Mutex<Element>>) {
+    pub fn merge(&mut self, template: &XTemplate, old: &mut Self, element_rc: Ptr<Mutex<Element>>) {
         match &self.key {
             XKey::Named(key) => {
                 let _span = debug_span!("Merge", %key).entered();
@@ -175,7 +174,12 @@ impl XElement {
         };
     }
 
-    fn merge_impl(&mut self, template: &XTemplate, old: &mut Self, element_rc: Rc<Mutex<Element>>) {
+    fn merge_impl(
+        &mut self,
+        template: &XTemplate,
+        old: &mut Self,
+        element_rc: Ptr<Mutex<Element>>,
+    ) {
         let element = {
             let mut element = element_rc.lock().or_throw("element");
             if let XKey::Named(new_key) = &self.key {

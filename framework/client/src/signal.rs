@@ -110,7 +110,7 @@ impl<T> XSignal<T> {
     #[must_use]
     pub fn add_subscriber(&self, closure: impl Fn(T) + 'static) -> Consumers
     where
-        T: Clone + Send + 'static,
+        T: Clone + 'static,
     {
         use std::sync::atomic::AtomicUsize;
         use std::sync::atomic::Ordering::SeqCst;

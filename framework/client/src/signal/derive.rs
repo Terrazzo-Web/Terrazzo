@@ -119,7 +119,6 @@ impl<T> XSignal<T> {
 /// # use std::cell::Cell;
 /// # use autoclone::autoclone;
 /// # use terrazzo_client::prelude::*;
-/// # use terrazzo_client::utils::Ptr;
 /// # #[autoclone]
 /// # fn main() {
 /// let main = XSignal::new("main", "1".to_owned());

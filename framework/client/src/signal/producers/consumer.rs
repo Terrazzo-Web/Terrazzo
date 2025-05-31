@@ -36,7 +36,7 @@ impl<V: ProducedValue> Consumer<V> {
                 name: consumer_name,
                 sort_key,
                 producer: producer.downgrade(),
-                closure: Box::new(closure),
+                closure,
             }),
         }
     }
@@ -59,7 +59,7 @@ struct ConsumerInner<V: ProducedValue, F: Fn(V::Value) + ?Sized> {
     name: DebugCorrelationId<XString>,
     sort_key: V::SortKey,
     producer: ProducerWeak<V>,
-    closure: Box<F>,
+    closure: F,
 }
 
 impl<V: ProducedValue> Consumer<V> {

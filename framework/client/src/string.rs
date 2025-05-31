@@ -122,7 +122,7 @@ mod tests {
     fn from_arc() {
         let s: Ptr<str> = "value".into();
         let xs: XString = s.into();
-        assert_eq!(format!(" {xs:?} "), r#" Ptr("value") "#);
+        assert_eq!(format!(" {xs:?} "), r#" Ref("value") "#);
     }
 
     #[test]

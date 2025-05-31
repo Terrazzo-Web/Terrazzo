@@ -92,16 +92,16 @@ impl Drop for Batch {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
-    use std::sync::Arc;
 
     use autoclone::autoclone;
 
     use super::Batch;
+    use crate::utils::Ptr;
 
     #[test]
     #[autoclone]
     fn batch() {
-        let v = Arc::new(RefCell::new(vec![]));
+        let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 
         {

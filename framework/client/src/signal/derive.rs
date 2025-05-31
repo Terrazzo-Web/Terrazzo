@@ -117,14 +117,14 @@ impl<T> XSignal<T> {
 ///
 /// ```
 /// # use std::cell::Cell;
-/// # use std::rc::Rc;
 /// # use autoclone::autoclone;
 /// # use terrazzo_client::prelude::*;
+/// # use terrazzo_client::utils::Ptr;
 /// # #[autoclone]
 /// # fn main() {
 /// let main = XSignal::new("main", "1".to_owned());
-/// let compute_derived = Rc::new(Cell::new(0));
-/// let compute_main = Rc::new(Cell::new(0));
+/// let compute_derived = Ptr::new(Cell::new(0));
+/// let compute_main = Ptr::new(Cell::new(0));
 ///
 /// let derived_nodiff = main.derive(
 ///     "derived",

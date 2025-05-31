@@ -1,11 +1,13 @@
 #![cfg(test)]
 
-use std::cell::Cell;
+use std::sync::atomic::AtomicI32;
+use std::sync::atomic::Ordering::SeqCst;
 
 use autoclone::autoclone;
 
 use super::XSignal;
 use crate::signal::derive::if_change;
+use crate::utils::Ptr;
 
 #[test]
 fn derive() {
@@ -34,44 +36,44 @@ fn derive() {
 fn derive2() {
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
-    let to_exec = std::rc::Rc::new(Cell::new(0));
-    let from_exec = std::rc::Rc::new(Cell::new(0));
+    let to_exec = Ptr::new(AtomicI32::new(0));
+    let from_exec = Ptr::new(AtomicI32::new(0));
     let derived = main.derive(
         "derived",
         /* to: */
         move |main| {
             autoclone!(to_exec);
-            to_exec.set(to_exec.get() + 1);
+            to_exec.fetch_add(1, SeqCst);
             main.parse::<i32>().unwrap()
         },
         /* from: */
         if_change(move |_main: &String, derived: &i32| {
             autoclone!(from_exec);
-            from_exec.set(from_exec.get() + 1);
+            from_exec.fetch_add(1, SeqCst);
             Some(derived.to_string())
         }),
     );
 
     assert_eq!("1", main.get_value_untracked());
     assert_eq!(1, derived.get_value_untracked());
-    assert_eq!(1, to_exec.take());
-    assert_eq!(0, from_exec.take());
+    assert_eq!(1, to_exec.swap(0, SeqCst));
+    assert_eq!(0, from_exec.swap(0, SeqCst));
 
     derived.set(2);
     assert_eq!("2", main.get_value_untracked());
     assert_eq!(2, derived.get_value_untracked());
 
     // Updating derived updates main, which updates derived again but to the same value.
-    assert_eq!(1, to_exec.take());
-    assert_eq!(1, from_exec.take());
+    assert_eq!(1, to_exec.swap(0, SeqCst));
+    assert_eq!(1, from_exec.swap(0, SeqCst));
 
     main.set("3");
     assert_eq!("3", main.get_value_untracked());
     assert_eq!(3, derived.get_value_untracked());
 
     // Updating main updates derived, which updates main again but to the same value.
-    assert_eq!(1, to_exec.get());
-    assert_eq!(1, from_exec.get());
+    assert_eq!(1, to_exec.load(SeqCst));
+    assert_eq!(1, from_exec.load(SeqCst));
 }
 
 #[autoclone]
@@ -79,29 +81,29 @@ fn derive2() {
 fn derive_diff() {
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
-    let compute_derived = std::rc::Rc::new(Cell::new(0));
-    let compute_main = std::rc::Rc::new(Cell::new(0));
+    let compute_derived = Ptr::new(AtomicI32::new(0));
+    let compute_main = Ptr::new(AtomicI32::new(0));
 
     let derived_nodiff = main.derive(
         "derived",
         /* to: */
         move |main| {
             autoclone!(compute_derived);
-            compute_derived.set(compute_derived.get() + 1);
+            compute_derived.fetch_add(1, SeqCst);
             main.parse::<i32>().unwrap()
         },
         /* from: */
         move |_main: &String, derived: &i32| {
             autoclone!(compute_main);
-            compute_main.set(compute_main.get() + 1);
+            compute_main.fetch_add(1, SeqCst);
             Some(derived.to_string())
         },
     );
 
     assert_eq!("1", main.get_value_untracked());
     assert_eq!(1, derived_nodiff.get_value_untracked());
-    assert_eq!(1, compute_derived.take());
-    assert_eq!(0, compute_main.take());
+    assert_eq!(1, compute_derived.swap(0, SeqCst));
+    assert_eq!(0, compute_main.swap(0, SeqCst));
 
     // 1. Updating `main` updates `derived`
     // 2. Which updates `main` again
@@ -109,15 +111,15 @@ fn derive_diff() {
     main.set("2");
     assert_eq!("2", main.get_value_untracked());
     assert_eq!(2, derived_nodiff.get_value_untracked());
-    assert_eq!(2, compute_derived.take());
-    assert_eq!(1, compute_main.take());
+    assert_eq!(2, compute_derived.swap(0, SeqCst));
+    assert_eq!(1, compute_main.swap(0, SeqCst));
 
     // Updating `main` to the same value is a no-op.
     main.set("2");
     assert_eq!("2", main.get_value_untracked());
     assert_eq!(2, derived_nodiff.get_value_untracked());
-    assert_eq!(0, compute_derived.take());
-    assert_eq!(0, compute_main.take());
+    assert_eq!(0, compute_derived.swap(0, SeqCst));
+    assert_eq!(0, compute_main.swap(0, SeqCst));
 
     // Reset
     drop(derived_nodiff);
@@ -128,35 +130,35 @@ fn derive_diff() {
         /* to: */
         move |main| {
             autoclone!(compute_derived);
-            compute_derived.set(compute_derived.get() + 1);
+            compute_derived.fetch_add(1, SeqCst);
             main.parse::<i32>().unwrap()
         },
         /* from: */
         if_change(move |_main: &String, derived: &i32| {
             autoclone!(compute_main);
-            compute_main.set(compute_main.get() + 1);
+            compute_main.fetch_add(1, SeqCst);
             Some(derived.to_string())
         }),
     );
 
     assert_eq!("1", main.get_value_untracked());
     assert_eq!(1, derived_diff.get_value_untracked());
-    compute_derived.set(0);
-    compute_main.set(0);
+    compute_derived.store(0, SeqCst);
+    compute_main.store(0, SeqCst);
 
     // Updating `main` updates `derived`, which updates `main` again but to the same value.
     main.set("2");
     assert_eq!("2", main.get_value_untracked());
     assert_eq!(2, derived_diff.get_value_untracked());
-    assert_eq!(1, compute_derived.take());
-    assert_eq!(1, compute_main.take());
+    assert_eq!(1, compute_derived.swap(0, SeqCst));
+    assert_eq!(1, compute_main.swap(0, SeqCst));
 
     // Updating `main` to the same value is a no-op.
     main.set("2");
     assert_eq!("2", main.get_value_untracked());
     assert_eq!(2, derived_diff.get_value_untracked());
-    assert_eq!(0, compute_derived.take());
-    assert_eq!(0, compute_main.take());
+    assert_eq!(0, compute_derived.swap(0, SeqCst));
+    assert_eq!(0, compute_main.swap(0, SeqCst));
 }
 
 #[test]

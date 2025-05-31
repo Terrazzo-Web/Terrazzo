@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::sync::Weak;
-
 use nameth::NamedType as _;
 use nameth::nameth;
 use tracing::trace;
@@ -12,11 +9,13 @@ use super::producer_weak::ProducerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
 use crate::string::XString;
+use crate::utils::Ptr;
+use crate::utils::PtrWeak;
 
 #[must_use]
 #[nameth]
 pub struct Consumer<V: ProducedValue> {
-    inner: Arc<ConsumerInner<V, dyn Fn(V::Value)>>,
+    inner: Ptr<ConsumerInner<V, dyn Fn(V::Value)>>,
 }
 
 impl<V: ProducedValue> Consumer<V> {
@@ -32,12 +31,12 @@ impl<V: ProducedValue> Consumer<V> {
         let consumer_id = ConsumerId::new();
         trace!(%consumer_id, "New consumer");
         Self {
-            inner: Arc::new(ConsumerInner {
+            inner: Ptr::new(ConsumerInner {
                 id: consumer_id,
                 name: consumer_name,
                 sort_key,
                 producer: producer.downgrade(),
-                closure,
+                closure: Box::new(closure),
             }),
         }
     }
@@ -60,7 +59,7 @@ struct ConsumerInner<V: ProducedValue, F: Fn(V::Value) + ?Sized> {
     name: DebugCorrelationId<XString>,
     sort_key: V::SortKey,
     producer: ProducerWeak<V>,
-    closure: F,
+    closure: Box<F>,
 }
 
 impl<V: ProducedValue> Consumer<V> {
@@ -74,7 +73,7 @@ impl<V: ProducedValue, F: Fn(V::Value) + ?Sized> Drop for ConsumerInner<V, F> {
         trace!(consumer_id = %self.id, consumer_name = %self.name, "Drop consumer");
         if let Some(producer) = self.producer.upgrade() {
             let mut producer_lock = producer.inner.1.lock().or_throw("producer_lock");
-            let consumers = Arc::try_unwrap(std::mem::take(&mut producer_lock.consumers))
+            let consumers = Ptr::try_unwrap(std::mem::take(&mut producer_lock.consumers))
                 .unwrap_or_else(|consumers| consumers.as_ref().clone())
                 .into_iter()
                 .filter(|consumer| {
@@ -84,19 +83,19 @@ impl<V: ProducedValue, F: Fn(V::Value) + ?Sized> Drop for ConsumerInner<V, F> {
                     return consumer.inner.id != self.id;
                 })
                 .collect();
-            producer_lock.consumers = Arc::new(consumers);
+            producer_lock.consumers = Ptr::new(consumers);
         }
     }
 }
 
 pub struct ConsumerWeak<V: ProducedValue> {
-    inner: Weak<ConsumerInner<V, dyn Fn(V::Value)>>,
+    inner: PtrWeak<ConsumerInner<V, dyn Fn(V::Value)>>,
 }
 
 impl<V: ProducedValue> Consumer<V> {
     pub(super) fn downgrade(&self) -> ConsumerWeak<V> {
         ConsumerWeak {
-            inner: Arc::downgrade(&self.inner),
+            inner: Ptr::downgrade(&self.inner),
         }
     }
 }

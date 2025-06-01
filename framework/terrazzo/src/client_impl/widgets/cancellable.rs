@@ -1,18 +1,19 @@
 //! Utils to cancel function calls
 
-use std::rc::Rc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+
+use terrazzo_client::prelude::Ptr;
 
 use self::inner::CancellableInner;
 use self::inner::CancellableState;
 use super::debounce::DoDebounce;
 
-pub struct Cancellable<S>(Rc<CancellableInner<S>>);
+pub struct Cancellable<S>(Ptr<CancellableInner<S>>);
 
 impl<D: DoDebounce> Cancellable<D> {
     pub(super) fn of(do_debounce: D) -> Self {
-        Self(Rc::new(CancellableInner {
+        Self(Ptr::new(CancellableInner {
             version: AtomicUsize::new(0),
             state: do_debounce,
         }))

@@ -1,7 +1,6 @@
 //! Owned Javscript closures
 
 use std::cell::RefCell;
-use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
@@ -12,16 +11,18 @@ use wasm_bindgen::closure::IntoWasmClosure;
 use wasm_bindgen::prelude::Closure;
 use web_sys::js_sys::Function;
 
+use crate::utils::Ptr;
+
 /// A Javascript function that owns the backing Rust callback;
 ///
 /// When a [Closure] is turned into a Javascript [Function], the [Function]
 /// gets invalidated when the [Closure] is dropped. This goes against Rust's
 /// no use-after-free guarantee.
 ///
-/// An [XOwnedClosure] creates functions that hold an [Arc] to the [Closure],
+/// An [XOwnedClosure] creates functions that hold a [Ptr] to the [Closure],
 /// essentially 'leaking' the [Closure] into the [Function] and ensuring the
 /// [Closure] isn't dropped until the refcount drops to zero.
-pub struct XOwnedClosure<F: ?Sized>(Arc<RefCell<Option<Closure<F>>>>);
+pub struct XOwnedClosure<F: ?Sized>(Ptr<RefCell<Option<Closure<F>>>>);
 
 macro_rules! impl_owned_callback {
     (
@@ -34,7 +35,7 @@ macro_rules! impl_owned_callback {
             where
                 F: Fn($($arg_types),*) + IntoWasmClosure<dyn Fn($($arg_types),*)> + 'static,
             {
-                let self_ref: Arc<RefCell<Option<Closure<dyn Fn($($arg_types),*)>>>> = Default::default();
+                let self_ref: Ptr<RefCell<Option<Closure<dyn Fn($($arg_types),*)>>>> = Default::default();
                 let closure = Closure::new(f(make_drop_self_ref_fn(self_ref.clone())));
                 *self_ref.borrow_mut() = Some(closure);
                 Self(self_ref)
@@ -51,7 +52,7 @@ pub enum CallbackSelfDropError {
 }
 
 fn make_drop_self_ref_fn<T: 'static>(
-    self_ref: Arc<RefCell<Option<T>>>,
+    self_ref: Ptr<RefCell<Option<T>>>,
 ) -> Box<dyn Fn() -> Result<(), CallbackSelfDropError>> {
     Box::new(move || {
         let self_ref = self_ref.clone();

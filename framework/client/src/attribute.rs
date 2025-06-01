@@ -1,7 +1,5 @@
 //! Attributes of generated HTML elements
 
-use std::rc::Rc;
-
 use nameth::NamedType as _;
 use nameth::nameth;
 use tracing::trace;
@@ -18,6 +16,7 @@ use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
+use crate::utils::Ptr;
 
 /// Represents an attribute of an HTML node.
 ///
@@ -110,7 +109,7 @@ impl<F: Fn(XAttributeTemplate) -> Consumers + 'static> From<F> for XDynamicAttri
 
 /// Represents the template that generates a dynamic [XAttribute].
 #[derive(Clone)]
-pub struct XAttributeTemplate(Rc<AttributeTemplateInner>);
+pub struct XAttributeTemplate(Ptr<AttributeTemplateInner>);
 
 mod inner {
     use std::ops::Deref;
@@ -286,7 +285,7 @@ fn merge_dynamic_atttribute(
         old_template
     } else {
         trace!("Create a new attribute template {attribute_name}");
-        XAttributeTemplate(Rc::new(AttributeTemplateInner {
+        XAttributeTemplate(Ptr::new(AttributeTemplateInner {
             element: element.clone(),
             attribute_name: attribute_name.clone(),
             debug_id: DebugCorrelationId::new(|| format!("attribute_template:{attribute_name}")),

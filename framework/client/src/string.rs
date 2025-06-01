@@ -9,7 +9,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum XString {
     Str(&'static str),
-    Arc(Arc<str>),
+    Ref(Arc<str>),
 }
 
 impl XString {
@@ -17,7 +17,7 @@ impl XString {
     pub fn as_str(&self) -> &str {
         match self {
             XString::Str(str) => str,
-            XString::Arc(arc) => arc.as_ref(),
+            XString::Ref(arc) => arc.as_ref(),
         }
     }
 }
@@ -82,7 +82,7 @@ impl Hash for XString {
 
 impl From<String> for XString {
     fn from(string: String) -> Self {
-        Self::Arc(string.into())
+        Self::Ref(string.into())
     }
 }
 
@@ -94,7 +94,7 @@ impl From<&'static str> for XString {
 
 impl From<Arc<str>> for XString {
     fn from(arc: Arc<str>) -> Self {
-        Self::Arc(arc)
+        Self::Ref(arc)
     }
 }
 
@@ -121,37 +121,37 @@ mod tests {
     fn from_arc() {
         let s: Arc<str> = "value".into();
         let xs: XString = s.into();
-        assert_eq!(format!(" {xs:?} "), r#" Arc("value") "#);
+        assert_eq!(format!(" {xs:?} "), r#" Ref("value") "#);
     }
 
     #[test]
     fn eq() {
         assert_eq!(XString::Str("A"), XString::Str("A"));
-        assert_eq!(XString::Str("A"), XString::Arc("A".into()));
-        assert_eq!(XString::Arc("A".into()), XString::Arc("A".into()));
+        assert_eq!(XString::Str("A"), XString::Ref("A".into()));
+        assert_eq!(XString::Ref("A".into()), XString::Ref("A".into()));
     }
 
     #[test]
     fn ne() {
         assert_ne!(XString::Str("A"), XString::Str("B"));
-        assert_ne!(XString::Str("A"), XString::Arc("B".into()));
+        assert_ne!(XString::Str("A"), XString::Ref("B".into()));
     }
 
     #[test]
     fn ord() {
         let mut strings = vec![
-            XString::Arc("b-arc".into()),
+            XString::Ref("b-arc".into()),
             XString::Str("a-str"),
             XString::Str("d-str"),
-            XString::Arc("c-arc".into()),
+            XString::Ref("c-arc".into()),
         ];
 
         strings.sort();
         assert_eq!(
             vec![
                 XString::Str("a-str"),
-                XString::Arc("b-arc".into()),
-                XString::Arc("c-arc".into()),
+                XString::Ref("b-arc".into()),
+                XString::Ref("c-arc".into()),
                 XString::Str("d-str"),
             ],
             strings
@@ -162,8 +162,8 @@ mod tests {
     fn hash() {
         let strings = [
             XString::Str("a-str"),
-            XString::Arc("b-arc".into()),
-            XString::Arc("c-arc".into()),
+            XString::Ref("b-arc".into()),
+            XString::Ref("c-arc".into()),
             XString::Str("d-str"),
         ]
         .into_iter()

@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.11"
+version = "0.1.12"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,17 +45,17 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.11", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.11", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.11", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.11", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.11", path = "framework/build" }
-terrazzo-client = { version = "0.1.11", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.11", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.11", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.11", path = "remote/client" }
-trz-gateway-common = { version = "0.1.11", path = "remote/common" }
-trz-gateway-server = { version = "0.1.11", path = "remote/server" }
+autoclone = { version = "0.1.12", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.12", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.12", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.12", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.12", path = "framework/build" }
+terrazzo-client = { version = "0.1.12", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.12", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.12", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.12", path = "remote/client" }
+trz-gateway-common = { version = "0.1.12", path = "remote/common" }
+trz-gateway-server = { version = "0.1.12", path = "remote/server" }
 
 axum = { version = "0.8.4" }
 axum-server = { version = "0.7.2" }
@@ -79,7 +79,7 @@ openssl = { version = "0.10.73" }
 pem = { version = "3.0.5" }
 pin-project = { version = "1.1.10" }
 portpicker = { version = "0.1.1" }
-prettyplease = { version = "0.2.32" }
+prettyplease = { version = "0.2.33" }
 proc-macro2 = { version = "1.0.95" }
 prost = { version = "0.13.5" }
 prost-types = { version = "0.13.5" }

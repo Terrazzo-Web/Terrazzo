@@ -3,14 +3,13 @@
 use std::borrow::Borrow;
 use std::hash::Hash;
 use std::ops::Deref;
-
-use crate::utils::Ptr;
+use std::sync::Arc;
 
 /// Represents a string that is cheap to copy.
 #[derive(Debug, Clone)]
 pub enum XString {
     Str(&'static str),
-    Ref(Ptr<str>),
+    Ref(Arc<str>),
 }
 
 impl XString {
@@ -93,8 +92,8 @@ impl From<&'static str> for XString {
     }
 }
 
-impl From<Ptr<str>> for XString {
-    fn from(arc: Ptr<str>) -> Self {
+impl From<Arc<str>> for XString {
+    fn from(arc: Arc<str>) -> Self {
         Self::Ref(arc)
     }
 }
@@ -108,9 +107,9 @@ impl From<bool> for XString {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::sync::Arc;
 
     use super::XString;
-    use crate::utils::Ptr;
 
     #[test]
     fn from_str() {
@@ -120,7 +119,7 @@ mod tests {
 
     #[test]
     fn from_arc() {
-        let s: Ptr<str> = "value".into();
+        let s: Arc<str> = "value".into();
         let xs: XString = s.into();
         assert_eq!(format!(" {xs:?} "), r#" Ref("value") "#);
     }

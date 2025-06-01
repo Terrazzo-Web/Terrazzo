@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::sync::Mutex;
 
 use tracing::trace;
@@ -15,17 +14,17 @@ use crate::prelude::OrElseLog as _;
 use crate::signal::depth::Depth;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
+use crate::utils::Ptr;
 
 /// A template represents an [Element] managed by the Terrazzo framework.
 ///
 /// It holds a reference to the old [XElement] which ensures Javacript event callbacks
 /// aren't dropped as long as the template is live.
 #[derive(Clone)]
-pub struct XTemplate(Rc<TemplateInner>);
+pub struct XTemplate(Ptr<TemplateInner>);
 
 mod inner {
     use std::ops::Deref;
-    use std::rc::Rc;
     use std::sync::Mutex;
 
     use web_sys::Element;
@@ -34,12 +33,13 @@ mod inner {
     use crate::debug_correlation_id::DebugCorrelationId;
     use crate::element::XElement;
     use crate::signal::depth::Depth;
+    use crate::utils::Ptr;
 
     pub struct TemplateInner {
         pub(super) key_attribute: String,
         pub(super) debug_id: DebugCorrelationId<&'static str>,
         pub(super) depth: Depth,
-        pub(super) element_mut: Rc<Mutex<Element>>,
+        pub(super) element_mut: Ptr<Mutex<Element>>,
         pub(super) old: Mutex<Option<XElement>>,
     }
 
@@ -53,15 +53,15 @@ mod inner {
 }
 
 impl XTemplate {
-    pub fn new(element_mut: Rc<Mutex<Element>>) -> Self {
+    pub fn new(element_mut: Ptr<Mutex<Element>>) -> Self {
         Self::with_depth(Depth::zero(), element_mut)
     }
 
-    pub(crate) fn with_depth(depth: Depth, element_mut: Rc<Mutex<Element>>) -> Self {
+    pub(crate) fn with_depth(depth: Depth, element_mut: Ptr<Mutex<Element>>) -> Self {
         use std::sync::atomic::AtomicI32;
         use std::sync::atomic::Ordering::SeqCst;
         static NEXT: AtomicI32 = AtomicI32::new(0);
-        Self(Rc::new(TemplateInner {
+        Self(Ptr::new(TemplateInner {
             key_attribute: format!("{KEY_ATTRIBUTE}-{:#x}", NEXT.fetch_add(1, SeqCst)),
             debug_id: DebugCorrelationId::new(|| "template"),
             depth,

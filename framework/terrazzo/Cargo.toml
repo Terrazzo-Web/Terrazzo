@@ -65,8 +65,8 @@ server = [
     "dep:axum",
     "dep:http",
     "dep:include_directory",
-    "dep:mime",
     "dep:mime_guess",
+    "dep:mime",
     "dep:rsass-macros",
 ]
 concise_traces = ["terrazzo-client?/concise_traces"]

@@ -7,7 +7,7 @@ pub fn process_event(name: &syn::Ident, value: &syn::Expr) -> Option<proc_macro2
         quote! {
             XEvent {
                 event_type: #name.into(),
-                callback: std::sync::Arc::new(Closure::<dyn Fn(#event_type) -> _>::new(#value)),
+                callback: Ptr::new(Closure::<dyn Fn(#event_type) -> _>::new(#value)),
             }
         }
     })

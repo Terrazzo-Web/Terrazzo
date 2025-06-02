@@ -298,7 +298,7 @@ impl XElement {
 
         #[cfg(debug_assertions)]
         let () = new_element
-            .set_attribute("old-tag", &old_tag)
+            .set_attribute("trz-old-tag", &old_tag)
             .inspect_err(|error| warn!("Set old-tag attribute failed: {error:?}'"))
             .ok()?;
 

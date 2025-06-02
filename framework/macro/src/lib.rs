@@ -4,6 +4,7 @@ use quote::format_ident;
 
 mod arguments;
 mod html;
+use server_fn_macro::server_macro_impl;
 mod template;
 
 #[proc_macro_attribute]
@@ -24,6 +25,24 @@ pub fn template(
     self::template::template(attr.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+#[proc_macro_attribute]
+pub fn server(
+    args: proc_macro::TokenStream,
+    s: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    match server_macro_impl(
+        args.into(),
+        s.into(),
+        Some(syn::parse_quote!(::server_fn)),
+        "/api/fn",
+        None,
+        None,
+    ) {
+        Err(e) => e.to_compile_error().into(),
+        Ok(s) => s.into(),
+    }
 }
 
 fn item_to_string(item: &syn::Item) -> String {

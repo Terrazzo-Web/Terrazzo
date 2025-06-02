@@ -108,7 +108,7 @@ toml = { version = "0.8.22" }
 tonic = { version = "0.13.1" }
 tonic-build = { version = "0.13.1" }
 tower = { version = "0.5.2" }
-tower-http = { version = "0.6.4" }
+tower-http = { version = "0.6.5" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.19" }

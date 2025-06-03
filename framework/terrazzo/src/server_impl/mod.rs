@@ -15,3 +15,6 @@ pub use ::mime;
 pub mod prelude {
     pub type Ptr<T> = std::rc::Rc<T>;
 }
+
+#[cfg(all(feature = "server", not(feature = "client")))]
+pub use terrazzo_macro::server;

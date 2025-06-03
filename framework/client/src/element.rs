@@ -289,11 +289,19 @@ impl XElement {
         }
 
         info!(old_tag, new_tag, "Changing element tag");
+        debug!(old_tag, new_tag, "Tag was {}", element.outer_html());
         let document = element.owner_document()?;
         let new_element: Element = document
             .create_element(new_tag)
             .inspect_err(|error| warn!("Create new element '{new_tag}' failed: {error:?}'"))
             .ok()?;
+
+        #[cfg(debug_assertions)]
+        let () = new_element
+            .set_attribute("trz-old-tag", &old_tag)
+            .inspect_err(|error| warn!("Set old-tag attribute failed: {error:?}'"))
+            .ok()?;
+
         if let Some(key) = element.get_attribute(template.key_attribute()) {
             let () = new_element
                 .set_attribute(template.key_attribute(), &key)

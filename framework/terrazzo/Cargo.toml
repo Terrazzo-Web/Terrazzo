@@ -30,7 +30,7 @@ rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 stylance = { workspace = true, optional = true }
 terrazzo-client = { workspace = true, optional = true }
-terrazzo-macro = { workspace = true, optional = true }
+terrazzo-macro = { workspace = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
@@ -56,10 +56,10 @@ client = [
     "dep:scopeguard",
     "dep:stylance",
     "dep:terrazzo-client",
-    "dep:terrazzo-macro",
     "dep:thiserror",
     "dep:wasm-bindgen",
     "dep:web-sys",
+    "terrazzo-macro/client",
 ]
 server = [
     "dep:axum",
@@ -68,6 +68,7 @@ server = [
     "dep:mime_guess",
     "dep:mime",
     "dep:rsass-macros",
+    "terrazzo-macro/server",
 ]
 concise_traces = ["terrazzo-client?/concise_traces"]
 rustdoc = []

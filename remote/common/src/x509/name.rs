@@ -11,7 +11,9 @@ use crate::http_error::IsHttpError;
 pub(super) fn make_name(args: CertitficateName) -> Result<X509Name, MakeNameError> {
     let mut name = X509NameBuilder::new().map_err(MakeNameError::NewBuilder)?;
     let mut set = |nid, value| {
-        let Some(value) = value else { return Ok(()) };
+        let Some(value) = value else {
+            return Ok::<_, MakeNameError>(());
+        };
         match name.append_entry_by_nid(nid, value) {
             Ok(()) => Ok(()),
             Err(error) => {
@@ -20,7 +22,7 @@ pub(super) fn make_name(args: CertitficateName) -> Result<X509Name, MakeNameErro
                     .map_err(|error| MakeNameError::InvalidField { error, nid })?
                     .to_owned();
                 let value = value.to_owned();
-                Err(MakeNameError::InvalidValue { error, nid, value })
+                Err(Box::new(InvalidValueError { error, nid, value }).into())
             }
         }
     };
@@ -48,15 +50,20 @@ pub enum MakeNameError {
     #[error("[{n}] Failed to create a new LDAP Name builder: {0}", n = self.name())]
     NewBuilder(ErrorStack),
 
-    #[error("[{n}] Failed to set LDAP field {nid} = '{value}': {error}", n = self.name())]
-    InvalidValue {
-        error: ErrorStack,
-        nid: String,
-        value: String,
-    },
+    #[error("[{n}] {0}", n = self.name())]
+    InvalidValue(#[from] Box<InvalidValueError>),
 
     #[error("[{n}] Invalid LDAP field NID={nid}: {error}", n = self.name(), nid = nid.as_raw())]
     InvalidField { error: ErrorStack, nid: Nid },
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+#[error("Failed to set LDAP field {nid} = '{value}': {error}")]
+pub struct InvalidValueError {
+    error: ErrorStack,
+    nid: String,
+    value: String,
 }
 
 impl IsHttpError for MakeNameError {
@@ -70,6 +77,7 @@ impl IsHttpError for MakeNameError {
 }
 #[cfg(test)]
 mod tests {
+    use crate::x509::name::InvalidValueError;
 
     #[test]
     fn common_name() {
@@ -106,7 +114,8 @@ mod tests {
         }) else {
             panic!();
         };
-        let super::MakeNameError::InvalidValue { nid, value, .. } = &error else {
+        let super::MakeNameError::InvalidValue(InvalidValueError { nid, value, .. }) = &error
+        else {
             panic!();
         };
         assert_eq!(&too_long, value);

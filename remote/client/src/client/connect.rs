@@ -37,7 +37,9 @@ impl super::Client {
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let mut websocket_uri = format!("ws{}", &self.uri[4..]).into_client_request()?;
+        let mut websocket_uri = format!("ws{}", &self.uri[4..])
+            .into_client_request()
+            .map_err(Box::from)?;
         websocket_uri
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
@@ -47,7 +49,8 @@ impl super::Client {
             disable_nagle,
             Some(self.tls_client.clone()),
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
 
@@ -105,7 +108,7 @@ pub enum ConnectError {
     InvalidHeader(#[from] InvalidHeaderValue),
 
     #[error("[{n}] {0}", n = self.name())]
-    Connect(#[from] tungstenite::Error),
+    Connect(#[from] Box<tungstenite::Error>),
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),

@@ -77,8 +77,6 @@ impl IsHttpError for MakeNameError {
 }
 #[cfg(test)]
 mod tests {
-    use crate::x509::name::InvalidValueError;
-
     #[test]
     fn common_name() {
         let name = super::make_name(super::CertitficateName {
@@ -114,12 +112,11 @@ mod tests {
         }) else {
             panic!();
         };
-        let super::MakeNameError::InvalidValue(InvalidValueError { nid, value, .. }) = &error
-        else {
+        let super::MakeNameError::InvalidValue(invalid_value) = &error else {
             panic!();
         };
-        assert_eq!(&too_long, value);
-        assert_eq!("commonName", nid);
+        assert_eq!(too_long, invalid_value.value);
+        assert_eq!("commonName", invalid_value.nid);
         assert!(error.to_string().starts_with(&format!(
             "[InvalidValue] Failed to set LDAP field commonName = '{too_long}': "
         ),));

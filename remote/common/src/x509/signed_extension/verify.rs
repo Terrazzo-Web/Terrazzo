@@ -61,7 +61,7 @@ impl From<ValidateSignedExtensionError> for rustls::Error {
             ValidateSignedExtensionError::X509Certificate { .. } => {
                 rustls::CertificateError::BadEncoding
             }
-            ValidateSignedExtensionError::SignedExtensionNotFound { .. }
+            ValidateSignedExtensionError::SignedExtensionNotFound
             | ValidateSignedExtensionError::VerifySignature { .. }
             | ValidateSignedExtensionError::VerifySigner { .. } => {
                 rustls::CertificateError::ApplicationVerificationFailure

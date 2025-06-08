@@ -4,19 +4,20 @@ use super::producer::ProducedValue;
 use super::producer::Producer;
 use super::producer::ProducerInner;
 use crate::debug_correlation_id::DebugCorrelationId;
-use crate::prelude::Prc;
 use crate::string::XString;
+use crate::utils::Ptr;
+use crate::utils::PtrWeak;
 
 impl<V: ProducedValue> Producer<V> {
     pub(super) fn downgrade(&self) -> ProducerWeak<V> {
         ProducerWeak {
-            inner: Prc::downgrade(&self.inner),
+            inner: Ptr::downgrade(&self.inner),
         }
     }
 }
 
 pub struct ProducerWeak<V: ProducedValue> {
-    inner: Pweak<(DebugCorrelationId<XString>, Mutex<ProducerInner<V>>)>,
+    inner: PtrWeak<(DebugCorrelationId<XString>, Mutex<ProducerInner<V>>)>,
 }
 
 impl<V: ProducedValue> ProducerWeak<V> {

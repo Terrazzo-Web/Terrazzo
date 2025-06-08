@@ -17,7 +17,7 @@ use super::string::XString;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::Consumers;
 use crate::prelude::OrElseLog as _;
-use crate::utils::Prc;
+use crate::utils::Ptr;
 
 pub mod batch;
 pub mod depth;
@@ -35,7 +35,7 @@ use self::inner::XSignalInner;
 ///
 /// - Derived signals
 /// - ReactiveClosures re-compute and update HTML nodes when signals change
-pub struct XSignal<T>(Prc<XSignalInner<T>>);
+pub struct XSignal<T>(Ptr<XSignalInner<T>>);
 
 mod inner {
     use std::ops::Deref;
@@ -45,12 +45,12 @@ mod inner {
     use super::XSignal;
     use super::XSignalValue;
     use super::producers::producer::Producer;
-    use crate::utils::Prc;
+    use crate::utils::Ptr;
 
     pub struct XSignalInner<T> {
         pub(super) current_value: Mutex<XSignalValue<T>>,
         pub(super) producer: Producer<ProducedSignal>,
-        pub(super) immutable_value: Prc<Mutex<Option<T>>>,
+        pub(super) immutable_value: Ptr<Mutex<Option<T>>>,
         pub(super) on_drop: Mutex<Vec<Box<dyn FnOnce()>>>,
     }
 
@@ -95,13 +95,13 @@ impl<T> XSignal<T> {
     ///
     /// The name of the signal is used in console logs, does not have to be unique.
     pub fn new(name: impl Into<XString>, value: T) -> Self {
-        Self(Prc::new(XSignalInner {
+        Self(Ptr::new(XSignalInner {
             current_value: Mutex::new(XSignalValue {
                 value: Some(value),
                 version: Version::current(),
             }),
             producer: Producer::new(name.into()),
-            immutable_value: Prc::default(),
+            immutable_value: Ptr::default(),
             on_drop: Mutex::new(vec![]),
         }))
     }
@@ -308,7 +308,7 @@ impl<T> UpdateAndReturn for T {
 impl<T> Drop for XSignalInner<T> {
     fn drop(&mut self) {
         debug!(signal = %self.producer.name(), "Dropped");
-        if Prc::strong_count(&self.immutable_value) > 1 {
+        if Ptr::strong_count(&self.immutable_value) > 1 {
             let mut immutable_value = self.immutable_value.lock().or_throw("immutable_value");
             *immutable_value = self.current_value.lock().or_throw("current").value.take();
         }

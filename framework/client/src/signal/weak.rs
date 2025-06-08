@@ -1,7 +1,9 @@
 use super::XSignal;
 use super::XSignalInner;
+use crate::utils::Ptr;
+use crate::utils::PtrWeak;
 
-pub struct XSignalWeak<T>(Pweak<XSignalInner<T>>);
+pub struct XSignalWeak<T>(PtrWeak<XSignalInner<T>>);
 
 impl<T> XSignalWeak<T> {
     pub fn upgrade(&self) -> Option<XSignal<T>> {
@@ -11,7 +13,7 @@ impl<T> XSignalWeak<T> {
 
 impl<T> XSignal<T> {
     pub fn downgrade(&self) -> XSignalWeak<T> {
-        XSignalWeak(Prc::downgrade(&self.0))
+        XSignalWeak(Ptr::downgrade(&self.0))
     }
 }
 

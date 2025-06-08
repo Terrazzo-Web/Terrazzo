@@ -96,12 +96,12 @@ mod tests {
     use autoclone::autoclone;
 
     use super::Batch;
-    use crate::utils::Prc;
+    use crate::utils::Ptr;
 
     #[test]
     #[autoclone]
     fn batch() {
-        let v = Prc::new(RefCell::new(vec![]));
+        let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 
         {

@@ -18,7 +18,7 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
-use crate::utils::Prc;
+use crate::utils::Ptr;
 
 pub fn merge(
     template: &XTemplate,
@@ -122,7 +122,7 @@ fn merge_element<'t>(
         new_element.merge(
             template,
             old_element,
-            Prc::new(Mutex::new(cur_element.to_owned())),
+            Ptr::new(Mutex::new(cur_element.to_owned())),
         );
         return;
     } else {
@@ -131,7 +131,7 @@ fn merge_element<'t>(
 
     if let Some(cur_element) = create_new_element(document, template, element, new_element) {
         trace!("Cur element: Created new");
-        new_element.merge(template, old_element, Prc::new(Mutex::new(cur_element)));
+        new_element.merge(template, old_element, Ptr::new(Mutex::new(cur_element)));
         return;
     }
 

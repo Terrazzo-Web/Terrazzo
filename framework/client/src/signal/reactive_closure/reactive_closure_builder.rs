@@ -194,3 +194,9 @@ impl std::fmt::Debug for Consumers {
         write!(f, "[{}]", consumers.join(", "))
     }
 }
+
+/// Safe because Javascript is single-threaded.
+unsafe impl Send for Consumers {}
+
+/// Safe because Javascript is single-threaded.
+unsafe impl Sync for Consumers {}

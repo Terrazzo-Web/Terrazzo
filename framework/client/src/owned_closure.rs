@@ -5,12 +5,13 @@ use std::cell::RefCell;
 use nameth::NamedEnumValues as _;
 use nameth::NamedType as _;
 use nameth::nameth;
-use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::IntoWasmClosure;
 use wasm_bindgen::prelude::Closure;
 use web_sys::js_sys::Function;
 
+use crate::element::ClosureAsFunction as _;
+use crate::prelude::OrElseLog as _;
 use crate::utils::Ptr;
 
 /// A Javascript function that owns the backing Rust callback;
@@ -64,12 +65,11 @@ fn make_drop_self_ref_fn<T: 'static>(
 }
 
 impl<F: ?Sized> XOwnedClosure<F> {
-    pub fn as_function(&self) -> Option<Function> {
+    pub fn as_function(&self) -> Function {
         let closure_ref = self.0.borrow();
         let maybe_closure = &*closure_ref;
-        let closure = maybe_closure.as_ref()?;
-        let js_value: &JsValue = closure.as_ref();
-        js_value.dyn_ref().cloned()
+        let closure = maybe_closure.as_ref().or_throw("maybe_closure");
+        closure.as_function().clone()
     }
 }
 

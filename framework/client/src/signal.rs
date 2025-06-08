@@ -326,3 +326,9 @@ impl<T: std::fmt::Debug> std::fmt::Debug for XSignal<T> {
             .finish()
     }
 }
+
+/// Safe because Javascript is single-threaded.
+unsafe impl<T: Send> Send for XSignal<T> {}
+
+/// Safe because Javascript is single-threaded.
+unsafe impl<T: Sync> Sync for XSignal<T> {}

@@ -3,17 +3,17 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use terrazzo_client::prelude::Ptr;
+use terrazzo_client::prelude::Prc;
 
 use self::inner::CancellableInner;
 use self::inner::CancellableState;
 use super::debounce::DoDebounce;
 
-pub struct Cancellable<S>(Ptr<CancellableInner<S>>);
+pub struct Cancellable<S>(Prc<CancellableInner<S>>);
 
 impl<D: DoDebounce> Cancellable<D> {
     pub(super) fn of(do_debounce: D) -> Self {
-        Self(Ptr::new(CancellableInner {
+        Self(Prc::new(CancellableInner {
             version: AtomicUsize::new(0),
             state: do_debounce,
         }))

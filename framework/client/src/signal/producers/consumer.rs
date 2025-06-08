@@ -8,14 +8,14 @@ use super::producer::Producer;
 use super::producer_weak::ProducerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::Prc;
 use crate::string::XString;
-use crate::utils::Ptr;
-use crate::utils::PtrWeak;
+use crate::utils::Prc;
 
 #[must_use]
 #[nameth]
 pub struct Consumer<V: ProducedValue> {
-    inner: Ptr<ConsumerInner<V, dyn Fn(V::Value)>>,
+    inner: Prc<ConsumerInner<V, dyn Fn(V::Value)>>,
 }
 
 impl<V: ProducedValue> Consumer<V> {
@@ -31,7 +31,7 @@ impl<V: ProducedValue> Consumer<V> {
         let consumer_id = ConsumerId::new();
         trace!(%consumer_id, "New consumer");
         Self {
-            inner: Ptr::new(ConsumerInner {
+            inner: Prc::new(ConsumerInner {
                 id: consumer_id,
                 name: consumer_name,
                 sort_key,
@@ -73,7 +73,7 @@ impl<V: ProducedValue, F: Fn(V::Value) + ?Sized> Drop for ConsumerInner<V, F> {
         trace!(consumer_id = %self.id, consumer_name = %self.name, "Drop consumer");
         if let Some(producer) = self.producer.upgrade() {
             let mut producer_lock = producer.inner.1.lock().or_throw("producer_lock");
-            let consumers = Ptr::try_unwrap(std::mem::take(&mut producer_lock.consumers))
+            let consumers = Prc::try_unwrap(std::mem::take(&mut producer_lock.consumers))
                 .unwrap_or_else(|consumers| consumers.as_ref().clone())
                 .into_iter()
                 .filter(|consumer| {
@@ -83,19 +83,19 @@ impl<V: ProducedValue, F: Fn(V::Value) + ?Sized> Drop for ConsumerInner<V, F> {
                     return consumer.inner.id != self.id;
                 })
                 .collect();
-            producer_lock.consumers = Ptr::new(consumers);
+            producer_lock.consumers = Prc::new(consumers);
         }
     }
 }
 
 pub struct ConsumerWeak<V: ProducedValue> {
-    inner: PtrWeak<ConsumerInner<V, dyn Fn(V::Value)>>,
+    inner: Pweak<ConsumerInner<V, dyn Fn(V::Value)>>,
 }
 
 impl<V: ProducedValue> Consumer<V> {
     pub(super) fn downgrade(&self) -> ConsumerWeak<V> {
         ConsumerWeak {
-            inner: Ptr::downgrade(&self.inner),
+            inner: Prc::downgrade(&self.inner),
         }
     }
 }

@@ -11,12 +11,11 @@ use web_sys::HtmlElement;
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog;
+use crate::prelude::Prc;
 use crate::signal::depth::Depth;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 use crate::template::IsTemplate;
-use crate::template::IsTemplated;
-use crate::utils::Ptr;
 
 /// Represents an attribute of an HTML node.
 ///
@@ -109,7 +108,7 @@ impl<F: Fn(XAttributeTemplate) -> Consumers + 'static> From<F> for XDynamicAttri
 
 /// Represents the template that generates a dynamic [XAttribute].
 #[derive(Clone)]
-pub struct XAttributeTemplate(Ptr<AttributeTemplateInner>);
+pub struct XAttributeTemplate(Prc<AttributeTemplateInner>);
 
 mod inner {
     use std::ops::Deref;
@@ -285,7 +284,7 @@ fn merge_dynamic_atttribute(
         old_template
     } else {
         trace!("Create a new attribute template {attribute_name}");
-        XAttributeTemplate(Ptr::new(AttributeTemplateInner {
+        XAttributeTemplate(Prc::new(AttributeTemplateInner {
             element: element.clone(),
             attribute_name: attribute_name.clone(),
             debug_id: DebugCorrelationId::new(|| format!("attribute_template:{attribute_name}")),

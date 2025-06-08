@@ -4,9 +4,6 @@ use wasm_bindgen::JsValue;
 
 pub mod or_else_log;
 
-pub type Ptr<T> = std::rc::Rc<T>;
-pub type PtrWeak<T> = std::rc::Weak<T>;
-
 /// [Send]+[Sync] wrapper.
 ///
 /// Safe because Javascript is single-threaded.

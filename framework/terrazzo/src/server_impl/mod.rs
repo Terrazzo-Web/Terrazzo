@@ -13,7 +13,8 @@ pub use ::mime;
 
 #[cfg(all(feature = "server", not(feature = "client")))]
 pub mod prelude {
-    pub type Ptr<T> = std::rc::Rc<T>;
+    pub type Prc<T> = crate::Prc<T>;
+    pub type Pweak<T> = crate::Pweak<T>;
 }
 
 #[cfg(all(feature = "server", not(feature = "client")))]

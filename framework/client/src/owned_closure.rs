@@ -11,7 +11,7 @@ use wasm_bindgen::closure::IntoWasmClosure;
 use wasm_bindgen::prelude::Closure;
 use web_sys::js_sys::Function;
 
-use crate::utils::Ptr;
+use crate::utils::Prc;
 
 /// A Javascript function that owns the backing Rust callback;
 ///
@@ -22,7 +22,7 @@ use crate::utils::Ptr;
 /// An [XOwnedClosure] creates functions that hold a [Ptr] to the [Closure],
 /// essentially 'leaking' the [Closure] into the [Function] and ensuring the
 /// [Closure] isn't dropped until the refcount drops to zero.
-pub struct XOwnedClosure<F: ?Sized>(Ptr<RefCell<Option<Closure<F>>>>);
+pub struct XOwnedClosure<F: ?Sized>(Prc<RefCell<Option<Closure<F>>>>);
 
 macro_rules! impl_owned_callback {
     (
@@ -52,7 +52,7 @@ pub enum CallbackSelfDropError {
 }
 
 fn make_drop_self_ref_fn<T: 'static>(
-    self_ref: Ptr<RefCell<Option<T>>>,
+    self_ref: Prc<RefCell<Option<T>>>,
 ) -> Box<dyn Fn() -> Result<(), CallbackSelfDropError>> {
     Box::new(move || {
         let self_ref = self_ref.clone();

@@ -7,7 +7,7 @@ use autoclone::autoclone;
 
 use super::XSignal;
 use crate::signal::derive::if_change;
-use crate::utils::Ptr;
+use crate::utils::Prc;
 
 #[test]
 fn derive() {
@@ -36,8 +36,8 @@ fn derive() {
 fn derive2() {
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
-    let to_exec = Ptr::new(AtomicI32::new(0));
-    let from_exec = Ptr::new(AtomicI32::new(0));
+    let to_exec = Prc::new(AtomicI32::new(0));
+    let from_exec = Prc::new(AtomicI32::new(0));
     let derived = main.derive(
         "derived",
         /* to: */
@@ -81,8 +81,8 @@ fn derive2() {
 fn derive_diff() {
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
-    let compute_derived = Ptr::new(AtomicI32::new(0));
-    let compute_main = Ptr::new(AtomicI32::new(0));
+    let compute_derived = Prc::new(AtomicI32::new(0));
+    let compute_main = Prc::new(AtomicI32::new(0));
 
     let derived_nodiff = main.derive(
         "derived",

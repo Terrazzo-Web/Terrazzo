@@ -9,7 +9,7 @@ use super::consumer::ConsumerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
 use crate::string::XString;
-use crate::utils::Ptr;
+use crate::utils::Prc;
 
 pub trait ProducedValue {
     type SortKey: Clone + Ord;
@@ -17,7 +17,7 @@ pub trait ProducedValue {
 }
 
 pub struct Producer<V: ProducedValue> {
-    pub(super) inner: Ptr<(DebugCorrelationId<XString>, Mutex<ProducerInner<V>>)>,
+    pub(super) inner: Prc<(DebugCorrelationId<XString>, Mutex<ProducerInner<V>>)>,
 }
 
 impl<V: ProducedValue> Clone for Producer<V> {
@@ -29,7 +29,7 @@ impl<V: ProducedValue> Clone for Producer<V> {
 }
 
 pub(super) struct ProducerInner<V: ProducedValue> {
-    pub consumers: Ptr<Vec<ConsumerWeak<V>>>,
+    pub consumers: Prc<Vec<ConsumerWeak<V>>>,
     state: ConsumersState,
 }
 
@@ -42,10 +42,10 @@ enum ConsumersState {
 impl<V: ProducedValue> Producer<V> {
     pub fn new(name: XString) -> Self {
         Self {
-            inner: Ptr::new((
+            inner: Prc::new((
                 DebugCorrelationId::new(|| name),
                 Mutex::new(ProducerInner {
-                    consumers: Ptr::default(),
+                    consumers: Prc::default(),
                     state: ConsumersState::Sorted,
                 }),
             )),
@@ -75,7 +75,7 @@ impl<V: ProducedValue> Producer<V> {
             producer_lock.state = ConsumersState::NotSorted;
         }
         let consumers = std::mem::take(&mut producer_lock.consumers);
-        let consumers = match Ptr::try_unwrap(consumers) {
+        let consumers = match Prc::try_unwrap(consumers) {
             Ok(mut consumers) => {
                 consumers.push(consumer.downgrade());
                 consumers
@@ -87,7 +87,7 @@ impl<V: ProducedValue> Producer<V> {
                 .collect::<Vec<_>>(),
         };
         trace!("Consumers count: {}", consumers.len());
-        producer_lock.consumers = Ptr::new(consumers);
+        producer_lock.consumers = Prc::new(consumers);
         return consumer;
     }
 
@@ -98,7 +98,7 @@ impl<V: ProducedValue> Producer<V> {
         let consumers = {
             let mut producer_lock = self.inner.1.lock().or_throw("producer_lock");
             if let ConsumersState::NotSorted = producer_lock.state {
-                let mut consumers = Ptr::try_unwrap(std::mem::take(&mut producer_lock.consumers))
+                let mut consumers = Prc::try_unwrap(std::mem::take(&mut producer_lock.consumers))
                     .unwrap_or_else(|consumers| consumers.as_ref().clone());
                 consumers.sort_by(|a, b| {
                     Ord::cmp(
@@ -106,7 +106,7 @@ impl<V: ProducedValue> Producer<V> {
                         &b.upgrade().as_ref().map(|b| b.composite_key()),
                     )
                 });
-                producer_lock.consumers = Ptr::new(consumers);
+                producer_lock.consumers = Prc::new(consumers);
                 producer_lock.state = ConsumersState::Sorted;
             }
             producer_lock.consumers.clone()
@@ -130,12 +130,12 @@ impl<V: ProducedValue> Producer<V> {
 }
 
 struct ConsumersIterator<V: ProducedValue> {
-    consumers: Ptr<Vec<ConsumerWeak<V>>>,
+    consumers: Prc<Vec<ConsumerWeak<V>>>,
     index: usize,
 }
 
 impl<V: ProducedValue> ConsumersIterator<V> {
-    fn new(consumers: Ptr<Vec<ConsumerWeak<V>>>) -> Self {
+    fn new(consumers: Prc<Vec<ConsumerWeak<V>>>) -> Self {
         Self {
             consumers,
             index: 0,

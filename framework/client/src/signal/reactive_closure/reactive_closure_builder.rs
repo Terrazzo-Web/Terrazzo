@@ -17,7 +17,7 @@ use crate::signal::producers::producer::Producer;
 use crate::signal::version::Version;
 use crate::string::XString;
 use crate::template::IsTemplate;
-use crate::utils::Ptr;
+use crate::utils::Prc;
 
 /// A builder for ReactiveClosure.
 ///
@@ -96,7 +96,7 @@ impl<F: Fn() + 'static> ReactiveClosureBuilder<F> {
             reactive_closure,
             producers,
         } = self;
-        let reactive_closure = Ptr::new(ReactiveClosure {
+        let reactive_closure = Prc::new(ReactiveClosure {
             name,
             reactive_closure,
             last_version: AtomicUsize::new(0),

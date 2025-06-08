@@ -1,11 +1,11 @@
 //! Utils to debounce function calls
 
 use std::cell::Cell;
-use std::rc::Rc;
 use std::time::Duration;
 
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
+use terrazzo_client::prelude::Ptr;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 
@@ -62,7 +62,7 @@ impl DoDebounce for Debounce {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         let window = web_sys::window().or_throw("window");
         let performance = window.performance().or_throw("performance");
-        let state = Rc::new(Cell::new(DebounceState::default()));
+        let state = Ptr::new(Cell::new(DebounceState::default()));
         let delay_millis = self.delay.as_secs_f64() * 1000.;
         let max_delay_millis = self.max_delay.map(|d| d.as_secs_f64() * 1000.);
         let closure: Closure<dyn Fn()> = Closure::new({

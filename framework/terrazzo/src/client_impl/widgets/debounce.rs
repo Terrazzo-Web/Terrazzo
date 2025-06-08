@@ -10,7 +10,7 @@ use futures::channel::oneshot;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
 use terrazzo_client::prelude::Ptr;
-use tracing::info as debug;
+use tracing::debug;
 use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
@@ -151,65 +151,17 @@ impl DoDebounce for Debounce {
             autoclone!(async_result);
             let (tx, rx) = oneshot::channel();
             {
-                let mut async_result = async_result.lock().unwrap();
+                let mut async_result = async_result.lock().or_throw("async_result 1");
                 if async_result.is_some() {
                     warn!("The debounced async result was not awaited");
                 }
                 *async_result = Some(rx);
             }
+            debug!("Spawning the async debounced callback");
             let result: BoxFuture = Box::pin(callback(a));
             wasm_bindgen_futures::spawn_local(complete_async_debounce(tx, result));
         })));
-        return move |arg| {
-            Box::pin(async move {
-                autoclone!(async_state, async_result, callback);
-                {
-                    let mut lock = async_state.lock().unwrap();
-                    match &*lock {
-                        AsyncState::NotRunning => {
-                            debug!("At call time: Not running");
-                            *lock = AsyncState::Running
-                        }
-                        AsyncState::Running => {
-                            debug!("At call time: Running");
-                            *lock = AsyncState::CallAgain(arg);
-                            return;
-                        }
-                        AsyncState::CallAgain { .. } => {
-                            debug!("At call time: Call again");
-                            *lock = AsyncState::CallAgain(arg);
-                            return;
-                        }
-                    }
-                }
-                callback(arg);
-                {
-                    let mut async_result = async_result.lock().unwrap();
-                    if let Some(async_result) = async_result.take() {
-                        debug!("The debounced async callback was executed");
-                        let _ = async_result.await;
-                    } else {
-                        debug!("The debounced async callback was not executed");
-                    }
-                }
-
-                {
-                    let mut lock = async_state.lock().unwrap();
-                    match std::mem::take(&mut *lock) {
-                        AsyncState::NotRunning => debug_assert!(false, "Impossible state"),
-                        AsyncState::Running => {
-                            debug!("At return time: Running => NotRunning");
-                            *lock = AsyncState::NotRunning
-                        }
-                        AsyncState::CallAgain(arg) => {
-                            debug!("At return time: CallAgain => Running and calling it again");
-                            *lock = AsyncState::Running;
-                            callback(arg);
-                        }
-                    }
-                }
-            })
-        };
+        return make_async_debounced(async_state, async_result, callback);
     }
 
     fn with_max_delay(self) -> impl DoDebounce {
@@ -217,6 +169,78 @@ impl DoDebounce for Debounce {
             delay: self.delay,
             max_delay: Some(self.delay),
         }
+    }
+}
+
+#[autoclone]
+fn make_async_debounced<T: IsThreadSafe>(
+    async_state: Arc<Mutex<AsyncState<T>>>,
+    async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
+    callback: ThreadSafeCallback<Arc<impl Fn(T) + 'static>>,
+) -> impl Fn(T) -> BoxFuture + Send + Sync {
+    move |arg| {
+        Box::pin(async move {
+            autoclone!(async_state, async_result, callback);
+            {
+                let mut async_state = async_state.lock().or_throw("async_state 1");
+                match &*async_state {
+                    AsyncState::NotRunning => {
+                        debug!("At call time: Not running");
+                        *async_state = AsyncState::Running
+                    }
+                    AsyncState::Running => {
+                        debug!("At call time: Running");
+                        *async_state = AsyncState::CallAgain(arg);
+                        return;
+                    }
+                    AsyncState::CallAgain { .. } => {
+                        debug!("At call time: Call again");
+                        *async_state = AsyncState::CallAgain(arg);
+                        return;
+                    }
+                }
+            }
+
+            let mut arg = arg;
+            loop {
+                debug!("Calling the sync debounced callback");
+                callback(arg);
+                {
+                    let async_result = async_result.lock().or_throw("async_result 2").take();
+                    if let Some(async_result) = async_result {
+                        debug!("The debounced async callback was executed");
+                        let () = async_result.await.unwrap_or_else(|_| {
+                            warn!("The debounced async callback was dropped");
+                        });
+                    } else {
+                        debug!(
+                            "The debounced async callback was not executed: AsyncState={:?}",
+                            async_state.lock().or_throw("async_state 2")
+                        );
+                    }
+                }
+
+                {
+                    let mut lock = async_state.lock().or_throw("async_state 3");
+                    match std::mem::take(&mut *lock) {
+                        AsyncState::NotRunning => {
+                            debug!("Impossible state");
+                            panic!("Impossible state");
+                        }
+                        AsyncState::Running => {
+                            debug!("At return time: Running => NotRunning");
+                            *lock = AsyncState::NotRunning;
+                            return;
+                        }
+                        AsyncState::CallAgain(arg_again) => {
+                            debug!("At return time: CallAgain => Running and calling it again");
+                            *lock = AsyncState::Running;
+                            arg = arg_again;
+                        }
+                    }
+                }
+            }
+        })
     }
 }
 
@@ -234,6 +258,16 @@ enum AsyncState<T> {
     NotRunning,
     Running,
     CallAgain(T),
+}
+
+impl<T> std::fmt::Debug for AsyncState<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotRunning => write!(f, "NotRunning"),
+            Self::Running => write!(f, "Running"),
+            Self::CallAgain { .. } => write!(f, "CallAgain"),
+        }
+    }
 }
 
 impl DoDebounce for () {

@@ -169,6 +169,7 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
         Response::builder()
             .header(header::CONTENT_TYPE, asset.mime.clone())
             .header(header::CONTENT_LENGTH, asset.content.len().to_string())
+            .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
             .body(Body::from(Bytes::from_static(asset.content)))
             .expect(path),
     )

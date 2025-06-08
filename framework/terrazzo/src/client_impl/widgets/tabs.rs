@@ -1,7 +1,5 @@
 //! Implements a pattern to have clickable and sortable tabs.
 
-use std::rc::Rc;
-
 use autoclone::autoclone;
 use terrazzo_client::prelude::*;
 use terrazzo_macro::html;
@@ -90,9 +88,9 @@ pub struct TabsOptions<T = Option<XString>> {
 pub fn tabs<T: TabsDescriptor>(
     tabs_descriptor: T,
     state: T::State,
-    options: Rc<TabsOptions>,
+    options: Ptr<TabsOptions>,
 ) -> XElement {
-    let options = Rc::new(TabsOptions::base_options().merge(&options));
+    let options = Ptr::new(TabsOptions::base_options().merge(&options));
     let tab_descriptors = || tabs_descriptor.tab_descriptors().iter();
     let is_dragging = XSignal::new("is_dragging", false);
 
@@ -171,7 +169,7 @@ fn drop_zone<S: TabsState>(
     state: S,
     prev_tab: Option<S::TabDescriptor>,
     is_dragging: XSignal<bool>,
-    options: Rc<TabsOptions<XString>>,
+    options: Ptr<TabsOptions<XString>>,
 ) -> XElement {
     let drop_zone_active = XSignal::new("drop-zone-active", false);
     li(
@@ -221,7 +219,7 @@ fn drop_zone<S: TabsState>(
 fn drop_zone_class(
     #[signal] is_dragging: bool,
     #[signal] drop_zone_active: bool,
-    options: Rc<TabsOptions<XString>>,
+    options: Ptr<TabsOptions<XString>>,
 ) -> XAttributeValue {
     let show_or_hide = if is_dragging {
         &options.title_show_sep
@@ -255,7 +253,7 @@ fn tab_title<T: TabDescriptor + 'static>(
     tab: T,
     state: T::State,
     #[signal] mut selected: bool,
-    options: Rc<TabsOptions<XString>>,
+    options: Ptr<TabsOptions<XString>>,
     is_dragging: XSignal<bool>,
 ) -> XElement {
     let class = if selected {
@@ -286,7 +284,7 @@ fn tab_item<T: TabDescriptor + 'static>(
     tab: T,
     state: T::State,
     #[signal] selected: bool,
-    options: Rc<TabsOptions<XString>>,
+    options: Ptr<TabsOptions<XString>>,
 ) -> XElement {
     let class = if selected {
         format!("{} {}", options.item_class, options.selected_class).into()

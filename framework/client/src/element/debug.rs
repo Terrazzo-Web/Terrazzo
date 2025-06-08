@@ -30,7 +30,7 @@ mod verbose {
         }
 
         fn indent(&mut self, count: usize) -> impl DerefMut<Target = &mut DebugStringBuilder> {
-            self.padding += &String::from_iter(std::iter::repeat(' ').take(count));
+            self.padding += &String::from_iter(std::iter::repeat_n(' ', count));
             scopeguard::guard(self, move |b| {
                 b.padding.drain((b.padding.len() - count)..);
             })

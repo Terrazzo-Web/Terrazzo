@@ -54,7 +54,7 @@ pub fn setup_logging() {
         let window = web_sys::window().or_throw("window");
         window
             .set_interval_with_callback_and_timeout_and_arguments_0(
-                &closure.as_function().or_throw("as_function"),
+                &closure.as_function(),
                 /* 15 minutes */ 15 * 60 * 1000,
             )
             .or_throw("set_interval");

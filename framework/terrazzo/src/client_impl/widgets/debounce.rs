@@ -1,14 +1,22 @@
 //! Utils to debounce function calls
 
 use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
+use autoclone::autoclone;
+use futures::channel::oneshot;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
+use terrazzo_client::prelude::Ptr;
+use tracing::debug;
+use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 
+use self::helpers::BoxFuture;
+use self::helpers::IsThreadSafe;
 use super::cancellable::Cancellable;
 
 /// Avoids executing a function too often.
@@ -21,11 +29,25 @@ use super::cancellable::Cancellable;
 /// f(2); // Now this executes the callback and prints "2". "1" never gets printed.
 /// ```
 pub trait DoDebounce: Copy + 'static {
-    fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
+    fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    where
+        T: IsThreadSafe,
+        F: Fn(T) -> R + IsThreadSafe,
+        R: Future<Output = ()> + IsThreadSafe;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
     }
+}
+
+mod helpers {
+    use std::pin::Pin;
+
+    pub trait IsThreadSafe: Send + Sync + 'static {}
+    impl<T: Send + Sync + 'static> IsThreadSafe for T {}
+
+    pub type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
 }
 
 /// Advanced usage for [DoDebounce].
@@ -50,6 +72,19 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    where
+        T: IsThreadSafe,
+        F: Fn(T) -> R + IsThreadSafe,
+        R: Future<Output = ()> + IsThreadSafe,
+    {
+        Debounce {
+            delay: self,
+            max_delay: None,
+        }
+        .async_debounce(callback)
+    }
+
     fn with_max_delay(self) -> impl DoDebounce {
         Debounce {
             delay: self,
@@ -62,7 +97,7 @@ impl DoDebounce for Debounce {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         let window = web_sys::window().or_throw("window");
         let performance = window.performance().or_throw("performance");
-        let state = Rc::new(Cell::new(DebounceState::default()));
+        let state = Ptr::new(Cell::new(DebounceState::default()));
         let delay_millis = self.delay.as_secs_f64() * 1000.;
         let max_delay_millis = self.max_delay.map(|d| d.as_secs_f64() * 1000.);
         let closure: Closure<dyn Fn()> = Closure::new({
@@ -100,6 +135,35 @@ impl DoDebounce for Debounce {
         }
     }
 
+    #[autoclone]
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    where
+        T: IsThreadSafe,
+        F: Fn(T) -> R + IsThreadSafe,
+        R: Future<Output = ()> + IsThreadSafe,
+    {
+        let async_state: Arc<Mutex<AsyncState<T>>> = Arc::default();
+        let async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>> = Arc::default();
+
+        // The callback is debounced.
+        // When the callback is actually executed, the result is populated.
+        let callback = ThreadSafeCallback(Arc::new(self.debounce(move |a| {
+            autoclone!(async_result);
+            let (tx, rx) = oneshot::channel();
+            {
+                let mut async_result = async_result.lock().or_throw("async_result 1");
+                if async_result.is_some() {
+                    warn!("The debounced async result was not awaited");
+                }
+                *async_result = Some(rx);
+            }
+            debug!("Spawning the async debounced callback");
+            let result: BoxFuture = Box::pin(callback(a));
+            wasm_bindgen_futures::spawn_local(complete_async_debounce(tx, result));
+        })));
+        return make_async_debounced(async_state, async_result, callback);
+    }
+
     fn with_max_delay(self) -> impl DoDebounce {
         Debounce {
             delay: self.delay,
@@ -108,9 +172,116 @@ impl DoDebounce for Debounce {
     }
 }
 
+#[autoclone]
+fn make_async_debounced<T: IsThreadSafe>(
+    async_state: Arc<Mutex<AsyncState<T>>>,
+    async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
+    callback: ThreadSafeCallback<Arc<impl Fn(T) + 'static>>,
+) -> impl Fn(T) -> BoxFuture + Send + Sync {
+    move |arg| {
+        Box::pin(async move {
+            autoclone!(async_state, async_result, callback);
+            {
+                let mut async_state = async_state.lock().or_throw("async_state 1");
+                match &*async_state {
+                    AsyncState::NotRunning => {
+                        debug!("At call time: Not running");
+                        *async_state = AsyncState::Running
+                    }
+                    AsyncState::Running => {
+                        debug!("At call time: Running");
+                        *async_state = AsyncState::CallAgain(arg);
+                        return;
+                    }
+                    AsyncState::CallAgain { .. } => {
+                        debug!("At call time: Call again");
+                        *async_state = AsyncState::CallAgain(arg);
+                        return;
+                    }
+                }
+            }
+
+            let mut arg = arg;
+            loop {
+                debug!("Calling the sync debounced callback");
+                callback(arg);
+                {
+                    let async_result = async_result.lock().or_throw("async_result 2").take();
+                    if let Some(async_result) = async_result {
+                        debug!("The debounced async callback was executed");
+                        let () = async_result.await.unwrap_or_else(|_| {
+                            warn!("The debounced async callback was dropped");
+                        });
+                    } else {
+                        debug!(
+                            "The debounced async callback was not executed: AsyncState={:?}",
+                            async_state.lock().or_throw("async_state 2")
+                        );
+                    }
+                }
+
+                {
+                    let mut lock = async_state.lock().or_throw("async_state 3");
+                    match std::mem::take(&mut *lock) {
+                        AsyncState::NotRunning => {
+                            debug!("Impossible state");
+                            panic!("Impossible state");
+                        }
+                        AsyncState::Running => {
+                            debug!("At return time: Running => NotRunning");
+                            *lock = AsyncState::NotRunning;
+                            return;
+                        }
+                        AsyncState::CallAgain(arg_again) => {
+                            debug!("At return time: CallAgain => Running and calling it again");
+                            *lock = AsyncState::Running;
+                            arg = arg_again;
+                        }
+                    }
+                }
+            }
+        })
+    }
+}
+
+async fn complete_async_debounce(tx: oneshot::Sender<()>, result: BoxFuture) {
+    let () = result.await;
+    let Ok(()) = tx.send(()) else {
+        warn!("Failed to send debounced async callback completion");
+        return;
+    };
+}
+
+#[derive(Default)]
+enum AsyncState<T> {
+    #[default]
+    NotRunning,
+    Running,
+    CallAgain(T),
+}
+
+impl<T> std::fmt::Debug for AsyncState<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotRunning => write!(f, "NotRunning"),
+            Self::Running => write!(f, "Running"),
+            Self::CallAgain { .. } => write!(f, "CallAgain"),
+        }
+    }
+}
+
 impl DoDebounce for () {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         f
+    }
+
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    where
+        T: IsThreadSafe,
+        F: Fn(T) -> R + IsThreadSafe,
+        R: Future<Output = ()> + IsThreadSafe,
+    {
+        move |a| Box::pin(callback(a))
     }
 
     fn with_max_delay(self) -> impl DoDebounce {
@@ -143,5 +314,21 @@ impl<T> std::fmt::Debug for DebounceState<T> {
             .field("scheduled_run", &self.scheduled_run.is_some())
             .field("last_run", &self.last_run)
             .finish()
+    }
+}
+
+struct ThreadSafeCallback<T>(T);
+
+/// Safe because Javascript is single-threaded.
+unsafe impl<T> Send for ThreadSafeCallback<T> {}
+
+/// Safe because Javascript is single-threaded.
+unsafe impl<T> Sync for ThreadSafeCallback<T> {}
+
+impl<T> std::ops::Deref for ThreadSafeCallback<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

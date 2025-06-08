@@ -21,6 +21,7 @@ axum = { workspace = true, optional = true, features = [
     "http2",
     "tracing",
 ] }
+futures = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 include_directory = { workspace = true, optional = true }
 mime = { workspace = true, optional = true }
@@ -34,6 +35,7 @@ terrazzo-macro = { workspace = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = [
     "DataTransfer",
     "Document",
@@ -52,12 +54,14 @@ terrazzo-build = { workspace = true }
 [features]
 default = ["client", "server"]
 client = [
+    "dep:futures",
     "dep:nameth",
     "dep:scopeguard",
     "dep:stylance",
     "dep:terrazzo-client",
     "dep:thiserror",
     "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
     "dep:web-sys",
     "terrazzo-macro/client",
 ]

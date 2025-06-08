@@ -1,6 +1,9 @@
 //! Utils to debounce function calls
 
 use std::cell::Cell;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use scopeguard::guard;
@@ -22,6 +25,10 @@ use super::cancellable::Cancellable;
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T);
+    fn async_debounce<T: Send + Sync + 'static>(
+        self,
+        f: impl AsyncFn(T) + Send + Sync + 'static,
+    ) -> impl Fn(T) -> Pin<Box<dyn Future<Output = ()>>> + Send + Sync;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
@@ -48,6 +55,17 @@ impl DoDebounce for Duration {
             max_delay: None,
         }
         .debounce(f)
+    }
+
+    fn async_debounce<T: Send + Sync + 'static>(
+        self,
+        f: impl AsyncFn(T) + Send + Sync + 'static,
+    ) -> impl Fn(T) -> Pin<Box<dyn Future<Output = ()>>> + Send + Sync {
+        Debounce {
+            delay: self,
+            max_delay: None,
+        }
+        .async_debounce(f)
     }
 
     fn with_max_delay(self) -> impl DoDebounce {
@@ -100,6 +118,50 @@ impl DoDebounce for Debounce {
         }
     }
 
+    fn async_debounce<T: Send + Sync + 'static>(
+        self,
+        f: impl AsyncFn(T) + Send + Sync + 'static,
+    ) -> impl Fn(T) -> Pin<Box<dyn Future<Output = ()>>> + Send + Sync {
+        let called_while_running_async: Arc<Mutex<AsyncState<T>>> = Arc::default();
+        let f = Arc::new(f);
+        return move |arg| {
+            let called_while_running_async = called_while_running_async.clone();
+            let f = f.clone();
+            Box::pin(async move {
+                {
+                    let mut lock = called_while_running_async.lock().unwrap();
+                    match &*lock {
+                        AsyncState::NotRunning => *lock = AsyncState::Running,
+                        AsyncState::Running | AsyncState::CallAgain { .. } => {
+                            *lock = AsyncState::CallAgain(arg);
+                            return;
+                        }
+                    }
+                }
+                f(arg).await;
+                {
+                    let mut lock = called_while_running_async.lock().unwrap();
+                    match std::mem::take(&mut *lock) {
+                        AsyncState::NotRunning => debug_assert!(false, "Impossible state"),
+                        AsyncState::Running => *lock = AsyncState::NotRunning,
+                        AsyncState::CallAgain(arg) => {
+                            *lock = AsyncState::Running;
+                            f(arg).await;
+                        }
+                    }
+                }
+            })
+        };
+
+        #[derive(Default)]
+        enum AsyncState<T> {
+            #[default]
+            NotRunning,
+            Running,
+            CallAgain(T),
+        }
+    }
+
     fn with_max_delay(self) -> impl DoDebounce {
         Debounce {
             delay: self.delay,
@@ -111,6 +173,17 @@ impl DoDebounce for Debounce {
 impl DoDebounce for () {
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         f
+    }
+
+    fn async_debounce<T: Send + Sync + 'static>(
+        self,
+        f: impl AsyncFn(T) + Send + Sync + 'static,
+    ) -> impl Fn(T) -> Pin<Box<dyn Future<Output = ()>>> + Send + Sync {
+        let f = Arc::new(f);
+        move |a| {
+            let f = f.clone();
+            Box::pin(async move { f(a).await })
+        }
     }
 
     fn with_max_delay(self) -> impl DoDebounce {

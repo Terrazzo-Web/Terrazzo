@@ -30,7 +30,7 @@ use super::cancellable::Cancellable;
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send
     where
         T: IsThreadSafe,
         F: Fn(T) -> R + IsThreadSafe,
@@ -44,8 +44,8 @@ pub trait DoDebounce: Copy + 'static {
 mod helpers {
     use std::pin::Pin;
 
-    pub trait IsThreadSafe: Send + Sync + 'static {}
-    impl<T: Send + Sync + 'static> IsThreadSafe for T {}
+    pub trait IsThreadSafe: Send + 'static {}
+    impl<T: Send + 'static> IsThreadSafe for T {}
 
     pub type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
 }
@@ -72,7 +72,7 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send
     where
         T: IsThreadSafe,
         F: Fn(T) -> R + IsThreadSafe,
@@ -136,7 +136,7 @@ impl DoDebounce for Debounce {
     }
 
     #[autoclone]
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send
     where
         T: IsThreadSafe,
         F: Fn(T) -> R + IsThreadSafe,
@@ -177,7 +177,7 @@ fn make_async_debounced<T: IsThreadSafe>(
     async_state: Arc<Mutex<AsyncState<T>>>,
     async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
     callback: ThreadSafeCallback<Arc<impl Fn(T) + 'static>>,
-) -> impl Fn(T) -> BoxFuture + Send + Sync {
+) -> impl Fn(T) -> BoxFuture + Send {
     move |arg| {
         Box::pin(async move {
             autoclone!(async_state, async_result, callback);
@@ -275,7 +275,7 @@ impl DoDebounce for () {
         f
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send
     where
         T: IsThreadSafe,
         F: Fn(T) -> R + IsThreadSafe,

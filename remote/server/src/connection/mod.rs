@@ -18,6 +18,7 @@ use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
+use trz_gateway_common::protos::terrazzo::remote::health::Pong;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 
 use self::balance::IncomingClients;
@@ -86,7 +87,7 @@ impl Connections {
                     connection_id: connection_id.to_string(),
                     ..Ping::default()
                 });
-                timeout(TIMEOUT, pong).await??;
+                let Pong { .. } = timeout(TIMEOUT, pong).await??.into_inner();
                 let latency = Instant::now() - start;
                 info!(?latency, "Ping");
 
@@ -95,7 +96,7 @@ impl Connections {
                     connection_id: connection_id.to_string(),
                     delay: Some(PERIOD.try_into()?),
                 });
-                timeout(PERIOD + TIMEOUT, pong).await??;
+                let Pong { .. } = timeout(PERIOD + TIMEOUT, pong).await??.into_inner();
                 let elapsed = start.elapsed();
                 if elapsed < PERIOD {
                     return Err(ChannelHealthError::TooSoon(elapsed));

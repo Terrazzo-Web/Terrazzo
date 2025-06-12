@@ -11,3 +11,11 @@ pub use self::client_impl::*;
 mod server_impl;
 #[cfg(feature = "server")]
 pub use self::server_impl::*;
+
+#[macro_export]
+macro_rules! declare_trait_aliias {
+    ($name_alias:ident, $($trait:tt)*) => {
+        pub trait $name_alias: $($trait)+ {}
+        impl<T: $($trait)+> $name_alias for T {}
+    };
+}

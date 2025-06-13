@@ -6,6 +6,12 @@ use crate::utils::PtrWeak;
 pub struct XSignalWeak<T>(PtrWeak<XSignalInner<T>>);
 
 impl<T> XSignalWeak<T> {
+    pub const fn new() -> Self {
+        XSignalWeak(PtrWeak::new())
+    }
+}
+
+impl<T> XSignalWeak<T> {
     pub fn upgrade(&self) -> Option<XSignal<T>> {
         Some(XSignal(self.0.upgrade()?))
     }

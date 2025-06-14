@@ -1,6 +1,7 @@
 //! Utils to debounce function calls
 
 use std::cell::Cell;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -15,8 +16,6 @@ use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 
-use self::helpers::BoxFuture;
-use self::helpers::IsThreadSafe;
 use super::cancellable::Cancellable;
 
 /// Avoids executing a function too often.
@@ -30,25 +29,18 @@ use super::cancellable::Cancellable;
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
     where
-        T: IsThreadSafe,
-        F: Fn(T) -> R + IsThreadSafe,
-        R: Future<Output = ()> + IsThreadSafe;
+        T: 'static,
+        F: Fn(T) -> R + 'static,
+        R: Future<Output = ()> + 'static;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
     }
 }
 
-mod helpers {
-    use std::pin::Pin;
-
-    pub trait IsThreadSafe: Send + Sync + 'static {}
-    impl<T: Send + Sync + 'static> IsThreadSafe for T {}
-
-    pub type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
-}
+type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
 
 /// Advanced usage for [DoDebounce].
 #[derive(Clone, Copy)]
@@ -72,11 +64,11 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
     where
-        T: IsThreadSafe,
-        F: Fn(T) -> R + IsThreadSafe,
-        R: Future<Output = ()> + IsThreadSafe,
+        T: 'static,
+        F: Fn(T) -> R + 'static,
+        R: Future<Output = ()> + 'static,
     {
         Debounce {
             delay: self,
@@ -136,11 +128,11 @@ impl DoDebounce for Debounce {
     }
 
     #[autoclone]
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
     where
-        T: IsThreadSafe,
-        F: Fn(T) -> R + IsThreadSafe,
-        R: Future<Output = ()> + IsThreadSafe,
+        T: 'static,
+        F: Fn(T) -> R + 'static,
+        R: Future<Output = ()> + 'static,
     {
         let async_state: Arc<Mutex<AsyncState<T>>> = Arc::default();
         let async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>> = Arc::default();
@@ -173,11 +165,11 @@ impl DoDebounce for Debounce {
 }
 
 #[autoclone]
-fn make_async_debounced<T: IsThreadSafe>(
+fn make_async_debounced<T: 'static>(
     async_state: Arc<Mutex<AsyncState<T>>>,
     async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
     callback: ThreadSafeCallback<Arc<impl Fn(T) + 'static>>,
-) -> impl Fn(T) -> BoxFuture + Send + Sync {
+) -> impl Fn(T) -> BoxFuture {
     move |arg| {
         Box::pin(async move {
             autoclone!(async_state, async_result, callback);
@@ -275,11 +267,11 @@ impl DoDebounce for () {
         f
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture + Send + Sync
+    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
     where
-        T: IsThreadSafe,
-        F: Fn(T) -> R + IsThreadSafe,
-        R: Future<Output = ()> + IsThreadSafe,
+        T: 'static,
+        F: Fn(T) -> R + 'static,
+        R: Future<Output = ()> + 'static,
     {
         move |a| Box::pin(callback(a))
     }

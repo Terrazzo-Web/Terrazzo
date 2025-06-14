@@ -32,7 +32,7 @@ pub fn load_root_ca(
         } => {
             let root_ca = root_ca_path
                 .try_map(std::fs::read_to_string)
-                .map_err(RootCaConfigError::Load)?;
+                .map_err(|error| RootCaConfigError::Load(error, format!("{root_ca_path:?}")))?;
             Ok(root_ca.into())
         }
         CertificateInfo {
@@ -48,7 +48,7 @@ pub fn load_root_ca(
             let _: CertificateInfo<()> = root_ca_path
                 .zip(root_ca_pem.as_ref())
                 .try_map(write_pem_file)
-                .map_err(RootCaConfigError::Store)?;
+                .map_err(|error| RootCaConfigError::Store(error, format!("{root_ca_path:?}")))?;
 
             #[cfg(unix)]
             {
@@ -76,11 +76,11 @@ pub fn load_root_ca(
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum RootCaConfigError {
-    #[error("[{n}] Failed to load certificate: {0}", n = self.name())]
-    Load(CertificateError<std::io::Error>),
+    #[error("[{n}] Failed to load certificate from '{1}': {0}", n = self.name())]
+    Load(CertificateError<std::io::Error>, String),
 
-    #[error("[{n}] Failed to store certificate: {0}", n = self.name())]
-    Store(CertificateError<std::io::Error>),
+    #[error("[{n}] Failed to store certificate into '{1}': {0}", n = self.name())]
+    Store(CertificateError<std::io::Error>, String),
 
     #[error("[{n}] Inconsistent state: root_ca_exists:{root_ca_exists} private_key_exists:{private_key_exists}", n = self.name())]
     InconsistentState {

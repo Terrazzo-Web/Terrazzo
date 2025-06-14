@@ -28,3 +28,9 @@ impl<T> Clone for XSignalWeak<T> {
         Self(self.0.clone())
     }
 }
+
+impl<T> Default for XSignalWeak<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

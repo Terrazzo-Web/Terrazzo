@@ -7,7 +7,7 @@ stylance::import_crate_style!(style, "src/client_impl/widgets/link.scss");
 
 /// A clickable link with a styled underline effect.
 #[html]
-#[template]
+#[template(tag = span)]
 pub fn link<C, CI>(
     click: impl Fn(MouseEvent) + Clone + 'static,
     content: impl FnOnce() -> CI + Clone + 'static,
@@ -16,7 +16,7 @@ where
     XNode: From<C>,
     CI: IntoIterator<Item = C>,
 {
-    span! {
+    tag! {
         class = style::link,
         click = click,
         content()..

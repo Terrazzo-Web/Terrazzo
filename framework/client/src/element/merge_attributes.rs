@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use tracing::trace;
-use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use web_sys::Element;
 use web_sys::HtmlElement;
@@ -12,6 +10,8 @@ use crate::attribute::XAttributeValue;
 use crate::prelude::OrElseLog as _;
 use crate::signal::depth::Depth;
 use crate::string::XString;
+use crate::tracing::trace;
+use crate::tracing::warn;
 
 pub fn merge(
     depth: Depth,

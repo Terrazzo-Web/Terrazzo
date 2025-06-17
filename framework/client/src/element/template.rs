@@ -1,6 +1,5 @@
 use std::sync::Mutex;
 
-use tracing::trace;
 use web_sys::Element;
 
 use self::inner::TemplateInner;
@@ -14,6 +13,7 @@ use crate::prelude::OrElseLog as _;
 use crate::signal::depth::Depth;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
+use crate::tracing::trace;
 use crate::utils::Ptr;
 
 /// A template represents an [Element] managed by the Terrazzo framework.
@@ -74,7 +74,7 @@ impl XTemplate {
         self.element_mut.lock().or_throw("element").clone()
     }
 
-    #[cfg(not(feature = "concise_traces"))]
+    #[cfg(not(feature = "concise-traces"))]
     pub(crate) fn with_old(&self, f: impl FnOnce(&Option<XElement>)) {
         f(&self.old.lock().or_throw("old"))
     }

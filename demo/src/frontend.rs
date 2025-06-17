@@ -2,8 +2,8 @@
 
 use std::sync::Mutex;
 
+use terrazzo::prelude::tracing::info;
 use terrazzo::prelude::*;
-use tracing::info;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::demo;

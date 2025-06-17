@@ -72,6 +72,7 @@ server = [
     "dep:mime_guess",
     "dep:mime",
     "dep:rsass-macros",
+    "dep:tracing",
     "terrazzo-macro/server",
 ]
 concise-traces = ["terrazzo-client?/concise-traces"]

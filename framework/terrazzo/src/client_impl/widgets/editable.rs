@@ -1,7 +1,7 @@
+use terrazzo_client::prelude::tracing::warn;
 use terrazzo_client::prelude::*;
 use terrazzo_macro::html;
 use terrazzo_macro::template;
-use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use web_sys::Event;
 use web_sys::FocusEvent;

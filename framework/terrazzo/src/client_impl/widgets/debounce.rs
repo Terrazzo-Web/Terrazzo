@@ -11,8 +11,8 @@ use futures::channel::oneshot;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
 use terrazzo_client::prelude::Ptr;
-use tracing::debug;
-use tracing::warn;
+use terrazzo_client::prelude::tracing::debug;
+use terrazzo_client::prelude::tracing::warn;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 

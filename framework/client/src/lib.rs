@@ -63,3 +63,6 @@ pub fn setup_logging() {
             .or_throw("set_interval");
     }
 }
+
+#[cfg(not(feature = "client-tracing"))]
+pub fn setup_logging() {}

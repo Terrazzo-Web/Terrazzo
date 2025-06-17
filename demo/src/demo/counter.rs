@@ -1,8 +1,8 @@
 use terrazzo::autoclone;
 use terrazzo::html;
+use terrazzo::prelude::tracing::info;
 use terrazzo::prelude::*;
 use terrazzo::template;
-use tracing::info;
 use web_sys::MouseEvent;
 
 use super::show_counter;

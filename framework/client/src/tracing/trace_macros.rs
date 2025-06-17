@@ -1,14 +1,14 @@
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)*) => {
-        $crate::tracing::info !($($arg)*)
+        $crate::prelude::tracing::info!($($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)*) => {
-        $crate::tracing::info !($($arg)*)
+        $crate::prelude::tracing::info!($($arg)*)
     };
 }
 
@@ -22,13 +22,13 @@ macro_rules! info {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {
-        $crate::tracing::info !($($arg)*)
+        $crate::prelude::tracing::info!($($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)*) => {
-        $crate::tracing::info !($($arg)*)
+        $crate::prelude::tracing::info!($($arg)*)
     };
 }

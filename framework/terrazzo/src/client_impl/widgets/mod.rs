@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "client-tracing"), allow(unused))]
 //! Reusable UI components.
 
 pub mod cancellable;

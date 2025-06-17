@@ -198,14 +198,11 @@ fn drop_derived() {
 }
 
 fn setup_logs() {
-    #[cfg(feature = "diagnostics")]
-    {
-        let _ = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_ansi(true)
-            .with_file(true)
-            .with_line_number(true)
-            .with_target(false)
-            .try_init();
-    }
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_ansi(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_target(false)
+        .try_init();
 }

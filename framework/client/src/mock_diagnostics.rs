@@ -1,8 +1,10 @@
-#![allow(unused)]
-
-mod trace_macros;
+#![cfg(not(feature = "diagnostics"))]
+//! This module replaces the tracing crate with no-ops when tracing is disabled.
+//!
+//! This avoid building the tracing crate altogether in WASM when tracing is not needed.
 
 mod span_macros;
+mod trace_macros;
 
 pub use crate::debug;
 pub use crate::debug_span;

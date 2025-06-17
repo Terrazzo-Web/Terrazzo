@@ -9,9 +9,9 @@ use self::prelude::OrElseLog;
 
 mod attribute;
 mod debug_correlation_id;
-mod diagnostics;
 mod element;
 mod key;
+mod mock_diagnostics;
 mod node;
 pub mod owned_closure;
 pub mod prelude;

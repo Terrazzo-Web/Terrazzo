@@ -63,19 +63,19 @@ pub mod diagnostics {
 
 #[cfg(not(feature = "diagnostics"))]
 pub mod diagnostics {
-    pub use crate::diagnostics::debug;
-    pub use crate::diagnostics::debug_span;
-    pub use crate::diagnostics::error;
-    pub use crate::diagnostics::error_span;
-    pub use crate::diagnostics::info;
-    pub use crate::diagnostics::info_span;
-    pub use crate::diagnostics::trace;
-    pub use crate::diagnostics::trace_span;
-    pub use crate::diagnostics::warn;
-    pub use crate::diagnostics::warn_span;
+    pub use crate::mock_diagnostics::debug;
+    pub use crate::mock_diagnostics::debug_span;
+    pub use crate::mock_diagnostics::error;
+    pub use crate::mock_diagnostics::error_span;
+    pub use crate::mock_diagnostics::info;
+    pub use crate::mock_diagnostics::info_span;
+    pub use crate::mock_diagnostics::trace;
+    pub use crate::mock_diagnostics::trace_span;
+    pub use crate::mock_diagnostics::warn;
+    pub use crate::mock_diagnostics::warn_span;
 
     pub mod span {
-        pub use crate::diagnostics::span::EnteredSpan;
-        pub use crate::diagnostics::span::Span;
+        pub use crate::mock_diagnostics::span::EnteredSpan;
+        pub use crate::mock_diagnostics::span::Span;
     }
 }

@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use tracing::debug;
+use tracing::debug_span;
 use tracing::span::EnteredSpan;
-use tracing::trace_span;
 
 use super::version::Version;
 use crate::prelude::OrElseLog as _;
@@ -46,7 +46,7 @@ thread_local! {
 
 impl Batch {
     pub fn use_batch(name: &str) -> Self {
-        let span = trace_span!("Batch", batch = name).entered();
+        let span = debug_span!("Batch", batch = name).entered();
         debug!("Starting batch");
         WAITING_BATCH.with_borrow_mut(move |batch| {
             let new_batch = Self {

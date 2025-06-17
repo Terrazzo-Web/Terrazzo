@@ -1,4 +1,3 @@
-#[doc(hidden)]
 #[macro_export]
 macro_rules! __diagnostics_error_span {
     ($($arg:tt)*) => {
@@ -6,7 +5,6 @@ macro_rules! __diagnostics_error_span {
     }
 }
 
-#[doc(hidden)]
 #[macro_export]
 macro_rules! __diagnostics_warn_span {
     ($($arg:tt)*) => {
@@ -14,7 +12,6 @@ macro_rules! __diagnostics_warn_span {
     }
 }
 
-#[doc(hidden)]
 #[macro_export]
 macro_rules! __diagnostics_info_span {
     ($($args:tt)*) => {
@@ -22,7 +19,6 @@ macro_rules! __diagnostics_info_span {
     };
 }
 
-#[doc(hidden)]
 #[macro_export]
 macro_rules! __diagnostics_debug_span {
     ($($arg:tt)*) => {
@@ -30,7 +26,6 @@ macro_rules! __diagnostics_debug_span {
     }
 }
 
-#[doc(hidden)]
 #[macro_export]
 macro_rules! __diagnostics_trace_span {
     ($($arg:tt)*) => {

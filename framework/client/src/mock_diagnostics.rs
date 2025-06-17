@@ -8,6 +8,7 @@ mod trace_macros;
 
 pub use crate::__diagnostics_debug as debug;
 pub use crate::__diagnostics_debug_span as debug_span;
+pub use crate::__diagnostics_enabled as enabled;
 pub use crate::__diagnostics_error as error;
 pub use crate::__diagnostics_error_span as error_span;
 pub use crate::__diagnostics_info as info;
@@ -29,8 +30,33 @@ pub mod span {
         pub fn enter(&self) -> EnteredSpan {
             EnteredSpan(PhantomData)
         }
+
         pub fn entered(&self) -> EnteredSpan {
             EnteredSpan(PhantomData)
         }
+
+        pub fn current() -> Span {
+            Span
+        }
     }
+}
+
+pub trait Instrument: Sized {
+    fn instrument(self, span: span::Span) -> Self {
+        self
+    }
+
+    fn in_current_span(self) -> Self {
+        self.instrument(span::Span::current())
+    }
+}
+
+impl<T: Future + Sized> Instrument for T {}
+
+pub enum Level {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR,
 }

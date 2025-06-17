@@ -43,9 +43,11 @@ pub use crate::utils::or_else_log::OrElseLog;
 
 #[cfg(feature = "diagnostics")]
 pub mod diagnostics {
+    pub use ::tracing::Instrument;
     pub use ::tracing::Level;
     pub use ::tracing::debug;
     pub use ::tracing::debug_span;
+    pub use ::tracing::enabled;
     pub use ::tracing::error;
     pub use ::tracing::error_span;
     pub use ::tracing::info;
@@ -63,8 +65,11 @@ pub mod diagnostics {
 
 #[cfg(not(feature = "diagnostics"))]
 pub mod diagnostics {
+    pub use crate::mock_diagnostics::Instrument;
+    pub use crate::mock_diagnostics::Level;
     pub use crate::mock_diagnostics::debug;
     pub use crate::mock_diagnostics::debug_span;
+    pub use crate::mock_diagnostics::enabled;
     pub use crate::mock_diagnostics::error;
     pub use crate::mock_diagnostics::error_span;
     pub use crate::mock_diagnostics::info;

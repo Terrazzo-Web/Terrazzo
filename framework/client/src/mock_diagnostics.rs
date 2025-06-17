@@ -6,16 +6,16 @@
 mod span_macros;
 mod trace_macros;
 
-pub use crate::debug;
-pub use crate::debug_span;
-pub use crate::error;
-pub use crate::error_span;
-pub use crate::info;
-pub use crate::info_span;
-pub use crate::trace;
-pub use crate::trace_span;
-pub use crate::warn;
-pub use crate::warn_span;
+pub use crate::__diagnostics_debug as debug;
+pub use crate::__diagnostics_debug_span as debug_span;
+pub use crate::__diagnostics_error as error;
+pub use crate::__diagnostics_error_span as error_span;
+pub use crate::__diagnostics_info as info;
+pub use crate::__diagnostics_info_span as info_span;
+pub use crate::__diagnostics_trace as trace;
+pub use crate::__diagnostics_trace_span as trace_span;
+pub use crate::__diagnostics_warn as warn;
+pub use crate::__diagnostics_warn_span as warn_span;
 
 pub mod span {
     use std::marker::PhantomData;

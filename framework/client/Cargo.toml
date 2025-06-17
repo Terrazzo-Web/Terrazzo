@@ -47,6 +47,14 @@ diagnostics = [
     "dep:tracing-subscriber",
     "dep:tracing-subscriber-wasm",
 ]
+max_level_debug = [
+    "tracing?/max_level_debug",
+    "tracing?/release_max_level_debug",
+]
+max_level_info = [
+    "tracing?/max_level_info",
+    "tracing?/release_max_level_info",
+]
 
 [lints]
 workspace = true

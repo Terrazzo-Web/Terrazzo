@@ -12,12 +12,14 @@ use terrazzo::static_assets;
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
+use tracing::debug;
 use tracing::enabled;
+use tracing::info;
 
 use crate::api;
 use crate::assets;
 
-const PORT: u16 = if cfg!(debug_assertions) { 3000 } else { 3001 };
+const PORT: u16 = if cfg!(debug_assertions) { 3001 } else { 3001 };
 
 pub async fn run_server() {
     set_current_dir(std::env::var("HOME").expect("HOME")).expect("set_current_dir");
@@ -47,6 +49,7 @@ pub async fn run_server() {
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{PORT}"))
         .await
         .unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
+    debug!("listening on {}", listener.local_addr().unwrap());
+    info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, router).await.unwrap();
 }

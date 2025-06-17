@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.13"
+version = "0.1.14"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,17 +45,17 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.13", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.13", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.13", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.13", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.13", path = "framework/build" }
-terrazzo-client = { version = "0.1.13", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.13", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.13", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.13", path = "remote/client" }
-trz-gateway-common = { version = "0.1.13", path = "remote/common" }
-trz-gateway-server = { version = "0.1.13", path = "remote/server" }
+autoclone = { version = "0.1.14", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.14", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.14", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.14", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.14", path = "framework/build" }
+terrazzo-client = { version = "0.1.14", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.14", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.14", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.14", path = "remote/client" }
+trz-gateway-common = { version = "0.1.14", path = "remote/common" }
+trz-gateway-server = { version = "0.1.14", path = "remote/server" }
 
 axum = { version = "0.8.4" }
 axum-server = { version = "0.7.2" }
@@ -71,7 +71,7 @@ humantime = { version = "2.2.0" }
 hyper-util = { version = "0.1.13" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.7.2" }
-libc = { version = "0.2.173" }
+libc = { version = "0.2.174" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }
@@ -103,7 +103,7 @@ tempfile = { version = "3.20.0" }
 thiserror = { version = "2.0.12" }
 tokio = { version = "1.45.1" }
 tokio-rustls = { version = "0.26.2" }
-tokio-tungstenite = { version = "0.26.1" }
+tokio-tungstenite = { version = "0.27.0" }
 tokio-util = { version = "0.7.15" }
 toml = { version = "0.8.22" }
 tonic = { version = "0.13.1" }

@@ -1,6 +1,5 @@
 use std::sync::Mutex;
 
-use tracing::trace;
 use web_sys::Element;
 
 use self::inner::TemplateInner;
@@ -14,6 +13,7 @@ use crate::prelude::OrElseLog as _;
 use crate::signal::depth::Depth;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
+use crate::tracing::trace;
 use crate::utils::Ptr;
 
 /// A template represents an [Element] managed by the Terrazzo framework.

@@ -1,6 +1,5 @@
 use nameth::NamedType as _;
 use nameth::nameth;
-use tracing::trace;
 
 use super::consumer_id::ConsumerId;
 use super::producer::ProducedValue;
@@ -9,6 +8,7 @@ use super::producer_weak::ProducerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
 use crate::string::XString;
+use crate::tracing::trace;
 use crate::utils::Ptr;
 use crate::utils::PtrWeak;
 

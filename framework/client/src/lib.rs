@@ -16,6 +16,7 @@ pub mod prelude;
 mod signal;
 mod string;
 mod template;
+mod tracing;
 mod utils;
 
 /// Configures tracing in the browser using [tracing_subscriber_wasm].
@@ -25,7 +26,7 @@ pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(crate::tracing::Level::TRACE)
         .with_writer(MakeConsoleWriter::default())
         .without_time()
         .with_ansi(false)
@@ -34,10 +35,10 @@ pub fn setup_logging() {
         .with_target(false)
         .init();
     let version = "1.0";
-    tracing::trace!(version, "Setting logging: TRACE");
-    tracing::debug!(version, "Setting logging: DEBUG");
-    tracing::info!(version, "Setting logging: INFO");
-    tracing::info!(
+    crate::tracing::trace!(version, "Setting logging: TRACE");
+    crate::tracing::debug!(version, "Setting logging: DEBUG");
+    crate::tracing::info!(version, "Setting logging: INFO");
+    crate::tracing::info!(
         "{}: {:?}",
         DebugCorrelationId::<&str>::type_name(),
         DebugCorrelationId::new(|| "here")

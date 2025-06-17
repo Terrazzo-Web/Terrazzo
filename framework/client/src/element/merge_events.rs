@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use tracing::trace;
-use tracing::warn;
 use web_sys::Element;
 
 use super::XEvent;
+use crate::tracing::trace;
+use crate::tracing::warn;
 
 pub fn merge(new_events: &[XEvent], old_events: &[XEvent], element: &Element) {
     trace!(

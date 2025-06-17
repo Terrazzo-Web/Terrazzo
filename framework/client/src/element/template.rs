@@ -1,6 +1,5 @@
 use std::sync::Mutex;
 
-use tracing::trace;
 use web_sys::Element;
 
 use self::inner::TemplateInner;
@@ -11,6 +10,7 @@ use crate::key::KEY_ATTRIBUTE;
 use crate::key::XKey;
 use crate::node::XNode;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::trace;
 use crate::signal::depth::Depth;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
@@ -74,7 +74,7 @@ impl XTemplate {
         self.element_mut.lock().or_throw("element").clone()
     }
 
-    #[cfg(not(feature = "concise_traces"))]
+    #[cfg(not(feature = "concise-traces"))]
     pub(crate) fn with_old(&self, f: impl FnOnce(&Option<XElement>)) {
         f(&self.old.lock().or_throw("old"))
     }

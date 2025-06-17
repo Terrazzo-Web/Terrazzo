@@ -1,12 +1,11 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
-use tracing::debug;
-use tracing::debug_span;
-use tracing::span::EnteredSpan;
-
 use super::version::Version;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::span::EnteredSpan;
 
 /// Allows batching several signal writes into one refresh.
 ///

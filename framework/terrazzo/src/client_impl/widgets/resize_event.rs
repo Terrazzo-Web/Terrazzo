@@ -2,8 +2,8 @@ use std::cell::OnceCell;
 use std::time::Duration;
 
 use terrazzo_client::owned_closure;
+use terrazzo_client::prelude::diagnostics::debug;
 use terrazzo_client::prelude::*;
-use tracing::debug;
 use wasm_bindgen::JsValue;
 use web_sys::Window;
 

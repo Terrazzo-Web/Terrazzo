@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "diagnostics"), allow(unused))]
+
 mod api;
 mod assets;
 mod backend;

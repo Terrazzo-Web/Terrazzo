@@ -2,8 +2,6 @@
 
 use nameth::NamedType as _;
 use nameth::nameth;
-use tracing::trace;
-use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use web_sys::Element;
 use web_sys::HtmlElement;
@@ -11,6 +9,8 @@ use web_sys::HtmlElement;
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;

@@ -1,13 +1,12 @@
 use std::iter::once;
 use std::sync::Mutex;
 
-use tracing::debug_span;
-use tracing::trace;
-
 use super::consumer::Consumer;
 use super::consumer::ConsumerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
 use crate::string::XString;
 use crate::utils::Ptr;
 

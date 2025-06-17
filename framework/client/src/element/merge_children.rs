@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use tracing::error;
-use tracing::trace;
-use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use web_sys::Document;
 use web_sys::Element;
@@ -18,6 +15,9 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::error;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::utils::Ptr;
 
 pub fn merge(

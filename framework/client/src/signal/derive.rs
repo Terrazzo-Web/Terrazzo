@@ -1,14 +1,13 @@
 use std::fmt::Debug;
 
-use tracing::debug;
-use tracing::debug_span;
-use tracing::trace;
-use tracing::warn;
-
 use super::XSignal;
 use super::depth::Depth;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::string::XString;
 
 impl<T> XSignal<T> {

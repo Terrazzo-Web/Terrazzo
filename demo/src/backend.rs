@@ -12,7 +12,9 @@ use terrazzo::static_assets;
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
+use tracing::debug;
 use tracing::enabled;
+use tracing::info;
 
 use crate::api;
 use crate::assets;
@@ -35,7 +37,7 @@ pub async fn run_server() {
         .route("/", get(|| static_assets::get("index.html")))
         .nest_service("/api", api::server::route())
         .route(
-            "/static/*file",
+            "/static/{*file}",
             get(|Path(path): Path<String>| static_assets::get(&path)),
         );
     let router = router.layer(SetSensitiveRequestHeadersLayer::new(once(AUTHORIZATION)));
@@ -47,6 +49,7 @@ pub async fn run_server() {
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{PORT}"))
         .await
         .unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
+    debug!("listening on {}", listener.local_addr().unwrap());
+    info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, router).await.unwrap();
 }

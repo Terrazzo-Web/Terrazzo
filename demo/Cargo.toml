@@ -28,13 +28,20 @@ tower-http = { workspace = true, optional = true, features = [
     "sensitive-headers",
     "trace",
 ] }
-tracing = { workspace = true }
+tracing = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = [
     "env-filter",
 ] }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
-web-sys = { workspace = true, optional = true, features = [] }
+web-sys = { workspace = true, optional = true, features = [
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+] }
 
 [build-dependencies]
 scopeguard = { workspace = true }
@@ -56,15 +63,22 @@ server = [
     "dep:tokio",
     "dep:tower-http",
     "dep:tracing-subscriber",
+    "dep:tracing",
     "terrazzo/server",
 ]
-max_level_debug = ["tracing/max_level_debug", "tracing/release_max_level_debug"]
-max_level_info = [
-    "tracing/max_level_info",
-    "tracing/release_max_level_info",
-    "concise_traces",
+max_level_debug = [
+    "terrazzo?/max_client_level_debug",
+    "tracing?/max_level_debug",
+    "tracing?/release_max_level_debug",
 ]
-concise_traces = ["terrazzo/concise_traces"]
+max_level_info = [
+    "terrazzo?/max_client_level_info",
+    "tracing?/max_level_info",
+    "tracing?/release_max_level_info",
+    "concise-traces",
+]
+concise-traces = ["terrazzo?/concise-traces"]
+diagnostics = ["terrazzo?/diagnostics"]
 
 [package.metadata.stylance]
 output_file = "./target/css/demo.scss"

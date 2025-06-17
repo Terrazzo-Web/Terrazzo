@@ -2,12 +2,12 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
 use scopeguard::defer;
-use tracing::debug;
-use tracing::trace;
-use tracing::trace_span;
 
 use super::version::Version;
 use crate::debug_correlation_id::DebugCorrelationId;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::trace_span;
 use crate::string::XString;
 
 pub mod reactive_closure_builder;

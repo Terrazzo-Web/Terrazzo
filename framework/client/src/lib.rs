@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "diagnostics"), allow(unused))]
 #![doc = include_str!("../README.md")]
 
 use debug_correlation_id::DebugCorrelationId;
@@ -10,6 +11,7 @@ mod attribute;
 mod debug_correlation_id;
 mod element;
 mod key;
+mod mock_diagnostics;
 mod node;
 pub mod owned_closure;
 pub mod prelude;
@@ -21,11 +23,12 @@ mod utils;
 /// Configures tracing in the browser using [tracing_subscriber_wasm].
 ///
 /// Run it once at page startup time.
+#[cfg(feature = "diagnostics")]
 pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(crate::prelude::diagnostics::Level::TRACE)
         .with_writer(MakeConsoleWriter::default())
         .without_time()
         .with_ansi(false)
@@ -34,17 +37,17 @@ pub fn setup_logging() {
         .with_target(false)
         .init();
     let version = "1.0";
-    tracing::trace!(version, "Setting logging: TRACE");
-    tracing::debug!(version, "Setting logging: DEBUG");
-    tracing::info!(version, "Setting logging: INFO");
-    tracing::info!(
+    crate::prelude::diagnostics::trace!(version, "Setting logging: TRACE");
+    crate::prelude::diagnostics::debug!(version, "Setting logging: DEBUG");
+    crate::prelude::diagnostics::info!(version, "Setting logging: INFO");
+    crate::prelude::diagnostics::info!(
         "{}: {:?}",
         DebugCorrelationId::<&str>::type_name(),
         DebugCorrelationId::new(|| "here")
     );
 
     // Periodically clear the console
-    if cfg!(feature = "concise_traces") {
+    if cfg!(feature = "concise-traces") {
         let closure = XOwnedClosure::new(|self_drop| {
             move || {
                 let _self_drop = &self_drop;
@@ -60,3 +63,6 @@ pub fn setup_logging() {
             .or_throw("set_interval");
     }
 }
+
+#[cfg(not(feature = "diagnostics"))]
+pub fn setup_logging() {}

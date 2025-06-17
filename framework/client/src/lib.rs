@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "client-tracing"), allow(unused))]
 #![doc = include_str!("../README.md")]
 
 use debug_correlation_id::DebugCorrelationId;
@@ -22,6 +23,7 @@ mod utils;
 /// Configures tracing in the browser using [tracing_subscriber_wasm].
 ///
 /// Run it once at page startup time.
+#[cfg(feature = "client-tracing")]
 pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 

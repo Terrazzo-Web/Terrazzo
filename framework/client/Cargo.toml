@@ -37,7 +37,7 @@ terrazzo-macro = { workspace = true }
 web-sys = { workspace = true, features = ["MouseEvent"] }
 
 [features]
-concise_traces = []
+concise-traces = []
 
 [lints]
 workspace = true

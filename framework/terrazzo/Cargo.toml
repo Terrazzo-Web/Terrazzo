@@ -74,7 +74,7 @@ server = [
     "dep:rsass-macros",
     "terrazzo-macro/server",
 ]
-concise_traces = ["terrazzo-client?/concise_traces"]
+concise-traces = ["terrazzo-client?/concise-traces"]
 rustdoc = []
 
 [package.metadata.stylance]

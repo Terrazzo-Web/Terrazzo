@@ -74,7 +74,7 @@ impl XTemplate {
         self.element_mut.lock().or_throw("element").clone()
     }
 
-    #[cfg(not(feature = "concise_traces"))]
+    #[cfg(not(feature = "concise-traces"))]
     pub(crate) fn with_old(&self, f: impl FnOnce(&Option<XElement>)) {
         f(&self.old.lock().or_throw("old"))
     }

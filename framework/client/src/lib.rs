@@ -44,7 +44,7 @@ pub fn setup_logging() {
     );
 
     // Periodically clear the console
-    if cfg!(feature = "concise_traces") {
+    if cfg!(feature = "concise-traces") {
         let closure = XOwnedClosure::new(|self_drop| {
             move || {
                 let _self_drop = &self_drop;

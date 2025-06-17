@@ -1,12 +1,12 @@
 //! Debug utils
 
-#[cfg(not(feature = "concise_traces"))]
+#[cfg(not(feature = "concise-traces"))]
 pub type DebugCorrelationId<N> = with_debug::DebugCorrelationId<N>;
 
-#[cfg(feature = "concise_traces")]
+#[cfg(feature = "concise-traces")]
 pub type DebugCorrelationId<N> = without_debug::DebugCorrelationId<N>;
 
-#[cfg(not(feature = "concise_traces"))]
+#[cfg(not(feature = "concise-traces"))]
 mod with_debug {
     use nameth::NamedType as _;
     use nameth::nameth;

@@ -1,7 +1,7 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use terrazzo::prelude::OrElseLog;
-use tracing::warn;
+use terrazzo::prelude::diagnostics::warn;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;

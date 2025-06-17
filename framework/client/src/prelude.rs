@@ -40,3 +40,47 @@ pub use crate::template::IsTemplated;
 pub use crate::utils::Ptr;
 pub use crate::utils::UiThreadSafe;
 pub use crate::utils::or_else_log::OrElseLog;
+
+#[cfg(feature = "diagnostics")]
+pub mod diagnostics {
+    pub use ::tracing::Instrument;
+    pub use ::tracing::Level;
+    pub use ::tracing::debug;
+    pub use ::tracing::debug_span;
+    pub use ::tracing::enabled;
+    pub use ::tracing::error;
+    pub use ::tracing::error_span;
+    pub use ::tracing::info;
+    pub use ::tracing::info_span;
+    pub use ::tracing::trace;
+    pub use ::tracing::trace_span;
+    pub use ::tracing::warn;
+    pub use ::tracing::warn_span;
+
+    pub mod span {
+        pub use ::tracing::span::EnteredSpan;
+        pub use ::tracing::span::Span;
+    }
+}
+
+#[cfg(not(feature = "diagnostics"))]
+pub mod diagnostics {
+    pub use crate::mock_diagnostics::Instrument;
+    pub use crate::mock_diagnostics::Level;
+    pub use crate::mock_diagnostics::debug;
+    pub use crate::mock_diagnostics::debug_span;
+    pub use crate::mock_diagnostics::enabled;
+    pub use crate::mock_diagnostics::error;
+    pub use crate::mock_diagnostics::error_span;
+    pub use crate::mock_diagnostics::info;
+    pub use crate::mock_diagnostics::info_span;
+    pub use crate::mock_diagnostics::trace;
+    pub use crate::mock_diagnostics::trace_span;
+    pub use crate::mock_diagnostics::warn;
+    pub use crate::mock_diagnostics::warn_span;
+
+    pub mod span {
+        pub use crate::mock_diagnostics::span::EnteredSpan;
+        pub use crate::mock_diagnostics::span::Span;
+    }
+}

@@ -33,7 +33,7 @@ stylance = { workspace = true, optional = true }
 terrazzo-client = { workspace = true, optional = true }
 terrazzo-macro = { workspace = true }
 thiserror = { workspace = true, optional = true }
-tracing = { workspace = true }
+tracing = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = [
@@ -72,10 +72,14 @@ server = [
     "dep:mime_guess",
     "dep:mime",
     "dep:rsass-macros",
+    "dep:tracing",
     "terrazzo-macro/server",
 ]
-concise_traces = ["terrazzo-client?/concise_traces"]
+concise-traces = ["terrazzo-client?/concise-traces"]
 rustdoc = []
+diagnostics = ["terrazzo-client?/diagnostics"]
+max_client_level_debug = ["terrazzo-client?/max_level_debug"]
+max_client_level_info = ["terrazzo-client?/max_level_info"]
 
 [package.metadata.stylance]
 output_file = "./target/css/common.scss"

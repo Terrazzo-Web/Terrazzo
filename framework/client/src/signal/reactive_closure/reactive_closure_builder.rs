@@ -3,13 +3,13 @@ use std::sync::atomic::AtomicUsize;
 
 use autoclone::autoclone;
 use scopeguard::defer;
-use tracing::debug;
-use tracing::debug_span;
-use tracing::trace;
 
 use super::ReactiveClosure;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
 use crate::signal::ProducedSignal;
 use crate::signal::XSignal;
 use crate::signal::producers::consumer::Consumer;

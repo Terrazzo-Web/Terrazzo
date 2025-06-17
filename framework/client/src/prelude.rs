@@ -33,6 +33,7 @@ pub use crate::signal::reactive_closure::reactive_closure_builder::BindReactiveC
 pub use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 pub use crate::signal::reactive_closure::reactive_closure_builder::ReactiveClosureBuilder;
 pub use crate::signal::reactive_closure::reactive_closure_builder::make_reactive_closure;
+pub use crate::signal::weak::XSignalWeak;
 pub use crate::string::XString;
 pub use crate::template::IsTemplate;
 pub use crate::template::IsTemplated;

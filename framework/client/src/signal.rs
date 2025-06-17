@@ -27,7 +27,7 @@ mod producers;
 pub mod reactive_closure;
 mod tests;
 mod version;
-mod weak;
+pub mod weak;
 
 use self::inner::XSignalInner;
 
@@ -185,8 +185,7 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
     where
         U: Into<UpdateSignalResult<T, R>>,
     {
-        let _span: tracing::span::EnteredSpan =
-            debug_span!("Update mut", signal = %self.producer.name()).entered();
+        let _span = debug_span!("Update mut", signal = %self.producer.name()).entered();
         self.update_impl(|t| {
             let UpdateSignalResult { new_value, result } = compute(t).into();
             UpdateSignalResult {

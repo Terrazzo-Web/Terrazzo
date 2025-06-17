@@ -24,20 +24,17 @@ use super::health::HealthServiceImpl;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
-    pub(super) async fn connect<F>(
+    pub(super) async fn connect(
         &self,
         client_id: ClientId,
-        shutdown: F,
+        shutdown: impl Future<Output = ()> + Unpin,
         serving: &mut Option<oneshot::Sender<()>>,
-    ) -> Result<(), ConnectError>
-    where
-        F: std::future::Future<Output = ()> + Send + Sync + 'static,
-    {
+    ) -> Result<(), ConnectError> {
         info!(uri = self.uri, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let mut websocket_uri = format!("ws{}", &self.uri[4..])
+        let mut websocket_uri = format!("ws{}", &self.uri["http".len()..])
             .into_client_request()
             .map_err(Box::from)?;
         websocket_uri
@@ -71,6 +68,7 @@ impl super::Client {
             }))
             .in_current_span();
 
+        let (unhealthy_tx, unhealthy_rx) = oneshot::channel();
         let current_span = Span::current();
         let grpc_server = self
             .client_service
@@ -82,13 +80,16 @@ impl super::Client {
                     .http2_keepalive_timeout(None)
                     .trace_fn(move |_| current_span.clone()),
             )
-            .add_service(HealthServiceServer::new(HealthServiceImpl));
+            .add_service(HealthServiceServer::new(HealthServiceImpl::new(
+                unhealthy_tx,
+            )));
 
         info!("Serving");
 
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
 
+        let shutdown = futures::future::select(shutdown, unhealthy_rx).map(|_either| ());
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)
             .await?;

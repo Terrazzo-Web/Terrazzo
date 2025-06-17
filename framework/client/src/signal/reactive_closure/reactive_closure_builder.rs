@@ -200,3 +200,10 @@ unsafe impl Send for Consumers {}
 
 /// Safe because Javascript is single-threaded.
 unsafe impl Sync for Consumers {}
+
+impl Consumers {
+    pub fn append(mut self, mut other: Self) -> Self {
+        self.0.append(&mut other.0);
+        return self;
+    }
+}

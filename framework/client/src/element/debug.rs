@@ -1,4 +1,4 @@
-#[cfg(not(feature = "concise-traces"))]
+#[cfg(not(feature = "concise_traces"))]
 mod verbose {
     use std::ops::DerefMut;
 
@@ -191,7 +191,7 @@ mod verbose {
     }
 }
 
-#[cfg(feature = "concise-traces")]
+#[cfg(feature = "concise_traces")]
 mod concise {
     use nameth::NamedType as _;
 

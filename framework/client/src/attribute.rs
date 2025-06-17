@@ -2,6 +2,8 @@
 
 use nameth::NamedType as _;
 use nameth::nameth;
+use tracing::trace;
+use tracing::warn;
 use wasm_bindgen::JsCast as _;
 use web_sys::Element;
 use web_sys::HtmlElement;
@@ -14,8 +16,6 @@ use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
-use crate::tracing::trace;
-use crate::tracing::warn;
 use crate::utils::Ptr;
 
 /// Represents an attribute of an HTML node.

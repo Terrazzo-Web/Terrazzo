@@ -3,6 +3,9 @@ use std::sync::atomic::AtomicUsize;
 
 use autoclone::autoclone;
 use scopeguard::defer;
+use tracing::debug;
+use tracing::debug_span;
+use tracing::trace;
 
 use super::ReactiveClosure;
 use crate::debug_correlation_id::DebugCorrelationId;
@@ -14,9 +17,6 @@ use crate::signal::producers::producer::Producer;
 use crate::signal::version::Version;
 use crate::string::XString;
 use crate::template::IsTemplate;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 
 /// A builder for ReactiveClosure.

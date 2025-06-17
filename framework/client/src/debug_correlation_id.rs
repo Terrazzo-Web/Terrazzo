@@ -1,17 +1,16 @@
 //! Debug utils
 
-#[cfg(not(feature = "concise-traces"))]
+#[cfg(not(feature = "concise_traces"))]
 pub type DebugCorrelationId<N> = with_debug::DebugCorrelationId<N>;
 
-#[cfg(feature = "concise-traces")]
+#[cfg(feature = "concise_traces")]
 pub type DebugCorrelationId<N> = without_debug::DebugCorrelationId<N>;
 
-#[cfg(not(feature = "concise-traces"))]
+#[cfg(not(feature = "concise_traces"))]
 mod with_debug {
     use nameth::NamedType as _;
     use nameth::nameth;
-
-    use crate::tracing::trace;
+    use tracing::trace;
 
     #[nameth]
     pub struct DebugCorrelationId<N: std::fmt::Display>(N, i32);

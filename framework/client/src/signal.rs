@@ -3,6 +3,9 @@
 use std::sync::Mutex;
 
 use scopeguard::defer;
+use tracing::debug;
+use tracing::debug_span;
+use tracing::trace;
 
 use self::batch::Batch;
 use self::batch::NotBatched;
@@ -14,9 +17,6 @@ use super::string::XString;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::Consumers;
 use crate::prelude::OrElseLog as _;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 
 pub mod batch;

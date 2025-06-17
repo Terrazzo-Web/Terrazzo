@@ -78,6 +78,8 @@ server = [
 concise-traces = ["terrazzo-client?/concise-traces"]
 rustdoc = []
 diagnostics = ["terrazzo-client?/diagnostics"]
+max_client_level_debug = ["terrazzo-client?/max_level_debug"]
+max_client_level_info = ["terrazzo-client?/max_level_info"]
 
 [package.metadata.stylance]
 output_file = "./target/css/common.scss"

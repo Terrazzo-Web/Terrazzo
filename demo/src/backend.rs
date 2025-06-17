@@ -35,7 +35,7 @@ pub async fn run_server() {
         .route("/", get(|| static_assets::get("index.html")))
         .nest_service("/api", api::server::route())
         .route(
-            "/static/*file",
+            "/static/{*file}",
             get(|Path(path): Path<String>| static_assets::get(&path)),
         );
     let router = router.layer(SetSensitiveRequestHeadersLayer::new(once(AUTHORIZATION)));

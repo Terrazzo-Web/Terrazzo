@@ -28,7 +28,7 @@ pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 
     tracing_subscriber::fmt()
-        .with_max_level(crate::tracing::Level::TRACE)
+        .with_max_level(crate::prelude::tracing::Level::TRACE)
         .with_writer(MakeConsoleWriter::default())
         .without_time()
         .with_ansi(false)
@@ -37,10 +37,10 @@ pub fn setup_logging() {
         .with_target(false)
         .init();
     let version = "1.0";
-    crate::tracing::trace!(version, "Setting logging: TRACE");
-    crate::tracing::debug!(version, "Setting logging: DEBUG");
-    crate::tracing::info!(version, "Setting logging: INFO");
-    crate::tracing::info!(
+    crate::prelude::tracing::trace!(version, "Setting logging: TRACE");
+    crate::prelude::tracing::debug!(version, "Setting logging: DEBUG");
+    crate::prelude::tracing::info!(version, "Setting logging: INFO");
+    crate::prelude::tracing::info!(
         "{}: {:?}",
         DebugCorrelationId::<&str>::type_name(),
         DebugCorrelationId::new(|| "here")

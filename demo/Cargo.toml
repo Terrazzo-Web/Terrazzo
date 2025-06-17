@@ -66,13 +66,17 @@ server = [
     "dep:tracing",
     "terrazzo/server",
 ]
-max_level_debug = ["tracing/max_level_debug", "tracing/release_max_level_debug"]
+max_level_debug = [
+    "tracing?/max_level_debug",
+    "tracing?/release_max_level_debug",
+]
 max_level_info = [
-    "tracing/max_level_info",
-    "tracing/release_max_level_info",
+    "tracing?/max_level_info",
+    "tracing?/release_max_level_info",
     "concise-traces",
 ]
-concise-traces = ["terrazzo/concise-traces"]
+concise-traces = ["terrazzo?/concise-traces"]
+client-tracing = ["terrazzo?/client-tracing"]
 
 [package.metadata.stylance]
 output_file = "./target/css/demo.scss"

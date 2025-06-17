@@ -3,9 +3,9 @@ use std::marker::PhantomData;
 
 use super::version::Version;
 use crate::prelude::OrElseLog as _;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::span::EnteredSpan;
+use crate::prelude::tracing::debug;
+use crate::prelude::tracing::debug_span;
+use crate::prelude::tracing::span::EnteredSpan;
 
 /// Allows batching several signal writes into one refresh.
 ///

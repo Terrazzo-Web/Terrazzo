@@ -1,20 +1,4 @@
-// #[cfg(feature = "client-tracing")]
-// #[macro_export]
-// macro_rules! info {
-//     ($args:tt) => {
-//         tracing::info!($args)
-//     };
-// }
-
-// #[cfg(not(feature = "client-tracing"))]
-// #[macro_export]
-// macro_rules! info {
-//     ($args:tt) => {
-//         if cfg!(debug_assertions) {
-//             println!(stringify!($args))
-//         }
-//     };
-// }
+#![allow(unused)]
 
 mod trace_macros;
 

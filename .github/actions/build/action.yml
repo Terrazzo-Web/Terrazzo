@@ -10,4 +10,5 @@ runs:
         cargo build --features=server --release
         cargo build --features=client,server
         cargo build --bin demo-server --features server,max_level_debug
+        cargo build --bin demo-server --features server,client-tracing
       shell: bash

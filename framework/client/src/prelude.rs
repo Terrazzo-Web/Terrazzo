@@ -41,6 +41,27 @@ pub use crate::utils::Ptr;
 pub use crate::utils::UiThreadSafe;
 pub use crate::utils::or_else_log::OrElseLog;
 
+#[cfg(feature = "client-tracing")]
+pub mod tracing {
+    pub use ::tracing::Level;
+    pub use ::tracing::debug;
+    pub use ::tracing::debug_span;
+    pub use ::tracing::error;
+    pub use ::tracing::error_span;
+    pub use ::tracing::info;
+    pub use ::tracing::info_span;
+    pub use ::tracing::trace;
+    pub use ::tracing::trace_span;
+    pub use ::tracing::warn;
+    pub use ::tracing::warn_span;
+
+    pub mod span {
+        pub use ::tracing::span::EnteredSpan;
+        pub use ::tracing::span::Span;
+    }
+}
+
+#[cfg(not(feature = "client-tracing"))]
 pub mod tracing {
     pub use crate::tracing::debug;
     pub use crate::tracing::debug_span;
@@ -48,9 +69,13 @@ pub mod tracing {
     pub use crate::tracing::error_span;
     pub use crate::tracing::info;
     pub use crate::tracing::info_span;
-    pub use crate::tracing::span;
     pub use crate::tracing::trace;
     pub use crate::tracing::trace_span;
     pub use crate::tracing::warn;
     pub use crate::tracing::warn_span;
+
+    pub mod span {
+        pub use crate::tracing::span::EnteredSpan;
+        pub use crate::tracing::span::Span;
+    }
 }

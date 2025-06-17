@@ -6,6 +6,7 @@ runs:
     - name: Clippy
       run: |
         cargo clippy --features client
+        cargo clippy --features client,client-tracing
         cargo clippy --features server
         cargo clippy --features=client,server
       shell: bash

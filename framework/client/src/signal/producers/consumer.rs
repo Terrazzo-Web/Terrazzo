@@ -7,8 +7,8 @@ use super::producer::Producer;
 use super::producer_weak::ProducerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::trace;
 use crate::string::XString;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 use crate::utils::PtrWeak;
 

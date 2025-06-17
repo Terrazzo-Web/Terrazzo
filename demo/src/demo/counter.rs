@@ -1,6 +1,6 @@
 use terrazzo::autoclone;
 use terrazzo::html;
-use terrazzo::prelude::tracing::info;
+use terrazzo::prelude::diagnostics::info;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use web_sys::MouseEvent;

@@ -15,9 +15,9 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
-use crate::tracing::error;
-use crate::tracing::trace;
-use crate::tracing::warn;
+use crate::prelude::diagnostics::error;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::utils::Ptr;
 
 pub fn merge(

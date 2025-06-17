@@ -41,8 +41,8 @@ pub use crate::utils::Ptr;
 pub use crate::utils::UiThreadSafe;
 pub use crate::utils::or_else_log::OrElseLog;
 
-#[cfg(feature = "client-tracing")]
-pub mod tracing {
+#[cfg(feature = "diagnostics")]
+pub mod diagnostics {
     pub use ::tracing::Level;
     pub use ::tracing::debug;
     pub use ::tracing::debug_span;
@@ -61,21 +61,21 @@ pub mod tracing {
     }
 }
 
-#[cfg(not(feature = "client-tracing"))]
-pub mod tracing {
-    pub use crate::tracing::debug;
-    pub use crate::tracing::debug_span;
-    pub use crate::tracing::error;
-    pub use crate::tracing::error_span;
-    pub use crate::tracing::info;
-    pub use crate::tracing::info_span;
-    pub use crate::tracing::trace;
-    pub use crate::tracing::trace_span;
-    pub use crate::tracing::warn;
-    pub use crate::tracing::warn_span;
+#[cfg(not(feature = "diagnostics"))]
+pub mod diagnostics {
+    pub use crate::diagnostics::debug;
+    pub use crate::diagnostics::debug_span;
+    pub use crate::diagnostics::error;
+    pub use crate::diagnostics::error_span;
+    pub use crate::diagnostics::info;
+    pub use crate::diagnostics::info_span;
+    pub use crate::diagnostics::trace;
+    pub use crate::diagnostics::trace_span;
+    pub use crate::diagnostics::warn;
+    pub use crate::diagnostics::warn_span;
 
     pub mod span {
-        pub use crate::tracing::span::EnteredSpan;
-        pub use crate::tracing::span::Span;
+        pub use crate::diagnostics::span::EnteredSpan;
+        pub use crate::diagnostics::span::Span;
     }
 }

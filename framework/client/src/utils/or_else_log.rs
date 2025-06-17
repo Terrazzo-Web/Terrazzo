@@ -1,7 +1,7 @@
 //! A handy util like `.unwrap()`
 //! but makes sure to log an error on the browser console before [panic].
 
-use crate::tracing::error;
+use crate::prelude::diagnostics::error;
 
 /// A handy util like `.unwrap()`
 /// but makes sure to log an error on the browser console before [panic].

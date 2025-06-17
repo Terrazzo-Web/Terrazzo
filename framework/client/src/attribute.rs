@@ -9,13 +9,13 @@ use web_sys::HtmlElement;
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
-use crate::tracing::trace;
-use crate::tracing::warn;
 use crate::utils::Ptr;
 
 /// Represents an attribute of an HTML node.

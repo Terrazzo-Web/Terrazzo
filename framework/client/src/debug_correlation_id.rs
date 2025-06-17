@@ -11,7 +11,7 @@ mod with_debug {
     use nameth::NamedType as _;
     use nameth::nameth;
 
-    use crate::tracing::trace;
+    use crate::prelude::diagnostics::trace;
 
     #[nameth]
     pub struct DebugCorrelationId<N: std::fmt::Display>(N, i32);

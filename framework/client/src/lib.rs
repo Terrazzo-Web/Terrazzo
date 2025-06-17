@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "client-tracing"), allow(unused))]
+#![cfg_attr(not(feature = "diagnostics"), allow(unused))]
 #![doc = include_str!("../README.md")]
 
 use debug_correlation_id::DebugCorrelationId;
@@ -9,6 +9,7 @@ use self::prelude::OrElseLog;
 
 mod attribute;
 mod debug_correlation_id;
+mod diagnostics;
 mod element;
 mod key;
 mod node;
@@ -17,18 +18,17 @@ pub mod prelude;
 mod signal;
 mod string;
 mod template;
-mod tracing;
 mod utils;
 
 /// Configures tracing in the browser using [tracing_subscriber_wasm].
 ///
 /// Run it once at page startup time.
-#[cfg(feature = "client-tracing")]
+#[cfg(feature = "diagnostics")]
 pub fn setup_logging() {
     use tracing_subscriber_wasm::MakeConsoleWriter;
 
     tracing_subscriber::fmt()
-        .with_max_level(crate::prelude::tracing::Level::TRACE)
+        .with_max_level(crate::prelude::diagnostics::Level::TRACE)
         .with_writer(MakeConsoleWriter::default())
         .without_time()
         .with_ansi(false)
@@ -37,10 +37,10 @@ pub fn setup_logging() {
         .with_target(false)
         .init();
     let version = "1.0";
-    crate::prelude::tracing::trace!(version, "Setting logging: TRACE");
-    crate::prelude::tracing::debug!(version, "Setting logging: DEBUG");
-    crate::prelude::tracing::info!(version, "Setting logging: INFO");
-    crate::prelude::tracing::info!(
+    crate::prelude::diagnostics::trace!(version, "Setting logging: TRACE");
+    crate::prelude::diagnostics::debug!(version, "Setting logging: DEBUG");
+    crate::prelude::diagnostics::info!(version, "Setting logging: INFO");
+    crate::prelude::diagnostics::info!(
         "{}: {:?}",
         DebugCorrelationId::<&str>::type_name(),
         DebugCorrelationId::new(|| "here")
@@ -64,5 +64,5 @@ pub fn setup_logging() {
     }
 }
 
-#[cfg(not(feature = "client-tracing"))]
+#[cfg(not(feature = "diagnostics"))]
 pub fn setup_logging() {}

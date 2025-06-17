@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "client-tracing"), allow(unused))]
+#![cfg_attr(not(feature = "diagnostics"), allow(unused))]
 #![doc = include_str!("../README.md")]
 
 pub use ::autoclone::autoclone;

@@ -1,4 +1,4 @@
-use terrazzo_client::prelude::tracing::warn;
+use terrazzo_client::prelude::diagnostics::warn;
 use terrazzo_client::prelude::*;
 use terrazzo_macro::html;
 use terrazzo_macro::template;

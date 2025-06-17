@@ -7,6 +7,9 @@ use scopeguard::defer;
 use super::ReactiveClosure;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
 use crate::signal::ProducedSignal;
 use crate::signal::XSignal;
 use crate::signal::producers::consumer::Consumer;
@@ -14,9 +17,6 @@ use crate::signal::producers::producer::Producer;
 use crate::signal::version::Version;
 use crate::string::XString;
 use crate::template::IsTemplate;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 
 /// A builder for ReactiveClosure.

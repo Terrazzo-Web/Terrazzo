@@ -76,7 +76,7 @@ max_level_info = [
     "concise-traces",
 ]
 concise-traces = ["terrazzo?/concise-traces"]
-client-tracing = ["terrazzo?/client-tracing"]
+diagnostics = ["terrazzo?/diagnostics"]
 
 [package.metadata.stylance]
 output_file = "./target/css/demo.scss"

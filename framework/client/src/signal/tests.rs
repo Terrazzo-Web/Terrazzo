@@ -198,7 +198,7 @@ fn drop_derived() {
 }
 
 fn setup_logs() {
-    #[cfg(feature = "client-tracing")]
+    #[cfg(feature = "diagnostics")]
     {
         let _ = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)

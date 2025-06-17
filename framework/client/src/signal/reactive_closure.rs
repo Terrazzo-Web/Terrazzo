@@ -5,10 +5,10 @@ use scopeguard::defer;
 
 use super::version::Version;
 use crate::debug_correlation_id::DebugCorrelationId;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::trace_span;
 use crate::string::XString;
-use crate::tracing::debug;
-use crate::tracing::trace;
-use crate::tracing::trace_span;
 
 pub mod reactive_closure_builder;
 

@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use terrazzo::prelude::tracing::info;
+use terrazzo::prelude::diagnostics::info;
 use terrazzo::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 

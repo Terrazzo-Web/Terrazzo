@@ -10,10 +10,10 @@ use crate::key::KEY_ATTRIBUTE;
 use crate::key::XKey;
 use crate::node::XNode;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::trace;
 use crate::signal::depth::Depth;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 
 /// A template represents an [Element] managed by the Terrazzo framework.

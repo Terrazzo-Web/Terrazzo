@@ -1,34 +1,34 @@
 #[macro_export]
 macro_rules! error_span {
     ($($arg:tt)*) => {
-        $crate::prelude::tracing::info_span!($($arg)*)
+        $crate::prelude::diagnostics::info_span!($($arg)*)
     }
 }
 
 #[macro_export]
 macro_rules! warn_span {
     ($($arg:tt)*) => {
-        $crate::prelude::tracing::info_span!($($arg)*)
+        $crate::prelude::diagnostics::info_span!($($arg)*)
     }
 }
 
 #[macro_export]
 macro_rules! info_span {
     ($($args:tt)*) => {
-        $crate::prelude::tracing::span::Span
+        $crate::prelude::diagnostics::span::Span
     };
 }
 
 #[macro_export]
 macro_rules! debug_span {
     ($($arg:tt)*) => {
-        $crate::prelude::tracing::info_span!($($arg)*)
+        $crate::prelude::diagnostics::info_span!($($arg)*)
     }
 }
 
 #[macro_export]
 macro_rules! trace_span {
     ($($arg:tt)*) => {
-        $crate::prelude::tracing::info_span!($($arg)*)
+        $crate::prelude::diagnostics::info_span!($($arg)*)
     }
 }

@@ -8,10 +8,10 @@ use super::XAttribute;
 use crate::attribute::XAttributeName;
 use crate::attribute::XAttributeValue;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
 use crate::string::XString;
-use crate::tracing::trace;
-use crate::tracing::warn;
 
 pub fn merge(
     depth: Depth,

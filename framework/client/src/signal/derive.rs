@@ -4,11 +4,11 @@ use super::XSignal;
 use super::depth::Depth;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::warn;
 use crate::string::XString;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
-use crate::tracing::warn;
 
 impl<T> XSignal<T> {
     pub fn derive<U>(

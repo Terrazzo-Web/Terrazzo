@@ -5,9 +5,9 @@ use super::consumer::Consumer;
 use super::consumer::ConsumerWeak;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
 use crate::string::XString;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
 use crate::utils::Ptr;
 
 pub trait ProducedValue {

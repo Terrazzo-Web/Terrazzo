@@ -40,7 +40,7 @@ web-sys = { workspace = true, features = ["MouseEvent"] }
 
 [features]
 concise-traces = []
-client-tracing = [
+diagnostics = [
     "dep:tracing",
     "dep:tracing-subscriber",
     "dep:tracing-subscriber-wasm",

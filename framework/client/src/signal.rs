@@ -14,9 +14,9 @@ use super::string::XString;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::Consumers;
 use crate::prelude::OrElseLog as _;
-use crate::tracing::debug;
-use crate::tracing::debug_span;
-use crate::tracing::trace;
+use crate::prelude::diagnostics::debug;
+use crate::prelude::diagnostics::debug_span;
+use crate::prelude::diagnostics::trace;
 use crate::utils::Ptr;
 
 pub mod batch;

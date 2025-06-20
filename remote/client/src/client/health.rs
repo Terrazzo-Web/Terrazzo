@@ -10,11 +10,11 @@ use tokio::sync::oneshot;
 use tokio::time::error::Elapsed;
 use tracing::info;
 use tracing::warn;
+use trz_gateway_common::consts::PERIOD;
+use trz_gateway_common::consts::TIMEOUT;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthService;
-
-const TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Implements [HealthService].
 pub struct HealthServiceImpl {
@@ -48,11 +48,13 @@ impl HealthServiceImpl {
             }
         }
         tokio::spawn(async move {
-            if let Err(Elapsed { .. }) = tokio::time::timeout(TIMEOUT, next_ping_rx).await {
+            if let Err(Elapsed { .. }) = tokio::time::timeout(PERIOD + TIMEOUT, next_ping_rx).await
+            {
                 let mut lock = health_report.lock().expect("health_report");
                 if let Some(on_unhealthy) = lock.on_unhealthy.take() {
                     warn!(
-                        "No ping was received after {}",
+                        "No ping was received after PERIOD={} + TIMEOUT={}",
+                        humantime::format_duration(PERIOD),
                         humantime::format_duration(TIMEOUT)
                     );
                     let _ = on_unhealthy.send(());

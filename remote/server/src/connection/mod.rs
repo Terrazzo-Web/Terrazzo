@@ -16,6 +16,8 @@ use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
+use trz_gateway_common::consts::PERIOD;
+use trz_gateway_common::consts::TIMEOUT;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
@@ -119,18 +121,6 @@ impl Connections {
         }
     }
 }
-
-const TIMEOUT: Duration = if cfg!(debug_assertions) {
-    Duration::from_secs(2)
-} else {
-    Duration::from_secs(5)
-};
-
-const PERIOD: Duration = if cfg!(debug_assertions) {
-    Duration::from_secs(5)
-} else {
-    Duration::from_secs(3 * 60 + 45)
-};
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]

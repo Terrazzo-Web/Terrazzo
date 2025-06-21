@@ -102,7 +102,7 @@ impl AcmeCertificateConfig {
     ) -> Result<R, AcmeError> {
         let mut lock = self.state.lock().unwrap();
         let state = &mut *lock;
-        let (result, new_state) = match state {
+        let (result, new_state, strategy) = match state {
             AcmeCertificateState::Done(done) => {
                 let not_after = asn1_to_system_time(done.certificate.certificate.not_after())
                     .unwrap_or(SystemTime::UNIX_EPOCH);
@@ -111,7 +111,7 @@ impl AcmeCertificateConfig {
                     debug!(?not_after, ?now, "The certificate is eligible for renewal");
                     let result = Ok(f(done).to_owned());
                     let new_state = AcmeCertificateState::Renewing(done.clone());
-                    (result, new_state)
+                    (result, new_state, CertificateInitStrategy::Force)
                 } else {
                     debug!(?not_after, renewal_in = ?not_after.duration_since(now), "The certificate is not eligible for renewal");
                     return Ok(f(done).to_owned());
@@ -124,31 +124,37 @@ impl AcmeCertificateConfig {
             AcmeCertificateState::Failed(acme_error) => (
                 Err(AcmeError::Arc(acme_error.clone())),
                 AcmeCertificateState::Pending,
+                CertificateInitStrategy::GetOrInit,
             ),
-            AcmeCertificateState::NotSet => {
-                (Err(AcmeError::Pending), AcmeCertificateState::Pending)
-            }
+            AcmeCertificateState::NotSet => (
+                Err(AcmeError::Pending),
+                AcmeCertificateState::Pending,
+                CertificateInitStrategy::GetOrInit,
+            ),
         };
 
         *state = new_state;
-        tokio::spawn(self.clone().initialize());
+        tokio::spawn(self.clone().initialize(strategy).in_current_span());
         return result;
     }
 
-    async fn initialize(self) -> Result<(), AcmeError> {
+    async fn initialize(self, strategy: CertificateInitStrategy) -> Result<(), AcmeError> {
         let acme_certificate: Result<AcmeCertificate, AcmeError> = async move {
             info!("Start");
             defer!(info!("Done"));
-            let result = match &self.acme_config.certificate {
-                Some(certificate) => GetAcmeCertificateResult {
+            let result = if let (CertificateInitStrategy::GetOrInit, Some(certificate)) =
+                (strategy, &self.acme_config.certificate)
+            {
+                debug!("Using a cached certificate from configuration");
+                GetAcmeCertificateResult {
                     certificate: certificate.clone(),
                     credentials: None,
-                },
-                None => {
-                    self.acme_config
-                        .get_certificate(&self.active_challenges)
-                        .await?
                 }
+            } else {
+                debug!("Obtain a brand new certificate");
+                self.acme_config
+                    .get_certificate(&self.active_challenges)
+                    .await?
             };
 
             let acme_certificate =
@@ -230,4 +236,9 @@ impl std::fmt::Debug for AcmeCertificateConfig {
             .field("environment", &self.acme_config.environment)
             .finish()
     }
+}
+
+enum CertificateInitStrategy {
+    Force,
+    GetOrInit,
 }

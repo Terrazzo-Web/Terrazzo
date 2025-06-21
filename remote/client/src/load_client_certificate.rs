@@ -5,6 +5,8 @@ use std::path::Path;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
+use openssl::pkey::PKey;
+use openssl::pkey::Private;
 use openssl::x509::X509;
 use tracing::debug;
 use tracing::info;
@@ -52,16 +54,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
         } => {
             info! { "Loading client certificate from {}", client_config.base_url() };
             let client_cert = make_client_certificate(client_config, auth_code).await?;
-            let client_cert_pem = CertificateInfo {
-                certificate: client_cert.certificate.to_pem(),
-                private_key: client_cert.private_key.private_key_to_pem_pkcs8(),
-            }
-            .try_map(|maybe_pem| maybe_pem.pem_string())?;
-            let _: CertificateInfo<()> = certificate_path
-                .zip(client_cert_pem.as_ref())
-                .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
-                .map_err(LoadClientCertificateError::Store)?;
-            debug!("Stored client certificate into {certificate_path:?}");
+            let client_cert_pem = store_client_certificate(certificate_path, client_cert)?;
             Ok(client_cert_pem.into())
         }
         CertificateInfo {
@@ -89,17 +82,14 @@ pub enum LoadClientCertificateError<C: ClientConfig> {
     #[error("[{n}] {0}", n = self.name())]
     Make(#[from] MakeClientCertificateError<C::GatewayPki>),
 
-    #[error("[{n}] Failed to store certificate: {0}", n = self.name())]
-    Store(CertificateError<std::io::Error>),
+    #[error("[{n}] {0}", n = self.name())]
+    Store(#[from] StoreClientCertificateError),
 
     #[error("[{n}] Inconsistent state: root_ca_exists:{root_ca_exists} ≠ private_key_exists:{private_key_exists}", n = self.name())]
     InconsistentState {
         root_ca_exists: bool,
         private_key_exists: bool,
     },
-
-    #[error("[{n}] {0}", n = self.name())]
-    PemString(#[from] CertificateError<PemAsStringError>),
 }
 
 pub async fn make_client_certificate<C: ClientConfig>(
@@ -133,4 +123,33 @@ pub enum MakeClientCertificateError<C: TrustedStoreConfig> {
 
     #[error("[{n}] Failed to parse PEM certificate: {0}", n = self.name())]
     ParsePem(ErrorStack),
+}
+
+pub fn store_client_certificate(
+    certificate_path: CertificateInfo<&Path>,
+    client_cert: CertificateInfo<X509, PKey<Private>>,
+) -> Result<CertificateInfo<String>, StoreClientCertificateError> {
+    let client_cert_pem = CertificateInfo {
+        certificate: client_cert.certificate.to_pem(),
+        private_key: client_cert.private_key.private_key_to_pem_pkcs8(),
+    }
+    .try_map(|maybe_pem| maybe_pem.pem_string())
+    .map_err(StoreClientCertificateError::PemString)?;
+    let _: CertificateInfo<()> = certificate_path
+        .zip(client_cert_pem.as_ref())
+        .try_map(|(path, pem): (&Path, &str)| std::fs::write(path, pem))
+        .map_err(StoreClientCertificateError::Store)?;
+    debug!("Stored client certificate into {certificate_path:?}");
+    Ok(client_cert_pem)
+}
+
+/// Errors returned by [store_client_certificate].
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum StoreClientCertificateError {
+    #[error("[{n}] Failed to store certificate: {0}", n = self.name())]
+    Store(CertificateError<std::io::Error>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    PemString(CertificateError<PemAsStringError>),
 }

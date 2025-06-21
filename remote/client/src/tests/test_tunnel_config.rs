@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use trz_gateway_common::id::ClientName;
@@ -9,6 +10,7 @@ use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use super::calculator;
 use super::test_client_config::TestClientConfig;
+use crate::client::AuthCode;
 use crate::client::config::ClientConfig;
 use crate::client::service::ClientService;
 use crate::tunnel_config::TunnelConfig;
@@ -60,5 +62,9 @@ impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
 
     fn retry_strategy(&self) -> RetryStrategy {
         RetryStrategy::from(Duration::from_secs(1)).exponential_backoff(2., Duration::from_secs(60))
+    }
+
+    fn current_auth_code(&self) -> Arc<Mutex<AuthCode>> {
+        Arc::new(Mutex::new("".into()))
     }
 }

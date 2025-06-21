@@ -9,10 +9,14 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument as _;
+use trz_gateway_common::consts::HEALTH_CHECK_PERIOD;
+use trz_gateway_common::consts::HEALTH_CHECK_TIMEOUT;
 use trz_gateway_common::declare_identifier;
 use uuid::Uuid;
 
-const AUTH_CODE_UPDATE_PERIOD: Duration = Duration::from_secs(60);
+const AUTH_CODE_UPDATE_PERIOD: Duration = Duration::from_millis(
+    (HEALTH_CHECK_PERIOD.as_millis() + HEALTH_CHECK_TIMEOUT.as_millis()) as u64,
+);
 
 declare_identifier!(AuthCode);
 

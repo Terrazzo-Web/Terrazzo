@@ -153,6 +153,63 @@ where
     {
         derive_impl(self.clone(), to, |_, _| Option::<T>::None, always_changed)
     }
+
+    pub fn zip<T2, M2>(
+        self: &Arc<Self>,
+        right: &Arc<DynamicConfig<T2, M2>>,
+    ) -> Arc<DynamicConfig<(T, T2), mode::RO>>
+    where
+        T: Clone + IsGlobal,
+        T2: Clone + IsGlobal,
+        M2: mode::Mode,
+    {
+        let left = self;
+        let zipped: Arc<DynamicConfig<(T, T2), mode::RO>> =
+            Arc::new(from_impl((left.get(), right.get())));
+
+        {
+            let on_left_change = add_notify(&left, {
+                let zipped_weak = Arc::downgrade(&zipped);
+                move |new_left| {
+                    if let Some(zipped_strong) = zipped_weak.upgrade() {
+                        zipped_strong
+                            .try_set_impl(
+                                |(_, right)| Ok((new_left.clone(), right.clone())),
+                                always_changed,
+                            )
+                            .unwrap_infallible();
+                    }
+                }
+            });
+            zipped
+                .on_drop
+                .lock()
+                .unwrap()
+                .push(Box::new(move || drop(on_left_change)));
+        }
+        {
+            let on_right_change = add_notify(&right, {
+                let zipped_weak = Arc::downgrade(&zipped);
+                move |new_right| {
+                    if let Some(zipped_strong) = zipped_weak.upgrade() {
+                        zipped_strong
+                            .try_set_impl(
+                                |(left, _)| Ok((left.clone(), new_right.clone())),
+                                always_changed,
+                            )
+                            .unwrap_infallible();
+                    }
+                }
+            });
+            zipped
+                .on_drop
+                .lock()
+                .unwrap()
+                .push(Box::new(move || drop(on_right_change)));
+        }
+
+        return zipped;
+    }
 }
 
 impl<T> DynamicConfig<T, mode::RW> {
@@ -684,5 +741,31 @@ mod tests {
         main.set(|_| Arc::new("hello2".to_owned()));
         assert_eq!("hello2", *main.get());
         assert_eq!("HELLO2", *derived.get());
+    }
+
+    #[test]
+    fn zip() {
+        let left = Arc::new(DynamicConfig::from("left"));
+        let right = Arc::new(DynamicConfig::from(22));
+        let zipped = left.zip(&right);
+        assert_eq!(("left", 22), zipped.get());
+
+        left.set(|_| "left2");
+        assert_eq!(("left2", 22), zipped.get());
+
+        right.set(|_| 33);
+        assert_eq!(("left2", 33), zipped.get());
+
+        let concat = zipped.view(|(left, right)| format!("left:{left} right:{right}"));
+        assert_eq!("left:left2 right:33", concat.get());
+
+        left.set(|_| "left3");
+        right.set(|i| i + 1);
+        assert_eq!("left:left3 right:34", concat.get());
+
+        drop(zipped);
+        left.set(|_| "left4");
+        right.set(|i| i + 1);
+        assert_eq!("left:left3 right:34", concat.get());
     }
 }

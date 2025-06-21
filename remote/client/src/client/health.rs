@@ -17,7 +17,7 @@ use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthService;
 
-use crate::client::AuthCode;
+use super::AuthCode;
 
 /// Implements [HealthService].
 pub struct HealthServiceImpl {

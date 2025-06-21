@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
+use std::time::SystemTime;
 
 use nameth::NamedType as _;
 use nameth::nameth;
@@ -19,6 +21,7 @@ use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
+use trz_gateway_common::x509::time::asn1_to_system_time;
 
 use super::AcmeConfig;
 use super::AcmeError;
@@ -34,6 +37,7 @@ pub struct AcmeCertificateConfig {
     acme_config: DiffArc<AcmeConfig>,
     state: Arc<std::sync::Mutex<AcmeCertificateState>>,
     active_challenges: ActiveChallenges,
+    certificate_renewal_threshold: Duration,
 }
 
 impl AcmeCertificateConfig {
@@ -41,6 +45,7 @@ impl AcmeCertificateConfig {
         acme_config_dyn: DynamicAcmeConfig,
         acme_config: DiffArc<AcmeConfig>,
         active_challenges: ActiveChallenges,
+        certificate_renewal_threshold: Duration,
     ) -> Self {
         let state = if let Some(pem) = &acme_config.certificate {
             Arc::new(Mutex::new(
@@ -49,13 +54,14 @@ impl AcmeCertificateConfig {
                     .unwrap_or_else(|error| AcmeCertificateState::Failed(error.into())),
             ))
         } else {
-            Default::default()
+            Arc::new(Mutex::new(AcmeCertificateState::NotSet))
         };
         Self {
             acme_config,
             acme_config_dyn,
             state,
             active_challenges,
+            certificate_renewal_threshold,
         }
     }
 }
@@ -74,13 +80,12 @@ impl CertificateConfig for AcmeCertificateConfig {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 enum AcmeCertificateState {
     Done(AcmeCertificate),
+    Renewing(AcmeCertificate),
     Pending,
     Failed(Arc<AcmeError>),
-
-    #[default]
     NotSet,
 }
 
@@ -97,16 +102,37 @@ impl AcmeCertificateConfig {
     ) -> Result<R, AcmeError> {
         let mut lock = self.state.lock().unwrap();
         let state = &mut *lock;
-        let error = match state {
-            AcmeCertificateState::Done(state) => return Ok(f(state).to_owned()),
+        let (result, new_state) = match state {
+            AcmeCertificateState::Done(done) => {
+                let not_after = asn1_to_system_time(done.certificate.certificate.not_after())
+                    .unwrap_or(SystemTime::UNIX_EPOCH);
+                let now = SystemTime::now();
+                if not_after <= now + self.certificate_renewal_threshold {
+                    debug!(?not_after, ?now, "The certificate is eligible for renewal");
+                    let result = Ok(f(done).to_owned());
+                    let new_state = AcmeCertificateState::Renewing(done.clone());
+                    (result, new_state)
+                } else {
+                    debug!(?not_after, renewal_in = ?not_after.duration_since(now), "The certificate is not eligible for renewal");
+                    return Ok(f(done).to_owned());
+                }
+            }
+            AcmeCertificateState::Renewing(old_certificate) => {
+                return Ok(f(old_certificate).to_owned());
+            }
             AcmeCertificateState::Pending => return Err(AcmeError::Pending),
-            AcmeCertificateState::Failed(acme_error) => AcmeError::Arc(acme_error.clone()),
-            AcmeCertificateState::NotSet => AcmeError::Pending,
+            AcmeCertificateState::Failed(acme_error) => (
+                Err(AcmeError::Arc(acme_error.clone())),
+                AcmeCertificateState::Pending,
+            ),
+            AcmeCertificateState::NotSet => {
+                (Err(AcmeError::Pending), AcmeCertificateState::Pending)
+            }
         };
 
-        *state = AcmeCertificateState::Pending;
+        *state = new_state;
         tokio::spawn(self.clone().initialize());
-        return Err(error);
+        return result;
     }
 
     async fn initialize(self) -> Result<(), AcmeError> {

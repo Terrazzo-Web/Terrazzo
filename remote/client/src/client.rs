@@ -1,6 +1,7 @@
 //! The Terrazzo Gateway [Client].
 
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Instant;
@@ -52,6 +53,7 @@ pub struct Client {
     tls_server: tokio_rustls::TlsAcceptor,
     client_service: Arc<dyn ClientService>,
     retry_strategy: RetryStrategy,
+    current_auth_code: Arc<Mutex<AuthCode>>,
 }
 
 declare_identifier!(AuthCode);
@@ -74,6 +76,7 @@ impl Client {
             tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),
             retry_strategy: config.retry_strategy(),
+            current_auth_code: config.current_auth_code(),
         }))
     }
 

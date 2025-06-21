@@ -102,7 +102,7 @@ pub enum LoadClientCertificateError<C: ClientConfig> {
     PemString(#[from] CertificateError<PemAsStringError>),
 }
 
-async fn make_client_certificate<C: ClientConfig>(
+pub async fn make_client_certificate<C: ClientConfig>(
     client_config: &C,
     auth_code: AuthCode,
 ) -> Result<X509CertificateInfo, MakeClientCertificateError<C::GatewayPki>> {

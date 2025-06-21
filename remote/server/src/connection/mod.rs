@@ -16,14 +16,15 @@ use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_common::consts::PERIOD;
-use trz_gateway_common::consts::TIMEOUT;
+use trz_gateway_common::consts::HEALTH_CHECK_PERIOD;
+use trz_gateway_common::consts::HEALTH_CHECK_TIMEOUT;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::health::Ping;
 use trz_gateway_common::protos::terrazzo::remote::health::Pong;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_client::HealthServiceClient;
 
 use self::balance::IncomingClients;
+use crate::auth_code::AuthCode;
 
 mod balance;
 pub mod connection_id;
@@ -89,18 +90,21 @@ impl Connections {
                     connection_id: connection_id.to_string(),
                     ..Ping::default()
                 });
-                let Pong { .. } = timeout(TIMEOUT, pong).await??.into_inner();
+                let Pong { .. } = timeout(HEALTH_CHECK_TIMEOUT, pong).await??.into_inner();
                 let latency = Instant::now() - start;
                 info!(?latency, "Ping");
 
                 let start = Instant::now();
                 let pong = health_client.ping_pong(Ping {
                     connection_id: connection_id.to_string(),
-                    delay: Some(PERIOD.try_into()?),
+                    delay: Some(HEALTH_CHECK_PERIOD.try_into()?),
+                    auth_code: AuthCode::current().to_string(),
                 });
-                let Pong { .. } = timeout(PERIOD + TIMEOUT, pong).await??.into_inner();
+                let Pong { .. } = timeout(HEALTH_CHECK_PERIOD + HEALTH_CHECK_TIMEOUT, pong)
+                    .await??
+                    .into_inner();
                 let elapsed = start.elapsed();
-                if elapsed < PERIOD {
+                if elapsed < HEALTH_CHECK_PERIOD {
                     return Err(ChannelHealthError::TooSoon(elapsed));
                 }
             }
@@ -134,7 +138,7 @@ pub enum ChannelHealthError {
     #[error("[{n}] {0}", n = self.name())]
     DurationError(#[from] prost_types::DurationError),
 
-    #[error("[{n}] Client slept for {0:?}, should have been {PERIOD:?}", n = self.name())]
+    #[error("[{n}] Client slept for {0:?}, should have been {HEALTH_CHECK_PERIOD:?}", n = self.name())]
     TooSoon(Duration),
 }
 

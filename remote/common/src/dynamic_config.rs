@@ -778,6 +778,9 @@ mod tests {
         drop(concat);
         drop(other);
         right.set(|_| 41);
-        assert_eq!(("left:left4 right:41".into(), "UPDATE".into()), zipped.get());
+        assert_eq!(
+            ("left:left4 right:41".into(), "UPDATE".into()),
+            zipped.get()
+        );
     }
 }

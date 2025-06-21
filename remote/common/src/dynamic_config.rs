@@ -168,7 +168,7 @@ where
             Arc::new(from_impl((left.get(), right.get())));
 
         {
-            let on_left_change = add_notify(&left, {
+            let on_left_change = add_notify(left, {
                 let zipped_weak = Arc::downgrade(&zipped);
                 move |new_left| {
                     if let Some(zipped_strong) = zipped_weak.upgrade() {
@@ -188,7 +188,7 @@ where
             }));
         }
         {
-            let on_right_change = add_notify(&right, {
+            let on_right_change = add_notify(right, {
                 let zipped_weak = Arc::downgrade(&zipped);
                 move |new_right| {
                     if let Some(zipped_strong) = zipped_weak.upgrade() {

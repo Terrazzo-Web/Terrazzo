@@ -181,11 +181,11 @@ where
                     }
                 }
             });
-            zipped
-                .on_drop
-                .lock()
-                .unwrap()
-                .push(Box::new(move || drop(on_left_change)));
+            let left = left.clone();
+            zipped.on_drop.lock().unwrap().push(Box::new(move || {
+                drop(on_left_change);
+                drop(left);
+            }));
         }
         {
             let on_right_change = add_notify(&right, {
@@ -201,11 +201,11 @@ where
                     }
                 }
             });
-            zipped
-                .on_drop
-                .lock()
-                .unwrap()
-                .push(Box::new(move || drop(on_right_change)));
+            let right = right.clone();
+            zipped.on_drop.lock().unwrap().push(Box::new(move || {
+                drop(on_right_change);
+                drop(right);
+            }));
         }
 
         return zipped;
@@ -323,11 +323,10 @@ where
             }
         }
     });
-    derived
-        .on_drop
-        .lock()
-        .unwrap()
-        .push(Box::new(move || drop(on_main_change)));
+    derived.on_drop.lock().unwrap().push(Box::new(move || {
+        drop(on_main_change);
+        drop(main);
+    }));
     return derived;
 }
 
@@ -766,6 +765,19 @@ mod tests {
         drop(zipped);
         left.set(|_| "left4");
         right.set(|i| i + 1);
-        assert_eq!("left:left3 right:34", concat.get());
+        assert_eq!("left:left4 right:35", concat.get());
+
+        let other = Arc::new(DynamicConfig::from("other"));
+        let zipped = concat.zip(&other.view(|other| other.to_uppercase()));
+        assert_eq!(("left:left4 right:35".into(), "OTHER".into()), zipped.get());
+
+        right.set(|_| 40);
+        assert_eq!(("left:left4 right:40".into(), "OTHER".into()), zipped.get());
+
+        other.set(|_| "update");
+        drop(concat);
+        drop(other);
+        right.set(|_| 41);
+        assert_eq!(("left:left4 right:41".into(), "UPDATE".into()), zipped.get());
     }
 }

@@ -47,12 +47,29 @@ pub mod service;
 /// gRPC server that listens to requests sent or forwarded by the Terrazzo
 /// Gateway over the WebSocket tunnel.
 pub struct Client {
+    /// The client name for troubleshooting purposes
     pub client_name: ClientName,
     uri: String,
+
+    /// The TLS client is used to create the secure WebSocket tunnel.
+    ///
+    /// (without client certificate auth)
     tls_client: tokio_tungstenite::Connector,
+
+    /// The TLS server is used to accept gRPC connections through the tunnel.
+    ///
+    /// The client uses its certiticate to authenticate the server side of the connection.
     tls_server: tokio_rustls::TlsAcceptor,
+
+    /// A callback to configure the [tonic gRPC server](tonic::transport::Server).
     client_service: Arc<dyn ClientService>,
+
+    /// The strategy to retry creating the WebSocket tunnel when it fails
     retry_strategy: RetryStrategy,
+
+    /// A global mutable variable that holds the [AuthCode].
+    ///
+    /// This is used to periodically renew the certificate.
     current_auth_code: Arc<Mutex<AuthCode>>,
 }
 

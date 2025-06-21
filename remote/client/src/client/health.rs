@@ -8,6 +8,7 @@ use nameth::nameth;
 use prost_types::DurationError;
 use tokio::sync::oneshot;
 use tokio::time::error::Elapsed;
+use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use trz_gateway_common::consts::PERIOD;
@@ -85,7 +86,7 @@ impl HealthService for HealthServiceImpl {
             info!(connection_id, "Received ping");
         };
 
-        info!(connection_id, "Return pong");
+        debug!(connection_id, "Return pong");
         Ok(tonic::Response::new(Pong {}))
     }
 }

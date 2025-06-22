@@ -5,7 +5,7 @@ use std::time::Duration;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelServiceServer;
 use trz_gateway_common::retry_strategy::RetryStrategy;
-use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
+use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use super::calculator;
@@ -18,14 +18,11 @@ use crate::tunnel_config::TunnelConfig;
 #[derive(Debug)]
 pub struct TestTunnelConfig<G> {
     client_config: TestClientConfig<G>,
-    client_certificate: Arc<PemCertificate>,
+    client_certificate: CachedCertificate,
 }
 
 impl<G> TestTunnelConfig<G> {
-    pub fn new(
-        client_config: TestClientConfig<G>,
-        client_certificate: Arc<PemCertificate>,
-    ) -> Self {
+    pub fn new(client_config: TestClientConfig<G>, client_certificate: CachedCertificate) -> Self {
         Self {
             client_config,
             client_certificate,
@@ -49,7 +46,7 @@ impl<G: GatewayConfig> ClientConfig for TestTunnelConfig<G> {
 }
 
 impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
-    type ClientCertificate = Arc<PemCertificate>;
+    type ClientCertificate = CachedCertificate;
     fn client_certificate(&self) -> Self::ClientCertificate {
         self.client_certificate.clone()
     }

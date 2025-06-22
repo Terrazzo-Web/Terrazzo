@@ -11,7 +11,7 @@ use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::handle::ServerStopError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
+use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_server::auth_code::AuthCode;
 use trz_gateway_server::server::GatewayError;
 use trz_gateway_server::server::Server;
@@ -34,7 +34,7 @@ const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
 pub struct EndToEnd<'t> {
     pub client: Arc<Client>,
     #[expect(unused)]
-    pub client_certificate: Arc<PemCertificate>,
+    pub client_certificate: CachedCertificate,
     pub server: Arc<Server>,
     pub client_handle: Box<dyn FnOnce() -> ServerHandle<()> + 't>,
 }
@@ -56,15 +56,13 @@ impl<'t> EndToEnd<'t> {
         let client_config = TestClientConfig::new(gateway_config.clone(), client_name.clone());
 
         let auth_code = AuthCode::current().to_string();
-        let client_certificate = Arc::new(
-            load_client_certificate(
-                &client_config,
-                auth_code.into(),
-                CLIENT_CERT_FILENAME.map(|filename| temp_dir.path().join(filename)),
-            )
-            .await
-            .map_err(EndToEndError::LoadClientCertificate)?,
-        );
+        let client_certificate = load_client_certificate(
+            &client_config,
+            auth_code.into(),
+            CLIENT_CERT_FILENAME.map(|filename| temp_dir.path().join(filename)),
+        )
+        .await
+        .map_err(EndToEndError::LoadClientCertificate)?;
         info!("Got the client certificate");
 
         let tunnel_config = TestTunnelConfig::new(client_config, client_certificate.clone());

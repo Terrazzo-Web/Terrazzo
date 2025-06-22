@@ -147,7 +147,7 @@ fn credentials_eq(a: &Option<AccountCredentials>, b: &Option<AccountCredentials>
 
 impl std::fmt::Debug for AcmeConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(AcmeConfig::type_name())
+        f.debug_struct(Self::type_name())
             .field("environment", &self.environment)
             .field("credentials", &self.credentials.is_some())
             .field("contact", &self.contact)

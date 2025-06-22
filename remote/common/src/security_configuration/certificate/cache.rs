@@ -75,6 +75,15 @@ mod debug {
     use nameth::NamedType as _;
 
     use super::CachedCertificate;
+    use super::MemoizedCertificate;
+
+    impl<C: std::fmt::Debug> std::fmt::Debug for MemoizedCertificate<C> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("MemoizedCertificate")
+                .field("base", &self.base)
+                .finish()
+        }
+    }
 
     impl std::fmt::Debug for CachedCertificate {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

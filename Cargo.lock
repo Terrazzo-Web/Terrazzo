@@ -108,13 +108,13 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "autocfg"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
+checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "autoclone"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "clone-macro",
  "darling",
@@ -126,7 +126,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "autoclone",
 ]
@@ -674,12 +674,12 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "errno"
-version = "0.3.12"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
+checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1637,14 +1637,14 @@ checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
 name = "nameth"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "darling",
  "quote",
@@ -1653,7 +1653,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "nameth",
 ]
@@ -1962,9 +1962,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.2.34"
+version = "0.2.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6837b9e10d61f45f987d50808f83d1ee3d206c66acf650c3e4ae2e1f6ddedf55"
+checksum = "061c1221631e079b26479d25bbf2275bfe5917ae8419cd7e34f13bfc2aa7539a"
 dependencies = [
  "proc-macro2",
  "syn",
@@ -2667,9 +2667,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "syn"
-version = "2.0.103"
+version = "2.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4307e30089d6fd6aff212f2da3a1f9e32f3223b1f010fb09b7c95f90f3ca1e8"
+checksum = "17b6f705963418cdb9927482fa304bc562ece2fdd4f616084c50b7023b435a40"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2732,7 +2732,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "autoclone",
  "axum",
@@ -2757,7 +2757,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "nameth",
  "thiserror 2.0.12",
@@ -2765,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "autoclone",
  "nameth",
@@ -2781,7 +2781,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "nameth",
  "scopeguard",
@@ -2800,11 +2800,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.1.14"
+version = "0.1.15"
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "deluxe",
  "prettyplease",
@@ -3252,7 +3252,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "futures",
  "hostname",
@@ -3284,7 +3284,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "axum",
  "bytes",
@@ -3315,7 +3315,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "autoclone",
  "axum",
@@ -3665,6 +3665,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.60.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb"
+dependencies = [
+ "windows-targets 0.53.2",
 ]
 
 [[package]]

@@ -81,6 +81,7 @@ impl super::Client {
                     .trace_fn(move |_| current_span.clone()),
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl::new(
+                self.current_auth_code.clone(),
                 unhealthy_tx,
             )));
 

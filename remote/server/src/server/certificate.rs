@@ -9,6 +9,7 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::x509::X509Extension;
 use pem::PemError;
+use tracing::debug;
 use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::http_error::HttpError;
@@ -58,8 +59,14 @@ impl Server {
             .issuer_config
             .get()
             .map_err(GetCertificateError::IssuerConfig)?;
+        let now = SystemTime::now();
         let mut validity = issuer_config.validity;
-        validity.to = SystemTime::min(validity.to, validity.from + CERTIFICATE_VALIDITY);
+        validity.from = now;
+        validity.to = SystemTime::min(validity.to, now + CERTIFICATE_VALIDITY);
+        debug!(
+            "Issuing client certificate for {} valid until {:?}",
+            request.name, validity.to
+        );
         let signed_extension = self.make_signed_extension(&issuer_config, &request, validity)?;
         Ok(self.assemble_pem_cert(request, validity, signed_extension)?)
     }

@@ -11,6 +11,7 @@ service HealthService {
 message Ping {
   string connection_id = 1;
   google.protobuf.Duration delay = 2;
+  string auth_code = 3;
 }
 
 message Pong {}

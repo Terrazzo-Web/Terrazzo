@@ -1,8 +1,11 @@
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
+use openssl::pkey::PKey;
+use openssl::pkey::Private;
 use openssl::x509::X509;
 use rustls::ServerConfig;
 use rustls::pki_types::CertificateDer;
@@ -10,15 +13,18 @@ use rustls::pki_types::PrivateKeyDer;
 use rustls::server::ClientHello;
 use rustls::server::ResolvesServerCert;
 use rustls::sign::CertifiedKey;
+use tracing::Level;
 use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 
 use super::CertificateConfig;
+use crate::certificate_info::CertificateInfo;
 use crate::certificate_info::X509CertificateInfo;
 use crate::crypto_provider::crypto_provider;
 use crate::security_configuration::certificate::display_x509_certificate;
+use crate::x509::time::asn1_to_system_time;
 
 /// Create a RusTLS [ServerConfig] from a [CertificateConfig].
 pub trait ToTlsServer: CertificateConfig + Sized {
@@ -62,12 +68,7 @@ fn build_single_cert<T: CertificateConfig>(
 ) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>), ToTlsServerError<T::Error>> {
     let mut certificate_chain = vec![];
     {
-        info!(
-            "Server certificate: {:?} issued by {:?}",
-            certificate.certificate.subject_name(),
-            certificate.certificate.issuer_name()
-        );
-        debug!("Server certificate details:  {}", certificate.display());
+        log_server_certiticate(certificate);
         let certificate = certificate.certificate.to_der();
         let certificate = certificate.map_err(ToTlsServerError::CertificateToDer)?;
         certificate_chain.push(certificate.into());
@@ -160,11 +161,7 @@ impl<T: CertificateConfig> ServerCertificateResolver<T> {
             }
         }
 
-        info!(
-            "Use server certificate {:?}",
-            certificate.certificate.subject_name()
-        );
-        debug!("Server certificate {}", certificate.display());
+        log_server_certiticate(&certificate);
         let certified_key = self.make_certified_key(&certificate, &intermediates)?;
         *state = Some(CertResolverState {
             certified_key: certified_key.clone(),
@@ -213,4 +210,22 @@ pub enum ToTlsServerError<E: std::error::Error> {
 
     #[error("[{n}] {0}", n = self.name())]
     CertifiedKey(rustls::Error),
+}
+
+fn log_server_certiticate(certificate: &CertificateInfo<X509, PKey<Private>>) {
+    if !tracing::enabled!(Level::INFO) {
+        return;
+    }
+    let now = SystemTime::now();
+    let subject = certificate.certificate.subject_name();
+    let issuer = certificate.certificate.issuer_name();
+    let not_after = certificate.certificate.not_after();
+    let expiration =
+        match asn1_to_system_time(not_after).map(|not_after| not_after.duration_since(now)) {
+            Ok(Ok(expiration)) => humantime::format_duration(expiration).to_string(),
+            Err(error) => format!("Err: {error}"),
+            Ok(Err(error)) => format!("Err: {error}"),
+        };
+    info! { "Server certificate: {subject:?} issued by {issuer:?} expires {not_after} ({expiration})" };
+    debug!("Server certificate details: {}", certificate.display());
 }

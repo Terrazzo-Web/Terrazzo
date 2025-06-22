@@ -8,8 +8,10 @@ use nameth::nameth;
 use prost_types::DurationError;
 use tokio::sync::oneshot;
 use tokio::time::error::Elapsed;
+use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info;
+use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::consts::HEALTH_CHECK_PERIOD;
 use trz_gateway_common::consts::HEALTH_CHECK_TIMEOUT;
@@ -44,29 +46,43 @@ impl HealthServiceImpl {
     }
 
     fn schedule_timeout(&self) {
-        let health_report = self.health_report.clone();
+        let health_report = Arc::downgrade(&self.health_report);
         let (next_ping_tx, next_ping_rx) = oneshot::channel();
         {
-            let mut lock = health_report.lock().expect("health_report");
+            let mut lock = self.health_report.lock().expect("health_report");
             if let Some(report_ping) = lock.report_ping.replace(next_ping_tx) {
                 let _ = report_ping.send(());
             }
         }
-        tokio::spawn(async move {
-            if let Err(Elapsed { .. }) =
-                tokio::time::timeout(HEALTH_CHECK_PERIOD + HEALTH_CHECK_TIMEOUT, next_ping_rx).await
+        let task = async move {
+            match tokio::time::timeout(HEALTH_CHECK_PERIOD + HEALTH_CHECK_TIMEOUT, next_ping_rx)
+                .await
             {
-                let mut lock = health_report.lock().expect("health_report");
-                if let Some(on_unhealthy) = lock.on_unhealthy.take() {
-                    warn!(
-                        "No ping was received after PERIOD={} + TIMEOUT={}",
-                        humantime::format_duration(HEALTH_CHECK_PERIOD),
-                        humantime::format_duration(HEALTH_CHECK_TIMEOUT)
-                    );
-                    let _ = on_unhealthy.send(());
+                Err(Elapsed { .. }) => {}
+                Ok(Ok(())) => {
+                    debug!("The ping was received");
+                    return;
+                }
+                Ok(Err(oneshot::error::RecvError { .. })) => {
+                    debug!("The health report was dropped");
+                    return;
                 }
             }
-        });
+            let Some(health_report) = health_report.upgrade() else {
+                warn!("Health report timed out without being canceled when client was dropped");
+                return;
+            };
+            let mut lock = health_report.lock().expect("health_report");
+            if let Some(on_unhealthy) = lock.on_unhealthy.take() {
+                warn!(
+                    "No ping was received after PERIOD={} + TIMEOUT={}",
+                    humantime::format_duration(HEALTH_CHECK_PERIOD),
+                    humantime::format_duration(HEALTH_CHECK_TIMEOUT)
+                );
+                let _ = on_unhealthy.send(());
+            }
+        };
+        tokio::spawn(task.instrument(info_span!("Health report")));
     }
 }
 
@@ -98,7 +114,7 @@ impl HealthService for HealthServiceImpl {
         if let Some(delay) = delay {
             let delay = Duration::try_from(delay).map_err(PingError::from)?;
             let delay_printed = format_duration(delay);
-            info!(connection_id, %delay_printed, "Received ping");
+            info!(connection_id, delay = %delay_printed, "Received ping");
             tokio::time::sleep(delay).await;
         } else {
             info!(connection_id, "Received ping");

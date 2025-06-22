@@ -103,7 +103,7 @@ fn start_periodic_updates(rx: oneshot::Receiver<()>) {
             let rx = rx.shared();
             loop {
                 tokio::select! {
-                    _ = tokio::time::sleep(AUTH_CODE_UPDATE_PERIOD) => {}
+                    _ = tokio::time::sleep(AUTH_CODE_UPDATE_PERIOD.max(Duration::from_secs(60))) => {}
                     _ = rx.clone() => { break; }
                 }
 

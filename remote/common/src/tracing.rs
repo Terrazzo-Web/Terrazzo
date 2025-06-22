@@ -8,6 +8,7 @@ use tracing::debug;
 use tracing::level_filters::LevelFilter;
 use tracing::subscriber::SetGlobalDefaultError;
 use tracing::warn;
+use tracing_subscriber::EnvFilter;
 
 /// Enables tracing and registers a [panic hook](std::panic::set_hook).
 pub fn enable_tracing() -> Result<(), EnableTracingError> {
@@ -17,6 +18,7 @@ pub fn enable_tracing() -> Result<(), EnableTracingError> {
         .with_line_number(cfg!(debug_assertions))
         .with_target(false)
         .with_max_level(LevelFilter::DEBUG)
+        .with_env_filter(EnvFilter::new("debug,tower=info,h2=info,hyper_util=info"))
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
     debug!("Tracing enabled");

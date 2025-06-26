@@ -141,7 +141,12 @@ async fn run_impl(
     loop {
         let start = Instant::now();
         let result = this
-            .connect(client_id.clone(), shutdown_rx.clone(), &mut serving_tx)
+            .connect(
+                client_id.clone(),
+                shutdown_rx.clone(),
+                retry_strategy.peek() / 2,
+                &mut serving_tx,
+            )
             .await;
         if is_shutdown.load(SeqCst) {
             return;

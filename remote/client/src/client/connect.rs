@@ -1,5 +1,6 @@
 use std::future::ready;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures::FutureExt;
 use futures::StreamExt as _;
@@ -7,6 +8,7 @@ use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
+use tokio::time::error::Elapsed;
 use tokio_tungstenite::tungstenite;
 use tonic::transport::Server;
 use tracing::Span;
@@ -28,6 +30,7 @@ impl super::Client {
         &self,
         client_id: ClientId,
         shutdown: impl Future<Output = ()> + Unpin,
+        timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         info!(uri = self.uri, "Connecting WebSocket");
@@ -46,7 +49,9 @@ impl super::Client {
             disable_nagle,
             Some(self.tls_client.clone()),
         )
+        .timeout(timeout)
         .await
+        .map_err(|_| ConnectError::Timeout("WebSocket"))?
         .map_err(Box::from)?;
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
@@ -56,7 +61,9 @@ impl super::Client {
         let tls_stream = self
             .tls_server
             .accept(stream)
+            .timeout(timeout)
             .await
+            .map_err(|_| ConnectError::Timeout("TLS handshake"))?
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
@@ -102,6 +109,17 @@ impl super::Client {
     }
 }
 
+trait HasTimeout: Future + Sized {
+    fn timeout(
+        self,
+        duration: Duration,
+    ) -> impl Future<Output = Result<<Self as Future>::Output, Elapsed>> {
+        tokio::time::timeout(duration, self)
+    }
+}
+
+impl<T: Future + Sized> HasTimeout for T {}
+
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -123,6 +141,9 @@ pub enum ConnectError {
 
     #[error("[{n}] The client got disconnected", n = self.name())]
     Disconnected,
+
+    #[error("[{n}] {0}", n = self.name())]
+    Timeout(&'static str),
 }
 
 struct TungsteniteWebSocketIo;

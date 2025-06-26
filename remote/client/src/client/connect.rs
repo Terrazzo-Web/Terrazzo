@@ -51,7 +51,7 @@ impl super::Client {
         )
         .timeout(timeout)
         .await
-        .map_err(|_| ConnectError::Timeout("WebSocket"))?
+        .map_err(|_: Elapsed| ConnectError::Timeout("WebSocket"))?
         .map_err(Box::from)?;
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
@@ -63,7 +63,7 @@ impl super::Client {
             .accept(stream)
             .timeout(timeout)
             .await
-            .map_err(|_| ConnectError::Timeout("TLS handshake"))?
+            .map_err(|_: Elapsed| ConnectError::Timeout("TLS handshake"))?
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);

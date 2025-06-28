@@ -256,6 +256,7 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
 
 #[cfg(debug_assertions)]
 fn get_asset_content(path: &str, asset: &Asset) -> Vec<u8> {
+    assert!(cfg!(feature = "debug"));
     #[cfg(feature = "debug")]
     {
         let asset_extension = || {

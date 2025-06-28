@@ -65,7 +65,6 @@ impl AssetBuilder {
                     .skip_while(|leg| !is_src_dir(leg))
                     .collect();
                 let in_src_path = Path::new(cargo_manifest_dir).join(relative_path);
-                dbg!(&in_src_path);
                 if in_src_path.exists() {
                     in_src_path
                 } else {

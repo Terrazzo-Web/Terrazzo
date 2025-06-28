@@ -44,11 +44,14 @@ impl AssetBuilder {
         let asset_name = asset_name.to_str().unwrap().to_owned();
 
         #[cfg(not(debug_assertions))]
-        return Self {
-            asset_name,
-            mime: None,
-            content,
-        };
+        {
+            let _unused = cargo_manifest_dir;
+            return Self {
+                asset_name,
+                mime: None,
+                content,
+            };
+        }
 
         #[cfg(debug_assertions)]
         {

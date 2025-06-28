@@ -4,9 +4,9 @@ runs:
   steps:
     - name: Compile
       run: |
-        cargo build --features=client
+        cargo build --features=client,max_level_debug,debug,diagnostics
         cargo build --features=client --release
-        cargo build --features=server
+        cargo build --features=server,max_level_debug,debug,diagnostics
         cargo build --features=server --release
         cargo build --features=client,server
         cargo build --bin demo-server --features server,max_level_debug

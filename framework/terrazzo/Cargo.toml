@@ -27,6 +27,7 @@ include_directory = { workspace = true, optional = true }
 mime = { workspace = true, optional = true }
 mime_guess = { workspace = true, optional = true }
 nameth = { workspace = true, optional = true }
+rsass = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 stylance = { workspace = true, optional = true }
@@ -80,6 +81,7 @@ rustdoc = []
 diagnostics = ["terrazzo-client?/diagnostics"]
 max_client_level_debug = ["terrazzo-client?/max_level_debug"]
 max_client_level_info = ["terrazzo-client?/max_level_info"]
+debug = ["dep:rsass"]
 
 [package.metadata.stylance]
 output_file = "./target/css/common.scss"

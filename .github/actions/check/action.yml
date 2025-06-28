@@ -3,12 +3,22 @@ runs:
   using: "composite"
 
   steps:
+    - name: Check
+      run: |
+        cargo check --features=client,server
+        cargo check --features client,debug,diagnostics
+        cargo check --features client --release
+        cargo check --features server,debug,diagnostics
+        cargo check --features server --release
+      shell: bash
+
     - name: Clippy
       run: |
-        cargo clippy --features client
-        cargo clippy --features client,diagnostics
-        cargo clippy --features server
         cargo clippy --features=client,server
+        cargo clippy --features client,debug,diagnostics
+        cargo clippy --features client --release
+        cargo clippy --features server,debug,diagnostics
+        cargo clippy --features server --release
       shell: bash
 
     - name: Rustfmt

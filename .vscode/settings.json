@@ -1,7 +1,8 @@
 {
     "rust-analyzer.cargo.features": [
-        "client",
-        "server",
         "acme",
+        "client",
+        "debug",
+        "server",
     ],
 }

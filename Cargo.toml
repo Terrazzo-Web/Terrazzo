@@ -91,13 +91,13 @@ ring = { version = "0.17.14" }
 rsass = { version = "0.29.2" }
 rsass-macros = { version = "0.29.0" }
 rustix = { version = "1.0.7" }
-rustls = { version = "0.23.28" }
+rustls = { version = "0.23.29" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_json = { version = "1.0.140" }
 serde_urlencoded = { version = "0.7.1" }
-server_fn_macro = { version = "0.8.2" }
+server_fn_macro = { version = "0.8.3" }
 stylance = { version = "0.6.0" }
 syn = { version = "2.0.103" }
 tempfile = { version = "3.20.0" }

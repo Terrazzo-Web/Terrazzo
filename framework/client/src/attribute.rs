@@ -311,7 +311,7 @@ impl std::fmt::Display for XAttributeName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Attribute(name) => std::fmt::Display::fmt(name, f),
-            Self::Style(name) => write!(f, "style::{}", name),
+            Self::Style(name) => write!(f, "style::{name}"),
         }
     }
 }

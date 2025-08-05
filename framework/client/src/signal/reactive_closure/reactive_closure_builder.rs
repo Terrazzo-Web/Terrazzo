@@ -190,7 +190,7 @@ pub struct Consumers(pub(crate) Vec<Consumer<ProducedSignal>>);
 
 impl std::fmt::Debug for Consumers {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let consumers: Vec<String> = self.0.iter().map(|c| format!("{:?}", c)).collect();
+        let consumers: Vec<String> = self.0.iter().map(|c| format!("{c:?}")).collect();
         write!(f, "[{}]", consumers.join(", "))
     }
 }

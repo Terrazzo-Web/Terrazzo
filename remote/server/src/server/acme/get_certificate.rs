@@ -35,22 +35,26 @@ impl AcmeConfig {
     ) -> Result<GetAcmeCertificateResult, AcmeError> {
         debug!("Get or create Let's Encrypt account");
         let (account, credentials) = if let Some(credentials) = self.credentials.as_ref() {
-            let account = Account::from_credentials(clone_account_credentials(credentials))
+            let account = Account::builder()
+                .map_err(AcmeError::Builder)?
+                .from_credentials(clone_account_credentials(credentials))
                 .await
                 .map_err(AcmeError::FromCredentials)?;
             (account, None)
         } else {
-            let (account, credentials) = Account::create(
-                &NewAccount {
-                    contact: &[&self.contact],
-                    terms_of_service_agreed: true,
-                    only_return_existing: false,
-                },
-                self.environment.url(),
-                None,
-            )
-            .await
-            .map_err(AcmeError::CreateAccount)?;
+            let (account, credentials) = Account::builder()
+                .map_err(AcmeError::Builder)?
+                .create(
+                    &NewAccount {
+                        contact: &[&self.contact],
+                        terms_of_service_agreed: true,
+                        only_return_existing: false,
+                    },
+                    self.environment.url().to_owned(),
+                    None,
+                )
+                .await
+                .map_err(AcmeError::CreateAccount)?;
             (account, Some(credentials))
         };
 
@@ -58,60 +62,45 @@ impl AcmeConfig {
 
         let identifier = Identifier::Dns(self.domain.clone());
         let mut order = account
-            .new_order(&NewOrder {
-                identifiers: &[identifier],
-            })
+            .new_order(&NewOrder::new(&[identifier]))
             .await
             .map_err(AcmeError::NewOrder)?;
 
         let state = order.state();
         info!("Order created in state: {:?}", state);
 
-        let authorizations = order
-            .authorizations()
-            .await
-            .map_err(AcmeError::Authorizations)?;
-        info!("Order has {} authorizations", authorizations.len());
-        let mut challenges = Vec::with_capacity(authorizations.len());
-
+        let mut authorizations = order.authorizations();
         let mut registrations = vec![];
-        for authorization in &authorizations {
+        while let Some(authorization) = authorizations.next().await {
+            let mut authorization = authorization.map_err(AcmeError::Authorization)?;
             match authorization.status {
                 AuthorizationStatus::Pending => {}
                 AuthorizationStatus::Valid => continue,
                 AuthorizationStatus::Invalid
                 | AuthorizationStatus::Revoked
-                | AuthorizationStatus::Expired => {
+                | AuthorizationStatus::Expired
+                | AuthorizationStatus::Deactivated => {
                     return Err(AcmeError::InvalidAuthorizationStatus(authorization.status));
                 }
             }
 
-            let challenge = authorization
-                .challenges
-                .iter()
-                .find(|c| c.r#type == ChallengeType::Http01)
+            let mut challenge = authorization
+                .challenge(ChallengeType::Http01)
                 .ok_or(AcmeError::Http01ChallengeMissing)?;
-            info!("Found challenge {challenge:?}");
+            info!("Found challenge {:?}", challenge.identifier());
 
-            let Identifier::Dns(identifier) = &authorization.identifier;
+            let Identifier::Dns(identifier) = challenge.identifier().identifier else {
+                return Err(AcmeError::UnexpectedIdentifierFormat);
+            };
             info!("The identifier is {identifier}");
 
             let token = challenge.token.as_str();
-            let key_authorization = order.key_authorization(challenge);
+            let key_authorization = challenge.key_authorization();
             registrations.push(active_challenges.add(token, key_authorization));
 
-            challenges.push(&challenge.url);
+            // Let the server know we're ready to accept the challenge.
+            let () = challenge.set_ready().await.map_err(AcmeError::SetReady)?;
         }
-
-        // Let the server know we're ready to accept the challenges.
-
-        for url in &challenges {
-            let () = order
-                .set_challenge_ready(url)
-                .await
-                .map_err(AcmeError::SetChallengeReady)?;
-        }
-        info!("Set challenges as ready");
 
         // Exponentially back off until the order becomes ready or invalid.
 
@@ -129,7 +118,7 @@ impl AcmeConfig {
         // Finalize the order and print certificate chain, private key and account credentials.
 
         let () = order
-            .finalize(csr.der())
+            .finalize_csr(csr.der())
             .await
             .map_err(AcmeError::Finalize)?;
         let certificate = loop {

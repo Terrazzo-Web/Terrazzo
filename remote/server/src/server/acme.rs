@@ -65,6 +65,9 @@ pub struct AcmeConfig {
 #[derive(thiserror::Error, Debug)]
 pub enum AcmeError {
     #[error("[{n}] {0}", n = self.name())]
+    Builder(instant_acme::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
     FromCredentials(instant_acme::Error),
 
     #[error("[{n}] {0}", n = self.name())]
@@ -74,7 +77,7 @@ pub enum AcmeError {
     NewOrder(instant_acme::Error),
 
     #[error("[{n}] {0}", n = self.name())]
-    Authorizations(instant_acme::Error),
+    Authorization(instant_acme::Error),
 
     #[error("[{n}] {0:?}", n = self.name())]
     InvalidAuthorizationStatus(AuthorizationStatus),
@@ -114,6 +117,12 @@ pub enum AcmeError {
 
     #[error("[{n}] {0}", n = self.name())]
     Arc(Arc<Self>),
+
+    #[error("[{n}] Unexpected identifier format", n = self.name())]
+    UnexpectedIdentifierFormat,
+
+    #[error("[{n}] {0}", n = self.name())]
+    SetReady(instant_acme::Error),
 }
 
 impl PartialEq for AcmeConfig {

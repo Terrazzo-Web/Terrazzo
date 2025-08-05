@@ -342,7 +342,7 @@ mod tab_options {
         ) -> XString {
             override_class
                 .as_ref()
-                .map(|override_class| format!("{} {}", base_class, override_class).into())
+                .map(|override_class| format!("{base_class} {override_class}").into())
                 .unwrap_or(base_class.into())
         }
     }

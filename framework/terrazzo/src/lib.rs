@@ -20,3 +20,6 @@ macro_rules! declare_trait_aliias {
         impl<T: $($trait)+> $name_alias for T {}
     };
 }
+
+#[cfg(feature = "debug")]
+use rsass as _;

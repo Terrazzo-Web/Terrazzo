@@ -71,7 +71,7 @@ humantime = { version = "2.2.0" }
 hyper-util = { version = "0.1.16" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.2" }
-libc = { version = "0.2.174" }
+libc = { version = "0.2.175" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }
@@ -80,7 +80,7 @@ pem = { version = "3.0.5" }
 pin-project = { version = "1.1.10" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.36" }
-proc-macro2 = { version = "1.0.95" }
+proc-macro2 = { version = "1.0.96" }
 prost = { version = "0.14.1" }
 prost-types = { version = "0.14.1" }
 quote = { version = "1.0.40" }
@@ -107,16 +107,16 @@ tokio-rustls = { version = "0.26.2" }
 tokio-tungstenite = { version = "0.27.0" }
 tokio-util = { version = "0.7.16" }
 toml = { version = "0.9.5" }
-tonic = { version = "0.14.0" }
-tonic-prost = { version = "0.14.0" }
-tonic-prost-build = { version = "0.14.0" }
+tonic = { version = "0.14.1" }
+tonic-prost = { version = "0.14.1" }
+tonic-prost-build = { version = "0.14.1" }
 tower = { version = "0.5.2" }
 tower-http = { version = "0.6.5" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.19" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-uuid = { version = "1.17.0" }
+uuid = { version = "1.18.0" }
 wasm-bindgen = { version = "0.2.100" }
 wasm-bindgen-futures = { version = "0.4.50" }
 wasm-bindgen-test = { version = "0.3.50" }

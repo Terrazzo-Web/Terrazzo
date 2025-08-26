@@ -61,7 +61,7 @@ axum = { version = "0.8.4" }
 axum-server = { version = "0.7.2" }
 bytes = { version = "1.10.1" }
 cms = { version = "0.2.3" }
-darling = { version = "0.21.2" }
+darling = { version = "0.21.3" }
 dashmap = { version = "6.1.0" }
 deluxe = { version = "0.5.0" }
 futures = { version = "0.3.31" }
@@ -79,7 +79,7 @@ openssl = { version = "0.10.73" }
 pem = { version = "3.0.5" }
 pin-project = { version = "1.1.10" }
 portpicker = { version = "0.1.1" }
-prettyplease = { version = "0.2.36" }
+prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.101" }
 prost = { version = "0.14.1" }
 prost-types = { version = "0.14.1" }
@@ -95,13 +95,13 @@ rustls = { version = "0.23.31" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
-serde_json = { version = "1.0.142" }
+serde_json = { version = "1.0.143" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.6" }
 stylance = { version = "0.7.0" }
 syn = { version = "2.0.106" }
-tempfile = { version = "3.20.0" }
-thiserror = { version = "2.0.15" }
+tempfile = { version = "3.21.0" }
+thiserror = { version = "2.0.16" }
 tokio = { version = "1.47.1" }
 tokio-rustls = { version = "0.26.2" }
 tokio-tungstenite = { version = "0.27.0" }

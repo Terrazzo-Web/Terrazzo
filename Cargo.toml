@@ -97,7 +97,7 @@ scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_json = { version = "1.0.143" }
 serde_urlencoded = { version = "0.7.1" }
-server_fn_macro = { version = "0.8.6" }
+server_fn_macro = { version = "0.8.7" }
 stylance = { version = "0.7.0" }
 syn = { version = "2.0.106" }
 tempfile = { version = "3.21.0" }
@@ -114,7 +114,7 @@ tower = { version = "0.5.2" }
 tower-http = { version = "0.6.5" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
-tracing-subscriber = { version = "0.3.19" }
+tracing-subscriber = { version = "0.3.20" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 uuid = { version = "1.18.0" }
 wasm-bindgen = { version = "0.2.100" }

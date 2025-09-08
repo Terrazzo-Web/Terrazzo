@@ -98,7 +98,7 @@ serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_json = { version = "1.0.143" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.7" }
-stylance = { version = "0.7.0" }
+stylance = { version = "0.7.1" }
 syn = { version = "2.0.106" }
 tempfile = { version = "3.21.0" }
 thiserror = { version = "2.0.16" }
@@ -107,16 +107,16 @@ tokio-rustls = { version = "0.26.2" }
 tokio-tungstenite = { version = "0.27.0" }
 tokio-util = { version = "0.7.16" }
 toml = { version = "0.9.5" }
-tonic = { version = "0.14.1" }
-tonic-prost = { version = "0.14.1" }
-tonic-prost-build = { version = "0.14.1" }
+tonic = { version = "0.14.2" }
+tonic-prost = { version = "0.14.2" }
+tonic-prost-build = { version = "0.14.2" }
 tower = { version = "0.5.2" }
 tower-http = { version = "0.6.5" }
 tracing = { version = "0.1.41" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.20" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-uuid = { version = "1.18.0" }
+uuid = { version = "1.18.1" }
 wasm-bindgen = { version = "0.2.100" }
 wasm-bindgen-futures = { version = "0.4.50" }
 wasm-bindgen-test = { version = "0.3.50" }

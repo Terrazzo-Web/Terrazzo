@@ -57,7 +57,7 @@ trz-gateway-client = { version = "0.1.17", path = "remote/client" }
 trz-gateway-common = { version = "0.1.17", path = "remote/common" }
 trz-gateway-server = { version = "0.1.17", path = "remote/server" }
 
-axum = { version = "0.8.4" }
+axum = { version = "0.8.5" }
 axum-server = { version = "0.7.2" }
 bytes = { version = "1.10.1" }
 cms = { version = "0.2.3" }
@@ -71,7 +71,7 @@ humantime = { version = "2.3.0" }
 hyper-util = { version = "0.1.17" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.2" }
-libc = { version = "0.2.175" }
+libc = { version = "0.2.176" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }
@@ -83,8 +83,8 @@ prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.101" }
 prost = { version = "0.14.1" }
 prost-types = { version = "0.14.1" }
-quote = { version = "1.0.40" }
-rcgen = { version = "0.14.4" }
+quote = { version = "1.0.41" }
+rcgen = { version = "0.14.5" }
 reqwest = { version = "0.12.23" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
@@ -94,17 +94,17 @@ rustix = { version = "1.1.2" }
 rustls = { version = "0.23.32" }
 rustls-native-certs = { version = "0.8.1" }
 scopeguard = { version = "1.2.0" }
-serde = { version = "1.0.226", features = ["derive", "rc"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.145" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.7" }
 stylance = { version = "0.7.1" }
 syn = { version = "2.0.106" }
-tempfile = { version = "3.22.0" }
-thiserror = { version = "2.0.16" }
+tempfile = { version = "3.23.0" }
+thiserror = { version = "2.0.17" }
 tokio = { version = "1.47.1" }
-tokio-rustls = { version = "0.26.3" }
-tokio-tungstenite = { version = "0.27.0" }
+tokio-rustls = { version = "0.26.4" }
+tokio-tungstenite = { version = "0.28.0" }
 tokio-util = { version = "0.7.16" }
 toml = { version = "0.9.7" }
 tonic = { version = "0.14.2" }

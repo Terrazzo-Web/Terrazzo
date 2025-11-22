@@ -1,5 +1,7 @@
 module.exports = {
     extends: ["config:recommended"],
+    enabled: true,
+
     autoApprove: true,
     automerge: true,
     automergeStrategy: "squash",

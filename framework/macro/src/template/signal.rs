@@ -11,13 +11,13 @@ pub fn process_signal_input(
     if !has_signal_attr(input) {
         return false;
     }
-    if let syn::Pat::Ident(ident) = &mut *input.pat {
-        if ident.mutability.take().is_some() {
-            let ident = &ident.ident;
-            let alias = format_ident!("{ident}_mut");
-            prelude.push(quote! { let #alias = #ident.clone(); });
-            copies.push(quote! { let #alias = MutableSignal::from(&#alias); });
-        }
+    if let syn::Pat::Ident(ident) = &mut *input.pat
+        && ident.mutability.take().is_some()
+    {
+        let ident = &ident.ident;
+        let alias = format_ident!("{ident}_mut");
+        prelude.push(quote! { let #alias = #ident.clone(); });
+        copies.push(quote! { let #alias = MutableSignal::from(&#alias); });
     }
     return true;
 }

@@ -152,13 +152,12 @@ impl<T: CertificateConfig> ServerCertificateResolver<T> {
             .intermediates()
             .map_err(ToTlsServerError::Intermediates)?;
 
-        if let Some(state) = state {
-            if Arc::ptr_eq(&certificate, &state.certificate)
-                && Arc::ptr_eq(&intermediates, &state.intermediates)
-            {
-                debug!("Reuse cached server certificate");
-                return Ok(state.certified_key.clone());
-            }
+        if let Some(state) = state
+            && Arc::ptr_eq(&certificate, &state.certificate)
+            && Arc::ptr_eq(&intermediates, &state.intermediates)
+        {
+            debug!("Reuse cached server certificate");
+            return Ok(state.certified_key.clone());
         }
 
         log_server_certiticate(&certificate);

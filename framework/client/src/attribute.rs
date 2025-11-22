@@ -228,11 +228,10 @@ fn merge_static_atttribute(
 ) {
     if let Some((XAttributeValue::Static(old_attribute_value), new_value)) =
         old_value.as_ref().zip(new_value)
+        && new_value == old_attribute_value
     {
-        if new_value == old_attribute_value {
-            trace!("Attribute '{attribute_name}' is still '{new_value}'");
-            return;
-        }
+        trace!("Attribute '{attribute_name}' is still '{new_value}'");
+        return;
     }
     drop(old_value);
     let Some(new_value) = new_value else {

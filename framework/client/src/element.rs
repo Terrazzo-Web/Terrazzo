@@ -182,17 +182,15 @@ impl XElement {
     ) {
         let element = {
             let mut element = element_rc.lock().or_throw("element");
-            if let XKey::Named(new_key) = &self.key {
-                if let XKey::Named(cur_key) = XKey::of(template, 0, &element) {
-                    if new_key != &cur_key {
-                        warn!("Templates conflict on key cur_key:{cur_key} vs new_key:{new_key}");
-                        let () = element
-                            .set_attribute(template.key_attribute(), new_key)
-                            .or_else_throw(|error| format!("Set element key failed: {error:?}'"));
-                    }
-                }
+            if let XKey::Named(new_key) = &self.key
+                && let XKey::Named(cur_key) = XKey::of(template, 0, &element)
+                && new_key != &cur_key
+            {
+                warn!("Templates conflict on key cur_key:{cur_key} vs new_key:{new_key}");
+                let () = element
+                    .set_attribute(template.key_attribute(), new_key)
+                    .or_else_throw(|error| format!("Set element key failed: {error:?}'"));
             }
-
             self.fix_element_tag(template, &mut element);
             element.clone()
         };

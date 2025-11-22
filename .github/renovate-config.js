@@ -18,5 +18,9 @@ module.exports = {
                 'lockFileMaintenance',
             ],
         },
+        {
+            packagePatterns: ["^.*$"],
+            automerge: true
+        }
     ],
 };

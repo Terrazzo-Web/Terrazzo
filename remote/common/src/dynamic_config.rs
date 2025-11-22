@@ -300,11 +300,11 @@ where
         let on_derived_change = add_notify(&derived, {
             let main_weak = Arc::downgrade(&main);
             move |d| {
-                if let Some(main) = main_weak.upgrade() {
-                    if let Some(m) = from(main.get(), d) {
-                        main.try_set_impl(|_| Ok(m), always_changed)
-                            .unwrap_infallible();
-                    }
+                if let Some(main) = main_weak.upgrade()
+                    && let Some(m) = from(main.get(), d)
+                {
+                    main.try_set_impl(|_| Ok(m), always_changed)
+                        .unwrap_infallible();
                 }
             }
         });
@@ -446,11 +446,11 @@ impl<T> Registry<T> {
         };
     }
 
-    fn read(&self) -> std::sync::RwLockReadGuard<RegistryInner<T>> {
+    fn read(&self) -> std::sync::RwLockReadGuard<'_, RegistryInner<T>> {
         self.0.read().expect("registry")
     }
 
-    fn write(&self) -> std::sync::RwLockWriteGuard<RegistryInner<T>> {
+    fn write(&self) -> std::sync::RwLockWriteGuard<'_, RegistryInner<T>> {
         self.0.write().expect("registry")
     }
 }

@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.17"
+version = "0.1.18"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,17 +45,17 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.17", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.17", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.17", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.17", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.17", path = "framework/build" }
-terrazzo-client = { version = "0.1.17", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.17", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.17", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.17", path = "remote/client" }
-trz-gateway-common = { version = "0.1.17", path = "remote/common" }
-trz-gateway-server = { version = "0.1.17", path = "remote/server" }
+autoclone = { version = "0.1.18", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.18", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.18", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.18", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.18", path = "framework/build" }
+terrazzo-client = { version = "0.1.18", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.18", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.18", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.18", path = "remote/client" }
+trz-gateway-common = { version = "0.1.18", path = "remote/common" }
+trz-gateway-server = { version = "0.1.18", path = "remote/server" }
 
 axum = { version = "0.8.7" }
 axum-server = { version = "0.7.3" }

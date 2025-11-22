@@ -11,29 +11,29 @@ pub struct HtmlElementVisitor {
 
 impl VisitMut for HtmlElementVisitor {
     fn visit_expr_mut(&mut self, expr: &mut syn::Expr) {
-        if let syn::Expr::Call(expr_call) = expr {
-            if let Some(tag_name) = self.get_tag_name(&expr_call.func) {
-                *expr = self.process_html_tag(tag_name, expr_call);
-            }
+        if let syn::Expr::Call(expr_call) = expr
+            && let Some(tag_name) = self.get_tag_name(&expr_call.func)
+        {
+            *expr = self.process_html_tag(tag_name, expr_call);
         }
-        if let syn::Expr::Macro(expr_macro) = expr {
-            if let Some(tag_name) = self.get_tag_name_from_path(&expr_macro.mac.path) {
-                let syn::Macro { path, tokens, .. } = &expr_macro.mac;
-                let expr_call: syn::ExprCall = syn::parse2(quote! { #path(#tokens) }).unwrap();
-                *expr = self.process_html_tag(tag_name, &expr_call);
-            }
+        if let syn::Expr::Macro(expr_macro) = expr
+            && let Some(tag_name) = self.get_tag_name_from_path(&expr_macro.mac.path)
+        {
+            let syn::Macro { path, tokens, .. } = &expr_macro.mac;
+            let expr_call: syn::ExprCall = syn::parse2(quote! { #path(#tokens) }).unwrap();
+            *expr = self.process_html_tag(tag_name, &expr_call);
         }
         syn::visit_mut::visit_expr_mut(self, expr);
     }
 
     fn visit_stmt_mut(&mut self, stmt: &mut syn::Stmt) {
-        if let syn::Stmt::Macro(stmt_macro) = stmt {
-            if let Some(tag_name) = self.get_tag_name_from_path(&stmt_macro.mac.path) {
-                let syn::Macro { path, tokens, .. } = &stmt_macro.mac;
-                let expr_call: syn::ExprCall = syn::parse2(quote! { #path(#tokens) }).unwrap();
-                let expr = self.process_html_tag(tag_name, &expr_call);
-                *stmt = syn::Stmt::Expr(expr, stmt_macro.semi_token);
-            }
+        if let syn::Stmt::Macro(stmt_macro) = stmt
+            && let Some(tag_name) = self.get_tag_name_from_path(&stmt_macro.mac.path)
+        {
+            let syn::Macro { path, tokens, .. } = &stmt_macro.mac;
+            let expr_call: syn::ExprCall = syn::parse2(quote! { #path(#tokens) }).unwrap();
+            let expr = self.process_html_tag(tag_name, &expr_call);
+            *stmt = syn::Stmt::Expr(expr, stmt_macro.semi_token);
         }
         syn::visit_mut::visit_stmt_mut(self, stmt);
     }

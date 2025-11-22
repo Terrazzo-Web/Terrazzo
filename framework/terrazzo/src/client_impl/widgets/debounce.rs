@@ -104,14 +104,12 @@ impl DoDebounce for Debounce {
         move |arg| {
             let now = performance.now();
             let mut state = guard(state.take(), |new_state| state.set(new_state));
-            if let Some(max_delay_millis) = max_delay_millis {
-                if now - state.last_run - delay_millis > max_delay_millis {
+            if let Some(max_delay_millis) = max_delay_millis 
+                && now - state.last_run - delay_millis > max_delay_millis 
                     // If max delay is exceeded and there is already a task running, let it run.
-                    if let Some(scheduled_run) = &mut state.scheduled_run {
+                    && let Some(scheduled_run) = &mut state.scheduled_run {
                         scheduled_run.arg = arg;
                         return;
-                    }
-                }
             }
 
             if let Some(ScheduledRun { timeout_id, .. }) = state.scheduled_run {

@@ -149,12 +149,12 @@ fn get_cur_element<'t>(
 ) -> Option<&'t Element> {
     let maybe_cur_node = cur_nodes.next();
     let maybe_cur_element = maybe_cur_node.and_then(|cur_node| cur_node.dyn_ref::<Element>());
-    if let Some(cur_element) = maybe_cur_element {
-        if element_matches(template, index, new_element, cur_element) {
-            // This is the most likely path when little has changed: we just need to merge with the next node.
-            trace!("Cur element: Found in order");
-            return Some(cur_element);
-        }
+    if let Some(cur_element) = maybe_cur_element
+        && element_matches(template, index, new_element, cur_element)
+    {
+        // This is the most likely path when little has changed: we just need to merge with the next node.
+        trace!("Cur element: Found in order");
+        return Some(cur_element);
     }
 
     // Nodes are not in-order, so we detach all nodes.
@@ -275,10 +275,10 @@ fn detatch_remaining_nodes<'t>(
     cur_nodes: &mut impl Iterator<Item = &'t Node>,
     maybe_cur_node: Option<&'t Node>,
 ) {
-    if let Some(cur_node) = maybe_cur_node {
-        if let Err(error) = element.remove_child(cur_node) {
-            warn!("Failed to remove cur_node: {error:?}");
-        }
+    if let Some(cur_node) = maybe_cur_node
+        && let Err(error) = element.remove_child(cur_node)
+    {
+        warn!("Failed to remove cur_node: {error:?}");
     }
     for cur_node in cur_nodes {
         if let Err(error) = element.remove_child(cur_node) {

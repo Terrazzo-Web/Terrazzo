@@ -1,4 +1,5 @@
 module.exports = {
+    extends: ["config:base"],
     autoApprove: true,
     automerge: true,
     automergeStrategy: 'squash',

@@ -1,15 +1,16 @@
 {
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "enabled": true,
-
   "autoApprove": true,
   "automerge": true,
   "automergeStrategy": "squash",
   "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
-
   "platform": "github",
-  "repositories": ["Terrazzo-Web/Terrazzo"],
-
+  "repositories": [
+    "Terrazzo-Web/Terrazzo"
+  ],
   "packageRules": [
     {
       "description": "lockFileMaintenance",
@@ -23,7 +24,9 @@
       ]
     },
     {
-      "matchPackageNames": ["/^.*$/"],
+      "matchPackageNames": [
+        "/^.*$/"
+      ],
       "automerge": true
     }
   ]

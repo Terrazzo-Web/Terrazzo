@@ -1,0 +1,8 @@
+name: Check rustfmt
+runs:
+  using: "composite"
+
+  steps:
+    - name: Rustfmt
+      run: cargo fmt
+      shell: bash

@@ -14,7 +14,10 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
-      - uses: ./.github/actions/check
+      - uses: ./.github/actions/check-compile
+      - uses: ./.github/actions/check-clippy
+      - uses: ./.github/actions/check-rustfmt
+      - uses: ./.github/actions/check-documentation
   test:
     runs-on: ubuntu-latest
     name: Unit tests
@@ -24,7 +27,9 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
-      - uses: ./.github/actions/test
+      - uses: ./.github/actions/test-compile
+      - uses: ./.github/actions/test-client
+      - uses: ./.github/actions/test-server
   build:
     runs-on: ubuntu-latest
     name: Compilation check
@@ -34,4 +39,6 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
-      - uses: ./.github/actions/build
+      - uses: ./.github/actions/build-client
+      - uses: ./.github/actions/build-server
+      - uses: ./.github/actions/build-demo

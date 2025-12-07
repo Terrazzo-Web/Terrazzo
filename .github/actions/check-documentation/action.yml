@@ -1,0 +1,8 @@
+name: Check documentation
+runs:
+  using: "composite"
+
+  steps:
+    - name: Documentation
+      run: cargo doc --all-features
+      shell: bash

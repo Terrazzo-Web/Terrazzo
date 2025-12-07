@@ -1,0 +1,13 @@
+name: Check compile
+runs:
+  using: "composite"
+
+  steps:
+    - name: Check
+      run: |
+        cargo check --features=client,server
+        cargo check --features client,debug,diagnostics
+        cargo check --features client --release
+        cargo check --features server,debug,diagnostics
+        cargo check --features server --release
+      shell: bash

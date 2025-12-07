@@ -1,0 +1,13 @@
+name: Check clippy
+runs:
+  using: "composite"
+
+  steps:
+    - name: Clippy
+      run: |
+        cargo clippy --features=client,server
+        cargo clippy --features client,debug,diagnostics
+        cargo clippy --features client --release
+        cargo clippy --features server,debug,diagnostics
+        cargo clippy --features server --release
+      shell: bash

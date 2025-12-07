@@ -1,0 +1,10 @@
+name: Build server
+runs:
+  using: "composite"
+  steps:
+    - name: Compile
+      run: |
+        cargo build --features=server,max_level_debug,debug,diagnostics
+        cargo build --features=server --release
+        cargo build --features=client,server
+      shell: bash

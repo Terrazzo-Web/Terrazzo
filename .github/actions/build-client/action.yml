@@ -1,0 +1,9 @@
+name: Build client
+runs:
+  using: "composite"
+  steps:
+    - name: Compile
+      run: |
+        cargo build --features=client,max_level_debug,debug,diagnostics
+        cargo build --features=client --release
+      shell: bash

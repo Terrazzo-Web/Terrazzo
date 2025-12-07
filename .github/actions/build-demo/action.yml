@@ -1,0 +1,9 @@
+name: Build demo
+runs:
+  using: "composite"
+  steps:
+    - name: Compile
+      run: |
+        cargo build --bin demo-server --features server,max_level_debug
+        cargo build --bin demo-server --features server,diagnostics
+      shell: bash

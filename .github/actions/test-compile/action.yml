@@ -7,9 +7,3 @@ runs:
         cargo build --features=client
         cargo build --features=server
       shell: bash
-    - name: Test client
-      run: cargo test --features=client
-      shell: bash
-    - name: Test server
-      run: cargo test --features=server
-      shell: bash

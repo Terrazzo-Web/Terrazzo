@@ -58,7 +58,7 @@ trz-gateway-common = { version = "0.1.18", path = "remote/common" }
 trz-gateway-server = { version = "0.1.18", path = "remote/server" }
 
 axum = { version = "0.8.7" }
-axum-server = { version = "0.7.3" }
+axum-server = { version = "0.8.0" }
 bytes = { version = "1.11.0" }
 cms = { version = "0.2.3" }
 darling = { version = "0.23.0" }

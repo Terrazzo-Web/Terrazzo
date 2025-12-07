@@ -15,6 +15,8 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::XAttributeName;
+use crate::prelude::XAttributeValue;
 use crate::prelude::diagnostics::error;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
@@ -201,8 +203,27 @@ fn create_new_element(
         error!("Failed to create new element with undefined tag name");
         return None;
     };
-    let cur_element = document
-        .create_element(tag_name)
+    let cur_element = if let XElementValue::Static { attributes, .. } = &new_element.value
+        && let Some(xmlns) = attributes
+            .iter()
+            .find(|a| {
+                let XAttributeName::Attribute(name) = &a.name else {
+                    return false;
+                };
+                return name.as_str() == "xmlns";
+            })
+            .and_then(|xmlns| {
+                let XAttributeValue::Static(xmlns) = &xmlns.value else {
+                    return None;
+                };
+                return xmlns.as_str().into();
+            }) {
+        document.create_element_ns(Some(xmlns), tag_name)
+    } else {
+        document.create_element(tag_name)
+    };
+
+    let cur_element = cur_element
         .inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"))
         .ok()?;
 

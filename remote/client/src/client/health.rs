@@ -10,6 +10,7 @@ use tokio::sync::oneshot;
 use tokio::time::error::Elapsed;
 use tracing::Instrument as _;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
@@ -79,7 +80,10 @@ impl HealthServiceImpl {
                     humantime::format_duration(HEALTH_CHECK_PERIOD),
                     humantime::format_duration(HEALTH_CHECK_TIMEOUT)
                 );
-                let _ = on_unhealthy.send(());
+                match on_unhealthy.send(()) {
+                    Ok(()) => debug!("Notified the connection was unhealthy"),
+                    Err(()) => error!("Failed to notify the connection was unhealthy"),
+                };
             }
         };
         tokio::spawn(task.instrument(info_span!("Health report")));

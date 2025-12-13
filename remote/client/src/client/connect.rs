@@ -4,16 +4,19 @@ use std::time::Duration;
 
 use futures::FutureExt;
 use futures::StreamExt as _;
+use futures::future::Either;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::error::RecvError;
 use tokio::time::error::Elapsed;
 use tokio_tungstenite::tungstenite;
 use tonic::transport::Server;
 use tracing::Span;
 use tracing::debug;
 use tracing::info;
+use tracing::warn;
 use tracing_futures::Instrument as _;
 use trz_gateway_common::id::CLIENT_ID_HEADER;
 use trz_gateway_common::id::ClientId;
@@ -97,7 +100,13 @@ impl super::Client {
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
 
-        let shutdown = futures::future::select(shutdown, unhealthy_rx).map(|_either| ());
+        let shutdown = futures::future::select(shutdown, unhealthy_rx)
+            .map(|signal| match signal {
+                Either::Left(((), _)) => info!("Shutdown signal"),
+                Either::Right((Ok(()), _)) => info!("Unhealthy signal"),
+                Either::Right((Err(RecvError { .. }), _)) => warn!("Unhealthy signal dropped"),
+            })
+            .in_current_span();
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)
             .await?;

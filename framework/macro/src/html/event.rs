@@ -37,6 +37,7 @@ fn get_event_type(event_name: &str) -> Option<proc_macro2::TokenStream> {
         "wheel" => quote!(web_sys::WheelEvent),
         "animationstart" | "animationend" | "animationiteration" => quote!(web_sys::AnimationEvent),
         "transitionstart" | "transitionend" | "transitionrun" => quote!(web_sys::TransitionEvent),
+        "copy" | "cut" | "paste" => quote!(web_sys::ClipboardEvent),
         _ => return None,
     })
 }

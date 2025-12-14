@@ -25,6 +25,7 @@ use crate::client::NewClientError;
 use crate::client::connect::ConnectError;
 use crate::load_client_certificate::LoadClientCertificateError;
 use crate::load_client_certificate::load_client_certificate;
+use crate::tests::test_gateway_config::lock_temp_dir;
 
 const CLIENT_CERT_FILENAME: CertificateInfo<&str> = CertificateInfo {
     certificate: "client-cert.pem",
@@ -44,6 +45,7 @@ impl<'t> EndToEnd<'t> {
         test: impl AsyncFnOnce(EndToEnd) -> Result<(), Box<dyn std::error::Error>> + Send,
     ) -> Result<(), EndToEndError> {
         let temp_dir = use_temp_dir();
+        let temp_dir_lock = lock_temp_dir();
 
         let gateway_config = TestGatewayConfig::new();
         let (server, server_handle, _crash) = Server::run(gateway_config.clone())
@@ -100,6 +102,7 @@ impl<'t> EndToEnd<'t> {
                 .map_err(EndToEndError::StopClient)?;
             info!("Client stopped");
         }
+        drop(temp_dir_lock);
         drop(temp_dir);
         Ok(())
     }

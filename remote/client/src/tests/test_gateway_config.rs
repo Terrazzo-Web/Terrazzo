@@ -150,3 +150,7 @@ pub fn use_temp_dir() -> Arc<TempDir> {
             .expect("TempDir::new()")
     })
 }
+
+pub fn lock_temp_dir() -> impl Drop {
+    TEMP_DIR.lock()
+}

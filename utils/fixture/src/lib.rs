@@ -6,12 +6,14 @@ use std::sync::Weak;
 #[derive(Default)]
 pub struct Fixture<T> {
     once: OnceLock<FixtureState<T>>,
+    lock: Mutex<()>,
 }
 
 impl<T> Fixture<T> {
     pub const fn new() -> Self {
         Self {
             once: OnceLock::new(),
+            lock: Mutex::new(()),
         }
     }
 
@@ -23,6 +25,10 @@ impl<T> Fixture<T> {
 
     pub fn get(&self) -> Arc<T> {
         self.once.get().expect("Fixture::get").get()
+    }
+
+    pub fn lock(&self) -> impl Drop {
+        self.lock.lock().unwrap()
     }
 }
 

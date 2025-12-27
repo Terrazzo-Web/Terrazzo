@@ -206,20 +206,17 @@ fn create_new_element(
     let cur_element = if let XElementValue::Static { attributes, .. } = &new_element.value
         && let Some(xmlns) = attributes
             .iter()
-            .filter_map(|a| {
+            .find(|a| {
                 let XAttributeName::Attribute(name) = &a.name else {
-                    return None;
+                    return false;
                 };
-                if name.as_str() != "xmlns" {
-                    return None;
-                }
-                return a.value.first();
+                return name.as_str() == "xmlns";
             })
-            .find_map(|xmlns| {
-                let XAttributeValue::Static(xmlns) = &xmlns.definition else {
+            .and_then(|xmlns| {
+                let XAttributeValue::Static(xmlns) = &xmlns.value else {
                     return None;
                 };
-                return Some(xmlns.as_str());
+                return xmlns.as_str().into();
             }) {
         document.create_element_ns(Some(xmlns), tag_name)
     } else {

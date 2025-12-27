@@ -47,9 +47,8 @@ pub struct XAttribute {
     /// Name of the attribute
     pub name: XAttributeName,
 
-    /// Value of the attribute.
-    /// Multiple values are separated by a ' '
-    pub value: Vec<XAttributePair>,
+    /// Value of the attribute
+    pub value: XAttributeValue,
 }
 
 /// Represents the name of an [XAttribute].
@@ -73,11 +72,6 @@ pub enum XAttributeName {
     /// # ;
     /// ```
     Style(XString),
-}
-
-pub struct XAttributePair {
-    pub definition: XAttributeValue,
-    pub computed: Option<XString>,
 }
 
 /// Represents the value of an [XAttribute].
@@ -125,7 +119,6 @@ mod inner {
 
     pub struct AttributeTemplateInner {
         pub element: Element,
-        pub index: usize,
         pub attribute_name: XAttributeName,
         pub(super) debug_id: DebugCorrelationId<String>,
         pub(super) depth: Depth,
@@ -144,7 +137,6 @@ impl IsTemplate for XAttributeTemplate {
     type Value = XAttributeValue;
 
     fn apply<R: Into<Self::Value>>(self, new: impl FnOnce() -> R) {
-        self.0.index
         let mut new = XAttribute {
             name: self.attribute_name.clone(),
             value: new().into(),
@@ -190,38 +182,37 @@ impl XAttribute {
     pub fn merge(
         &mut self,
         depth: Depth,
-        old_attribute_value: Option<Vec<XAttributePair>>,
+        old_attribute_value: Option<XAttributeValue>,
         element: &Element,
     ) {
         let new_attribute = self;
         let attribute_name = &new_attribute.name;
-        for XAttributePair {
-            definition,
-            computed,
-        } in &mut new_attribute.value
-        {
-            match definition {
-                XAttributeValue::Null => {
-                    *computed = None;
-                }
-                XAttributeValue::Static(value) => {
-                    *computed = Some(value.clone());
-                }
-                XAttributeValue::Dynamic(XDynamicAttribute(new_attribute_definition)) => {
-                    *computed = None;
-                }
-                XAttributeValue::Generated { .. } => {
-                    warn!("Illegal {} state", XAttribute::type_name());
-                    debug_assert!(false);
-                }
+        match &new_attribute.value {
+            XAttributeValue::Null => {
+                merge_static_atttribute(element, attribute_name, None, old_attribute_value);
+            }
+            XAttributeValue::Static(new_attribute_value) => {
+                merge_static_atttribute(
+                    element,
+                    attribute_name,
+                    Some(new_attribute_value),
+                    old_attribute_value,
+                );
+            }
+            XAttributeValue::Dynamic(XDynamicAttribute(new_attribute_value)) => {
+                new_attribute.value = merge_dynamic_atttribute(
+                    depth,
+                    element,
+                    attribute_name,
+                    new_attribute_value,
+                    old_attribute_value,
+                );
+            }
+            XAttributeValue::Generated { .. } => {
+                warn!("Illegal {} state", XAttribute::type_name());
+                debug_assert!(false);
             }
         }
-        merge_static_atttribute(
-            element,
-            attribute_name,
-            Some(new_attribute_value),
-            old_attribute_value,
-        );
     }
 }
 
@@ -229,7 +220,7 @@ fn merge_static_atttribute(
     element: &Element,
     attribute_name: &XAttributeName,
     new_value: Option<&XString>,
-    old_value: Option<&XAttributeValue>,
+    old_value: Option<XAttributeValue>,
 ) {
     if let Some((XAttributeValue::Static(old_attribute_value), new_value)) =
         old_value.as_ref().zip(new_value)
@@ -275,10 +266,9 @@ fn merge_static_atttribute(
 fn merge_dynamic_atttribute(
     depth: Depth,
     element: &Element,
-    index: usize,
     attribute_name: &XAttributeName,
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
-    old_attribute_value: Option<&XAttributeValue>,
+    old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,
@@ -287,12 +277,11 @@ fn merge_dynamic_atttribute(
     {
         trace!("Reuse exising attribute template {attribute_name}");
         drop(old_consumers);
-        old_template.clone()
+        old_template
     } else {
         trace!("Create a new attribute template {attribute_name}");
         XAttributeTemplate(Ptr::new(AttributeTemplateInner {
             element: element.clone(),
-            index,
             attribute_name: attribute_name.clone(),
             debug_id: DebugCorrelationId::new(|| format!("attribute_template:{attribute_name}")),
             depth: depth.next(),

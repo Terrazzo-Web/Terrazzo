@@ -28,12 +28,11 @@ pub fn merge(
     let mut old_attributes_map = HashMap::new();
     for old_attribute in old_attributes {
         old_attributes_map.insert(
-            // TODO: use std::mem::take, but need it make it Default
             std::mem::replace(
                 &mut old_attribute.name,
                 XAttributeName::Attribute(XString::default()),
             ),
-            std::mem::take(&mut old_attribute.value),
+            std::mem::replace(&mut old_attribute.value, XAttributeValue::Null),
         );
     }
 

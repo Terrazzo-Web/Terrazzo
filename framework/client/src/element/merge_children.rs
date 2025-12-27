@@ -216,7 +216,7 @@ fn create_new_element(
                 let XAttributeValue::Static(xmlns) = &xmlns.value else {
                     return None;
                 };
-                return xmlns.as_str().into();
+                return Some(xmlns.as_str());
             }) {
         document.create_element_ns(Some(xmlns), tag_name)
     } else {

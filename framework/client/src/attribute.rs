@@ -99,10 +99,6 @@ pub struct XDynamicAttribute(pub Box<dyn Fn(XAttributeTemplate) -> Consumers>);
 
 impl<F: Fn(XAttributeTemplate) -> Consumers + 'static> From<F> for XDynamicAttribute {
     fn from(value: F) -> Self {
-        let _ = XAttribute {
-            name: "type".into(),
-            value: "text".into(),
-        };
         Self(Box::new(value))
     }
 }

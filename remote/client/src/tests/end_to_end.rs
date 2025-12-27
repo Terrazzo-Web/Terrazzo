@@ -85,6 +85,7 @@ impl<'t> EndToEnd<'t> {
             client_handle: Box::new(|| client_handle.take().unwrap()),
         });
         let test = tokio::time::timeout(Duration::from_secs(60), test);
+        drop(temp_dir_lock);
         let () = test
             .await
             .map_err(EndToEndError::TestTimeout)?
@@ -102,7 +103,6 @@ impl<'t> EndToEnd<'t> {
                 .map_err(EndToEndError::StopClient)?;
             info!("Client stopped");
         }
-        drop(temp_dir_lock);
         drop(temp_dir);
         Ok(())
     }

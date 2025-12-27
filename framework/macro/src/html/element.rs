@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+
+use quote::format_ident;
 use quote::quote;
 
 use super::event::process_event;
@@ -6,12 +9,22 @@ use super::html_element_visitor::HtmlElementVisitor;
 pub struct XElement {
     pub tag_name: Option<proc_macro2::TokenStream>,
     pub key: proc_macro2::TokenStream,
-    pub attributes: Vec<proc_macro2::TokenStream>,
+    pub attributes: BTreeMap<String, Vec<XAttribute>>,
     pub events: Vec<proc_macro2::TokenStream>,
     pub children: Vec<proc_macro2::TokenStream>,
     pub dynamic: Option<proc_macro2::TokenStream>,
     pub before_render: Option<proc_macro2::TokenStream>,
     pub after_render: Option<proc_macro2::TokenStream>,
+}
+
+pub struct XAttribute {
+    pub kind: XAttributeKind,
+    pub expression: proc_macro2::TokenStream,
+}
+
+pub enum XAttributeKind {
+    Attribute,
+    Style,
 }
 
 impl XElement {
@@ -25,12 +38,9 @@ impl XElement {
             "key" => self.key = quote! { XKey::Named(#value.into()) },
             "before-render" => self.before_render = Some(quote!(#value)),
             "after-render" => self.after_render = Some(quote!(#value)),
-            _ => self.attributes.push(quote! {
-                gen_attributes.push(XAttribute {
-                    name: #name.into(),
-                    value: #value.into(),
-                });
-            }),
+            _ => {
+                self.add_attribute(name, |f| quote! { #f(#value.into())});
+            }
         }
     }
 
@@ -45,12 +55,11 @@ impl XElement {
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                self.attributes.push(quote! {
-                    if let Some(value) = #value {
-                        gen_attributes.push(XAttribute {
-                            name: #name.into(),
-                            value: value.into(),
-                        });
+                self.add_attribute(name, |callback| {
+                    quote! {
+                        if let Some(value) = #value {
+                            #callback(value.into());
+                        }
                     }
                 });
             }
@@ -63,12 +72,7 @@ impl XElement {
             return;
         };
         let name = ident_to_kebab_case(name);
-        self.attributes.push(quote! {
-            gen_attributes.push(XAttribute {
-                name: XAttributeName::Style(#name.into()),
-                value: #value.into(),
-            });
-        })
+        self.add_sytle_attribute(name, |f| quote! { #f(#value.into())});
     }
 
     pub fn process_dynamic_attribute(
@@ -82,26 +86,55 @@ impl XElement {
             return;
         };
         let name = ident_to_kebab_case(name);
-        let name_value = if is_style_attribute {
-            quote! { XAttributeName::Style(#name.into()) }
-        } else {
-            quote! { #name.into() }
-        };
         match name.as_str() {
             "key" => self.key = quote! { compile_error!() },
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                self.attributes.push(quote! {
-                    gen_attributes.push(XAttribute {
-                        name: #name_value,
-                        value: XAttributeValue::Dynamic(
+                if !is_style_attribute {
+                    self.add_attribute(name, |f| {
+                        quote! { #f(XAttributeValue::Dynamic(
                             (#value).into(),
-                        ),
+                        ))}
                     });
-                });
+                } else {
+                    self.add_sytle_attribute(name, |f| {
+                        quote! { #f(XAttributeValue::Dynamic(
+                            (#value).into(),
+                        ))}
+                    });
+                };
             }
         }
+    }
+
+    fn add_attribute(
+        &mut self,
+        name: String,
+        expression: impl FnOnce(&proc_macro2::Ident) -> proc_macro2::TokenStream,
+    ) {
+        self.add_attribute_impl(name, XAttributeKind::Attribute, expression);
+    }
+
+    fn add_sytle_attribute(
+        &mut self,
+        name: String,
+        expression: impl FnOnce(&proc_macro2::Ident) -> proc_macro2::TokenStream,
+    ) {
+        self.add_attribute_impl(name, XAttributeKind::Style, expression);
+    }
+
+    fn add_attribute_impl(
+        &mut self,
+        name: String,
+        kind: XAttributeKind,
+        expression: impl FnOnce(&proc_macro2::Ident) -> proc_macro2::TokenStream,
+    ) {
+        let callback = format_ident!("callback");
+        let expression = expression(&callback);
+        let expression = quote! { |#callback| { #expression }};
+        let attribute = XAttribute { kind, expression };
+        self.attributes.entry(name).or_default().push(attribute);
     }
 
     pub fn process_dynamic(&mut self, dynamic: &syn::Expr) {

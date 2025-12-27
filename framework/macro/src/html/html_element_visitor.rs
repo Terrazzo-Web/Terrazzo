@@ -1,8 +1,12 @@
+use std::collections::BTreeMap;
+
 use quote::quote;
 use syn::visit_mut::VisitMut;
 
 use super::element::XElement;
 use crate::arguments::MacroArgs;
+use crate::html::element::XAttribute;
+use crate::html::element::XAttributeKind;
 
 pub struct HtmlElementVisitor {
     pub args: MacroArgs,
@@ -79,7 +83,7 @@ impl HtmlElementVisitor {
         let mut element = XElement {
             tag_name: (tag_name != "tag").then(|| quote! { #tag_name.into() }),
             key: quote! { XKey::default() },
-            attributes: vec![],
+            attributes: BTreeMap::new(),
             events: vec![],
             children: vec![],
             dynamic: None,
@@ -178,6 +182,30 @@ impl HtmlElementVisitor {
                 }
             }
             None => {
+                let attributes = attributes
+                    .into_iter()
+                    .map(|(name, values)| {
+                        let value0 = &values[0];
+                        let name = match value0.kind {
+                            XAttributeKind::Attribute => quote! { #name.into() },
+                            XAttributeKind::Style => {
+                                quote! { XAttributeName::Style(#name.into()) }
+                            }
+                        };
+                        if values.len() == 1 {
+                            let expression = &value0.expression;
+                            return quote! {
+                                (#expression)(|value| {
+                                    gen_attributes.push(XAttribute {
+                                        name: #name,
+                                        value,
+                                    })
+                                })
+                            };
+                        }
+                        todo!()
+                    })
+                    .collect::<Vec<_>>();
                 let gen_attributes = quote! {
                     let mut gen_attributes = vec![];
                     #(#attributes)*

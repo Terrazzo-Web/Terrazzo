@@ -35,7 +35,7 @@ pub fn counter_demo(counter: XSignal<i32>) -> XElement {
             "+1",
         ),
         show_counter(counter.clone()),
-        before_render = |_: Element| info!("Before render"),
-        after_render = |_: Element| info!("After render"),
+        before_render = |_: &Element| info!("Before render"),
+        after_render = |_: &Element| info!("After render"),
     )
 }

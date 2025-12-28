@@ -1,6 +1,10 @@
 use std::sync::Mutex;
 
+use wasm_bindgen::JsCast as _;
+use wasm_bindgen::JsValue;
+use web_sys::CssStyleDeclaration;
 use web_sys::Element;
+use web_sys::HtmlElement;
 
 use self::inner::TemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
@@ -12,6 +16,7 @@ use crate::node::XNode;
 use crate::prelude::OrElseLog as _;
 use crate::prelude::diagnostics::trace;
 use crate::signal::depth::Depth;
+use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
 use crate::utils::Ptr;
@@ -27,8 +32,7 @@ mod inner {
     use std::ops::Deref;
     use std::sync::Mutex;
 
-    use web_sys::Element;
-
+    use super::LiveElement;
     use super::XTemplate;
     use crate::debug_correlation_id::DebugCorrelationId;
     use crate::element::XElement;
@@ -39,7 +43,7 @@ mod inner {
         pub(super) key_attribute: String,
         pub(super) debug_id: DebugCorrelationId<&'static str>,
         pub(super) depth: Depth,
-        pub(super) element_mut: Ptr<Mutex<Element>>,
+        pub(super) element_mut: Ptr<Mutex<LiveElement>>,
         pub(super) old: Mutex<Option<XElement>>,
     }
 
@@ -53,11 +57,11 @@ mod inner {
 }
 
 impl XTemplate {
-    pub fn new(element_mut: Ptr<Mutex<Element>>) -> Self {
+    pub fn new(element_mut: Ptr<Mutex<LiveElement>>) -> Self {
         Self::with_depth(Depth::zero(), element_mut)
     }
 
-    pub(crate) fn with_depth(depth: Depth, element_mut: Ptr<Mutex<Element>>) -> Self {
+    pub(crate) fn with_depth(depth: Depth, element_mut: Ptr<Mutex<LiveElement>>) -> Self {
         use std::sync::atomic::AtomicI32;
         use std::sync::atomic::Ordering::SeqCst;
         static NEXT: AtomicI32 = AtomicI32::new(0);
@@ -71,7 +75,7 @@ impl XTemplate {
     }
 
     pub fn element(&self) -> Element {
-        self.element_mut.lock().or_throw("element").clone()
+        self.element_mut.lock().or_throw("element").html.clone()
     }
 
     #[cfg(not(feature = "concise-traces"))]
@@ -130,5 +134,33 @@ fn reindex_nodes(new: &mut XElement) {
             *index = next;
         }
         next += 1;
+    }
+}
+
+#[derive(Clone)]
+pub struct LiveElement {
+    pub html: Element,
+    pub attributes: Vec<Vec<Option<XString>>>,
+}
+
+impl LiveElement {
+    pub fn new(html: Element) -> Self {
+        Self {
+            html,
+            attributes: Default::default(),
+        }
+    }
+
+    pub fn css_style(&self) -> CssStyleDeclaration {
+        let html_element: &HtmlElement = self.html.dyn_ref().or_throw("HtmlElement");
+        return html_element.style();
+    }
+
+    pub fn set_key_attribute(&self, template: &XTemplate, value: &str) -> Result<(), JsValue> {
+        self.html.set_attribute(template.key_attribute(), value)
+    }
+
+    pub fn get_key_attribute(&self, template: &XTemplate) -> Option<String> {
+        self.html.get_attribute(template.key_attribute())
     }
 }

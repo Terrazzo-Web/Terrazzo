@@ -19,6 +19,7 @@ pub use crate::element::OnRenderCallback;
 pub use crate::element::XElement;
 pub use crate::element::XElementValue;
 pub use crate::element::XEvent;
+pub use crate::element::template::LiveElement;
 pub use crate::element::template::XTemplate;
 pub use crate::key::XKey;
 pub use crate::node::XNode;

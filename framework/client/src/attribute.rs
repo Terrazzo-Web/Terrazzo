@@ -3,11 +3,11 @@
 use nameth::NamedType as _;
 use nameth::nameth;
 use wasm_bindgen::JsCast as _;
-use web_sys::Element;
 use web_sys::HtmlElement;
 
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
+use crate::element::template::LiveElement;
 use crate::prelude::OrElseLog;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
@@ -110,15 +110,14 @@ pub struct XAttributeTemplate(Ptr<AttributeTemplateInner>);
 mod inner {
     use std::ops::Deref;
 
-    use web_sys::Element;
-
     use super::XAttributeName;
     use super::XAttributeTemplate;
     use crate::debug_correlation_id::DebugCorrelationId;
+    use crate::element::template::LiveElement;
     use crate::signal::depth::Depth;
 
     pub struct AttributeTemplateInner {
-        pub element: Element,
+        pub element: LiveElement,
         pub attribute_name: XAttributeName,
         pub(super) debug_id: DebugCorrelationId<String>,
         pub(super) depth: Depth,
@@ -183,7 +182,7 @@ impl XAttribute {
         &mut self,
         depth: Depth,
         old_attribute_value: Option<XAttributeValue>,
-        element: &Element,
+        element: &LiveElement,
     ) {
         let new_attribute = self;
         let attribute_name = &new_attribute.name;
@@ -217,7 +216,7 @@ impl XAttribute {
 }
 
 fn merge_static_atttribute(
-    element: &Element,
+    element: &LiveElement,
     attribute_name: &XAttributeName,
     new_value: Option<&XString>,
     old_value: Option<XAttributeValue>,
@@ -232,12 +231,12 @@ fn merge_static_atttribute(
     drop(old_value);
     let Some(new_value) = new_value else {
         match attribute_name {
-            XAttributeName::Attribute(name) => match element.remove_attribute(name.as_str()) {
+            XAttributeName::Attribute(name) => match element.html.remove_attribute(name.as_str()) {
                 Ok(()) => trace!("Removed attribute {name}"),
                 Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
             },
             XAttributeName::Style(name) => {
-                let html_element: &HtmlElement = element.dyn_ref().or_throw("HtmlElement");
+                let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
                 let style = html_element.style();
                 match style.remove_property(name) {
                     Ok(value) => trace!("Removed style {name}: {value}"),
@@ -248,12 +247,12 @@ fn merge_static_atttribute(
         return;
     };
     match attribute_name {
-        XAttributeName::Attribute(name) => match element.set_attribute(name, new_value) {
+        XAttributeName::Attribute(name) => match element.html.set_attribute(name, new_value) {
             Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
             Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
         },
         XAttributeName::Style(name) => {
-            let html_element: &HtmlElement = element.dyn_ref().or_throw("HtmlElement");
+            let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
             let style = html_element.style();
             match style.set_property(name, new_value) {
                 Ok(()) => trace!("Set style {name}: {new_value}"),
@@ -265,7 +264,7 @@ fn merge_static_atttribute(
 
 fn merge_dynamic_atttribute(
     depth: Depth,
-    element: &Element,
+    element: &LiveElement,
     attribute_name: &XAttributeName,
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,

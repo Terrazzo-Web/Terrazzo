@@ -482,6 +482,88 @@ fn sample() -> XElement {
 }
 
 #[test]
+fn multi_attribute() -> syn::Result<()> {
+    let sample = quote! {
+        fn sample() -> XElement {
+            div(
+                key = "root",
+                "Root text",
+                class = "base",
+                class = "additional",
+                style = format!("width: {}%", 100),
+                style = format!("height: {}%", 200),
+            )
+        }
+    };
+    let expected = r#"
+fn sample() -> XElement {
+    {
+        let mut gen_attributes = vec![];
+        gen_attributes
+            .push(XAttribute {
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
+                value: "base".into(),
+            });
+        gen_attributes
+            .push(XAttribute {
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 1usize,
+                },
+                value: "additional".into(),
+            });
+        gen_attributes
+            .push(XAttribute {
+                name: XAttributeName {
+                    name: "style".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 1usize,
+                    sub_index: 0usize,
+                },
+                value: format!("width: {}%", 100).into(),
+            });
+        gen_attributes
+            .push(XAttribute {
+                name: XAttributeName {
+                    name: "style".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 1usize,
+                    sub_index: 1usize,
+                },
+                value: format!("height: {}%", 200).into(),
+            });
+        let mut gen_children = vec![];
+        gen_children.push(XNode::from(XText(format!("Root text").into())));
+        XElement {
+            tag_name: Some("div".into()),
+            key: XKey::Named("root".into()),
+            value: XElementValue::Static {
+                attributes: gen_attributes,
+                children: gen_children,
+                events: vec![],
+            },
+            before_render: None,
+            after_render: None,
+        }
+    }
+}"#;
+    let actual = html(quote! {}, sample)?;
+    let actual = item_to_string(&syn::parse2(actual)?);
+    if expected.trim() != actual.trim() {
+        println!("{}", actual);
+        assert!(false);
+    }
+    Ok(())
+}
+
+#[test]
 fn index_keys() -> syn::Result<()> {
     let sample = quote! {
         fn sample() -> XElement {

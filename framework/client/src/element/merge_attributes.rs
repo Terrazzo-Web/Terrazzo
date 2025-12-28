@@ -5,10 +5,10 @@ use super::XAttribute;
 use super::template::LiveElement;
 use crate::attribute::XAttributeName;
 use crate::attribute::XAttributeValue;
+use crate::prelude::XAttributeKind;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
-use crate::string::XString;
 
 pub fn merge(
     depth: Depth,
@@ -27,7 +27,12 @@ pub fn merge(
         old_attributes_map.insert(
             std::mem::replace(
                 &mut old_attribute.name,
-                XAttributeName::Attribute(XString::default()),
+                XAttributeName {
+                    name: Default::default(),
+                    kind: XAttributeKind::Attribute,
+                    index: Default::default(),
+                    sub_index: Default::default(),
+                },
             ),
             std::mem::replace(&mut old_attribute.value, XAttributeValue::Null),
         );
@@ -42,12 +47,13 @@ pub fn merge(
     }
 
     for removed_old_attribute_name in old_attributes_map.keys() {
-        match removed_old_attribute_name {
-            XAttributeName::Attribute(name) => match element.html.remove_attribute(name.as_str()) {
+        let name = &removed_old_attribute_name.name;
+        match removed_old_attribute_name.kind {
+            XAttributeKind::Attribute => match element.html.remove_attribute(name) {
                 Ok(()) => trace!("Removed attribute {name}"),
                 Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
             },
-            XAttributeName::Style(name) => match css_style.remove_property(name) {
+            XAttributeKind::Style => match css_style.remove_property(name) {
                 Ok(value) => trace!("Removed style {name}: {value}"),
                 Err(error) => warn!("Removed style {name} failed: {error:?}"),
             },

@@ -12,6 +12,7 @@ pub use wasm_bindgen::closure::Closure;
 pub use web_sys::Element;
 
 pub use crate::attribute::XAttribute;
+pub use crate::attribute::XAttributeKind;
 pub use crate::attribute::XAttributeName;
 pub use crate::attribute::XAttributeTemplate;
 pub use crate::attribute::XAttributeValue;

@@ -50,9 +50,9 @@ pub mod template;
 ///             key: XKey::default(),
 ///             value: XElementValue::Static {
 ///                 attributes: vec![
-///                     XAttribute { name: "type".into(), value: "text".into() },
-///                     XAttribute { name: "name".into(), value: "username".into() },
-///                     XAttribute { name: "value".into(), value: "LamparoS@Pavy.one".into() },
+///                     XAttribute { name: XAttributeName::attribute("type"), value: "text".into() },
+///                     XAttribute { name: XAttributeName::attribute("name"), value: "username".into() },
+///                     XAttribute { name: XAttributeName::attribute("value"), value: "LamparoS@Pavy.one".into() },
 ///                 ],
 ///                 children: vec![],
 ///                 events: vec![],

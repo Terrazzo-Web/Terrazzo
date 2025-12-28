@@ -23,10 +23,10 @@ use crate::utils::Ptr;
 /// Example: the HTML tag `<input type="text" name="username" value="LamparoS@Pavy.one" />`
 /// would have an attribute
 /// ```
-/// # use terrazzo_client::prelude::XAttribute;
+/// # use terrazzo_client::prelude::*;
 /// # let _ =
 /// XAttribute {
-///     name: "name".into(),
+///     name: XAttributeName::attribute("name"),
 ///     value: "username".into(),
 /// }
 /// # ;
@@ -34,10 +34,10 @@ use crate::utils::Ptr;
 ///
 /// and an attribute
 /// ```
-/// # use terrazzo_client::prelude::XAttribute;
+/// # use terrazzo_client::prelude::*;
 /// # let _ =
 /// XAttribute {
-///     name: "value".into(),
+///     name: XAttributeName::attribute("value"),
 ///     value: "LamparoS@Pavy.one".into(),
 /// }
 /// # ;
@@ -53,9 +53,17 @@ pub struct XAttribute {
 
 /// Represents the name of an [XAttribute].
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub enum XAttributeName {
+pub struct XAttributeName {
+    pub name: XString,
+    pub kind: XAttributeKind,
+    pub index: usize,
+    pub sub_index: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum XAttributeKind {
     /// Represents the name of an HTML attribute.
-    Attribute(XString),
+    Attribute,
 
     /// Represents the name of a CSS property.
     ///
@@ -66,12 +74,12 @@ pub enum XAttributeName {
     /// # use terrazzo_client::prelude::*;
     /// # let _ =
     /// XAttribute {
-    ///     name: XAttributeName::Style("width".into()).into(),
+    ///     name: XAttributeName::style("width"),
     ///     value: "100%".into(),
     /// }
     /// # ;
     /// ```
-    Style(XString),
+    Style,
 }
 
 /// Represents the value of an [XAttribute].
@@ -230,13 +238,17 @@ fn merge_static_atttribute(
     }
     drop(old_value);
     let Some(new_value) = new_value else {
-        match attribute_name {
-            XAttributeName::Attribute(name) => match element.html.remove_attribute(name.as_str()) {
-                Ok(()) => trace!("Removed attribute {name}"),
-                Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
-            },
-            XAttributeName::Style(name) => {
+        match attribute_name.kind {
+            XAttributeKind::Attribute => {
+                let name = &attribute_name.name;
+                match element.html.remove_attribute(name) {
+                    Ok(()) => trace!("Removed attribute {name}"),
+                    Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
+                }
+            }
+            XAttributeKind::Style => {
                 let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
+                let name = &attribute_name.name;
                 let style = html_element.style();
                 match style.remove_property(name) {
                     Ok(value) => trace!("Removed style {name}: {value}"),
@@ -246,13 +258,17 @@ fn merge_static_atttribute(
         }
         return;
     };
-    match attribute_name {
-        XAttributeName::Attribute(name) => match element.html.set_attribute(name, new_value) {
-            Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
-            Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
-        },
-        XAttributeName::Style(name) => {
+    match attribute_name.kind {
+        XAttributeKind::Attribute => {
+            let name = &attribute_name.name;
+            match element.html.set_attribute(name, new_value) {
+                Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
+                Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
+            }
+        }
+        XAttributeKind::Style => {
             let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
+            let name = &attribute_name.name;
             let style = html_element.style();
             match style.set_property(name, new_value) {
                 Ok(()) => trace!("Set style {name}: {new_value}"),
@@ -292,20 +308,37 @@ fn merge_dynamic_atttribute(
     }
 }
 
-impl<T> From<T> for XAttributeName
-where
-    T: Into<XString>,
-{
-    fn from(value: T) -> Self {
-        Self::Attribute(value.into())
+impl XAttributeName {
+    pub fn attribute<T>(name: T) -> Self
+    where
+        T: Into<XString>,
+    {
+        Self {
+            name: name.into(),
+            kind: XAttributeKind::Attribute,
+            index: 0,
+            sub_index: 0,
+        }
+    }
+
+    pub fn style<T>(name: T) -> Self
+    where
+        T: Into<XString>,
+    {
+        Self {
+            name: name.into(),
+            kind: XAttributeKind::Style,
+            index: 0,
+            sub_index: 0,
+        }
     }
 }
 
 impl std::fmt::Display for XAttributeName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Attribute(name) => std::fmt::Display::fmt(name, f),
-            Self::Style(name) => write!(f, "style::{name}"),
+        match self.kind {
+            XAttributeKind::Attribute => std::fmt::Display::fmt(&self.name, f),
+            XAttributeKind::Style => write!(f, "style::{}", self.name),
         }
     }
 }

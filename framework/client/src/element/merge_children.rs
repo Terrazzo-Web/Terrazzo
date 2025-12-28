@@ -16,7 +16,7 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
-use crate::prelude::XAttributeName;
+use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeValue;
 use crate::prelude::diagnostics::error;
 use crate::prelude::diagnostics::trace;
@@ -207,12 +207,7 @@ fn create_new_element(
     let html = if let XElementValue::Static { attributes, .. } = &new_element.value
         && let Some(xmlns) = attributes
             .iter()
-            .find(|a| {
-                let XAttributeName::Attribute(name) = &a.name else {
-                    return false;
-                };
-                return name.as_str() == "xmlns";
-            })
+            .find(|a| a.name.kind == XAttributeKind::Attribute && a.name.name.as_str() == "xmlns")
             .and_then(|xmlns| {
                 let XAttributeValue::Static(xmlns) = &xmlns.value else {
                     return None;

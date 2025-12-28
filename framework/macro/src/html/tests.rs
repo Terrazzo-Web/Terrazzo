@@ -231,12 +231,22 @@ fn sample() -> XElement {
         let mut gen_attributes = vec![];
         gen_attributes
             .push(XAttribute {
-                name: "class".into(),
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
                 value: "base".into(),
             });
         gen_attributes
             .push(XAttribute {
-                name: "style".into(),
+                name: XAttributeName {
+                    name: "style".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 1usize,
+                    sub_index: 0usize,
+                },
                 value: format!("width: {}%", 100).into(),
             });
         let mut gen_children = vec![];
@@ -283,27 +293,47 @@ fn sample() -> XElement {
         let mut gen_attributes = vec![];
         gen_attributes
             .push(XAttribute {
-                name: "class".into(),
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
                 value: "base".into(),
             });
         if let Some(value) = Some(format!("width: {}%", 100)) {
             gen_attributes
                 .push(XAttribute {
-                    name: "style".into(),
+                    name: XAttributeName {
+                        name: "style".into(),
+                        kind: XAttributeKind::Attribute,
+                        index: 1usize,
+                        sub_index: 0usize,
+                    },
                     value: value.into(),
                 });
         }
         if let Some(value) = Some("custom attribute") {
             gen_attributes
                 .push(XAttribute {
-                    name: "data-custom".into(),
+                    name: XAttributeName {
+                        name: "data-custom".into(),
+                        kind: XAttributeKind::Attribute,
+                        index: 2usize,
+                        sub_index: 0usize,
+                    },
                     value: value.into(),
                 });
         }
         if let Some(value) = if true { Some("y") } else { None } {
             gen_attributes
                 .push(XAttribute {
-                    name: "data-custom".into(),
+                    name: XAttributeName {
+                        name: "data-custom".into(),
+                        kind: XAttributeKind::Attribute,
+                        index: 2usize,
+                        sub_index: 1usize,
+                    },
                     value: value.into(),
                 });
         }
@@ -349,12 +379,22 @@ fn sample() -> XElement {
         let mut gen_attributes = vec![];
         gen_attributes
             .push(XAttribute {
-                name: "class".into(),
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
                 value: "base".into(),
             });
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName::Style("width".into()),
+                name: XAttributeName {
+                    name: "width".into(),
+                    kind: XAttributeKind::Style,
+                    index: 1usize,
+                    sub_index: 0usize,
+                },
                 value: format!("{}%", 100).into(),
             });
         let mut gen_children = vec![];
@@ -399,12 +439,22 @@ fn sample() -> XElement {
         let mut gen_attributes = vec![];
         gen_attributes
             .push(XAttribute {
-                name: "class".into(),
+                name: XAttributeName {
+                    name: "class".into(),
+                    kind: XAttributeKind::Attribute,
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
                 value: XAttributeValue::Dynamic((move |t| { make_class() }).into()),
             });
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName::Style("width".into()),
+                name: XAttributeName {
+                    name: "width".into(),
+                    kind: XAttributeKind::Style,
+                    index: 1usize,
+                    sub_index: 0usize,
+                },
                 value: XAttributeValue::Dynamic((move |t| { make_width() }).into()),
             });
         let mut gen_children = vec![];

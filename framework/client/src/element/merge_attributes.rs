@@ -5,10 +5,12 @@ use super::XAttribute;
 use super::template::LiveElement;
 use crate::attribute::XAttributeName;
 use crate::attribute::XAttributeValue;
+use crate::element::template::AttributeValueDiff;
 use crate::prelude::XAttributeKind;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
+use crate::string::XString;
 
 pub fn merge(
     depth: Depth,
@@ -38,14 +40,31 @@ pub fn merge(
         );
     }
 
-    let css_style = LazyCell::new(|| element.css_style());
-
-    for new_attribute in new_attributes {
+    *element.attributes.borrow_mut() = Default::default();
+    for new_attribute in new_attributes.iter_mut() {
         let attribute_name = &new_attribute.name;
         let old_attribute_value = old_attributes_map.remove(attribute_name);
         new_attribute.merge(depth, old_attribute_value, element);
     }
 
+    for chunk in chunks(new_attributes) {
+        let mut value_acc: Option<String> = None;
+        for attribute in chunk.attributes {
+            match builder.get(&attribute.name) {
+                AttributeValueDiff::Same => unreachable!(),
+                AttributeValueDiff::Null => {}
+                AttributeValueDiff::Value(value) => match &mut value_acc {
+                    Some(value_acc) => {
+                        *value_acc += " ";
+                        *value_acc += value.as_str();
+                    }
+                    None => value_acc = Some(value.to_string()),
+                },
+            }
+        }
+    }
+
+    let css_style = LazyCell::new(|| element.css_style());
     for removed_old_attribute_name in old_attributes_map.keys() {
         let name = &removed_old_attribute_name.name;
         match removed_old_attribute_name.kind {
@@ -57,6 +76,47 @@ pub fn merge(
                 Ok(value) => trace!("Removed style {name}: {value}"),
                 Err(error) => warn!("Removed style {name} failed: {error:?}"),
             },
+        }
+    }
+}
+
+fn chunks(attributes: &[XAttribute]) -> impl Iterator<Item = Chunk<'_>> {
+    return attributes
+        .chunk_by(|x, y| x.name.kind == y.name.kind && x.name.name == y.name.name)
+        .map(|chunk| {
+            let first = &chunk[0];
+            Chunk {
+                chunk_kind: ChunkKind::of(chunk),
+                name: &first.name.name,
+                kind: first.name.kind,
+                attributes: chunk,
+            }
+        });
+}
+
+struct Chunk<'t> {
+    chunk_kind: ChunkKind,
+    name: &'t XString,
+    kind: XAttributeKind,
+    attributes: &'t [XAttribute],
+}
+
+enum ChunkKind {
+    Dynamic,
+    Static,
+    Single,
+}
+impl ChunkKind {
+    fn of(chunk: &[XAttribute]) -> ChunkKind {
+        for attribute in chunk {
+            if let XAttributeValue::Dynamic { .. } = &attribute.value {
+                return ChunkKind::Dynamic;
+            }
+        }
+        if chunk.len() == 1 {
+            ChunkKind::Single
+        } else {
+            ChunkKind::Static
         }
     }
 }

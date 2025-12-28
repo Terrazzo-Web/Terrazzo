@@ -1,14 +1,19 @@
 //! Attributes of generated HTML elements
 
+use std::cell::LazyCell;
+
 use nameth::NamedType as _;
 use nameth::nameth;
 use wasm_bindgen::JsCast as _;
+use web_sys::CssStyleDeclaration;
+use web_sys::Element;
 use web_sys::HtmlElement;
 
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
+use crate::element::template::AttributeValueDiff;
 use crate::element::template::LiveElement;
-use crate::prelude::OrElseLog;
+use crate::prelude::OrElseLog as _;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
@@ -193,15 +198,14 @@ impl XAttribute {
         element: &LiveElement,
     ) {
         let new_attribute = self;
-        let attribute_name = &new_attribute.name;
         match &new_attribute.value {
             XAttributeValue::Null => {
-                merge_static_atttribute(element, attribute_name, None, old_attribute_value);
+                merge_static_atttribute(element, &new_attribute.name, None, old_attribute_value);
             }
             XAttributeValue::Static(new_attribute_value) => {
                 merge_static_atttribute(
                     element,
-                    attribute_name,
+                    &new_attribute.name,
                     Some(new_attribute_value),
                     old_attribute_value,
                 );
@@ -210,7 +214,7 @@ impl XAttribute {
                 new_attribute.value = merge_dynamic_atttribute(
                     depth,
                     element,
-                    attribute_name,
+                    &new_attribute.name,
                     new_attribute_value,
                     old_attribute_value,
                 );
@@ -234,48 +238,16 @@ fn merge_static_atttribute(
         && new_value == old_attribute_value
     {
         trace!("Attribute '{attribute_name}' is still '{new_value}'");
+        *element.attributes.borrow_mut().get_mut(attribute_name) = AttributeValueDiff::Same;
         return;
     }
     drop(old_value);
-    let Some(new_value) = new_value else {
-        match attribute_name.kind {
-            XAttributeKind::Attribute => {
-                let name = &attribute_name.name;
-                match element.html.remove_attribute(name) {
-                    Ok(()) => trace!("Removed attribute {name}"),
-                    Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
-                }
-            }
-            XAttributeKind::Style => {
-                let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
-                let name = &attribute_name.name;
-                let style = html_element.style();
-                match style.remove_property(name) {
-                    Ok(value) => trace!("Removed style {name}: {value}"),
-                    Err(error) => warn!("Removed style {name} failed: {error:?}"),
-                }
-            }
-        }
-        return;
+
+    *element.attributes.borrow_mut().get_mut(attribute_name) = if let Some(new_value) = new_value {
+        AttributeValueDiff::Value(new_value.to_owned())
+    } else {
+        AttributeValueDiff::Null
     };
-    match attribute_name.kind {
-        XAttributeKind::Attribute => {
-            let name = &attribute_name.name;
-            match element.html.set_attribute(name, new_value) {
-                Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
-                Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
-            }
-        }
-        XAttributeKind::Style => {
-            let html_element: &HtmlElement = element.html.dyn_ref().or_throw("HtmlElement");
-            let name = &attribute_name.name;
-            let style = html_element.style();
-            match style.set_property(name, new_value) {
-                Ok(()) => trace!("Set style {name}: {new_value}"),
-                Err(error) => warn!("Set style {name}: {new_value} failed: {error:?}"),
-            }
-        }
-    }
 }
 
 fn merge_dynamic_atttribute(
@@ -305,6 +277,39 @@ fn merge_dynamic_atttribute(
     XAttributeValue::Generated {
         template: new_template.clone(),
         consumers: new_attribute_value(new_template),
+    }
+}
+
+pub fn set_attribute(
+    element: &Element,
+    style: &LazyCell<CssStyleDeclaration>,
+    attribute_name: &XAttributeName,
+    new_value: Option<&XString>,
+) {
+    let name = &attribute_name.name;
+    if let Some(new_value) = new_value {
+        match attribute_name.kind {
+            XAttributeKind::Attribute => match element.set_attribute(name, new_value) {
+                Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
+                Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
+            },
+            XAttributeKind::Style => match style.set_property(name, new_value) {
+                Ok(()) => trace!("Set style {name}: {new_value}"),
+                Err(error) => warn!("Set style {name}: {new_value} failed: {error:?}"),
+            },
+        }
+    } else {
+        match attribute_name.kind {
+            XAttributeKind::Attribute => match element.remove_attribute(name) {
+                Ok(()) => trace!("Removed attribute {name}"),
+                Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
+            },
+            XAttributeKind::Style => match style.remove_property(name) {
+                Ok(value) => trace!("Removed style {name}: {value}"),
+                Err(error) => warn!("Removed style {name} failed: {error:?}"),
+            },
+        }
+        return;
     }
 }
 

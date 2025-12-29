@@ -4,16 +4,13 @@ use std::cell::LazyCell;
 
 use nameth::NamedType as _;
 use nameth::nameth;
-use wasm_bindgen::JsCast as _;
 use web_sys::CssStyleDeclaration;
 use web_sys::Element;
-use web_sys::HtmlElement;
 
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::element::template::AttributeValueDiff;
 use crate::element::template::LiveElement;
-use crate::prelude::OrElseLog as _;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
@@ -153,7 +150,25 @@ impl IsTemplate for XAttributeTemplate {
             name: self.attribute_name.clone(),
             value: new().into(),
         };
-        new.merge(self.depth, None, &self.element);
+        new.merge(self.depth, &self.element, None);
+
+        let value = aggregate_attribute(
+            self.element
+                .attributes
+                .borrow()
+                .get_chunk(new.name.index)
+                .iter()
+                .map(attribute_diff_to_option),
+        );
+
+        let css_style = LazyCell::new(|| self.element.css_style());
+        set_attribute(
+            &self.element.html,
+            &css_style,
+            &new.name.name,
+            new.name.kind,
+            value.as_deref(),
+        );
     }
 
     fn depth(&self) -> Depth {
@@ -194,8 +209,8 @@ impl XAttribute {
     pub fn merge(
         &mut self,
         depth: Depth,
-        old_attribute_value: Option<XAttributeValue>,
         element: &LiveElement,
+        old_attribute_value: Option<XAttributeValue>,
     ) {
         let new_attribute = self;
         match &new_attribute.value {
@@ -221,7 +236,7 @@ impl XAttribute {
             }
             XAttributeValue::Generated { .. } => {
                 warn!("Illegal {} state", XAttribute::type_name());
-                debug_assert!(false);
+                unreachable!()
             }
         }
     }
@@ -257,6 +272,7 @@ fn merge_dynamic_atttribute(
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
+    *element.attributes.borrow_mut().get_mut(attribute_name) = AttributeValueDiff::Same;
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,
         consumers: old_consumers,
@@ -280,32 +296,66 @@ fn merge_dynamic_atttribute(
     }
 }
 
+pub fn aggregate_attribute<'t>(
+    attributes: impl Iterator<Item = Option<&'t XString>>,
+) -> Option<String> {
+    let mut value_acc: Option<String> = None;
+    for value in attributes.flatten() {
+        match &mut value_acc {
+            Some(value_acc) => {
+                *value_acc += " ";
+                *value_acc += value.as_str();
+            }
+            None => value_acc = Some(value.to_string()),
+        }
+    }
+    value_acc
+}
+
+pub fn attribute_diff_to_option(new_attribute: &AttributeValueDiff) -> Option<&XString> {
+    match new_attribute {
+        AttributeValueDiff::Same => None,
+        AttributeValueDiff::Null => None,
+        AttributeValueDiff::Value(value) => Some(value),
+    }
+}
+
+pub fn attribute_value_to_option(new_attribute: &XAttribute) -> Option<&XString> {
+    match &new_attribute.value {
+        XAttributeValue::Null => None,
+        XAttributeValue::Static(value) => Some(value),
+        XAttributeValue::Dynamic { .. } | XAttributeValue::Generated { .. } => {
+            unreachable!()
+        }
+    }
+}
+
 pub fn set_attribute(
     element: &Element,
-    style: &LazyCell<CssStyleDeclaration>,
-    attribute_name: &XAttributeName,
-    new_value: Option<&XString>,
+    css_style: &LazyCell<CssStyleDeclaration, impl FnOnce() -> CssStyleDeclaration>,
+    name: &str,
+    kind: XAttributeKind,
+    value: Option<&str>,
 ) {
-    let name = &attribute_name.name;
-    if let Some(new_value) = new_value {
-        match attribute_name.kind {
-            XAttributeKind::Attribute => match element.set_attribute(name, new_value) {
-                Ok(()) => trace!("Set attribute '{name}' to '{new_value}'"),
-                Err(error) => warn!("Set attribute '{name}' to '{new_value}' failed: {error:?}"),
+    if let Some(value) = value {
+        match kind {
+            XAttributeKind::Attribute => match element.set_attribute(name, value) {
+                Ok(()) => trace!("Set attribute '{name}' to '{value}'"),
+                Err(error) => warn!("Set attribute '{name}' to '{value}' failed: {error:?}"),
             },
-            XAttributeKind::Style => match style.set_property(name, new_value) {
-                Ok(()) => trace!("Set style {name}: {new_value}"),
-                Err(error) => warn!("Set style {name}: {new_value} failed: {error:?}"),
+            XAttributeKind::Style => match css_style.set_property(name, value) {
+                Ok(()) => trace!("Set style {name}: {value}"),
+                Err(error) => warn!("Set style {name}: {value} failed: {error:?}"),
             },
         }
     } else {
-        match attribute_name.kind {
+        match kind {
             XAttributeKind::Attribute => match element.remove_attribute(name) {
                 Ok(()) => trace!("Removed attribute {name}"),
                 Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
             },
-            XAttributeKind::Style => match style.remove_property(name) {
-                Ok(value) => trace!("Removed style {name}: {value}"),
+            XAttributeKind::Style => match css_style.remove_property(name) {
+                Ok(old_value) => trace!("Removed style {name}: {old_value}"),
                 Err(error) => warn!("Removed style {name} failed: {error:?}"),
             },
         }
@@ -314,6 +364,15 @@ pub fn set_attribute(
 }
 
 impl XAttributeName {
+    pub fn zero() -> Self {
+        Self {
+            name: Default::default(),
+            kind: XAttributeKind::Attribute,
+            index: usize::MAX,
+            sub_index: usize::MAX,
+        }
+    }
+
     pub fn attribute<T>(name: T) -> Self
     where
         T: Into<XString>,

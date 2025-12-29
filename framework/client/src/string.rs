@@ -98,6 +98,12 @@ impl From<Arc<str>> for XString {
     }
 }
 
+impl<'t> From<&'t XString> for &'t str {
+    fn from(value: &'t XString) -> Self {
+        value.as_str()
+    }
+}
+
 impl From<bool> for XString {
     fn from(t: bool) -> Self {
         Self::Str(if t { "true" } else { "false" })

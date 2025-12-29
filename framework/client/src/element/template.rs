@@ -8,7 +8,6 @@ use web_sys::Element;
 use web_sys::HtmlElement;
 
 use self::inner::TemplateInner;
-use crate::attribute::XAttribute;
 use crate::attribute::XAttributeName;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::element::XElement;
@@ -193,60 +192,11 @@ impl AttributeValuesBuilder {
         &mut values[name.sub_index]
     }
 
-    pub fn group<'t>(
-        &self,
-        attributes: &'t [XAttribute],
-    ) -> impl Iterator<Item = &'t [XAttribute]> {
-        let mut iterator = attributes.iter();
-        let mut start = 0;
-        return (1..attributes.len() + 1).filter_map(move |i| {
-            if i == attributes.len() {
-                return Some(&attributes[start..i]);
-            }
-
-            let last = &attributes[start].name;
-            let cur = &attributes[i].name;
-            if last.kind != cur.kind || last.name != cur.name {
-                let result = &attributes[start..i];
-                start = i;
-                return Some(result);
-            }
-            return None;
-        });
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::attribute::XAttributeValue;
-
-    #[test]
-    fn attributes_group() {
-        let attributes = [
-            mkattr("1"),
-            mkattr("1"),
-            mkattr("2"),
-            mkattr("2"),
-            mkattr("2"),
-            mkattr("3"),
-        ];
-        let groups = AttributeValuesBuilder::default()
-            .group(&attributes)
-            .map(|group| {
-                group
-                    .iter()
-                    .map(|attr| attr.name.name.as_str())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(vec![vec!["1", "1"], vec!["2", "2", "2"], vec!["3"]], groups);
+    pub fn get(&self, name: &XAttributeName) -> &AttributeValueDiff {
+        &self.values[name.index][name.sub_index]
     }
 
-    fn mkattr(name: &'static str) -> XAttribute {
-        XAttribute {
-            name: XAttributeName::attribute(name),
-            value: XAttributeValue::Null,
-        }
+    pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {
+        &self.values[index]
     }
 }

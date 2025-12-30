@@ -4,6 +4,7 @@
 pub mod cancellable;
 pub mod debounce;
 pub mod editable;
+pub mod element_capture;
 pub mod link;
 pub mod more_event;
 pub mod rand;

@@ -33,9 +33,11 @@ impl XElement {
                 let (index, sub_index) = self.allocate_attribute_index(&name);
                 self.attributes.push(quote! {
                     gen_attributes.push(XAttribute {
-                        name: XAttributeName {
-                            name: #name.into(),
-                            kind: XAttributeKind::Attribute,
+                        id: XAttributeId {
+                            name: XAttributeName {
+                                name: #name.into(),
+                                kind: XAttributeKind::Attribute,
+                            },
                             index: #index,
                             sub_index: #sub_index,
                         },
@@ -61,9 +63,11 @@ impl XElement {
                 self.attributes.push(quote! {
                     if let Some(value) = #value {
                         gen_attributes.push(XAttribute {
-                            name: XAttributeName {
-                                name: #name.into(),
-                                kind: XAttributeKind::Attribute,
+                            id: XAttributeId {
+                                name: XAttributeName {
+                                    name: #name.into(),
+                                    kind: XAttributeKind::Attribute,
+                                },
                                 index: #index,
                                 sub_index: #sub_index,
                             },
@@ -84,9 +88,11 @@ impl XElement {
         let (index, sub_index) = self.allocate_attribute_index(&name);
         self.attributes.push(quote! {
             gen_attributes.push(XAttribute {
-                name: XAttributeName {
-                    name: #name.into(),
-                    kind: XAttributeKind::Style,
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: #name.into(),
+                        kind: XAttributeKind::Style,
+                    },
                     index: #index,
                     sub_index: #sub_index,
                 },
@@ -119,9 +125,11 @@ impl XElement {
                 let (index, sub_index) = self.allocate_attribute_index(&name);
                 self.attributes.push(quote! {
                     gen_attributes.push(XAttribute {
-                        name: XAttributeName {
-                            name: #name.into(),
-                            kind: #kind,
+                        id: XAttributeId {
+                            name: XAttributeName {
+                                name: #name.into(),
+                                kind: #kind,
+                            },
                             index: #index,
                             sub_index: #sub_index,
                         },

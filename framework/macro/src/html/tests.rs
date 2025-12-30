@@ -501,9 +501,11 @@ fn sample() -> XElement {
         let mut gen_attributes = vec![];
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName {
-                    name: "class".into(),
-                    kind: XAttributeKind::Attribute,
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "class".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
                     index: 0usize,
                     sub_index: 0usize,
                 },
@@ -511,9 +513,11 @@ fn sample() -> XElement {
             });
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName {
-                    name: "class".into(),
-                    kind: XAttributeKind::Attribute,
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "class".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
                     index: 0usize,
                     sub_index: 1usize,
                 },
@@ -521,9 +525,11 @@ fn sample() -> XElement {
             });
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName {
-                    name: "style".into(),
-                    kind: XAttributeKind::Attribute,
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "style".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
                     index: 1usize,
                     sub_index: 0usize,
                 },
@@ -531,9 +537,11 @@ fn sample() -> XElement {
             });
         gen_attributes
             .push(XAttribute {
-                name: XAttributeName {
-                    name: "style".into(),
-                    kind: XAttributeKind::Attribute,
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "style".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
                     index: 1usize,
                     sub_index: 1usize,
                 },

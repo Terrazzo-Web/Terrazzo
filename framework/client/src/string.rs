@@ -50,7 +50,7 @@ impl std::fmt::Display for XString {
 
 impl Default for XString {
     fn default() -> Self {
-        Self::Str("")
+        const { Self::Str("") }
     }
 }
 

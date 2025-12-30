@@ -1,19 +1,19 @@
 use std::cell::LazyCell;
-use std::collections::HashMap;
+use std::collections::HashSet;
+
+use scopeguard::guard;
 
 use super::XAttribute;
 use super::template::LiveElement;
-use crate::attribute::XAttributeName;
 use crate::attribute::XAttributeValue;
 use crate::attribute::aggregate_attribute;
-use crate::attribute::attribute_diff_to_option;
-use crate::attribute::attribute_value_to_option;
 use crate::attribute::set_attribute;
 use crate::prelude::XAttributeKind;
+use crate::prelude::XAttributeName;
 use crate::prelude::diagnostics::trace;
+use crate::prelude::diagnostics::trace_span;
 use crate::prelude::diagnostics::warn;
 use crate::signal::depth::Depth;
-use crate::string::XString;
 
 pub fn merge(
     depth: Depth,
@@ -21,65 +21,66 @@ pub fn merge(
     old_attributes: &mut [XAttribute],
     element: &LiveElement,
 ) {
+    let _span = trace_span!("Attributes").entered();
     trace!(
         new_count = new_attributes.len(),
         old_count = old_attributes.len(),
-        "Attributes"
+        "Count"
     );
 
-    let mut old_attributes_map = HashMap::new();
-    for old_attribute in old_attributes {
-        old_attributes_map.insert(
-            std::mem::replace(&mut old_attribute.name, XAttributeName::zero()),
-            std::mem::replace(&mut old_attribute.value, XAttributeValue::Null),
-        );
+    let mut old_attributes_set = HashSet::new();
+    for old_attribute in old_attributes.iter_mut() {
+        old_attributes_set.insert(std::mem::replace(
+            &mut old_attribute.id.name,
+            XAttributeName::zero(),
+        ));
     }
 
     *element.attributes.borrow_mut() = Default::default();
     let css_style = LazyCell::new(|| element.css_style());
 
+    let mut i = 0;
     for chunk in chunks_mut(new_attributes) {
-        let tmp: Option<String>;
+        let _span = trace_span!("Chunk", chunk = %chunk.name, index = chunk.index).entered();
+        let tmp: Option<Option<String>>;
         let value_acc = match chunk.chunk_kind {
-            ChunkKind::Dynamic => {
+            ChunkKind::Dynamic | ChunkKind::Static | ChunkKind::Single => {
                 for new_attribute in chunk.attributes {
-                    let old_attribute_value = old_attributes_map.remove(&new_attribute.name);
+                    let i = guard(&mut i, |i| *i += 1);
+                    old_attributes_set.remove(&new_attribute.id.name);
+                    let old_attribute_value =
+                        find_old_attribute(new_attribute, **i, old_attributes);
                     new_attribute.merge(depth, element, old_attribute_value);
                 }
-                tmp = aggregate_attribute(
-                    element
-                        .attributes
-                        .borrow()
-                        .get_chunk(chunk.index)
-                        .iter()
-                        .map(attribute_diff_to_option),
-                );
+
+                tmp = aggregate_attribute(element.attributes.borrow().get_chunk(chunk.index));
+                trace!("Dynamic chunk value: {tmp:?}");
+                let Some(tmp) = &tmp else {
+                    continue;
+                };
                 tmp.as_deref()
-            }
-            ChunkKind::Static => {
-                tmp = aggregate_attribute(chunk.attributes.iter().map(attribute_value_to_option));
-                tmp.as_deref()
-            }
-            ChunkKind::Single => attribute_value_to_option(&chunk.attributes[0]).map(|s| s.into()),
+            } // TODO: optimization in case attribute is static or single, no need to build the attribute diff list
+              // ChunkKind::Static => {
+              //     tmp = aggregate_attribute(chunk.attributes.iter().map(attribute_value_to_option));
+              //     tmp.as_deref()
+              // }
+              // ChunkKind::Single => {
+              //     attribute_value_to_option(&chunk.attributes[0]).map(|s| s.into())
+              // },
         };
 
-        set_attribute(
-            &element.html,
-            &css_style,
-            &chunk.name,
-            chunk.kind,
-            value_acc,
-        );
+        set_attribute(&element.html, &css_style, &chunk.name, value_acc);
     }
 
-    for removed_old_attribute_name in old_attributes_map.keys() {
-        let name = &removed_old_attribute_name.name;
-        match removed_old_attribute_name.kind {
-            XAttributeKind::Attribute => match element.html.remove_attribute(name) {
+    debug_assert!(i == new_attributes.len());
+
+    for XAttributeName { name, kind } in old_attributes_set {
+        match kind {
+            XAttributeKind::Attribute => match element.html.remove_attribute(&name) {
                 Ok(()) => trace!("Removed attribute {name}"),
                 Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
             },
-            XAttributeKind::Style => match css_style.remove_property(name) {
+            XAttributeKind::Style => match css_style.remove_property(&name) {
                 Ok(value) => trace!("Removed style {name}: {value}"),
                 Err(error) => warn!("Removed style {name} failed: {error:?}"),
             },
@@ -89,14 +90,13 @@ pub fn merge(
 
 fn chunks_mut(attributes: &mut [XAttribute]) -> impl Iterator<Item = Chunk<'_>> {
     return attributes
-        .chunk_by_mut(|x, y| x.name.kind == y.name.kind && x.name.name == y.name.name)
+        .chunk_by_mut(|x, y| x.id.name == y.id.name)
         .map(|chunk| {
             let first = &chunk[0];
             Chunk {
                 chunk_kind: ChunkKind::of(chunk),
-                name: first.name.name.clone(),
-                kind: first.name.kind,
-                index: first.name.index,
+                name: first.id.name.clone(),
+                index: first.id.index,
                 attributes: chunk,
             }
         });
@@ -104,8 +104,7 @@ fn chunks_mut(attributes: &mut [XAttribute]) -> impl Iterator<Item = Chunk<'_>> 
 
 struct Chunk<'t> {
     chunk_kind: ChunkKind,
-    name: XString,
-    kind: XAttributeKind,
+    name: XAttributeName,
     index: usize,
     attributes: &'t mut [XAttribute],
 }
@@ -129,4 +128,19 @@ impl ChunkKind {
             ChunkKind::Static
         }
     }
+}
+
+fn find_old_attribute(
+    new_attribute: &XAttribute,
+    i: usize,
+    old_attributes: &mut [XAttribute],
+) -> Option<XAttributeValue> {
+    let old_attribute = old_attributes.get_mut(i)?;
+    if old_attribute.id == new_attribute.id {
+        return Some(std::mem::replace(
+            &mut old_attribute.value,
+            XAttributeValue::Null,
+        ));
+    }
+    return None;
 }

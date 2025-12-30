@@ -7,12 +7,14 @@ use nameth::nameth;
 use web_sys::CssStyleDeclaration;
 use web_sys::Element;
 
+use self::diagnostics::debug;
+use self::diagnostics::trace;
+use self::diagnostics::warn;
 use self::inner::AttributeTemplateInner;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::element::template::AttributeValueDiff;
 use crate::element::template::LiveElement;
-use crate::prelude::diagnostics::trace;
-use crate::prelude::diagnostics::warn;
+use crate::prelude::diagnostics;
 use crate::signal::depth::Depth;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
@@ -46,11 +48,19 @@ use crate::utils::Ptr;
 /// ```
 #[nameth]
 pub struct XAttribute {
-    /// Name of the attribute
-    pub name: XAttributeName,
+    /// ID of the attribute
+    pub id: XAttributeId,
 
     /// Value of the attribute
     pub value: XAttributeValue,
+}
+
+/// Represents the unique ID of an [XAttribute].
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct XAttributeId {
+    pub name: XAttributeName,
+    pub index: usize,
+    pub sub_index: usize,
 }
 
 /// Represents the name of an [XAttribute].
@@ -58,8 +68,6 @@ pub struct XAttribute {
 pub struct XAttributeName {
     pub name: XString,
     pub kind: XAttributeKind,
-    pub index: usize,
-    pub sub_index: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -120,15 +128,15 @@ pub struct XAttributeTemplate(Ptr<AttributeTemplateInner>);
 mod inner {
     use std::ops::Deref;
 
-    use super::XAttributeName;
     use super::XAttributeTemplate;
+    use crate::attribute::XAttributeId;
     use crate::debug_correlation_id::DebugCorrelationId;
     use crate::element::template::LiveElement;
     use crate::signal::depth::Depth;
 
     pub struct AttributeTemplateInner {
         pub element: LiveElement,
-        pub attribute_name: XAttributeName,
+        pub attribute_id: XAttributeId,
         pub(super) debug_id: DebugCorrelationId<String>,
         pub(super) depth: Depth,
     }
@@ -147,26 +155,23 @@ impl IsTemplate for XAttributeTemplate {
 
     fn apply<R: Into<Self::Value>>(self, new: impl FnOnce() -> R) {
         let mut new = XAttribute {
-            name: self.attribute_name.clone(),
+            id: self.attribute_id.clone(),
             value: new().into(),
         };
         new.merge(self.depth, &self.element, None);
 
-        let value = aggregate_attribute(
-            self.element
-                .attributes
-                .borrow()
-                .get_chunk(new.name.index)
-                .iter()
-                .map(attribute_diff_to_option),
-        );
+        let value = aggregate_attribute(self.element.attributes.borrow().get_chunk(new.id.index));
+        debug!("Update attribute template {} to {value:?}", new.id);
+        let Some(value) = value else {
+            // There was no diff!
+            return;
+        };
 
         let css_style = LazyCell::new(|| self.element.css_style());
         set_attribute(
             &self.element.html,
             &css_style,
-            &new.name.name,
-            new.name.kind,
+            &new.id.name,
             value.as_deref(),
         );
     }
@@ -215,12 +220,12 @@ impl XAttribute {
         let new_attribute = self;
         match &new_attribute.value {
             XAttributeValue::Null => {
-                merge_static_atttribute(element, &new_attribute.name, None, old_attribute_value);
+                merge_static_atttribute(element, &new_attribute.id, None, old_attribute_value);
             }
             XAttributeValue::Static(new_attribute_value) => {
                 merge_static_atttribute(
                     element,
-                    &new_attribute.name,
+                    &new_attribute.id,
                     Some(new_attribute_value),
                     old_attribute_value,
                 );
@@ -229,7 +234,7 @@ impl XAttribute {
                 new_attribute.value = merge_dynamic_atttribute(
                     depth,
                     element,
-                    &new_attribute.name,
+                    &new_attribute.id,
                     new_attribute_value,
                     old_attribute_value,
                 );
@@ -244,7 +249,7 @@ impl XAttribute {
 
 fn merge_static_atttribute(
     element: &LiveElement,
-    attribute_name: &XAttributeName,
+    attribute_id: &XAttributeId,
     new_value: Option<&XString>,
     old_value: Option<XAttributeValue>,
 ) {
@@ -252,13 +257,14 @@ fn merge_static_atttribute(
         old_value.as_ref().zip(new_value)
         && new_value == old_attribute_value
     {
-        trace!("Attribute '{attribute_name}' is still '{new_value}'");
-        *element.attributes.borrow_mut().get_mut(attribute_name) = AttributeValueDiff::Same;
+        trace!("Attribute '{attribute_id}' is still '{new_value}'");
+        *element.attributes.borrow_mut().get_mut(attribute_id) =
+            AttributeValueDiff::Same(new_value.to_owned());
         return;
     }
     drop(old_value);
 
-    *element.attributes.borrow_mut().get_mut(attribute_name) = if let Some(new_value) = new_value {
+    *element.attributes.borrow_mut().get_mut(attribute_id) = if let Some(new_value) = new_value {
         AttributeValueDiff::Value(new_value.to_owned())
     } else {
         AttributeValueDiff::Null
@@ -268,25 +274,25 @@ fn merge_static_atttribute(
 fn merge_dynamic_atttribute(
     depth: Depth,
     element: &LiveElement,
-    attribute_name: &XAttributeName,
+    attribute_id: &XAttributeId,
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
-    *element.attributes.borrow_mut().get_mut(attribute_name) = AttributeValueDiff::Same;
+    *element.attributes.borrow_mut().get_mut(attribute_id) = AttributeValueDiff::Undefined;
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,
         consumers: old_consumers,
     }) = old_attribute_value
     {
-        trace!("Reuse exising attribute template {attribute_name}");
+        trace!("Reuse exising attribute template {attribute_id}");
         drop(old_consumers);
         old_template
     } else {
-        trace!("Create a new attribute template {attribute_name}");
+        trace!("Create a new attribute template {attribute_id}");
         XAttributeTemplate(Ptr::new(AttributeTemplateInner {
             element: element.clone(),
-            attribute_name: attribute_name.clone(),
-            debug_id: DebugCorrelationId::new(|| format!("attribute_template:{attribute_name}")),
+            attribute_id: attribute_id.clone(),
+            debug_id: DebugCorrelationId::new(|| format!("attribute_template:{attribute_id}")),
             depth: depth.next(),
         }))
     };
@@ -296,47 +302,44 @@ fn merge_dynamic_atttribute(
     }
 }
 
-pub fn aggregate_attribute<'t>(
-    attributes: impl Iterator<Item = Option<&'t XString>>,
-) -> Option<String> {
-    let mut value_acc: Option<String> = None;
-    for value in attributes.flatten() {
-        match &mut value_acc {
+pub fn aggregate_attribute<'t, A>(attributes: A) -> Option<Option<String>>
+where
+    A: IntoIterator<Item = &'t AttributeValueDiff>,
+{
+    let changed_attributes = attributes
+        .into_iter()
+        .filter_map(|attribute| match attribute {
+            AttributeValueDiff::Undefined | AttributeValueDiff::Same { .. } => None,
+            AttributeValueDiff::Null => Some(None),
+            AttributeValueDiff::Value(value) => Some(Some(value)),
+        });
+    let mut value_acc: Option<Option<String>> = None;
+    for value in changed_attributes {
+        let value_acc = match &mut value_acc {
+            Some(value_acc) => value_acc,
+            None => value_acc.get_or_insert_default(),
+        };
+        let Some(value) = value else {
+            continue;
+        };
+        match value_acc {
             Some(value_acc) => {
                 *value_acc += " ";
                 *value_acc += value.as_str();
             }
-            None => value_acc = Some(value.to_string()),
+            None => *value_acc = Some(value.to_string()),
         }
     }
     value_acc
 }
 
-pub fn attribute_diff_to_option(new_attribute: &AttributeValueDiff) -> Option<&XString> {
-    match new_attribute {
-        AttributeValueDiff::Same => None,
-        AttributeValueDiff::Null => None,
-        AttributeValueDiff::Value(value) => Some(value),
-    }
-}
-
-pub fn attribute_value_to_option(new_attribute: &XAttribute) -> Option<&XString> {
-    match &new_attribute.value {
-        XAttributeValue::Null => None,
-        XAttributeValue::Static(value) => Some(value),
-        XAttributeValue::Dynamic { .. } | XAttributeValue::Generated { .. } => {
-            unreachable!()
-        }
-    }
-}
-
 pub fn set_attribute(
     element: &Element,
     css_style: &LazyCell<CssStyleDeclaration, impl FnOnce() -> CssStyleDeclaration>,
-    name: &str,
-    kind: XAttributeKind,
+    attribute_name: &XAttributeName,
     value: Option<&str>,
 ) {
+    let XAttributeName { name, kind } = attribute_name;
     if let Some(value) = value {
         match kind {
             XAttributeKind::Attribute => match element.set_attribute(name, value) {
@@ -364,15 +367,6 @@ pub fn set_attribute(
 }
 
 impl XAttributeName {
-    pub fn zero() -> Self {
-        Self {
-            name: Default::default(),
-            kind: XAttributeKind::Attribute,
-            index: usize::MAX,
-            sub_index: usize::MAX,
-        }
-    }
-
     pub fn attribute<T>(name: T) -> Self
     where
         T: Into<XString>,
@@ -380,8 +374,6 @@ impl XAttributeName {
         Self {
             name: name.into(),
             kind: XAttributeKind::Attribute,
-            index: 0,
-            sub_index: 0,
         }
     }
 
@@ -392,8 +384,13 @@ impl XAttributeName {
         Self {
             name: name.into(),
             kind: XAttributeKind::Style,
-            index: 0,
-            sub_index: 0,
+        }
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            name: Default::default(),
+            kind: XAttributeKind::Attribute,
         }
     }
 }
@@ -404,5 +401,11 @@ impl std::fmt::Display for XAttributeName {
             XAttributeKind::Attribute => std::fmt::Display::fmt(&self.name, f),
             XAttributeKind::Style => write!(f, "style::{}", self.name),
         }
+    }
+}
+
+impl std::fmt::Display for XAttributeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.name, f)
     }
 }

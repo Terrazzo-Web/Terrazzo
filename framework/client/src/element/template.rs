@@ -8,7 +8,7 @@ use web_sys::Element;
 use web_sys::HtmlElement;
 
 use self::inner::TemplateInner;
-use crate::attribute::XAttributeName;
+use crate::attribute::XAttributeId;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::element::XElement;
 use crate::element::XElementValue;
@@ -175,25 +175,22 @@ pub struct AttributeValuesBuilder {
 #[derive(Default)]
 pub enum AttributeValueDiff {
     #[default]
-    Same,
+    Undefined,
+    Same(XString),
     Null,
     Value(XString),
 }
 
 impl AttributeValuesBuilder {
-    pub fn get_mut(&mut self, name: &XAttributeName) -> &mut AttributeValueDiff {
-        if self.values.len() == name.index {
+    pub fn get_mut(&mut self, id: &XAttributeId) -> &mut AttributeValueDiff {
+        if self.values.len() == id.index {
             self.values.push(Default::default());
         }
-        let values = &mut self.values[name.index];
-        if values.len() == name.sub_index {
+        let values = &mut self.values[id.index];
+        if values.len() == id.sub_index {
             values.push(Default::default());
         }
-        &mut values[name.sub_index]
-    }
-
-    pub fn get(&self, name: &XAttributeName) -> &AttributeValueDiff {
-        &self.values[name.index][name.sub_index]
+        &mut values[id.sub_index]
     }
 
     pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {

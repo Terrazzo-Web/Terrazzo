@@ -2710,6 +2710,7 @@ dependencies = [
  "nameth",
  "scopeguard",
  "serde_json",
+ "stylance",
  "terrazzo",
  "terrazzo-build",
  "thiserror 2.0.17",

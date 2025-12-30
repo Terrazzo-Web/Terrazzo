@@ -17,10 +17,12 @@ use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
 use crate::prelude::XAttributeKind;
+use crate::prelude::XAttributeName;
 use crate::prelude::XAttributeValue;
 use crate::prelude::diagnostics::error;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
+use crate::string::XString;
 use crate::utils::Ptr;
 
 pub fn merge(
@@ -200,6 +202,10 @@ fn create_new_element(
     element: &Element,
     new_element: &XElement,
 ) -> Option<LiveElement> {
+    static XMLNS: XAttributeName = XAttributeName {
+        name: XString::Str("xmlns"),
+        kind: XAttributeKind::Attribute,
+    };
     let Some(tag_name) = new_element.tag_name.as_deref() else {
         error!("Failed to create new element with undefined tag name");
         return None;
@@ -207,7 +213,7 @@ fn create_new_element(
     let html = if let XElementValue::Static { attributes, .. } = &new_element.value
         && let Some(xmlns) = attributes
             .iter()
-            .find(|a| a.name.kind == XAttributeKind::Attribute && a.name.name.as_str() == "xmlns")
+            .find(|a| a.id.name == XMLNS)
             .and_then(|xmlns| {
                 let XAttributeValue::Static(xmlns) = &xmlns.value else {
                     return None;

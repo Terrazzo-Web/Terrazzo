@@ -49,17 +49,17 @@ mod verbose {
                     attributes, events, ..
                 } => {
                     for attribute in attributes {
-                        let attribute_name = &attribute.name;
+                        let attribute_id = &attribute.id;
                         match &attribute.value {
-                            XAttributeValue::Null => rest += &format!(" {attribute_name}=null"),
+                            XAttributeValue::Null => rest += &format!(" {attribute_id}=null"),
                             XAttributeValue::Static(value) => {
-                                rest += &format!(" {attribute_name}={value:?}")
+                                rest += &format!(" {attribute_id}={value:?}")
                             }
                             XAttributeValue::Dynamic { .. } => {
-                                rest += &format!(" {attribute_name}=<Dynamic>")
+                                rest += &format!(" {attribute_id}=<Dynamic>")
                             }
                             XAttributeValue::Generated { .. } => {
-                                rest += &format!(" {attribute_name}=<Generated>")
+                                rest += &format!(" {attribute_id}=<Generated>")
                             }
                         }
                     }

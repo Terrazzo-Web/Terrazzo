@@ -26,12 +26,16 @@ pub fn attributes_demo() -> XElement {
             option(value = "Zero", "Zero"),
             option(value = "DynamicAndStatic", "DynamicAndStatic"),
             option(value = "DynamicOnly", "DynamicOnly"),
+            option(value = "Single", "Single"),
+            option(value = "Static", "Static"),
             change = move |_| {
                 autoclone!(flavor_dom, flavor);
                 match flavor_dom.get().value().as_str() {
                     "Zero" => flavor.set(Flavor::Zero),
                     "DynamicAndStatic" => flavor.set(Flavor::DynamicAndStatic),
                     "DynamicOnly" => flavor.set(Flavor::DynamicOnly),
+                    "Single" => flavor.set(Flavor::Single),
+                    "Static" => flavor.set(Flavor::Static),
                     _ => unreachable!(),
                 }
             },
@@ -86,6 +90,8 @@ fn result(
         Flavor::DynamicAndStatic => dynamic_and_static(underline, italic, bold),
         Flavor::DynamicOnly => dynamic_only(underline, italic, bold),
         Flavor::Zero => zero(),
+        Flavor::Single => single_underline(),
+        Flavor::Static => static_bold_underline(),
     };
     tag([value]..)
 }
@@ -143,11 +149,32 @@ fn zero() -> XElement {
     div(class = style::dynamic_only, "Hello, world! - zero")
 }
 
+#[html]
+fn single_underline() -> XElement {
+    div(
+        class = style::dynamic_only,
+        style = "text-decoration: underline;",
+        "Hello, world! - single_underline",
+    )
+}
+
+#[html]
+fn static_bold_underline() -> XElement {
+    div(
+        class = style::dynamic_only,
+        style = "font-weight: bold;",
+        style = "text-decoration: underline;",
+        "Hello, world! - static_bold_underline",
+    )
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Flavor {
     DynamicAndStatic,
     DynamicOnly,
     Zero,
+    Single,
+    Static,
 }
 
 mod style_tpl {

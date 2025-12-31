@@ -40,7 +40,7 @@ mod tests {
             XAttributeId {
                 name: XAttributeKind::Style.make("width"),
                 index: 0,
-                sub_index:1
+                sub_index: 1
             }
             .to_string()
         );

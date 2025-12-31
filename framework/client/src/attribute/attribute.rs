@@ -8,6 +8,7 @@ use web_sys::Element;
 use self::diagnostics::trace;
 use self::diagnostics::warn;
 use super::builder::AttributeValueDiff;
+use super::diff_store::AttributeValueDiffStore;
 use super::id::XAttributeId;
 use super::name::XAttributeKind;
 use super::name::XAttributeName;
@@ -67,24 +68,17 @@ impl XAttribute {
         &'t mut self,
         depth: Depth,
         element: &LiveElement,
-        set_attribute: impl FnOnce(&'t XAttributeId, AttributeValueDiff),
+        backend: &mut impl AttributeValueDiffStore,
         old_attribute_value: Option<XAttributeValue>,
     ) {
         let new_attribute = self;
         match &new_attribute.value {
             XAttributeValue::Null => {
-                merge_static_atttribute(
-                    element,
-                    set_attribute,
-                    &new_attribute.id,
-                    None,
-                    old_attribute_value,
-                );
+                merge_static_atttribute(backend, &new_attribute.id, None, old_attribute_value);
             }
             XAttributeValue::Static(new_attribute_value) => {
                 merge_static_atttribute(
-                    element,
-                    set_attribute,
+                    backend,
                     &new_attribute.id,
                     Some(new_attribute_value),
                     old_attribute_value,
@@ -94,7 +88,7 @@ impl XAttribute {
                 new_attribute.value = merge_dynamic_atttribute(
                     depth,
                     element,
-                    set_attribute,
+                    backend,
                     &new_attribute.id,
                     new_attribute_value,
                     old_attribute_value,
@@ -109,8 +103,7 @@ impl XAttribute {
 }
 
 fn merge_static_atttribute<'t>(
-    element: &LiveElement,
-    set_attribute: impl FnOnce(&'t XAttributeId, AttributeValueDiff),
+    backend: &mut impl AttributeValueDiffStore,
     attribute_id: &'t XAttributeId,
     new_value: Option<&XString>,
     old_value: Option<XAttributeValue>,
@@ -120,27 +113,29 @@ fn merge_static_atttribute<'t>(
         && new_value == old_attribute_value
     {
         trace!("Attribute '{attribute_id}' is still '{new_value}'");
-        set_attribute(attribute_id, AttributeValueDiff::Same(new_value.to_owned()));
+        backend.set(attribute_id, AttributeValueDiff::Same(new_value.to_owned()));
     } else {
         drop(old_value);
-        *element.attributes.borrow_mut().get_mut(attribute_id) = if let Some(new_value) = new_value
-        {
-            AttributeValueDiff::Value(new_value.to_owned())
-        } else {
-            AttributeValueDiff::Null
-        };
+        backend.set(
+            attribute_id,
+            if let Some(new_value) = new_value {
+                AttributeValueDiff::Value(new_value.to_owned())
+            } else {
+                AttributeValueDiff::Null
+            },
+        );
     }
 }
 
 fn merge_dynamic_atttribute<'t>(
     depth: Depth,
     element: &LiveElement,
-    set_attribute: impl FnOnce(&'t XAttributeId, AttributeValueDiff),
+    backend: &mut impl AttributeValueDiffStore,
     attribute_id: &'t XAttributeId,
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
-    set_attribute(attribute_id, AttributeValueDiff::Undefined);
+    backend.set(attribute_id, AttributeValueDiff::Undefined);
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,
         consumers: old_consumers,

@@ -4,7 +4,8 @@ use self::diagnostics::debug;
 use self::inner::AttributeTemplateInner;
 use super::attribute::XAttribute;
 use super::attribute::set_attribute;
-use super::builder::aggregate_attribute;
+use super::diff_store::AttributeValueDiffStore;
+use super::diff_store::DynamicBackend;
 use super::id::XAttributeId;
 use super::value::XAttributeValue;
 use crate::debug_correlation_id::DebugCorrelationId;
@@ -78,22 +79,19 @@ impl IsTemplate for XAttributeTemplate {
             id: self.attribute_id.clone(),
             value: new().into(),
         };
-        new.merge(self.depth, &self.element, None);
+        let mut backend = DynamicBackend::new(&self.element);
+        new.merge(self.depth, &self.element, &mut backend, None);
 
-        let value = aggregate_attribute(self.element.attributes.borrow().get_chunk(new.id.index));
-        debug!("Update attribute template {} to {value:?}", new.id);
-        let Some(value) = value else {
+        let value_acc = backend.aggregate_attribute(self.attribute_id.index);
+        let value_acc = value_acc.as_ref().map(|v| v.as_ref().map(|v| v.as_ref()));
+        debug!("Update attribute template {} to {value_acc:?}", new.id);
+        let Some(value_acc) = value_acc else {
             // There was no diff!
             return;
         };
 
         let css_style = LazyCell::new(|| self.element.css_style());
-        set_attribute(
-            &self.element.html,
-            &css_style,
-            &new.id.name,
-            value.as_deref(),
-        );
+        set_attribute(&self.element.html, &css_style, &new.id.name, value_acc);
     }
 
     fn depth(&self) -> Depth {

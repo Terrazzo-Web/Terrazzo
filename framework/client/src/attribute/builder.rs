@@ -1,4 +1,5 @@
 use super::id::XAttributeId;
+use crate::prelude::OrElseLog;
 use crate::string::XString;
 
 #[derive(Default)]
@@ -20,19 +21,26 @@ impl AttributeValuesBuilder {
         if self.values.len() == id.index {
             self.values.push(Default::default());
         }
-        let values = &mut self.values[id.index];
+        let values = self
+            .values
+            .get_mut(id.index)
+            .or_throw("AttributeValuesBuilder::get_mut #1");
         if values.len() == id.sub_index {
             values.push(Default::default());
         }
-        &mut values[id.sub_index]
+        values
+            .get_mut(id.sub_index)
+            .or_throw("AttributeValuesBuilder::get_mut #2")
     }
 
     pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {
-        &self.values[index]
+        self.values
+            .get(index)
+            .or_throw("AttributeValuesBuilder::get")
     }
 }
 
-pub fn aggregate_attribute(attributes: &[AttributeValueDiff]) -> Option<Option<String>> {
+pub(super) fn aggregate_attribute(attributes: &[AttributeValueDiff]) -> Option<Option<String>> {
     match ChangeType::resolve(attributes) {
         ChangeType::Same => return None,
         ChangeType::Null => return Some(None),

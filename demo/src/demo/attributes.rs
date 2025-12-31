@@ -19,7 +19,7 @@ pub fn attributes_demo() -> XElement {
     let bold = XSignal::new("bold", false);
     let flavor_dom: ElementCapture<HtmlSelectElement> = ElementCapture::default();
     div(
-        key = "attributes ddfw2",
+        key = "attributes",
         h1("Attributes"),
         select(
             before_render = flavor_dom.capture(),

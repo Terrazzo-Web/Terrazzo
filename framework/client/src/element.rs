@@ -11,7 +11,7 @@ use web_sys::Element;
 use web_sys::js_sys::Function;
 
 use self::template::XTemplate;
-use crate::attribute::XAttribute;
+use crate::attribute::attribute::XAttribute;
 use crate::element::template::LiveElement;
 use crate::key::XKey;
 use crate::node::XNode;

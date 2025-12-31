@@ -8,7 +8,7 @@ use web_sys::Element;
 use web_sys::HtmlElement;
 
 use self::inner::TemplateInner;
-use crate::attribute::XAttributeId;
+use crate::attribute::builder::AttributeValuesBuilder;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::element::XElement;
 use crate::element::XElementValue;
@@ -17,7 +17,6 @@ use crate::key::XKey;
 use crate::node::XNode;
 use crate::prelude::diagnostics::trace;
 use crate::signal::depth::Depth;
-use crate::string::XString;
 use crate::template::IsTemplate;
 use crate::template::IsTemplated;
 use crate::utils::Ptr;
@@ -164,36 +163,5 @@ impl LiveElement {
 
     pub fn get_key_attribute(&self, template: &XTemplate) -> Option<String> {
         self.html.get_attribute(template.key_attribute())
-    }
-}
-
-#[derive(Default)]
-pub struct AttributeValuesBuilder {
-    values: Vec<Vec<AttributeValueDiff>>,
-}
-
-#[derive(Default)]
-pub enum AttributeValueDiff {
-    #[default]
-    Undefined,
-    Same(XString),
-    Null,
-    Value(XString),
-}
-
-impl AttributeValuesBuilder {
-    pub fn get_mut(&mut self, id: &XAttributeId) -> &mut AttributeValueDiff {
-        if self.values.len() == id.index {
-            self.values.push(Default::default());
-        }
-        let values = &mut self.values[id.index];
-        if values.len() == id.sub_index {
-            values.push(Default::default());
-        }
-        &mut values[id.sub_index]
-    }
-
-    pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {
-        &self.values[index]
     }
 }

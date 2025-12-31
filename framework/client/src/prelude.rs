@@ -11,12 +11,12 @@
 pub use wasm_bindgen::closure::Closure;
 pub use web_sys::Element;
 
-pub use crate::attribute::XAttribute;
-pub use crate::attribute::XAttributeId;
-pub use crate::attribute::XAttributeKind;
-pub use crate::attribute::XAttributeName;
-pub use crate::attribute::XAttributeTemplate;
-pub use crate::attribute::XAttributeValue;
+pub use crate::attribute::attribute::XAttribute;
+pub use crate::attribute::id::XAttributeId;
+pub use crate::attribute::name::XAttributeKind;
+pub use crate::attribute::name::XAttributeName;
+pub use crate::attribute::template::XAttributeTemplate;
+pub use crate::attribute::value::XAttributeValue;
 pub use crate::element::OnRenderCallback;
 pub use crate::element::XElement;
 pub use crate::element::XElementValue;

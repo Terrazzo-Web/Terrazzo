@@ -5,9 +5,9 @@ use scopeguard::guard;
 
 use super::XAttribute;
 use super::template::LiveElement;
-use crate::attribute::XAttributeValue;
-use crate::attribute::aggregate_attribute;
-use crate::attribute::set_attribute;
+use crate::attribute::attribute::set_attribute;
+use crate::attribute::builder::aggregate_attribute;
+use crate::attribute::value::XAttributeValue;
 use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeName;
 use crate::prelude::diagnostics::trace;
@@ -72,7 +72,8 @@ pub fn merge(
         set_attribute(&element.html, &css_style, &chunk.name, value_acc);
     }
 
-    debug_assert!(i == new_attributes.len());
+    #[cfg(feature = "diagnostics")]
+    assert!(i == new_attributes.len());
 
     for XAttributeName { name, kind } in old_attributes_set {
         match kind {

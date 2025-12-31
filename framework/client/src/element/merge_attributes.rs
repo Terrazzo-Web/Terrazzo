@@ -7,6 +7,7 @@ use super::XAttribute;
 use super::template::LiveElement;
 use crate::attribute::attribute::set_attribute;
 use crate::attribute::builder::aggregate_attribute;
+use crate::attribute::id::XAttributeId;
 use crate::attribute::value::XAttributeValue;
 use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeName;
@@ -44,13 +45,16 @@ pub fn merge(
         let _span = trace_span!("Chunk", chunk = %chunk.name, index = chunk.index).entered();
         let tmp: Option<Option<String>>;
         let value_acc = match chunk.chunk_kind {
-            ChunkKind::Dynamic | ChunkKind::Static | ChunkKind::Single => {
+            ChunkKind::Dynamic => {
+                let set_attribute = |attribute_id, value| {
+                    *element.attributes.borrow_mut().get_mut(attribute_id) = value
+                };
                 for new_attribute in chunk.attributes {
                     let i = guard(&mut i, |i| *i += 1);
                     old_attributes_set.remove(&new_attribute.id.name);
                     let old_attribute_value =
                         find_old_attribute(new_attribute, **i, old_attributes);
-                    new_attribute.merge(depth, element, old_attribute_value);
+                    new_attribute.merge(depth, element, set_attribute, old_attribute_value);
                 }
 
                 tmp = aggregate_attribute(element.attributes.borrow().get_chunk(chunk.index));
@@ -59,14 +63,26 @@ pub fn merge(
                     continue;
                 };
                 tmp.as_deref()
-            } // TODO: optimization in case attribute is static or single, no need to build the attribute diff list
-              // ChunkKind::Static => {
-              //     tmp = aggregate_attribute(chunk.attributes.iter().map(attribute_value_to_option));
-              //     tmp.as_deref()
-              // }
-              // ChunkKind::Single => {
-              //     attribute_value_to_option(&chunk.attributes[0]).map(|s| s.into())
-              // },
+            }
+            ChunkKind::Static | ChunkKind::Single => {
+                let mut values = Vec::with_capacity(chunk.attributes.len());
+                for new_attribute in chunk.attributes {
+                    let i = guard(&mut i, |i| *i += 1);
+                    old_attributes_set.remove(&new_attribute.id.name);
+                    let old_attribute_value =
+                        find_old_attribute(new_attribute, **i, old_attributes);
+                    let set_attribute =
+                        |attribute_id: &XAttributeId, value| values[attribute_id.sub_index] = value;
+                    new_attribute.merge(depth, element, set_attribute, old_attribute_value);
+                }
+
+                tmp = aggregate_attribute(&values);
+                trace!("Static chunk value: {tmp:?}");
+                let Some(tmp) = &tmp else {
+                    continue;
+                };
+                tmp.as_deref()
+            }
         };
 
         set_attribute(&element.html, &css_style, &chunk.name, value_acc);

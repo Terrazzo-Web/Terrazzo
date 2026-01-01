@@ -44,16 +44,7 @@ mod envelope {
     }
 }
 "#;
-    let actual = super::envelope2(quote! {}, sample);
-    let actual = syn::parse2(quote! {
-        mod envelope { #actual }
-    })
-    .map(|item| item_to_string(&item))
-    .unwrap_or_else(|error| format!("Error {error} parsing {actual}"));
-    if expected.trim() != actual.trim() {
-        println!("{}", actual);
-        assert!(false);
-    }
+    run_test(sample, expected);
 }
 
 #[test]
@@ -97,16 +88,7 @@ mod envelope {
     }
 }
 "#;
-    let actual = super::envelope2(quote! {}, sample);
-    let actual = syn::parse2(quote! {
-        mod envelope { #actual }
-    })
-    .map(|item| item_to_string(&item))
-    .unwrap_or_else(|error| format!("Error {error} parsing {actual}"));
-    if expected.trim() != actual.trim() {
-        println!("{}", actual);
-        assert!(false);
-    }
+    run_test(sample, expected);
 }
 
 #[test]
@@ -154,6 +136,76 @@ mod envelope {
     }
 }
 "#;
+    run_test(sample, expected);
+}
+
+#[test]
+fn envelope_struct_where() {
+    let sample = quote! {
+        struct MyStruct2<'t, 'tt: 't, T: 't>
+        where
+            T: Clone,
+        {
+            t: &'t T,
+            tt: &'tt T,
+        }
+    };
+    let expected = r#"
+mod envelope {
+    struct MyStruct2<'t, 'tt: 't, T: 't>
+    where
+        T: Clone,
+    {
+        t: &'t T,
+        tt: &'tt T,
+    }
+    struct MyStruct2Ptr<'t, 'tt: 't, T: 't>
+    where
+        T: Clone,
+    {
+        inner: ::std::sync::Arc<MyStruct2<'t, 'tt, T>>,
+    }
+    impl<'t, 'tt: 't, T: 't> ::std::ops::Deref for MyStruct2Ptr<'t, 'tt, T>
+    where
+        T: Clone,
+    {
+        type Target = MyStruct2<'t, 'tt, T>;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl<'t, 'tt: 't, T: 't> ::core::convert::AsRef<MyStruct2<'t, 'tt, T>>
+    for MyStruct2Ptr<'t, 'tt, T>
+    where
+        T: Clone,
+    {
+        fn as_ref(&self) -> &MyStruct2<'t, 'tt, T> {
+            &self.inner
+        }
+    }
+    impl<'t, 'tt: 't, T: 't> ::core::clone::Clone for MyStruct2Ptr<'t, 'tt, T>
+    where
+        T: Clone,
+    {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl<'t, 'tt: 't, T: 't> From<MyStruct2<'t, 'tt, T>> for MyStruct2Ptr<'t, 'tt, T>
+    where
+        T: Clone,
+    {
+        fn from(inner: MyStruct2<'t, 'tt, T>) -> Self {
+            Self { inner: inner.into() }
+        }
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
+#[track_caller]
+fn run_test(sample: proc_macro2::TokenStream, expected: &str) {
     let actual = super::envelope2(quote! {}, sample);
     let actual = syn::parse2(quote! {
         mod envelope { #actual }

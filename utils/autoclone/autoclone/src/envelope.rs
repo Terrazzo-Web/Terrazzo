@@ -55,17 +55,20 @@ impl VisitMut for EnvelopeVisitor {
         let name_ptr = format_ident!("{name}Ptr");
 
         let generics = &i.generics;
+        let where_clause = &generics.where_clause;
         let without_defaults = without_defaults(generics);
         let param_names_only = param_names_only(generics);
         let derives = get_derives(i.attrs);
 
         self.items.push(quote! {
             #derives
-            struct #name_ptr #generics {
+            struct #name_ptr #generics #where_clause {
                 inner: ::std::sync::Arc<#name #param_names_only>
             }
 
-            impl #without_defaults ::std::ops::Deref for #name_ptr #param_names_only {
+            impl #without_defaults ::std::ops::Deref
+            for #name_ptr #param_names_only
+            #where_clause {
                 type Target = #name #param_names_only;
 
                 fn deref(&self) -> &Self::Target {
@@ -73,13 +76,17 @@ impl VisitMut for EnvelopeVisitor {
                 }
             }
 
-            impl #without_defaults ::core::convert::AsRef<#name #param_names_only> for #name_ptr #param_names_only {
+            impl #without_defaults ::core::convert::AsRef<#name #param_names_only>
+            for #name_ptr #param_names_only
+            #where_clause {
                 fn as_ref(&self) -> &#name #param_names_only {
                     &self.inner
                 }
             }
 
-            impl #without_defaults ::core::clone::Clone for #name_ptr #param_names_only {
+            impl #without_defaults ::core::clone::Clone
+            for #name_ptr #param_names_only
+            #where_clause {
                 fn clone(&self) -> Self {
                     Self {
                         inner: self.inner.clone()
@@ -87,7 +94,9 @@ impl VisitMut for EnvelopeVisitor {
                 }
             }
 
-            impl #without_defaults From<#name #param_names_only> for #name_ptr #param_names_only {
+            impl #without_defaults From<#name #param_names_only>
+            for #name_ptr #param_names_only
+            #where_clause {
                 fn from(inner: #name #param_names_only) -> Self {
                     Self { inner: inner.into() }
                 }

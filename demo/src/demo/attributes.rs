@@ -1,10 +1,11 @@
 use diagnostics::info;
+use nameth::nameth;
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
-use terrazzo::widgets::element_capture::ElementCapture;
-use web_sys::HtmlSelectElement;
+use terrazzo::widgets::select;
+use terrazzo::widgets::select::SelectPtr;
 use web_sys::MouseEvent;
 
 stylance::import_style!(style, "attributes.scss");
@@ -13,33 +14,27 @@ stylance::import_style!(style, "attributes.scss");
 #[template(tag = div)]
 #[html]
 pub fn attributes_demo() -> XElement {
-    let flavor = XSignal::new("flavor", Flavor::Zero);
     let underline = XSignal::new("underline", false);
     let italic = XSignal::new("bold", false);
     let bold = XSignal::new("bold", false);
-    let flavor_dom: ElementCapture<HtmlSelectElement> = ElementCapture::default();
-    div(
+    let select = SelectPtr::new(
+        vec![
+            Flavor::Zero,
+            Flavor::BoldS_UnderlineS_ItalicS_Style,
+            Flavor::BoldD_UnderlineD_ItalicD_Class,
+            Flavor::BoldS_UnderlineS_ItalicS_Class,
+            Flavor::BoldD_UnderlineS_ItalicS_Class,
+            Flavor::BoldD_UnderlineD_ItalicS_Class,
+            Flavor::BoldD_UnderlineD_ItalicD_Style,
+            Flavor::BoldS_UnderlineD_ItalicD_Style,
+            Flavor::BoldS_UnderlineS_ItalicD_Style,
+        ],
+        None,
+    );
+    tag(
         key = "attributes",
         h1("Attributes"),
-        select(
-            before_render = flavor_dom.capture(),
-            option(value = "Zero", "Zero"),
-            option(value = "DynamicAndStatic", "DynamicAndStatic"),
-            option(value = "DynamicOnly", "DynamicOnly"),
-            option(value = "Single", "Single"),
-            option(value = "Static", "Static"),
-            change = move |_| {
-                autoclone!(flavor_dom, flavor);
-                match flavor_dom.get().value().as_str() {
-                    "Zero" => flavor.set(Flavor::Zero),
-                    "DynamicAndStatic" => flavor.set(Flavor::DynamicAndStatic),
-                    "DynamicOnly" => flavor.set(Flavor::DynamicOnly),
-                    "Single" => flavor.set(Flavor::Single),
-                    "Static" => flavor.set(Flavor::Static),
-                    _ => unreachable!(),
-                }
-            },
-        ),
+        select.show(),
         span(
             button(
                 click = move |_ev: MouseEvent| {
@@ -48,6 +43,10 @@ pub fn attributes_demo() -> XElement {
                         diagnostics::info!("Toggle bold to {}", !b);
                         Some(!b)
                     });
+                },
+                class %= move |t: XAttributeTemplate| {
+                    autoclone!(bold);
+                    style_tpl::active(t, bold.clone())
                 },
                 b("B"),
             ),
@@ -59,6 +58,10 @@ pub fn attributes_demo() -> XElement {
                         Some(!i)
                     });
                 },
+                class %= move |t: XAttributeTemplate| {
+                    autoclone!(italic);
+                    style_tpl::active(t, italic.clone())
+                },
                 i("I"),
             ),
             button(
@@ -69,130 +72,200 @@ pub fn attributes_demo() -> XElement {
                         Some(!u)
                     });
                 },
+                class %= move |t: XAttributeTemplate| {
+                    autoclone!(underline);
+                    style_tpl::active(t, underline.clone())
+                },
                 u("U"),
             ),
         ),
-        result(flavor, underline, italic, bold),
+        result(select.selected.clone(), bold, underline, italic),
         before_render = |_: &Element| info!("Before render"),
         after_render = |_: &Element| info!("After render"),
     )
 }
 
+#[autoclone]
 #[template(tag = div)]
 #[html]
 fn result(
     #[signal] flavor: Flavor,
+    bold: XSignal<bool>,
     underline: XSignal<bool>,
     italic: XSignal<bool>,
-    bold: XSignal<bool>,
 ) -> XElement {
     let value = match flavor {
-        Flavor::DynamicAndStatic => dynamic_and_static(underline, italic, bold),
-        Flavor::DynamicOnly => dynamic_only(underline, italic, bold),
-        Flavor::Zero => zero(),
-        Flavor::Single => single_underline(),
-        Flavor::Static => static_bold_underline(),
+        Flavor::Zero => div(class = style::rbox, "Hello, world! - zero"),
+        Flavor::BoldS_UnderlineS_ItalicS_Style => div(
+            style = BOLD,
+            style = UNDERLINE,
+            style = ITALIC,
+            style = MARGIN,
+            style = PADDING,
+            style = BORDER,
+            "{flavor:?}",
+        ),
+        Flavor::BoldD_UnderlineD_ItalicD_Class => div(
+            class = style::rbox,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(bold);
+                style_tpl::bold(t, bold.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(underline);
+                style_tpl::underline(t, underline.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(italic);
+                style_tpl::italic(t, italic.clone())
+            },
+            "{flavor:?}",
+        ),
+        Flavor::BoldS_UnderlineS_ItalicS_Class => div(
+            class = style::rbox,
+            style = BOLD,
+            style = UNDERLINE,
+            style = ITALIC,
+            "{flavor:?}",
+        ),
+        Flavor::BoldD_UnderlineS_ItalicS_Class => div(
+            class = style::rbox,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(bold);
+                style_tpl::bold(t, bold.clone())
+            },
+            style = UNDERLINE,
+            style = ITALIC,
+            "{flavor:?}",
+        ),
+        Flavor::BoldD_UnderlineD_ItalicS_Class => div(
+            class = style::rbox,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(bold);
+                style_tpl::bold(t, bold.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(underline);
+                style_tpl::underline(t, underline.clone())
+            },
+            style = ITALIC,
+            "{flavor:?}",
+        ),
+        Flavor::BoldD_UnderlineD_ItalicD_Style => div(
+            class = style::rbox,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(bold);
+                style_tpl::bold(t, bold.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(underline);
+                style_tpl::underline(t, underline.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(italic);
+                style_tpl::italic(t, italic.clone())
+            },
+            style = MARGIN,
+            style = PADDING,
+            style = BORDER,
+            "{flavor:?}",
+        ),
+        Flavor::BoldS_UnderlineD_ItalicD_Style => div(
+            class = style::rbox,
+            style = BOLD,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(underline);
+                style_tpl::underline(t, underline.clone())
+            },
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(italic);
+                style_tpl::italic(t, italic.clone())
+            },
+            style = MARGIN,
+            style = PADDING,
+            style = BORDER,
+            "{flavor:?}",
+        ),
+        Flavor::BoldS_UnderlineS_ItalicD_Style => div(
+            class = style::rbox,
+            style = BOLD,
+            style = UNDERLINE,
+            style %= move |t: XAttributeTemplate| {
+                autoclone!(italic);
+                style_tpl::italic(t, italic.clone())
+            },
+            style = MARGIN,
+            style = PADDING,
+            style = BORDER,
+            "{flavor:?}",
+        ),
     };
     tag([value]..)
 }
 
-#[autoclone]
-#[html]
-fn dynamic_and_static(
-    underline: XSignal<bool>,
-    italic: XSignal<bool>,
-    bold: XSignal<bool>,
-) -> XElement {
-    div(
-        style = "margin: 5px 0 5px 0;",
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(bold);
-            style_tpl::bold(t, bold.clone())
-        },
-        style = "padding: 5px;",
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(italic);
-            style_tpl::italic(t, italic.clone())
-        },
-        style = "border: 1px solid green;",
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(underline);
-            style_tpl::underline(t, underline.clone())
-        },
-        "Hello, world! dynamic and static",
-    )
-}
+static MARGIN: &str = "margin: 5px 0 5px 0;";
+static PADDING: &str = "padding: 5px;";
+static BORDER: &str = "border: 1px solid green;";
+static BOLD: &str = "font-weight: bold;";
+static ITALIC: &str = "font-style: italic;";
+static UNDERLINE: &str = "text-decoration: underline;";
 
-#[autoclone]
-#[html]
-fn dynamic_only(underline: XSignal<bool>, italic: XSignal<bool>, bold: XSignal<bool>) -> XElement {
-    div(
-        class = style::dynamic_only,
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(underline);
-            style_tpl::underline(t, underline.clone())
-        },
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(bold);
-            style_tpl::bold(t, bold.clone())
-        },
-        style %= move |t: XAttributeTemplate| {
-            autoclone!(italic);
-            style_tpl::italic(t, italic.clone())
-        },
-        "Hello, world! - dynamic only",
-    )
-}
-
-#[html]
-fn zero() -> XElement {
-    div(class = style::dynamic_only, "Hello, world! - zero")
-}
-
-#[html]
-fn single_underline() -> XElement {
-    div(
-        class = style::dynamic_only,
-        style = "text-decoration: underline;",
-        "Hello, world! - single_underline",
-    )
-}
-
-#[html]
-fn static_bold_underline() -> XElement {
-    div(
-        class = style::dynamic_only,
-        style = "font-weight: bold;",
-        style = "text-decoration: underline;",
-        "Hello, world! - static_bold_underline",
-    )
-}
-
+#[nameth]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 enum Flavor {
-    DynamicAndStatic,
-    DynamicOnly,
     Zero,
-    Single,
-    Static,
+
+    BoldS_UnderlineS_ItalicS_Style,
+    BoldD_UnderlineD_ItalicD_Class,
+
+    BoldS_UnderlineS_ItalicS_Class,
+    BoldD_UnderlineS_ItalicS_Class,
+    BoldD_UnderlineD_ItalicS_Class,
+
+    BoldD_UnderlineD_ItalicD_Style,
+    BoldS_UnderlineD_ItalicD_Style,
+    BoldS_UnderlineS_ItalicD_Style,
+}
+
+impl select::Option for Flavor {
+    #[html]
+    fn show(&self) -> XElement {
+        let name = nameth::NamedEnumValues::name(self);
+        span("{name}")
+    }
+
+    fn name(&self) -> XString {
+        nameth::NamedEnumValues::name(self).into()
+    }
 }
 
 mod style_tpl {
     use terrazzo::prelude::*;
     use terrazzo::template;
 
+    use super::BOLD;
+    use super::ITALIC;
+    use super::UNDERLINE;
+    use super::style;
+
     #[template]
     pub fn bold(#[signal] mut bold: bool) -> XAttributeValue {
-        bold.then_some("font-weight: bold;")
+        bold.then_some(BOLD)
     }
 
     #[template]
     pub fn italic(#[signal] mut italic: bool) -> XAttributeValue {
-        italic.then_some("font-style: italic;")
+        italic.then_some(ITALIC)
     }
 
     #[template]
     pub fn underline(#[signal] mut underline: bool) -> XAttributeValue {
-        underline.then_some("text-decoration: underline;")
+        underline.then_some(UNDERLINE)
+    }
+
+    #[template]
+    pub fn active(#[signal] mut active: bool) -> XAttributeValue {
+        active.then_some(style::active)
     }
 }

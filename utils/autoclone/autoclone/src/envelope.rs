@@ -1,8 +1,7 @@
 use quote::ToTokens as _;
 use quote::format_ident;
 use quote::quote;
-use syn::visit_mut;
-use syn::visit_mut::VisitMut;
+use syn::visit_mut::VisitMut as _;
 
 mod tests;
 
@@ -43,9 +42,9 @@ struct EnvelopeVisitor {
     items: Vec<proc_macro2::TokenStream>,
 }
 
-impl VisitMut for EnvelopeVisitor {
+impl syn::visit_mut::VisitMut for EnvelopeVisitor {
     fn visit_item_mut(&mut self, i: &mut syn::Item) {
-        visit_mut::visit_item_mut(self, i);
+        syn::visit_mut::visit_item_mut(self, i);
         self.items.push(i.to_token_stream());
     }
 
@@ -69,12 +68,34 @@ impl EnvelopeVisitor {
         generics: &syn::Generics,
     ) {
         let name_ptr = format_ident!("{name}Ptr");
+        let name_into = format_ident!("Into{name}");
 
         let where_clause = &generics.where_clause;
         let without_defaults = without_defaults(generics);
         let param_names_only = param_names_only(generics);
         let derives = get_derives(attrs);
 
+        let with_into = {
+            let mut with_into = without_defaults.clone();
+            with_into.lt_token.get_or_insert_default();
+            with_into
+                .params
+                .push(syn::GenericParam::Type(syn::TypeParam {
+                    attrs: Default::default(),
+                    ident: name_into.clone(),
+                    colon_token: Some(Default::default()),
+                    bounds: [syn::parse2::<syn::TypeParamBound>(
+                        quote! { Into<#name #param_names_only> },
+                    )
+                    .unwrap()]
+                    .into_iter()
+                    .collect(),
+                    eq_token: Default::default(),
+                    default: Default::default(),
+                }));
+            with_into.gt_token.get_or_insert_default();
+            with_into
+        };
         self.items.push(quote! {
             #derives
             #vis struct #name_ptr #generics #where_clause {
@@ -109,11 +130,11 @@ impl EnvelopeVisitor {
                 }
             }
 
-            impl #without_defaults From<#name #param_names_only>
+            impl #with_into From<#name_into>
             for #name_ptr #param_names_only
             #where_clause {
-                fn from(inner: #name #param_names_only) -> Self {
-                    Self { inner: inner.into() }
+                fn from(inner: #name_into) -> Self {
+                    Self { inner: inner.into().into() }
                 }
             }
         });

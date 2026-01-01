@@ -33,9 +33,9 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl From<MyStruct> for MyStructPtr {
-        fn from(inner: MyStruct) -> Self {
-            Self { inner: inner.into() }
+    impl<IntoMyStruct: Into<MyStruct>> From<IntoMyStruct> for MyStructPtr {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     struct MyStruct {
@@ -77,10 +77,13 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<T: Clone, U: Default> From<MyStructGenerics<T, U>>
-    for MyStructGenericsPtr<T, U> {
-        fn from(inner: MyStructGenerics<T, U>) -> Self {
-            Self { inner: inner.into() }
+    impl<
+        T: Clone,
+        U: Default,
+        IntoMyStructGenerics: Into<MyStructGenerics<T, U>>,
+    > From<IntoMyStructGenerics> for MyStructGenericsPtr<T, U> {
+        fn from(inner: IntoMyStructGenerics) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     struct MyStructGenerics<T: Clone, U: Default = usize> {
@@ -126,10 +129,14 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<T: Clone, const N: usize, const D: usize> From<MyStruct<T, N, D>>
-    for MyStructPtr<T, N, D> {
-        fn from(inner: MyStruct<T, N, D>) -> Self {
-            Self { inner: inner.into() }
+    impl<
+        T: Clone,
+        const N: usize,
+        const D: usize,
+        IntoMyStruct: Into<MyStruct<T, N, D>>,
+    > From<IntoMyStruct> for MyStructPtr<T, N, D> {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
@@ -152,6 +159,7 @@ fn envelope_struct_where() {
         }
     };
     let expected = r#"
+
 mod envelope {
     struct MyStructPtr<'t, 'tt: 't, T: 't>
     where
@@ -185,12 +193,13 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<'t, 'tt: 't, T: 't> From<MyStruct<'t, 'tt, T>> for MyStructPtr<'t, 'tt, T>
+    impl<'t, 'tt: 't, T: 't, IntoMyStruct: Into<MyStruct<'t, 'tt, T>>> From<IntoMyStruct>
+    for MyStructPtr<'t, 'tt, T>
     where
         T: Clone,
     {
-        fn from(inner: MyStruct<'t, 'tt, T>) -> Self {
-            Self { inner: inner.into() }
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     struct MyStruct<'t, 'tt: 't, T: 't>
@@ -214,6 +223,7 @@ fn envelope_enum() {
         }
     };
     let expected = r#"
+
 mod envelope {
     struct MyEnumPtr {
         inner: ::std::sync::Arc<MyEnum>,
@@ -234,9 +244,9 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl From<MyEnum> for MyEnumPtr {
-        fn from(inner: MyEnum) -> Self {
-            Self { inner: inner.into() }
+    impl<IntoMyEnum: Into<MyEnum>> From<IntoMyEnum> for MyEnumPtr {
+        fn from(inner: IntoMyEnum) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     enum MyEnum {
@@ -257,6 +267,7 @@ fn envelope_visibility() {
         }
     };
     let expected = r#"
+
 mod envelope {
     pub(super) struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
@@ -277,9 +288,9 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl From<MyStruct> for MyStructPtr {
-        fn from(inner: MyStruct) -> Self {
-            Self { inner: inner.into() }
+    impl<IntoMyStruct: Into<MyStruct>> From<IntoMyStruct> for MyStructPtr {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
     struct MyStruct {
@@ -299,7 +310,8 @@ fn envelope_derives() {
     };
     let expected = r#"
 mod envelope {
-    pub(super) struct MyStructPtr {
+    #[derive(Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+    struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
     }
     impl ::std::ops::Deref for MyStructPtr {
@@ -318,15 +330,13 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl From<MyStruct> for MyStructPtr {
-        fn from(inner: MyStruct) -> Self {
-            Self { inner: inner.into() }
+    impl<IntoMyStruct: Into<MyStruct>> From<IntoMyStruct> for MyStructPtr {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
         }
     }
-    struct MyStruct {
-        pub a: String,
-        pub(super) b: i32,
-    }
+    #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+    struct MyStruct(String);
 }
 "#;
     run_test(sample, expected);

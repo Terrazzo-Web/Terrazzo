@@ -15,6 +15,7 @@ fn envelope_struct() {
     let expected = r#"
 mod envelope {
     mod my_struct {
+        use super::*;
         pub struct MyStruct {
             pub(super) a: String,
             pub(super) b: i32,
@@ -61,6 +62,7 @@ fn envelope_struct_generics() {
     let expected = r#"
 mod envelope {
     mod my_struct_generics {
+        use super::*;
         pub struct MyStructGenerics<T: Clone, U: Default = usize> {
             pub(super) t: T,
             pub(super) u: U,
@@ -111,6 +113,7 @@ fn envelope_struct_const() {
     let expected = r#"
 mod envelope {
     mod my_struct {
+        use super::*;
         pub struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
             pub(super) t: T,
         }
@@ -170,6 +173,7 @@ fn envelope_struct_where() {
     let expected = r#"
 mod envelope {
     mod my_struct {
+        use super::*;
         pub struct MyStruct<'t, 'tt: 't, T: 't>
         where
             T: Clone,
@@ -236,6 +240,7 @@ fn envelope_enum() {
     let expected = r#"
 mod envelope {
     mod my_enum {
+        use super::*;
         pub enum MyEnum {
             A(String),
             B,
@@ -282,6 +287,7 @@ fn envelope_visibility() {
     let expected = r#"
 mod envelope {
     mod my_struct {
+        use super::*;
         pub struct MyStruct {
             pub a: String,
             pub(in super::super) b: i32,
@@ -326,6 +332,7 @@ fn envelope_derives() {
     let expected = r#"
 mod envelope {
     mod my_struct {
+        use super::*;
         #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub struct MyStruct(pub(super) String);
     }

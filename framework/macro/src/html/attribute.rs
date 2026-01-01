@@ -50,10 +50,9 @@ impl XAttribute {
         });
         for (index, chunk) in attributes
             .chunk_by_mut(|a, b| (&a.name, a.kind) == (&b.name, b.kind))
-            .into_iter()
             .enumerate()
         {
-            for (sub_index, attribute) in chunk.into_iter().enumerate() {
+            for (sub_index, attribute) in chunk.iter_mut().enumerate() {
                 attribute.index = index;
                 attribute.sub_index = sub_index;
             }

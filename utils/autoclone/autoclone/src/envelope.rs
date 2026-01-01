@@ -143,6 +143,7 @@ impl EnvelopeVisitor {
         let inner = syn::Ident::new(&ident_to_snake_case(&name), name.span());
         self.items.push(quote! {
             mod #inner {
+                use super::*;
                 #public_item
             }
             use #inner::#name;

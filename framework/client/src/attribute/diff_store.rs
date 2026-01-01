@@ -5,7 +5,6 @@ use super::id::XAttributeId;
 use super::name::XAttributeName;
 use super::value::XAttributeValue;
 use crate::element::template::LiveElement;
-use crate::prelude::OrElseLog;
 
 pub trait AttributeValueDiffStore {
     fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff);
@@ -46,10 +45,15 @@ impl StaticBackend {
 
 impl AttributeValueDiffStore for StaticBackend {
     fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff) {
-        *self
-            .values
-            .get_mut(attribute_id.sub_index)
-            .or_throw("StaticBackend::set") = value;
+        if cfg!(feature = "diagnostics") {
+            assert!(
+                attribute_id.sub_index == self.values.len(),
+                "StaticBackend sub_index error. attribute_id.sub_index:{} != self.values.len():{}",
+                attribute_id.sub_index,
+                self.values.len()
+            );
+        }
+        self.values.push(value);
     }
 
     fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {

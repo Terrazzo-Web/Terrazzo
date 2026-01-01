@@ -14,6 +14,13 @@ fn envelope_struct() {
     };
     let expected = r#"
 mod envelope {
+    mod my_struct {
+        pub struct MyStruct {
+            pub(super) a: String,
+            pub(super) b: i32,
+        }
+    }
+    use my_struct::MyStruct;
     struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
     }
@@ -38,10 +45,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    struct MyStruct {
-        a: String,
-        b: i32,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -57,6 +60,13 @@ fn envelope_struct_generics() {
     };
     let expected = r#"
 mod envelope {
+    mod my_struct_generics {
+        pub struct MyStructGenerics<T: Clone, U: Default = usize> {
+            pub(super) t: T,
+            pub(super) u: U,
+        }
+    }
+    use my_struct_generics::MyStructGenerics;
     struct MyStructGenericsPtr<T: Clone, U: Default = usize> {
         inner: ::std::sync::Arc<MyStructGenerics<T, U>>,
     }
@@ -86,10 +96,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    struct MyStructGenerics<T: Clone, U: Default = usize> {
-        t: T,
-        u: U,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -104,6 +110,12 @@ fn envelope_struct_const() {
     };
     let expected = r#"
 mod envelope {
+    mod my_struct {
+        pub struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
+            pub(super) t: T,
+        }
+    }
+    use my_struct::MyStruct;
     struct MyStructPtr<T: Clone, const N: usize, const D: usize = 0> {
         inner: ::std::sync::Arc<MyStruct<T, N, D>>,
     }
@@ -139,9 +151,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
-        t: T,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -159,8 +168,17 @@ fn envelope_struct_where() {
         }
     };
     let expected = r#"
-
 mod envelope {
+    mod my_struct {
+        pub struct MyStruct<'t, 'tt: 't, T: 't>
+        where
+            T: Clone,
+        {
+            pub(super) t: &'t T,
+            pub(super) tt: &'tt T,
+        }
+    }
+    use my_struct::MyStruct;
     struct MyStructPtr<'t, 'tt: 't, T: 't>
     where
         T: Clone,
@@ -202,13 +220,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    struct MyStruct<'t, 'tt: 't, T: 't>
-    where
-        T: Clone,
-    {
-        t: &'t T,
-        tt: &'tt T,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -223,8 +234,14 @@ fn envelope_enum() {
         }
     };
     let expected = r#"
-
 mod envelope {
+    mod my_enum {
+        pub enum MyEnum {
+            A(String),
+            B,
+        }
+    }
+    use my_enum::MyEnum;
     struct MyEnumPtr {
         inner: ::std::sync::Arc<MyEnum>,
     }
@@ -249,10 +266,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    enum MyEnum {
-        A(String),
-        B,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -267,8 +280,14 @@ fn envelope_visibility() {
         }
     };
     let expected = r#"
-
 mod envelope {
+    mod my_struct {
+        pub struct MyStruct {
+            pub a: String,
+            pub(in super::super) b: i32,
+        }
+    }
+    use my_struct::MyStruct;
     pub(super) struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
     }
@@ -293,10 +312,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    struct MyStruct {
-        pub a: String,
-        pub(super) b: i32,
-    }
 }
 "#;
     run_test(sample, expected);
@@ -310,6 +325,11 @@ fn envelope_derives() {
     };
     let expected = r#"
 mod envelope {
+    mod my_struct {
+        #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+        pub struct MyStruct(pub(super) String);
+    }
+    use my_struct::MyStruct;
     #[derive(Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
     struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
@@ -335,8 +355,6 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-    #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-    struct MyStruct(String);
 }
 "#;
     run_test(sample, expected);

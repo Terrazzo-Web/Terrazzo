@@ -45,23 +45,67 @@ struct EnvelopeVisitor {
 impl syn::visit_mut::VisitMut for EnvelopeVisitor {
     fn visit_item_mut(&mut self, i: &mut syn::Item) {
         syn::visit_mut::visit_item_mut(self, i);
-        self.items.push(i.to_token_stream());
     }
 
     fn visit_item_enum_mut(&mut self, i: &mut syn::ItemEnum) {
-        self.do_visit(&i.ident, &i.vis, &i.attrs, &i.generics);
-        i.vis = syn::Visibility::Inherited;
+        let mut public_item = i.to_owned();
+        public_item.vis = syn::Visibility::Public(Default::default());
+        self.do_visit(
+            syn::Item::Enum(public_item),
+            &i.ident,
+            &i.vis,
+            &i.attrs,
+            &i.generics,
+        );
     }
 
     fn visit_item_struct_mut(&mut self, i: &mut syn::ItemStruct) {
-        self.do_visit(&i.ident, &i.vis, &i.attrs, &i.generics);
-        i.vis = syn::Visibility::Inherited;
+        let mut public_item = i.to_owned();
+        public_item.vis = syn::Visibility::Public(Default::default());
+        for field in &mut public_item.fields {
+            match &field.vis {
+                syn::Visibility::Inherited => {
+                    field.vis = syn::parse2(quote! { pub(super) }).expect("pub(super)");
+                }
+                syn::Visibility::Restricted(syn::VisRestricted {
+                    in_token: None,
+                    path,
+                    ..
+                }) => {
+                    if let syn::Path {
+                        leading_colon: None,
+                        segments,
+                    } = &**path
+                        && segments.len() > 0
+                        && segments[0].ident == "super"
+                    {
+                        field.vis = syn::parse2(quote! { pub(in super :: #path ) }).unwrap_or_else(
+                            |error| {
+                                panic!(
+                                    "Error {error} parsing: pub(super :: {})",
+                                    path.to_token_stream().to_string()
+                                )
+                            },
+                        );
+                    }
+                }
+                _ => (),
+            }
+        }
+        self.do_visit(
+            syn::Item::Struct(public_item),
+            &i.ident,
+            &i.vis,
+            &i.attrs,
+            &i.generics,
+        );
     }
 }
 
 impl EnvelopeVisitor {
     fn do_visit(
         &mut self,
+        public_item: syn::Item,
         name: &syn::Ident,
         vis: &syn::Visibility,
         attrs: &[syn::Attribute],
@@ -96,7 +140,13 @@ impl EnvelopeVisitor {
             with_into.gt_token.get_or_insert_default();
             with_into
         };
+        let inner = syn::Ident::new(&ident_to_snake_case(&name), name.span());
         self.items.push(quote! {
+            mod #inner {
+                #public_item
+            }
+            use #inner::#name;
+
             #derives
             #vis struct #name_ptr #generics #where_clause {
                 inner: ::std::sync::Arc<#name #param_names_only>
@@ -238,4 +288,20 @@ fn without_defaults(generics: &syn::Generics) -> syn::Generics {
         }
     }
     generics
+}
+
+fn ident_to_snake_case(name: &impl std::fmt::Display) -> String {
+    let name = name.to_string();
+    let mut result = String::default();
+    for c in name.chars() {
+        if c.is_uppercase() {
+            if !result.is_empty() {
+                result.push('_');
+            }
+            result.push_str(&c.to_lowercase().to_string());
+        } else {
+            result.push(c);
+        }
+    }
+    return result;
 }

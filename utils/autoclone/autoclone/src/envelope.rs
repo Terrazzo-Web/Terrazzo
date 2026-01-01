@@ -131,35 +131,36 @@ fn get_derives(attrs: Vec<syn::Attribute>) -> proc_macro2::TokenStream {
     quote! {}
 }
 
-fn param_names_only(generics: &syn::Generics) -> syn::Generics {
-    let mut generics = without_defaults(generics);
-    for param in &mut generics.params {
-        match param {
-            syn::GenericParam::Lifetime(syn::LifetimeParam {
-                colon_token,
-                bounds,
-                ..
-            }) => {
-                *colon_token = None;
-                *bounds = syn::punctuated::Punctuated::default()
-            }
-            syn::GenericParam::Type(syn::TypeParam {
-                colon_token,
-                bounds,
-                ..
-            }) => {
-                *colon_token = None;
-                *bounds = syn::punctuated::Punctuated::default();
-            }
-            syn::GenericParam::Const(syn::ConstParam {
-                eq_token, default, ..
-            }) => {
-                *eq_token = None;
-                *default = None;
-            }
-        }
+fn param_names_only(generics: &syn::Generics) -> proc_macro2::TokenStream {
+    let syn::Generics {
+        lt_token: Some(lt_token),
+        params,
+        gt_token: Some(gt_token),
+        where_clause: _,
+    } = generics
+    else {
+        return quote!();
+    };
+    syn::AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: lt_token.to_owned(),
+        args: params
+            .into_iter()
+            .map(|param| match param {
+                syn::GenericParam::Lifetime(x) => {
+                    syn::GenericArgument::Lifetime(x.lifetime.clone())
+                }
+                syn::GenericParam::Type(syn::TypeParam { ident, .. }) => {
+                    syn::GenericArgument::Type(syn::parse2(quote! { #ident }).unwrap())
+                }
+                syn::GenericParam::Const(syn::ConstParam { ident, .. }) => {
+                    syn::GenericArgument::Const(syn::parse2(quote! { #ident }).unwrap())
+                }
+            })
+            .collect(),
+        gt_token: gt_token.to_owned(),
     }
-    generics
+    .into_token_stream()
 }
 
 fn without_defaults(generics: &syn::Generics) -> syn::Generics {
@@ -179,8 +180,15 @@ fn without_defaults(generics: &syn::Generics) -> syn::Generics {
                 *eq_token = None;
                 *default = None;
             }
-            syn::GenericParam::Const(syn::ConstParam { attrs, .. }) => {
+            syn::GenericParam::Const(syn::ConstParam {
+                attrs,
+                eq_token,
+                default,
+                ..
+            }) => {
                 *attrs = vec![];
+                *eq_token = None;
+                *default = None;
             }
         }
     }

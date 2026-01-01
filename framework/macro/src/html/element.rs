@@ -1,16 +1,14 @@
-use std::collections::HashMap;
-use std::collections::hash_map;
-
 use quote::quote;
 
+use super::attribute::XAttribute;
+use super::attribute::XAttributeKind;
 use super::event::process_event;
 use super::html_element_visitor::HtmlElementVisitor;
 
 pub struct XElement {
     pub tag_name: Option<proc_macro2::TokenStream>,
     pub key: proc_macro2::TokenStream,
-    pub attributes: Vec<proc_macro2::TokenStream>,
-    pub attributes_indices: HashMap<String, (usize, usize)>,
+    pub attributes: Vec<XAttribute>,
     pub events: Vec<proc_macro2::TokenStream>,
     pub children: Vec<proc_macro2::TokenStream>,
     pub dynamic: Option<proc_macro2::TokenStream>,
@@ -30,20 +28,17 @@ impl XElement {
             "before-render" => self.before_render = Some(quote!(#value)),
             "after-render" => self.after_render = Some(quote!(#value)),
             _ => {
-                let (index, sub_index) = self.allocate_attribute_index(&name);
-                self.attributes.push(quote! {
-                    gen_attributes.push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: #name.into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: #index,
-                            sub_index: #sub_index,
-                        },
-                        value: #value.into(),
-                    });
-                });
+                let value = quote! { #value.into() };
+                self.attributes.push(XAttribute::new_static(
+                    &name,
+                    XAttributeKind::Attribute,
+                    move |this| {
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
+                        }
+                    },
+                ));
             }
         }
     }
@@ -59,22 +54,19 @@ impl XElement {
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                let (index, sub_index) = self.allocate_attribute_index(&name);
-                self.attributes.push(quote! {
-                    if let Some(value) = #value {
-                        gen_attributes.push(XAttribute {
-                            id: XAttributeId {
-                                name: XAttributeName {
-                                    name: #name.into(),
-                                    kind: XAttributeKind::Attribute,
-                                },
-                                index: #index,
-                                sub_index: #sub_index,
-                            },
-                            value: value.into(),
-                        });
-                    }
-                });
+                let value = quote! { #value };
+                self.attributes.push(XAttribute::new_static(
+                    &name,
+                    XAttributeKind::Attribute,
+                    move |this| {
+                        let generated = this.to_tokens(quote! { value.into() });
+                        quote! {
+                            if let Some(value) = #value {
+                                gen_attributes.push(#generated);
+                            }
+                        }
+                    },
+                ));
             }
         }
     }
@@ -85,20 +77,17 @@ impl XElement {
             return;
         };
         let name = ident_to_kebab_case(name);
-        let (index, sub_index) = self.allocate_attribute_index(&name);
-        self.attributes.push(quote! {
-            gen_attributes.push(XAttribute {
-                id: XAttributeId {
-                    name: XAttributeName {
-                        name: #name.into(),
-                        kind: XAttributeKind::Style,
-                    },
-                    index: #index,
-                    sub_index: #sub_index,
-                },
-                value: #value.into(),
-            });
-        });
+        let value = quote! { #value.into() };
+        self.attributes.push(XAttribute::new_static(
+            &name,
+            XAttributeKind::Style,
+            move |this| {
+                let generated = this.to_tokens(value);
+                quote! {
+                    gen_attributes.push(#generated);
+                }
+            },
+        ));
     }
 
     pub fn process_dynamic_attribute(
@@ -113,31 +102,27 @@ impl XElement {
         };
         let name = ident_to_kebab_case(name);
         let kind = if is_style_attribute {
-            quote! { XAttributeKind::Style }
+            XAttributeKind::Style
         } else {
-            quote! { XAttributeKind::Attribute }
+            XAttributeKind::Attribute
         };
         match name.as_str() {
             "key" => self.key = quote! { compile_error!() },
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                let (index, sub_index) = self.allocate_attribute_index(&name);
-                self.attributes.push(quote! {
-                    gen_attributes.push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: #name.into(),
-                                kind: #kind,
-                            },
-                            index: #index,
-                            sub_index: #sub_index,
-                        },
-                        value: XAttributeValue::Dynamic(
-                            (#value).into(),
-                        ),
-                    });
-                });
+                let value = quote! {
+                    XAttributeValue::Dynamic(
+                        (#value).into(),
+                    )
+                };
+                self.attributes
+                    .push(XAttribute::new_dynamic(&name, kind, move |this| {
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
+                        }
+                    }));
             }
         }
     }
@@ -195,22 +180,6 @@ impl XElement {
         self.children.push(quote! {
             gen_children.extend(#children.into_iter().map(XNode::from));
         });
-    }
-
-    fn allocate_attribute_index(&mut self, name: impl Into<String>) -> (usize, usize) {
-        let next_index = self.attributes_indices.len();
-        match self.attributes_indices.entry(name.into()) {
-            hash_map::Entry::Occupied(mut entry) => {
-                let (index, sub_index) = entry.get_mut();
-                *sub_index += 1;
-                (*index, *sub_index)
-            }
-            hash_map::Entry::Vacant(entry) => {
-                let sub_index = 0;
-                entry.insert((next_index, 0));
-                (next_index, sub_index)
-            }
-        }
     }
 }
 

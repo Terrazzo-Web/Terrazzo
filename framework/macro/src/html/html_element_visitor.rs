@@ -3,6 +3,7 @@ use syn::visit_mut::VisitMut;
 
 use super::element::XElement;
 use crate::arguments::MacroArgs;
+use crate::html::attribute::XAttribute;
 
 pub struct HtmlElementVisitor {
     pub args: MacroArgs,
@@ -80,7 +81,6 @@ impl HtmlElementVisitor {
             tag_name: (tag_name != "tag").then(|| quote! { #tag_name.into() }),
             key: quote! { XKey::default() },
             attributes: vec![],
-            attributes_indices: Default::default(),
             events: vec![],
             children: vec![],
             dynamic: None,
@@ -159,7 +159,6 @@ impl HtmlElementVisitor {
             tag_name,
             key,
             attributes,
-            attributes_indices: _,
             events,
             children,
             dynamic,
@@ -180,6 +179,14 @@ impl HtmlElementVisitor {
                 }
             }
             None => {
+                let attributes = {
+                    let mut attributes = attributes;
+                    XAttribute::sort_attributes(&mut attributes);
+                    attributes
+                        .into_iter()
+                        .map(XAttribute::generate)
+                        .collect::<Vec<_>>()
+                };
                 let gen_attributes = quote! {
                     let mut gen_attributes = vec![];
                     #(#attributes)*

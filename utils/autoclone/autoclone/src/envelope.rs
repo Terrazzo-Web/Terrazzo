@@ -45,24 +45,39 @@ struct EnvelopeVisitor {
 
 impl VisitMut for EnvelopeVisitor {
     fn visit_item_mut(&mut self, i: &mut syn::Item) {
-        self.items.push(i.to_token_stream());
         visit_mut::visit_item_mut(self, i);
+        self.items.push(i.to_token_stream());
+    }
+
+    fn visit_item_enum_mut(&mut self, i: &mut syn::ItemEnum) {
+        self.do_visit(&i.ident, &i.vis, &i.attrs, &i.generics);
+        i.vis = syn::Visibility::Inherited;
     }
 
     fn visit_item_struct_mut(&mut self, i: &mut syn::ItemStruct) {
-        let i = i.clone();
-        let name = i.ident;
+        self.do_visit(&i.ident, &i.vis, &i.attrs, &i.generics);
+        i.vis = syn::Visibility::Inherited;
+    }
+}
+
+impl EnvelopeVisitor {
+    fn do_visit(
+        &mut self,
+        name: &syn::Ident,
+        vis: &syn::Visibility,
+        attrs: &[syn::Attribute],
+        generics: &syn::Generics,
+    ) {
         let name_ptr = format_ident!("{name}Ptr");
 
-        let generics = &i.generics;
         let where_clause = &generics.where_clause;
         let without_defaults = without_defaults(generics);
         let param_names_only = param_names_only(generics);
-        let derives = get_derives(i.attrs);
+        let derives = get_derives(attrs);
 
         self.items.push(quote! {
             #derives
-            struct #name_ptr #generics #where_clause {
+            #vis struct #name_ptr #generics #where_clause {
                 inner: ::std::sync::Arc<#name #param_names_only>
             }
 
@@ -105,13 +120,13 @@ impl VisitMut for EnvelopeVisitor {
     }
 }
 
-fn get_derives(attrs: Vec<syn::Attribute>) -> proc_macro2::TokenStream {
+fn get_derives(attrs: &[syn::Attribute]) -> proc_macro2::TokenStream {
     for attr in attrs {
-        if let syn::Meta::List(list) = attr.meta
+        if let syn::Meta::List(list) = &attr.meta
             && let Some(maybe_derive) = list.path.get_ident()
             && *maybe_derive == "derive"
         {
-            let tokens = list.tokens;
+            let tokens = &list.tokens;
             let Ok(valid): syn::Result<syn::ExprArray> = syn::parse2(quote! { [ #tokens ] }) else {
                 continue;
             };

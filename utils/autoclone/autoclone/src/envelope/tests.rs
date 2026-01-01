@@ -14,10 +14,6 @@ fn envelope_struct() {
     };
     let expected = r#"
 mod envelope {
-    struct MyStruct {
-        a: String,
-        b: i32,
-    }
     struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
     }
@@ -42,6 +38,10 @@ mod envelope {
             Self { inner: inner.into() }
         }
     }
+    struct MyStruct {
+        a: String,
+        b: i32,
+    }
 }
 "#;
     run_test(sample, expected);
@@ -50,41 +50,42 @@ mod envelope {
 #[test]
 fn envelope_struct_generics() {
     let sample = quote! {
-        struct MyStruct<T: Clone, U: Default = usize> {
+        struct MyStructGenerics<T: Clone, U: Default = usize> {
             t: T,
             u: U,
         }
     };
     let expected = r#"
 mod envelope {
-    struct MyStruct<T: Clone, U: Default = usize> {
-        t: T,
-        u: U,
+    struct MyStructGenericsPtr<T: Clone, U: Default = usize> {
+        inner: ::std::sync::Arc<MyStructGenerics<T, U>>,
     }
-    struct MyStructPtr<T: Clone, U: Default = usize> {
-        inner: ::std::sync::Arc<MyStruct<T, U>>,
-    }
-    impl<T: Clone, U: Default> ::std::ops::Deref for MyStructPtr<T, U> {
-        type Target = MyStruct<T, U>;
+    impl<T: Clone, U: Default> ::std::ops::Deref for MyStructGenericsPtr<T, U> {
+        type Target = MyStructGenerics<T, U>;
         fn deref(&self) -> &Self::Target {
             &self.inner
         }
     }
-    impl<T: Clone, U: Default> ::core::convert::AsRef<MyStruct<T, U>>
-    for MyStructPtr<T, U> {
-        fn as_ref(&self) -> &MyStruct<T, U> {
+    impl<T: Clone, U: Default> ::core::convert::AsRef<MyStructGenerics<T, U>>
+    for MyStructGenericsPtr<T, U> {
+        fn as_ref(&self) -> &MyStructGenerics<T, U> {
             &self.inner
         }
     }
-    impl<T: Clone, U: Default> ::core::clone::Clone for MyStructPtr<T, U> {
+    impl<T: Clone, U: Default> ::core::clone::Clone for MyStructGenericsPtr<T, U> {
         fn clone(&self) -> Self {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<T: Clone, U: Default> From<MyStruct<T, U>> for MyStructPtr<T, U> {
-        fn from(inner: MyStruct<T, U>) -> Self {
+    impl<T: Clone, U: Default> From<MyStructGenerics<T, U>>
+    for MyStructGenericsPtr<T, U> {
+        fn from(inner: MyStructGenerics<T, U>) -> Self {
             Self { inner: inner.into() }
         }
+    }
+    struct MyStructGenerics<T: Clone, U: Default = usize> {
+        t: T,
+        u: U,
     }
 }
 "#;
@@ -94,21 +95,18 @@ mod envelope {
 #[test]
 fn envelope_struct_const() {
     let sample = quote! {
-        struct MyStruct2<T: Clone, const N: usize, const D: usize = 0> {
+        struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
             t: T,
         }
     };
     let expected = r#"
 mod envelope {
-    struct MyStruct2<T: Clone, const N: usize, const D: usize = 0> {
-        t: T,
-    }
-    struct MyStruct2Ptr<T: Clone, const N: usize, const D: usize = 0> {
-        inner: ::std::sync::Arc<MyStruct2<T, N, D>>,
+    struct MyStructPtr<T: Clone, const N: usize, const D: usize = 0> {
+        inner: ::std::sync::Arc<MyStruct<T, N, D>>,
     }
     impl<T: Clone, const N: usize, const D: usize> ::std::ops::Deref
-    for MyStruct2Ptr<T, N, D> {
-        type Target = MyStruct2<T, N, D>;
+    for MyStructPtr<T, N, D> {
+        type Target = MyStruct<T, N, D>;
         fn deref(&self) -> &Self::Target {
             &self.inner
         }
@@ -117,22 +115,25 @@ mod envelope {
         T: Clone,
         const N: usize,
         const D: usize,
-    > ::core::convert::AsRef<MyStruct2<T, N, D>> for MyStruct2Ptr<T, N, D> {
-        fn as_ref(&self) -> &MyStruct2<T, N, D> {
+    > ::core::convert::AsRef<MyStruct<T, N, D>> for MyStructPtr<T, N, D> {
+        fn as_ref(&self) -> &MyStruct<T, N, D> {
             &self.inner
         }
     }
     impl<T: Clone, const N: usize, const D: usize> ::core::clone::Clone
-    for MyStruct2Ptr<T, N, D> {
+    for MyStructPtr<T, N, D> {
         fn clone(&self) -> Self {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<T: Clone, const N: usize, const D: usize> From<MyStruct2<T, N, D>>
-    for MyStruct2Ptr<T, N, D> {
-        fn from(inner: MyStruct2<T, N, D>) -> Self {
+    impl<T: Clone, const N: usize, const D: usize> From<MyStruct<T, N, D>>
+    for MyStructPtr<T, N, D> {
+        fn from(inner: MyStruct<T, N, D>) -> Self {
             Self { inner: inner.into() }
         }
+    }
+    struct MyStruct<T: Clone, const N: usize, const D: usize = 0> {
+        t: T,
     }
 }
 "#;
@@ -142,7 +143,7 @@ mod envelope {
 #[test]
 fn envelope_struct_where() {
     let sample = quote! {
-        struct MyStruct2<'t, 'tt: 't, T: 't>
+        struct MyStruct<'t, 'tt: 't, T: 't>
         where
             T: Clone,
         {
@@ -152,38 +153,31 @@ fn envelope_struct_where() {
     };
     let expected = r#"
 mod envelope {
-    struct MyStruct2<'t, 'tt: 't, T: 't>
+    struct MyStructPtr<'t, 'tt: 't, T: 't>
     where
         T: Clone,
     {
-        t: &'t T,
-        tt: &'tt T,
+        inner: ::std::sync::Arc<MyStruct<'t, 'tt, T>>,
     }
-    struct MyStruct2Ptr<'t, 'tt: 't, T: 't>
+    impl<'t, 'tt: 't, T: 't> ::std::ops::Deref for MyStructPtr<'t, 'tt, T>
     where
         T: Clone,
     {
-        inner: ::std::sync::Arc<MyStruct2<'t, 'tt, T>>,
-    }
-    impl<'t, 'tt: 't, T: 't> ::std::ops::Deref for MyStruct2Ptr<'t, 'tt, T>
-    where
-        T: Clone,
-    {
-        type Target = MyStruct2<'t, 'tt, T>;
+        type Target = MyStruct<'t, 'tt, T>;
         fn deref(&self) -> &Self::Target {
             &self.inner
         }
     }
-    impl<'t, 'tt: 't, T: 't> ::core::convert::AsRef<MyStruct2<'t, 'tt, T>>
-    for MyStruct2Ptr<'t, 'tt, T>
+    impl<'t, 'tt: 't, T: 't> ::core::convert::AsRef<MyStruct<'t, 'tt, T>>
+    for MyStructPtr<'t, 'tt, T>
     where
         T: Clone,
     {
-        fn as_ref(&self) -> &MyStruct2<'t, 'tt, T> {
+        fn as_ref(&self) -> &MyStruct<'t, 'tt, T> {
             &self.inner
         }
     }
-    impl<'t, 'tt: 't, T: 't> ::core::clone::Clone for MyStruct2Ptr<'t, 'tt, T>
+    impl<'t, 'tt: 't, T: 't> ::core::clone::Clone for MyStructPtr<'t, 'tt, T>
     where
         T: Clone,
     {
@@ -191,13 +185,147 @@ mod envelope {
             Self { inner: self.inner.clone() }
         }
     }
-    impl<'t, 'tt: 't, T: 't> From<MyStruct2<'t, 'tt, T>> for MyStruct2Ptr<'t, 'tt, T>
+    impl<'t, 'tt: 't, T: 't> From<MyStruct<'t, 'tt, T>> for MyStructPtr<'t, 'tt, T>
     where
         T: Clone,
     {
-        fn from(inner: MyStruct2<'t, 'tt, T>) -> Self {
+        fn from(inner: MyStruct<'t, 'tt, T>) -> Self {
             Self { inner: inner.into() }
         }
+    }
+    struct MyStruct<'t, 'tt: 't, T: 't>
+    where
+        T: Clone,
+    {
+        t: &'t T,
+        tt: &'tt T,
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
+#[test]
+fn envelope_enum() {
+    let sample = quote! {
+        enum MyEnum {
+            A(String),
+            B
+        }
+    };
+    let expected = r#"
+mod envelope {
+    struct MyEnumPtr {
+        inner: ::std::sync::Arc<MyEnum>,
+    }
+    impl ::std::ops::Deref for MyEnumPtr {
+        type Target = MyEnum;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl ::core::convert::AsRef<MyEnum> for MyEnumPtr {
+        fn as_ref(&self) -> &MyEnum {
+            &self.inner
+        }
+    }
+    impl ::core::clone::Clone for MyEnumPtr {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl From<MyEnum> for MyEnumPtr {
+        fn from(inner: MyEnum) -> Self {
+            Self { inner: inner.into() }
+        }
+    }
+    enum MyEnum {
+        A(String),
+        B,
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
+#[test]
+fn envelope_visibility() {
+    let sample = quote! {
+        pub(super) struct MyStruct {
+            pub a: String,
+            pub(super) b: i32,
+        }
+    };
+    let expected = r#"
+mod envelope {
+    pub(super) struct MyStructPtr {
+        inner: ::std::sync::Arc<MyStruct>,
+    }
+    impl ::std::ops::Deref for MyStructPtr {
+        type Target = MyStruct;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl ::core::convert::AsRef<MyStruct> for MyStructPtr {
+        fn as_ref(&self) -> &MyStruct {
+            &self.inner
+        }
+    }
+    impl ::core::clone::Clone for MyStructPtr {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl From<MyStruct> for MyStructPtr {
+        fn from(inner: MyStruct) -> Self {
+            Self { inner: inner.into() }
+        }
+    }
+    struct MyStruct {
+        pub a: String,
+        pub(super) b: i32,
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
+#[test]
+fn envelope_derives() {
+    let sample = quote! {
+        #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+        struct MyStruct(String);
+    };
+    let expected = r#"
+mod envelope {
+    pub(super) struct MyStructPtr {
+        inner: ::std::sync::Arc<MyStruct>,
+    }
+    impl ::std::ops::Deref for MyStructPtr {
+        type Target = MyStruct;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl ::core::convert::AsRef<MyStruct> for MyStructPtr {
+        fn as_ref(&self) -> &MyStruct {
+            &self.inner
+        }
+    }
+    impl ::core::clone::Clone for MyStructPtr {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl From<MyStruct> for MyStructPtr {
+        fn from(inner: MyStruct) -> Self {
+            Self { inner: inner.into() }
+        }
+    }
+    struct MyStruct {
+        pub a: String,
+        pub(super) b: i32,
     }
 }
 "#;

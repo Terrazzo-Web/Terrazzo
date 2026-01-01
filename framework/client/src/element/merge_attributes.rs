@@ -15,6 +15,7 @@ use crate::attribute::diff_store::AttributeValueDiffStore;
 use crate::attribute::diff_store::Chunk;
 use crate::attribute::diff_store::ChunkKind;
 use crate::attribute::diff_store::DynamicBackend;
+use crate::attribute::diff_store::SingleBackend;
 use crate::attribute::diff_store::StaticBackend;
 use crate::attribute::value::XAttributeValue;
 use crate::prelude::XAttributeKind;
@@ -64,8 +65,21 @@ pub fn merge(
                     &mut i,
                 );
             }
-            ChunkKind::Static | ChunkKind::Single => {
+            ChunkKind::Static => {
                 let backend = StaticBackend::new(&chunk);
+                merge_chunk(
+                    chunk,
+                    depth,
+                    element,
+                    &css_style,
+                    old_attributes,
+                    &mut old_attributes_set,
+                    backend,
+                    &mut i,
+                );
+            }
+            ChunkKind::Single => {
+                let backend = SingleBackend::default();
                 merge_chunk(
                     chunk,
                     depth,

@@ -61,6 +61,40 @@ impl AttributeValueDiffStore for StaticBackend {
     }
 }
 
+pub struct SingleBackend {
+    value: AttributeValueDiff,
+}
+
+impl Default for SingleBackend {
+    fn default() -> Self {
+        Self {
+            value: AttributeValueDiff::Undefined,
+        }
+    }
+}
+
+impl AttributeValueDiffStore for SingleBackend {
+    fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff) {
+        if cfg!(feature = "diagnostics") {
+            assert!(
+                attribute_id.sub_index == 0,
+                "SingleBackend sub_index error. attribute_id.sub_index:{} != 0",
+                attribute_id.sub_index,
+            );
+        }
+        self.value = value;
+    }
+
+    fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {
+        match &self.value {
+            AttributeValueDiff::Undefined => None,
+            AttributeValueDiff::Same { .. } => None,
+            AttributeValueDiff::Null => Some(None),
+            AttributeValueDiff::Value(value) => Some(Some(value.as_str())),
+        }
+    }
+}
+
 pub struct Chunk<'t> {
     pub chunk_kind: ChunkKind,
     pub name: XAttributeName,

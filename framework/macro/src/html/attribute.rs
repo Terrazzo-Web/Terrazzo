@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use quote::quote;
 
 pub struct XAttribute {
@@ -41,9 +43,17 @@ impl XAttribute {
     }
 
     pub fn sort_attributes(attributes: &mut [Self]) {
+        let dynamic_chunks = attributes
+            .iter()
+            .filter_map(|attribute| {
+                attribute
+                    .is_dynamic
+                    .then(|| (attribute.name.clone(), attribute.kind))
+            })
+            .collect::<HashSet<_>>();
         attributes.sort_by_key(|attribute| {
             (
-                !attribute.is_dynamic,
+                !dynamic_chunks.contains(&(attribute.name.clone(), attribute.kind)),
                 attribute.name.clone(),
                 attribute.kind,
             )
@@ -90,7 +100,7 @@ impl XAttribute {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum XAttributeKind {
     Attribute,
     Style,

@@ -5,8 +5,7 @@ use nameth::nameth;
 use web_sys::CssStyleDeclaration;
 use web_sys::Element;
 
-use self::diagnostics::trace;
-use self::diagnostics::warn;
+use self::diagnostics::*;
 use super::builder::AttributeValueDiff;
 use super::diff_store::AttributeValueDiffStore;
 use super::id::XAttributeId;
@@ -112,10 +111,11 @@ fn merge_static_atttribute<'t>(
         old_value.as_ref().zip(new_value)
         && new_value == old_attribute_value
     {
-        trace!("Attribute '{attribute_id}' is still '{new_value}'");
+        debug!("Attribute '{attribute_id}' is still '{new_value}'");
         backend.set(attribute_id, AttributeValueDiff::Same(new_value.to_owned()));
     } else {
         drop(old_value);
+        debug!("Attribute '{attribute_id}' is set to '{new_value:?}'");
         backend.set(
             attribute_id,
             if let Some(new_value) = new_value {
@@ -135,6 +135,7 @@ fn merge_dynamic_atttribute<'t>(
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
+    debug!("Dynamic Attribute '{attribute_id}' is initialized");
     backend.set(attribute_id, AttributeValueDiff::Undefined);
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,

@@ -36,6 +36,14 @@ pub fn merge(
         "Count"
     );
 
+    debug!(
+        "Attributes!! :{:?}",
+        new_attributes
+            .iter()
+            .map(|a| a.id.to_string())
+            .collect::<Vec<_>>()
+    );
+
     let mut old_attributes_set = HashSet::new();
     for old_attribute in old_attributes.iter_mut() {
         old_attributes_set.insert(std::mem::replace(
@@ -51,6 +59,7 @@ pub fn merge(
     for chunk in chunks_mut(new_attributes) {
         // TODO: should be trace_span!
         let span = debug_span!("Chunk", chunk = %chunk.name, index = chunk.index, kind = ?chunk.chunk_kind);
+        debug!("Chunk!!");
         let _span = span.enter();
         match chunk.chunk_kind {
             ChunkKind::Dynamic => {

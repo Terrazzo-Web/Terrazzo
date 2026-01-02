@@ -5,6 +5,7 @@ use super::id::XAttributeId;
 use super::name::XAttributeName;
 use super::value::XAttributeValue;
 use crate::element::template::LiveElement;
+use crate::prelude::diagnostics;
 
 pub trait AttributeValueDiffStore {
     fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff);
@@ -24,6 +25,13 @@ impl<'t> DynamicBackend<'t> {
 impl AttributeValueDiffStore for DynamicBackend<'_> {
     fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff) {
         *self.element.attributes.borrow_mut().get_mut(attribute_id) = value;
+        diagnostics::debug!(
+            "DynamicBackend attribute is now {:?}",
+            self.element
+                .attributes
+                .borrow()
+                .get_chunk(attribute_id.index)
+        );
     }
 
     fn aggregate_attribute(&self, index: usize) -> Option<Option<impl AsRef<str>>> {
@@ -54,6 +62,7 @@ impl AttributeValueDiffStore for StaticBackend {
             );
         }
         self.values.push(value);
+        diagnostics::debug!("StaticBackend attribute is now {:?}", self.values);
     }
 
     fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {
@@ -83,6 +92,7 @@ impl AttributeValueDiffStore for SingleBackend {
             );
         }
         self.value = value;
+        diagnostics::debug!("SingleBackend attribute is now {:?}", self.value);
     }
 
     fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {

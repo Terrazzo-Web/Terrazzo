@@ -1,5 +1,6 @@
 use super::id::XAttributeId;
 use crate::prelude::OrElseLog;
+use crate::prelude::diagnostics;
 use crate::string::XString;
 
 #[derive(Default)]
@@ -7,7 +8,7 @@ pub struct AttributeValuesBuilder {
     values: Vec<Vec<AttributeValueDiff>>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum AttributeValueDiff {
     #[default]
     Undefined,
@@ -18,19 +19,30 @@ pub enum AttributeValueDiff {
 
 impl AttributeValuesBuilder {
     pub fn get_mut(&mut self, id: &XAttributeId) -> &mut AttributeValueDiff {
+        diagnostics::error!(
+            "AttributeValuesBuilder::get_mut self.values.len()={}",
+            self.values.len()
+        );
         if self.values.len() == id.index {
             self.values.push(Default::default());
         }
-        let values = self
-            .values
-            .get_mut(id.index)
-            .or_throw("AttributeValuesBuilder::get_mut #1");
+        let values_len = self.values.len();
+        let values = self.values.get_mut(id.index).or_else_throw(|()| {
+            format!(
+                "AttributeValuesBuilder::get_mut #1: index={} vs values_len={values_len}",
+                id.index
+            )
+        });
         if values.len() == id.sub_index {
             values.push(Default::default());
         }
-        values
-            .get_mut(id.sub_index)
-            .or_throw("AttributeValuesBuilder::get_mut #2")
+        let values_len = values.len();
+        values.get_mut(id.sub_index).or_else_throw(|()| {
+            format!(
+                "AttributeValuesBuilder::get_mut #2: sub_index={} vs values_len={values_len}",
+                id.sub_index
+            )
+        })
     }
 
     pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {

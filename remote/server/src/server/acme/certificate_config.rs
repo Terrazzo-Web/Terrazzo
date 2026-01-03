@@ -5,7 +5,6 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::pkey::PKey;
 use openssl::x509::X509;
@@ -232,7 +231,7 @@ fn parse_acme_certificate(pem: &CertificateInfo<String>) -> Result<AcmeCertifica
 
 impl std::fmt::Debug for AcmeCertificateConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(AcmeCertificateConfig::type_name())
+        f.debug_struct(ACME_CERTIFICATE_CONFIG)
             .field("environment", &self.acme_config.environment)
             .finish()
     }

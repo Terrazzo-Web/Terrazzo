@@ -3,6 +3,7 @@ use syn::visit_mut::VisitMut;
 
 use super::element::XElement;
 use crate::arguments::MacroArgs;
+use crate::html::attribute::XAttribute;
 
 pub struct HtmlElementVisitor {
     pub args: MacroArgs,
@@ -178,6 +179,14 @@ impl HtmlElementVisitor {
                 }
             }
             None => {
+                let attributes = {
+                    let mut attributes = attributes;
+                    XAttribute::sort_attributes(&mut attributes);
+                    attributes
+                        .into_iter()
+                        .map(XAttribute::generate)
+                        .collect::<Vec<_>>()
+                };
                 let gen_attributes = quote! {
                     let mut gen_attributes = vec![];
                     #(#attributes)*

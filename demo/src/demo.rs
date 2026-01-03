@@ -5,6 +5,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 
 mod api;
+mod attributes;
 mod counter;
 mod timer;
 
@@ -16,6 +17,7 @@ pub fn run() -> XElement {
         counter::counter_demo(demo.counter),
         timer::timer_demo(demo.enable_timer, demo.timer),
         api::api_demo(),
+        attributes::attributes_demo(),
     );
 }
 

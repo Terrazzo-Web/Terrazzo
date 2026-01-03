@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use rustls::ClientConfig;
 use rustls::client::WebPkiServerVerifier;
@@ -129,6 +128,6 @@ impl<T: CustomServerCertificateVerifier> rustls::client::danger::ServerCertVerif
 
 impl<T> std::fmt::Debug for CustomWebPkiServerVerifier<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple(Self::type_name()).finish()
+        f.debug_tuple(CUSTOM_WEB_PKI_SERVER_VERIFIER).finish()
     }
 }

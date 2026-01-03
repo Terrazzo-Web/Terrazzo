@@ -12,6 +12,7 @@
 /// #[nameth]
 /// struct Point { x: i32, y: i32 }
 /// assert_eq!("Point", Point::type_name());
+/// assert_eq!("Point", POINT);
 /// ```
 ///
 /// **With enums**
@@ -27,6 +28,7 @@
 ///     Circle { radius: f64 },
 /// }
 /// assert_eq!("Shape", Shape::type_name());
+/// assert_eq!("Shape", SHAPE);
 /// assert_eq!("Square", Shape::Square(2.0).name());
 /// assert_eq!("Circle", Shape::Circle { radius: 2.0 }.name());
 /// ```

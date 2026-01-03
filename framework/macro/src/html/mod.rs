@@ -4,6 +4,7 @@ use syn::visit_mut::VisitMut as _;
 use self::html_element_visitor::HtmlElementVisitor;
 use crate::arguments::MacroArgs;
 
+mod attribute;
 mod element;
 mod event;
 mod html_element_visitor;

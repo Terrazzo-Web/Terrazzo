@@ -12,7 +12,6 @@ use instant_acme::ChallengeType;
 use instant_acme::LetsEncrypt;
 use instant_acme::OrderStatus;
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
 use trz_gateway_common::certificate_info::CertificateInfo;
@@ -156,7 +155,7 @@ fn credentials_eq(a: &Option<AccountCredentials>, b: &Option<AccountCredentials>
 
 impl std::fmt::Debug for AcmeConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(Self::type_name())
+        f.debug_struct(ACME_CONFIG)
             .field("environment", &self.environment)
             .field("credentials", &self.credentials.is_some())
             .field("contact", &self.contact)

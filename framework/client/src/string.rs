@@ -50,7 +50,7 @@ impl std::fmt::Display for XString {
 
 impl Default for XString {
     fn default() -> Self {
-        Self::Str("")
+        const { Self::Str("") }
     }
 }
 
@@ -95,6 +95,12 @@ impl From<&'static str> for XString {
 impl From<Arc<str>> for XString {
     fn from(arc: Arc<str>) -> Self {
         Self::Ref(arc)
+    }
+}
+
+impl<'t> From<&'t XString> for &'t str {
+    fn from(value: &'t XString) -> Self {
+        value.as_str()
     }
 }
 

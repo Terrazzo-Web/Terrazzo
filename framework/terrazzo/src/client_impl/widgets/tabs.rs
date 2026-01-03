@@ -186,7 +186,7 @@ fn drop_zone<S: TabsState>(
             class = options.title_drop_zone.clone(),
             style %= move |a: XAttributeTemplate| {
                 autoclone!(is_dragging);
-                let drop_zone = a.element.clone();
+                let drop_zone = a.element.html.clone();
                 title_drop_zone_style(a, drop_zone, is_dragging.clone())
             },
             drop = move |ev: web_sys::DragEvent| {

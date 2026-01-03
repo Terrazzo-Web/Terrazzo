@@ -39,3 +39,12 @@ The [autoclone!](autoclone/autoclone/README.md) syntax sugar.
 
 ## Nameth
 The [`#[nameth]`](nameth/nameth/README.md) macro.
+
+DONE
+- build a demo app that simulates useful use cases
+- sort attributes by name+kind in macro, dynamic first
+
+TODO
+- cleanup logs debug->trace
+- show attribute builder in logs
+- factor utils in 1 crate

@@ -43,6 +43,7 @@ web-sys = { workspace = true, optional = true, features = [
     "DragEvent",
     "Element",
     "FocusEvent",
+    "HtmlSelectElement",
     "MouseEvent",
     "Performance",
     "Window",

@@ -6,7 +6,6 @@ use futures::Sink;
 use futures::SinkExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tokio_util::io::CopyToBytes;
@@ -39,12 +38,12 @@ pub trait WebSocketIo {
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{n}] {0}", n = Self::type_name())]
+#[error("[{READ_ERROR}] {0}")]
 struct ReadError<E>(E);
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{n}] {0}", n = Self::type_name())]
+#[error("[{WRITE_ERROR}] {0}")]
 struct WriteError<E>(E);
 
 fn to_async_io_impl<IO: WebSocketIo>(

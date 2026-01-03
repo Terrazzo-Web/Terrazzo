@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use futures::FutureExt as _;
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument as _;
@@ -76,10 +75,10 @@ impl AuthCode {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum StopPeriodicUpdatesError {
-    #[error("[{n}] Periodic {t} updates are not scheduled", n = self.name(), t = AuthCode::type_name())]
+    #[error("[{n}] Periodic {AUTH_CODE} updates are not scheduled", n = self.name() )]
     NotRunning,
 
-    #[error("[{n}] Failed to send signal to stop periodic {t} updates", n = self.name(), t = AuthCode::type_name())]
+    #[error("[{n}] Failed to send signal to stop periodic {AUTH_CODE} updates", n = self.name() )]
     SignalFailed,
 }
 

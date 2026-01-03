@@ -8,7 +8,6 @@ pub type DebugCorrelationId<N> = without_debug::DebugCorrelationId<N>;
 
 #[cfg(not(feature = "concise-traces"))]
 mod with_debug {
-    use nameth::NamedType as _;
     use nameth::nameth;
 
     use crate::prelude::diagnostics::trace;
@@ -18,7 +17,7 @@ mod with_debug {
 
     impl<N: std::fmt::Display> std::fmt::Debug for DebugCorrelationId<N> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_tuple(Self::type_name())
+            f.debug_tuple(DEBUG_CORRELATION_ID)
                 .field(&self.0.to_string())
                 .field(&self.1)
                 .finish()
@@ -63,7 +62,7 @@ mod without_debug {
 
     impl<N: std::fmt::Display> std::fmt::Display for DebugCorrelationId<N> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            std::fmt::Display::fmt(Self::type_name(), f)
+            std::fmt::Display::fmt(DEBUG_CORRELATION_ID, f)
         }
     }
 

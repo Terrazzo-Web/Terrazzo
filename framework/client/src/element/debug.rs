@@ -195,12 +195,12 @@ mod verbose {
 mod concise {
     use nameth::NamedType as _;
 
-    use crate::element::XElement;
+    use crate::element::XELEMENT;
     use crate::element::XElement;
 
     impl std::fmt::Debug for XElement {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(XElement)
+            f.debug_struct(XELEMENT)
                 .field("key", &self.key)
                 .field("tag_name", &self.tag_name)
                 .finish()

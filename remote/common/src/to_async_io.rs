@@ -38,12 +38,12 @@ pub trait WebSocketIo {
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{ReadError}] {0}")]
+#[error("[{READ_ERROR}] {0}")]
 struct ReadError<E>(E);
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{WriteError}] {0}")]
+#[error("[{WRITE_ERROR}] {0}")]
 struct WriteError<E>(E);
 
 fn to_async_io_impl<IO: WebSocketIo>(

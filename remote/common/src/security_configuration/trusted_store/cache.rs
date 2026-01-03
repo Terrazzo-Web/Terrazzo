@@ -66,11 +66,12 @@ mod debug {
     use std::fmt::Debug;
     use std::fmt::Formatter;
 
+    use super::CACHED_TRUSTED_STORE_CONFIG;
     use super::CachedTrustedStoreConfig;
 
     impl Debug for CachedTrustedStoreConfig {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(CachedTrustedStoreConfig).finish()
+            f.debug_struct(CACHED_TRUSTED_STORE_CONFIG).finish()
         }
     }
 }

@@ -128,6 +128,6 @@ impl<T: CustomServerCertificateVerifier> rustls::client::danger::ServerCertVerif
 
 impl<T> std::fmt::Debug for CustomWebPkiServerVerifier<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple(CustomWebPkiServerVerifier).finish()
+        f.debug_tuple(CUSTOM_WEB_PKI_SERVER_VERIFIER).finish()
     }
 }

@@ -1,3 +1,5 @@
+use darling::FromMeta;
+use darling::ast::NestedMeta;
 use quote::ToTokens as _;
 use quote::format_ident;
 use quote::quote;
@@ -8,18 +10,33 @@ use crate::ident_to_snake_case;
 mod tests;
 
 pub fn envelope2(
-    _attr: proc_macro2::TokenStream,
+    attr: proc_macro2::TokenStream,
     item: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
+    let attr_args = match NestedMeta::parse_meta_list(attr) {
+        Ok(args) => args,
+        Err(error) => return darling::Error::from(error).write_errors(),
+    };
+    let attr_args = match EnvelopeArgs::from_list(&attr_args) {
+        Ok(args) => args,
+        Err(error) => return error.write_errors(),
+    };
+
     let mut item: syn::Item = match syn::parse2(item) {
         Ok(item) => item,
         Err(err) => return err.into_compile_error(),
     };
 
-    let mut visitor = EnvelopeVisitor::default();
+    let mut visitor = EnvelopeVisitor::new(attr_args);
     visitor.visit_item_mut(&mut item);
     let items = visitor.items;
     return quote! { #(#items)* };
+}
+
+#[derive(Debug, FromMeta)]
+struct EnvelopeArgs {
+    #[darling(default)]
+    ptr: Option<syn::Path>,
 }
 
 /// From
@@ -39,8 +56,8 @@ pub fn envelope2(
 /// }
 ///
 /// impl Deref + AsRef
-#[derive(Default)]
 struct EnvelopeVisitor {
+    args: EnvelopeArgs,
     items: Vec<proc_macro2::TokenStream>,
 }
 
@@ -105,6 +122,13 @@ impl syn::visit_mut::VisitMut for EnvelopeVisitor {
 }
 
 impl EnvelopeVisitor {
+    fn new(args: EnvelopeArgs) -> Self {
+        Self {
+            args,
+            items: vec![],
+        }
+    }
+
     fn do_visit(
         &mut self,
         public_item: syn::Item,
@@ -143,6 +167,11 @@ impl EnvelopeVisitor {
             with_into
         };
         let inner = syn::Ident::new(&ident_to_snake_case(&name), name.span());
+        let ptr = if let Some(path) = &self.args.ptr {
+            path.clone()
+        } else {
+            syn::parse2(quote! { ::std::sync::Arc }).unwrap()
+        };
         self.items.push(quote! {
             mod #inner {
                 use super::*;
@@ -152,7 +181,7 @@ impl EnvelopeVisitor {
 
             #derives
             #vis struct #name_ptr #generics #where_clause {
-                inner: ::std::sync::Arc<#name #param_names_only>
+                inner: #ptr<#name #param_names_only>
             }
 
             impl #without_defaults ::std::ops::Deref

@@ -367,9 +367,61 @@ mod envelope {
     run_test(sample, expected);
 }
 
+#[test]
+fn envelope_rc() {
+    let sample = quote! {
+        struct MyStruct {
+            a: String,
+            b: i32,
+        }
+    };
+    let expected = r#"
+mod envelope {
+    mod my_struct {
+        use super::*;
+        pub struct MyStruct {
+            pub(super) a: String,
+            pub(super) b: i32,
+        }
+    }
+    use my_struct::MyStruct;
+    struct MyStructPtr {
+        inner: ::std::sync::Arc<MyStruct>,
+    }
+    impl ::std::ops::Deref for MyStructPtr {
+        type Target = MyStruct;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl ::core::convert::AsRef<MyStruct> for MyStructPtr {
+        fn as_ref(&self) -> &MyStruct {
+            &self.inner
+        }
+    }
+    impl ::core::clone::Clone for MyStructPtr {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl<IntoMyStruct: Into<MyStruct>> From<IntoMyStruct> for MyStructPtr {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
+        }
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
 #[track_caller]
 fn run_test(sample: proc_macro2::TokenStream, expected: &str) {
-    let actual = super::envelope2(quote! {}, sample);
+    run_test_args(quote!(), sample, expected)
+}
+
+#[track_caller]
+fn run_test_args(args: proc_macro2::TokenStream, sample: proc_macro2::TokenStream, expected: &str) {
+    let actual = super::envelope2(args, sample);
     let actual = syn::parse2(quote! {
         mod envelope { #actual }
     })

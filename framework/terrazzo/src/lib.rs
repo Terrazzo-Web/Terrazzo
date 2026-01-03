@@ -2,6 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 pub use ::autoclone::autoclone;
+pub use ::autoclone::envelope;
 
 #[cfg(feature = "client")]
 mod client_impl;

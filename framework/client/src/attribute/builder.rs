@@ -1,8 +1,12 @@
+use nameth::nameth;
+
+use self::diagnostics::trace;
 use super::id::XAttributeId;
 use crate::prelude::OrElseLog;
 use crate::prelude::diagnostics;
 use crate::string::XString;
 
+#[nameth]
 #[derive(Default)]
 pub struct AttributeValuesBuilder {
     values: Vec<Vec<AttributeValueDiff>>,
@@ -19,36 +23,32 @@ pub enum AttributeValueDiff {
 
 impl AttributeValuesBuilder {
     pub fn get_mut(&mut self, id: &XAttributeId) -> &mut AttributeValueDiff {
-        diagnostics::error!(
-            "AttributeValuesBuilder::get_mut self.values.len()={}",
-            self.values.len()
+        let XAttributeId {
+            index, sub_index, ..
+        } = id;
+        trace!(
+            len = self.values.len(),
+            "{ATTRIBUTE_VALUES_BUILDER}::get_mut"
         );
-        if self.values.len() == id.index {
+        if self.values.len() == *index {
             self.values.push(Default::default());
         }
         let values_len = self.values.len();
-        let values = self.values.get_mut(id.index).or_else_throw(|()| {
-            format!(
-                "AttributeValuesBuilder::get_mut #1: index={} vs values_len={values_len}",
-                id.index
-            )
-        });
-        if values.len() == id.sub_index {
+        let values = self.values.get_mut(*index).or_else_throw(|()|
+            format! { "{ATTRIBUTE_VALUES_BUILDER}::get_mut #1: index={index} vs values_len={values_len}" });
+        if values.len() == *sub_index {
             values.push(Default::default());
         }
         let values_len = values.len();
-        values.get_mut(id.sub_index).or_else_throw(|()| {
-            format!(
-                "AttributeValuesBuilder::get_mut #2: sub_index={} vs values_len={values_len}",
-                id.sub_index
-            )
-        })
+        values.get_mut(*sub_index).or_else_throw( |()|
+            format! { "{ATTRIBUTE_VALUES_BUILDER}::get_mut #2: sub_index={sub_index} vs values_len={values_len}" })
     }
 
     pub fn get_chunk(&self, index: usize) -> &[AttributeValueDiff] {
+        trace!(index, "{ATTRIBUTE_VALUES_BUILDER}::get_chunk");
         self.values
             .get(index)
-            .or_throw("AttributeValuesBuilder::get")
+            .or_else_throw(|()| format!("{ATTRIBUTE_VALUES_BUILDER}::get"))
     }
 }
 

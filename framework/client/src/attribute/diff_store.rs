@@ -1,3 +1,6 @@
+use nameth::nameth;
+
+use self::diagnostics::trace;
 use super::attribute::XAttribute;
 use super::builder::AttributeValueDiff;
 use super::builder::aggregate_attribute;
@@ -12,6 +15,7 @@ pub trait AttributeValueDiffStore {
     fn aggregate_attribute(&self, index: usize) -> Option<Option<impl AsRef<str>>>;
 }
 
+#[nameth]
 pub struct DynamicBackend<'t> {
     element: &'t LiveElement,
 }
@@ -25,8 +29,8 @@ impl<'t> DynamicBackend<'t> {
 impl AttributeValueDiffStore for DynamicBackend<'_> {
     fn set(&mut self, attribute_id: &XAttributeId, value: AttributeValueDiff) {
         *self.element.attributes.borrow_mut().get_mut(attribute_id) = value;
-        diagnostics::debug!(
-            "DynamicBackend attribute is now {:?}",
+        trace!(
+            "{DYNAMIC_BACKEND} attribute is now {:?}",
             self.element
                 .attributes
                 .borrow()
@@ -39,6 +43,7 @@ impl AttributeValueDiffStore for DynamicBackend<'_> {
     }
 }
 
+#[nameth]
 pub struct StaticBackend {
     values: Vec<AttributeValueDiff>,
 }
@@ -56,13 +61,13 @@ impl AttributeValueDiffStore for StaticBackend {
         if cfg!(feature = "diagnostics") {
             assert!(
                 attribute_id.sub_index == self.values.len(),
-                "StaticBackend sub_index error. attribute_id.sub_index:{} != self.values.len():{}",
+                "{STATIC_BACKEND} sub_index error. attribute_id.sub_index:{} != self.values.len():{}",
                 attribute_id.sub_index,
                 self.values.len()
             );
         }
         self.values.push(value);
-        diagnostics::debug!("StaticBackend attribute is now {:?}", self.values);
+        trace!("{STATIC_BACKEND} attribute is now {:?}", self.values);
     }
 
     fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {
@@ -70,6 +75,7 @@ impl AttributeValueDiffStore for StaticBackend {
     }
 }
 
+#[nameth]
 pub struct SingleBackend {
     value: AttributeValueDiff,
 }
@@ -87,12 +93,12 @@ impl AttributeValueDiffStore for SingleBackend {
         if cfg!(feature = "diagnostics") {
             assert!(
                 attribute_id.sub_index == 0,
-                "SingleBackend sub_index error. attribute_id.sub_index:{} != 0",
+                "{SINGLE_BACKEND} sub_index error. attribute_id.sub_index:{} != 0",
                 attribute_id.sub_index,
             );
         }
         self.value = value;
-        diagnostics::debug!("SingleBackend attribute is now {:?}", self.value);
+        trace!("{SINGLE_BACKEND} attribute is now {:?}", self.value);
     }
 
     fn aggregate_attribute(&self, _index: usize) -> Option<Option<impl AsRef<str>>> {

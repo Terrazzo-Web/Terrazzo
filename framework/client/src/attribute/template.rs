@@ -1,7 +1,8 @@
 use std::cell::LazyCell;
 
-use self::diagnostics::debug;
-use self::inner::AttributeTemplateInner;
+use autoclone::envelope;
+
+use self::diagnostics::trace;
 use super::attribute::XAttribute;
 use super::attribute::set_attribute;
 use super::diff_store::AttributeValueDiffStore;
@@ -27,33 +28,15 @@ impl<F: Fn(XAttributeTemplate) -> Consumers + 'static> From<F> for XDynamicAttri
 }
 
 /// Represents the template that generates a dynamic [XAttribute].
-#[derive(Clone)]
-pub struct XAttributeTemplate(Ptr<AttributeTemplateInner>);
-
-mod inner {
-    use std::ops::Deref;
-
-    use super::XAttributeTemplate;
-    use crate::debug_correlation_id::DebugCorrelationId;
-    use crate::element::template::LiveElement;
-    use crate::prelude::XAttributeId;
-    use crate::signal::depth::Depth;
-
-    pub struct AttributeTemplateInner {
-        pub element: LiveElement,
-        pub attribute_id: XAttributeId,
-        pub(super) debug_id: DebugCorrelationId<String>,
-        pub(super) depth: Depth,
-    }
-
-    impl Deref for XAttributeTemplate {
-        type Target = AttributeTemplateInner;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
+#[envelope(ptr = Ptr)]
+pub struct AttributeTemplateInner {
+    pub element: LiveElement,
+    pub attribute_id: XAttributeId,
+    pub(super) debug_id: DebugCorrelationId<String>,
+    pub(super) depth: Depth,
 }
+
+pub use AttributeTemplateInnerPtr as XAttributeTemplate;
 
 impl XAttributeTemplate {
     pub fn new(
@@ -62,12 +45,13 @@ impl XAttributeTemplate {
         debug_id: DebugCorrelationId<String>,
         depth: Depth,
     ) -> Self {
-        Self(Ptr::new(AttributeTemplateInner {
+        AttributeTemplateInner {
             element,
             attribute_id,
             debug_id,
             depth,
-        }))
+        }
+        .into()
     }
 }
 
@@ -84,7 +68,7 @@ impl IsTemplate for XAttributeTemplate {
 
         let value_acc = backend.aggregate_attribute(self.attribute_id.index);
         let value_acc = value_acc.as_ref().map(|v| v.as_ref().map(|v| v.as_ref()));
-        debug!("Update attribute template {} to {value_acc:?}", new.id);
+        trace!("Update attribute template {} to {value_acc:?}", new.id);
         let Some(value_acc) = value_acc else {
             // There was no diff!
             return;

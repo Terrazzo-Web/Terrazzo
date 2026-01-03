@@ -3,8 +3,6 @@ use std::collections::HashSet;
 
 use web_sys::CssStyleDeclaration;
 
-use self::diagnostics::debug;
-use self::diagnostics::debug_span;
 use self::diagnostics::trace;
 use self::diagnostics::trace_span;
 use self::diagnostics::warn;
@@ -36,14 +34,6 @@ pub fn merge(
         "Count"
     );
 
-    debug!(
-        "Attributes!! :{:?}",
-        new_attributes
-            .iter()
-            .map(|a| a.id.to_string())
-            .collect::<Vec<_>>()
-    );
-
     let mut old_attributes_set = HashSet::new();
     for old_attribute in old_attributes.iter_mut() {
         old_attributes_set.insert(std::mem::replace(
@@ -57,9 +47,7 @@ pub fn merge(
 
     let mut i = 0;
     for chunk in chunks_mut(new_attributes) {
-        // TODO: should be trace_span!
-        let span = debug_span!("Chunk", chunk = %chunk.name, index = chunk.index, kind = ?chunk.chunk_kind);
-        debug!("Chunk!!");
+        let span = trace_span!("Chunk", chunk = %chunk.name, index = chunk.index, kind = ?chunk.chunk_kind);
         let _span = span.enter();
         match chunk.chunk_kind {
             ChunkKind::Dynamic => {
@@ -138,7 +126,7 @@ fn merge_chunk(
     }
     let value_acc = backend.aggregate_attribute(chunk.index);
     let value_acc = value_acc.as_ref().map(|v| v.as_ref().map(|v| v.as_ref()));
-    debug!("Merge chunk value: {value_acc:?}");
+    trace!("Merge chunk value: {value_acc:?}");
     let Some(value_acc) = value_acc else {
         return;
     };

@@ -1,11 +1,13 @@
 use std::cell::LazyCell;
 
-use nameth::NamedType as _;
 use nameth::nameth;
 use web_sys::CssStyleDeclaration;
 use web_sys::Element;
 
-use self::diagnostics::*;
+use self::diagnostics::debug;
+use self::diagnostics::trace;
+use self::diagnostics::trace_span;
+use self::diagnostics::warn;
 use super::builder::AttributeValueDiff;
 use super::diff_store::AttributeValueDiffStore;
 use super::id::XAttributeId;
@@ -70,6 +72,7 @@ impl XAttribute {
         backend: &mut impl AttributeValueDiffStore,
         old_attribute_value: Option<XAttributeValue>,
     ) {
+        let _span = trace_span!("MergeAttr", attribute = %self.id.name.name).entered();
         let new_attribute = self;
         match &new_attribute.value {
             XAttributeValue::Null => {
@@ -94,7 +97,7 @@ impl XAttribute {
                 );
             }
             XAttributeValue::Generated { .. } => {
-                warn!("Illegal {} state", XAttribute::type_name());
+                warn!("Illegal {XATTRIBUTE} state");
                 unreachable!()
             }
         }
@@ -111,11 +114,11 @@ fn merge_static_atttribute<'t>(
         old_value.as_ref().zip(new_value)
         && new_value == old_attribute_value
     {
-        debug!("Attribute '{attribute_id}' is still '{new_value}'");
+        trace!("Attribute '{attribute_id}' is still '{new_value}'");
         backend.set(attribute_id, AttributeValueDiff::Same(new_value.to_owned()));
     } else {
         drop(old_value);
-        debug!("Attribute '{attribute_id}' is set to '{new_value:?}'");
+        trace!("Attribute '{attribute_id}' is set to '{new_value:?}'");
         backend.set(
             attribute_id,
             if let Some(new_value) = new_value {
@@ -135,7 +138,7 @@ fn merge_dynamic_atttribute<'t>(
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {
-    debug!("Dynamic Attribute '{attribute_id}' is initialized");
+    trace!("Dynamic Attribute '{attribute_id}' is initialized");
     backend.set(attribute_id, AttributeValueDiff::Undefined);
     let new_template = if let Some(XAttributeValue::Generated {
         template: old_template,
@@ -170,22 +173,22 @@ pub fn set_attribute(
     if let Some(value) = value {
         match kind {
             XAttributeKind::Attribute => match element.set_attribute(name, value) {
-                Ok(()) => trace!("Set attribute '{name}' to '{value}'"),
+                Ok(()) => debug!("Set attribute '{name}' to '{value}'"),
                 Err(error) => warn!("Set attribute '{name}' to '{value}' failed: {error:?}"),
             },
             XAttributeKind::Style => match css_style.set_property(name, value) {
-                Ok(()) => trace!("Set style {name}: {value}"),
+                Ok(()) => debug!("Set style {name}: {value}"),
                 Err(error) => warn!("Set style {name}: {value} failed: {error:?}"),
             },
         }
     } else {
         match kind {
             XAttributeKind::Attribute => match element.remove_attribute(name) {
-                Ok(()) => trace!("Removed attribute {name}"),
+                Ok(()) => debug!("Removed attribute {name}"),
                 Err(error) => warn!("Removed attribute {name} failed: {error:?}"),
             },
             XAttributeKind::Style => match css_style.remove_property(name) {
-                Ok(old_value) => trace!("Removed style {name}: {old_value}"),
+                Ok(old_value) => debug!("Removed style {name}: {old_value}"),
                 Err(error) => warn!("Removed style {name} failed: {error:?}"),
             },
         }

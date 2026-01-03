@@ -367,6 +367,53 @@ mod envelope {
     run_test(sample, expected);
 }
 
+
+#[test]
+fn envelope_custom_attributes() {
+    let sample = quote! {
+        #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+        #[other_custom_attributes_1]
+        #[other_custom_attributes_2]
+        struct MyStruct(String);
+    };
+    let expected = r#"
+mod envelope {
+    mod my_struct {
+        use super::*;
+        #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+        pub struct MyStruct(pub(super) String);
+    }
+    use my_struct::MyStruct;
+    #[derive(Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+    struct MyStructPtr {
+        inner: ::std::sync::Arc<MyStruct>,
+    }
+    impl ::std::ops::Deref for MyStructPtr {
+        type Target = MyStruct;
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+    impl ::core::convert::AsRef<MyStruct> for MyStructPtr {
+        fn as_ref(&self) -> &MyStruct {
+            &self.inner
+        }
+    }
+    impl ::core::clone::Clone for MyStructPtr {
+        fn clone(&self) -> Self {
+            Self { inner: self.inner.clone() }
+        }
+    }
+    impl<IntoMyStruct: Into<MyStruct>> From<IntoMyStruct> for MyStructPtr {
+        fn from(inner: IntoMyStruct) -> Self {
+            Self { inner: inner.into().into() }
+        }
+    }
+}
+"#;
+    run_test(sample, expected);
+}
+
 #[test]
 fn envelope_rc() {
     let args = quote! { ptr = std::rc::Rc };

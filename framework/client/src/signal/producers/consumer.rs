@@ -117,7 +117,7 @@ impl<V: ProducedValue> Clone for ConsumerWeak<V> {
 
 impl<V: ProducedValue> std::fmt::Debug for Consumer<V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(CONSUMER)
+        f.debug_struct(Consumer)
             .field("id", &self.inner.id)
             .field("name", &self.inner.name)
             .finish()

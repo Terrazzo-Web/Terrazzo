@@ -17,7 +17,7 @@ mod with_debug {
 
     impl<N: std::fmt::Display> std::fmt::Debug for DebugCorrelationId<N> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_tuple(DEBUG_CORRELATION_ID)
+            f.debug_tuple(DebugCorrelationId)
                 .field(&self.0.to_string())
                 .field(&self.1)
                 .finish()
@@ -62,7 +62,7 @@ mod without_debug {
 
     impl<N: std::fmt::Display> std::fmt::Display for DebugCorrelationId<N> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            std::fmt::Display::fmt(DEBUG_CORRELATION_ID, f)
+            std::fmt::Display::fmt(DebugCorrelationId, f)
         }
     }
 

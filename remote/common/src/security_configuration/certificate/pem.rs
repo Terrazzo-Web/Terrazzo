@@ -76,12 +76,11 @@ mod debug {
     use std::fmt::Debug;
     use std::fmt::Formatter;
 
-    use super::PEM_CERTIFICATE;
     use super::PemCertificate;
 
     impl Debug for PemCertificate {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(PEM_CERTIFICATE).finish()
+            f.debug_struct(PemCertificate).finish()
         }
     }
 }

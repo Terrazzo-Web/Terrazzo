@@ -258,7 +258,7 @@ impl XElement {
                 };
             }
             XElementValue::Generated { .. } => {
-                warn!("Illegal {XELEMENT} state");
+                warn!("Illegal {XElement} state");
                 debug_assert!(false);
             }
         }

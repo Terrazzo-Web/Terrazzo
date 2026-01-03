@@ -367,7 +367,6 @@ mod envelope {
     run_test(sample, expected);
 }
 
-
 #[test]
 fn envelope_custom_attributes() {
     let sample = quote! {
@@ -381,6 +380,8 @@ mod envelope {
     mod my_struct {
         use super::*;
         #[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+        #[other_custom_attributes_1]
+        #[other_custom_attributes_2]
         pub struct MyStruct(pub(super) String);
     }
     use my_struct::MyStruct;
@@ -409,8 +410,7 @@ mod envelope {
             Self { inner: inner.into().into() }
         }
     }
-}
-"#;
+}"#;
     run_test(sample, expected);
 }
 

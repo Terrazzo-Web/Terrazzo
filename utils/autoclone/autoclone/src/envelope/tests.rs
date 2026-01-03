@@ -369,6 +369,7 @@ mod envelope {
 
 #[test]
 fn envelope_rc() {
+    let args = quote! { ptr = std::rc::Rc };
     let sample = quote! {
         struct MyStruct {
             a: String,
@@ -386,7 +387,7 @@ mod envelope {
     }
     use my_struct::MyStruct;
     struct MyStructPtr {
-        inner: ::std::sync::Arc<MyStruct>,
+        inner: std::rc::Rc<MyStruct>,
     }
     impl ::std::ops::Deref for MyStructPtr {
         type Target = MyStruct;
@@ -411,7 +412,7 @@ mod envelope {
     }
 }
 "#;
-    run_test(sample, expected);
+    run_test_args(args, sample, expected);
 }
 
 #[track_caller]

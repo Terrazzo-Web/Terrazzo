@@ -86,7 +86,7 @@ impl ChangeType {
         let mut has_null = false;
         for attribute in attributes {
             match attribute {
-                AttributeValueDiff::Undefined => (),
+                AttributeValueDiff::Undefined => return Self::Same,
                 AttributeValueDiff::Same { .. } => has_data = true,
                 AttributeValueDiff::Null => has_null = true,
                 AttributeValueDiff::Value { .. } => return Self::Value,

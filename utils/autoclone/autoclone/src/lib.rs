@@ -1,8 +1,8 @@
-use crate::autoclone::autoclone2;
-use crate::envelope::envelope2;
+use crate::autoclone_impl::autoclone2;
+use crate::envelope_impl::envelope2;
 
-mod autoclone;
-mod envelope;
+mod autoclone_impl;
+mod envelope_impl;
 
 /// A simple macro to cloning variable before passing them into a `move` closure or async block.
 ///

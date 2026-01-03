@@ -10,7 +10,7 @@ use web_sys::Element;
 use web_sys::js_sys::Function;
 
 use self::template::XTemplate;
-use crate::attribute::attribute::XAttribute;
+use crate::attribute::XAttribute;
 use crate::element::template::LiveElement;
 use crate::key::XKey;
 use crate::node::XNode;
@@ -49,9 +49,30 @@ pub mod template;
 ///             key: XKey::default(),
 ///             value: XElementValue::Static {
 ///                 attributes: vec![
-///                     XAttribute { name: XAttributeName::attribute("type"), value: "text".into() },
-///                     XAttribute { name: XAttributeName::attribute("name"), value: "username".into() },
-///                     XAttribute { name: XAttributeName::attribute("value"), value: "LamparoS@Pavy.one".into() },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("type"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "text".into(),
+///                     },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("name"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "username".into(),
+///                     },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("value"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "LamparoS@Pavy.one".into(),
+///                     },
 ///                 ],
 ///                 children: vec![],
 ///                 events: vec![],

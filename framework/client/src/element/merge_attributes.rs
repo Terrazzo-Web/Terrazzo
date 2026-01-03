@@ -8,13 +8,13 @@ use self::diagnostics::trace_span;
 use self::diagnostics::warn;
 use super::XAttribute;
 use super::template::LiveElement;
-use crate::attribute::attribute::set_attribute;
 use crate::attribute::diff_store::AttributeValueDiffStore;
 use crate::attribute::diff_store::Chunk;
 use crate::attribute::diff_store::ChunkKind;
 use crate::attribute::diff_store::DynamicBackend;
 use crate::attribute::diff_store::SingleBackend;
 use crate::attribute::diff_store::StaticBackend;
+use crate::attribute::merge::set_attribute;
 use crate::attribute::value::XAttributeValue;
 use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeName;
@@ -130,7 +130,7 @@ fn merge_chunk(
     let Some(value_acc) = value_acc else {
         return;
     };
-    set_attribute(&element.html, &css_style, &chunk.name, value_acc);
+    set_attribute(&element.html, css_style, &chunk.name, value_acc);
 }
 
 fn chunks_mut(attributes: &mut [XAttribute]) -> impl Iterator<Item = Chunk<'_>> {

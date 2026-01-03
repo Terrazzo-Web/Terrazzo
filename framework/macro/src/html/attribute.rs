@@ -45,13 +45,10 @@ impl XAttribute {
     pub fn sort_attributes(attributes: &mut [Self]) {
         let dynamic_chunks = attributes
             .iter()
-            .filter_map(|attribute| {
-                attribute
-                    .is_dynamic
-                    .then(|| (attribute.name.clone(), attribute.kind))
-            })
+            .filter(|&attribute| attribute.is_dynamic)
+            .map(|attribute| (attribute.name.clone(), attribute.kind))
             .collect::<HashSet<_>>();
-        attributes.sort_by_key(|attribute| {
+        attributes.sort_by_cached_key(|attribute| {
             (
                 !dynamic_chunks.contains(&(attribute.name.clone(), attribute.kind)),
                 attribute.name.clone(),

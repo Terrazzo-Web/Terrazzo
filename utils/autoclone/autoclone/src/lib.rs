@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn ident_to_snake_case() {
         assert_eq!(
-            "file_system_iO",
+            "file_system_io",
             super::ident_to_snake_case(&"FileSystemIO")
         );
     }

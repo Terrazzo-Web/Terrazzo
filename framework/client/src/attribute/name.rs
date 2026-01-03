@@ -22,7 +22,7 @@ pub enum XAttributeKind {
     /// # let _ =
     /// XAttribute {
     ///     id: XAttributeId {
-    ///         name: XAttributeName::style("width"),
+    ///         name: XAttributeKind::Style.make("width"),
     ///         index: 0,
     ///         sub_index: 0,
     ///     },

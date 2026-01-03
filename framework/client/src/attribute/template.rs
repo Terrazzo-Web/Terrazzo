@@ -3,11 +3,11 @@ use std::cell::LazyCell;
 use autoclone::envelope;
 
 use self::diagnostics::trace;
-use super::attribute::XAttribute;
-use super::attribute::set_attribute;
+use super::XAttribute;
 use super::diff_store::AttributeValueDiffStore;
 use super::diff_store::DynamicBackend;
 use super::id::XAttributeId;
+use super::merge::set_attribute;
 use super::value::XAttributeValue;
 use crate::debug_correlation_id::DebugCorrelationId;
 use crate::prelude::LiveElement;

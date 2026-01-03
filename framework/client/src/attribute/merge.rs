@@ -1,6 +1,5 @@
 use std::cell::LazyCell;
 
-use nameth::nameth;
 use web_sys::CssStyleDeclaration;
 use web_sys::Element;
 
@@ -8,6 +7,8 @@ use self::diagnostics::debug;
 use self::diagnostics::trace;
 use self::diagnostics::trace_span;
 use self::diagnostics::warn;
+use super::XATTRIBUTE;
+use super::XAttribute;
 use super::builder::AttributeValueDiff;
 use super::diff_store::AttributeValueDiffStore;
 use super::id::XAttributeId;
@@ -23,50 +24,9 @@ use crate::signal::depth::Depth;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 
-/// Represents an attribute of an HTML node.
-///
-/// Example: the HTML tag `<input type="text" name="username" value="LamparoS@Pavy.one" />`
-/// would have an attribute
-/// ```
-/// # use terrazzo_client::prelude::*;
-/// # let _ =
-/// XAttribute {
-///     id: XAttributeId {
-///         name: XAttributeKind::Attribute::make("name"),
-///         index: 0,
-///         sub_index: 0,
-///     },
-///     value: "username".into(),
-/// }
-/// # ;
-/// ```
-///
-/// and an attribute
-/// ```
-/// # use terrazzo_client::prelude::*;
-/// # let _ =
-/// XAttribute {
-///     id: XAttributeId {
-///         name: XAttributeKind::Attribute::make("value"),
-///         index: 1,
-///         sub_index: 0,
-///     },
-///     value: "LamparoS@Pavy.one".into(),
-/// }
-/// # ;
-/// ```
-#[nameth]
-pub struct XAttribute {
-    /// ID of the attribute
-    pub id: XAttributeId,
-
-    /// Value of the attribute
-    pub value: XAttributeValue,
-}
-
 impl XAttribute {
-    pub fn merge<'t>(
-        &'t mut self,
+    pub fn merge(
+        &mut self,
         depth: Depth,
         element: &LiveElement,
         backend: &mut impl AttributeValueDiffStore,
@@ -104,9 +64,9 @@ impl XAttribute {
     }
 }
 
-fn merge_static_atttribute<'t>(
+fn merge_static_atttribute(
     backend: &mut impl AttributeValueDiffStore,
-    attribute_id: &'t XAttributeId,
+    attribute_id: &XAttributeId,
     new_value: Option<&XString>,
     old_value: Option<XAttributeValue>,
 ) {
@@ -130,11 +90,11 @@ fn merge_static_atttribute<'t>(
     }
 }
 
-fn merge_dynamic_atttribute<'t>(
+fn merge_dynamic_atttribute(
     depth: Depth,
     element: &LiveElement,
     backend: &mut impl AttributeValueDiffStore,
-    attribute_id: &'t XAttributeId,
+    attribute_id: &XAttributeId,
     new_attribute_value: &dyn Fn(XAttributeTemplate) -> Consumers,
     old_attribute_value: Option<XAttributeValue>,
 ) -> XAttributeValue {

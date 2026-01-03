@@ -165,7 +165,7 @@ mod verbose {
             }
 
             let expected = r#"
-<div key='root' class=Str("root-css-style") data-dyn-attribute=<Dynamic>>
+<div key='root' data-dyn-attribute 0:0=<Dynamic> class 1:0=Str("root-css-style")>
     "Text"
     <ul key=#0>
         <li key='1'>
@@ -193,8 +193,6 @@ mod verbose {
 
 #[cfg(feature = "concise-traces")]
 mod concise {
-    use nameth::NamedType as _;
-
     use crate::element::XELEMENT;
     use crate::element::XElement;
 

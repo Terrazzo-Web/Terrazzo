@@ -95,14 +95,14 @@ impl syn::visit_mut::VisitMut for EnvelopeVisitor {
                         leading_colon: None,
                         segments,
                     } = &**path
-                        && segments.len() > 0
+                        && !segments.is_empty()
                         && segments[0].ident == "super"
                     {
                         field.vis = syn::parse2(quote! { pub(in super :: #path ) }).unwrap_or_else(
                             |error| {
                                 panic!(
                                     "Error {error} parsing: pub(super :: {})",
-                                    path.to_token_stream().to_string()
+                                    path.to_token_stream()
                                 )
                             },
                         );
@@ -166,7 +166,7 @@ impl EnvelopeVisitor {
             with_into.gt_token.get_or_insert_default();
             with_into
         };
-        let inner = syn::Ident::new(&ident_to_snake_case(&name), name.span());
+        let inner = syn::Ident::new(&ident_to_snake_case(name), name.span());
         let ptr = if let Some(path) = &self.args.ptr {
             path.clone()
         } else {

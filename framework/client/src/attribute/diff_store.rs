@@ -1,7 +1,7 @@
 use nameth::nameth;
 
 use self::diagnostics::trace;
-use super::attribute::XAttribute;
+use super::XAttribute;
 use super::builder::AttributeValueDiff;
 use super::builder::aggregate_attribute;
 use super::id::XAttributeId;

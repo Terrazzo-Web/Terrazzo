@@ -59,14 +59,10 @@ pub(super) fn aggregate_attribute(attributes: &[AttributeValueDiff]) -> Option<O
         ChangeType::Value => (),
     }
 
-    let changed_attributes = attributes
-        .into_iter()
-        .filter_map(|attribute| match attribute {
-            AttributeValueDiff::Undefined | AttributeValueDiff::Null => None,
-            AttributeValueDiff::Same(value) | AttributeValueDiff::Value(value) => {
-                Some(value.as_str())
-            }
-        });
+    let changed_attributes = attributes.iter().filter_map(|attribute| match attribute {
+        AttributeValueDiff::Undefined | AttributeValueDiff::Null => None,
+        AttributeValueDiff::Same(value) | AttributeValueDiff::Value(value) => Some(value.as_str()),
+    });
     let mut value_acc = String::default();
     for value in changed_attributes {
         if !value_acc.is_empty() {

@@ -2,7 +2,6 @@
 
 use std::sync::Mutex;
 
-use nameth::NamedType as _;
 use nameth::nameth;
 use scopeguard::defer;
 use wasm_bindgen::JsCast as _;
@@ -259,7 +258,7 @@ impl XElement {
                 };
             }
             XElementValue::Generated { .. } => {
-                warn!("Illegal {} state", XElement::type_name());
+                warn!("Illegal {XELEMENT} state");
                 debug_assert!(false);
             }
         }

@@ -3,6 +3,8 @@ use quote::format_ident;
 use quote::quote;
 use syn::visit_mut::VisitMut as _;
 
+use crate::ident_to_snake_case;
+
 mod tests;
 
 pub fn envelope2(
@@ -289,20 +291,4 @@ fn without_defaults(generics: &syn::Generics) -> syn::Generics {
         }
     }
     generics
-}
-
-fn ident_to_snake_case(name: &impl std::fmt::Display) -> String {
-    let name = name.to_string();
-    let mut result = String::default();
-    for c in name.chars() {
-        if c.is_uppercase() {
-            if !result.is_empty() {
-                result.push('_');
-            }
-            result.push_str(&c.to_lowercase().to_string());
-        } else {
-            result.push(c);
-        }
-    }
-    return result;
 }

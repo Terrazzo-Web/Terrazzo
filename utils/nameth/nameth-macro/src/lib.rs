@@ -3,6 +3,7 @@
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
+use quote::ToTokens as _;
 use quote::format_ident;
 use quote::quote;
 use syn::Ident;
@@ -51,6 +52,7 @@ fn process_struct(crate_name: &Ident, item_struct: syn::ItemStruct) -> TokenStre
         ident, generics, ..
     } = item_struct;
     let name = ident.to_string();
+    let type_name_const = format_ident!("{}", ident_to_upper_snake_case(&name));
     let without_defaults = without_defaults(&generics);
     let param_names_only = param_names_only(&generics);
     quote! {
@@ -59,6 +61,7 @@ fn process_struct(crate_name: &Ident, item_struct: syn::ItemStruct) -> TokenStre
                 return #name;
             }
         }
+        static #type_name_const: &str = #name;
     }
     .into()
 }
@@ -82,6 +85,7 @@ fn process_enum(crate_name: &Ident, item_enum: syn::ItemEnum) -> TokenStream {
     let without_defaults = without_defaults(&generics);
     let param_names_only = param_names_only(&generics);
     let name = ident.to_string();
+    let type_name_const = format_ident!("{}", ident_to_upper_snake_case(&name));
     quote! {
         impl #without_defaults #crate_name::NamedType for #ident #param_names_only {
             fn type_name() -> &'static str {
@@ -95,6 +99,7 @@ fn process_enum(crate_name: &Ident, item_enum: syn::ItemEnum) -> TokenStream {
                 }
             }
         }
+        static #type_name_const: &str = #name;
     }
     .into()
 }
@@ -115,35 +120,36 @@ struct NamedMacroArgs {
     crate_override: Option<String>,
 }
 
-fn param_names_only(generics: &syn::Generics) -> syn::Generics {
-    let mut generics = without_defaults(generics);
-    for param in &mut generics.params {
-        match param {
-            syn::GenericParam::Lifetime(syn::LifetimeParam {
-                colon_token,
-                bounds,
-                ..
-            }) => {
-                *colon_token = None;
-                *bounds = syn::punctuated::Punctuated::default()
-            }
-            syn::GenericParam::Type(syn::TypeParam {
-                colon_token,
-                bounds,
-                ..
-            }) => {
-                *colon_token = None;
-                *bounds = syn::punctuated::Punctuated::default();
-            }
-            syn::GenericParam::Const(syn::ConstParam {
-                eq_token, default, ..
-            }) => {
-                *eq_token = None;
-                *default = None;
-            }
-        }
+fn param_names_only(generics: &syn::Generics) -> proc_macro2::TokenStream {
+    let syn::Generics {
+        lt_token: Some(lt_token),
+        params,
+        gt_token: Some(gt_token),
+        where_clause: _,
+    } = generics
+    else {
+        return quote!();
+    };
+    syn::AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: lt_token.to_owned(),
+        args: params
+            .into_iter()
+            .map(|param| match param {
+                syn::GenericParam::Lifetime(x) => {
+                    syn::GenericArgument::Lifetime(x.lifetime.clone())
+                }
+                syn::GenericParam::Type(syn::TypeParam { ident, .. }) => {
+                    syn::GenericArgument::Type(syn::parse2(quote! { #ident }).unwrap())
+                }
+                syn::GenericParam::Const(syn::ConstParam { ident, .. }) => {
+                    syn::GenericArgument::Const(syn::parse2(quote! { #ident }).unwrap())
+                }
+            })
+            .collect(),
+        gt_token: gt_token.to_owned(),
     }
-    generics
+    .into_token_stream()
 }
 
 fn without_defaults(generics: &syn::Generics) -> syn::Generics {
@@ -163,10 +169,47 @@ fn without_defaults(generics: &syn::Generics) -> syn::Generics {
                 *eq_token = None;
                 *default = None;
             }
-            syn::GenericParam::Const(syn::ConstParam { attrs, .. }) => {
+            syn::GenericParam::Const(syn::ConstParam {
+                attrs,
+                eq_token,
+                default,
+                ..
+            }) => {
                 *attrs = vec![];
+                *eq_token = None;
+                *default = None;
             }
         }
     }
     generics
+}
+
+fn ident_to_upper_snake_case(name: impl std::fmt::Display + Copy) -> String {
+    let name = name.to_string();
+    let mut result = String::default();
+    let mut last_is_upper = false;
+    for c in name.chars() {
+        if !last_is_upper && c.is_uppercase() {
+            last_is_upper = true;
+            if !result.is_empty() {
+                result.push('_');
+            }
+            result.push(c);
+        } else {
+            last_is_upper = false;
+            result.push_str(&c.to_uppercase().to_string());
+        }
+    }
+    return result;
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ident_to_upper_snake_case() {
+        assert_eq!(
+            "file_system_iO",
+            super::ident_to_upper_snake_case("FileSystemIO")
+        );
+    }
 }

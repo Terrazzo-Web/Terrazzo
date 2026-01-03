@@ -63,7 +63,6 @@
 //! }
 //! ```
 
-use crate::item_to_string;
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use quote::ToTokens as _;
@@ -76,6 +75,8 @@ use syn::StmtMacro;
 use syn::Token;
 use syn::visit_mut;
 use syn::visit_mut::VisitMut;
+
+use crate::item_to_string;
 
 mod tests;
 

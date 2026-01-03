@@ -2,7 +2,6 @@
 
 use std::sync::Mutex;
 
-use nameth::NamedType as _;
 use nameth::nameth;
 use scopeguard::defer;
 use wasm_bindgen::JsCast as _;
@@ -12,6 +11,7 @@ use web_sys::js_sys::Function;
 
 use self::template::XTemplate;
 use crate::attribute::XAttribute;
+use crate::element::template::LiveElement;
 use crate::key::XKey;
 use crate::node::XNode;
 use crate::prelude::OrElseLog as _;
@@ -49,9 +49,30 @@ pub mod template;
 ///             key: XKey::default(),
 ///             value: XElementValue::Static {
 ///                 attributes: vec![
-///                     XAttribute { name: "type".into(), value: "text".into() },
-///                     XAttribute { name: "name".into(), value: "username".into() },
-///                     XAttribute { name: "value".into(), value: "LamparoS@Pavy.one".into() },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("type"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "text".into(),
+///                     },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("name"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "username".into(),
+///                     },
+///                     XAttribute {
+///                         id: XAttributeId {
+///                             name: XAttributeKind::Attribute.make("value"),
+///                             index: 0,
+///                             sub_index: 0,
+///                         },
+///                         value: "LamparoS@Pavy.one".into(),
+///                     },
 ///                 ],
 ///                 children: vec![],
 ///                 events: vec![],
@@ -154,10 +175,15 @@ impl<T: ?Sized> ClosureAsFunction for Closure<T> {
 ///     after_render = |_: Element| info!("After render"),
 /// )
 /// ```
-pub struct OnRenderCallback(pub Box<dyn Fn(Element)>);
+pub struct OnRenderCallback(pub Box<dyn Fn(&Element)>);
 
 impl XElement {
-    pub fn merge(&mut self, template: &XTemplate, old: &mut Self, element_rc: Ptr<Mutex<Element>>) {
+    pub fn merge(
+        &mut self,
+        template: &XTemplate,
+        old: &mut Self,
+        element_rc: Ptr<Mutex<LiveElement>>,
+    ) {
         match &self.key {
             XKey::Named(key) => {
                 let _span = debug_span!("Merge", %key).entered();
@@ -178,17 +204,17 @@ impl XElement {
         &mut self,
         template: &XTemplate,
         old: &mut Self,
-        element_rc: Ptr<Mutex<Element>>,
+        element_rc: Ptr<Mutex<LiveElement>>,
     ) {
         let element = {
             let mut element = element_rc.lock().or_throw("element");
             if let XKey::Named(new_key) = &self.key
-                && let XKey::Named(cur_key) = XKey::of(template, 0, &element)
+                && let XKey::Named(cur_key) = XKey::of(template, 0, &element.html)
                 && new_key != &cur_key
             {
                 warn!("Templates conflict on key cur_key:{cur_key} vs new_key:{new_key}");
                 let () = element
-                    .set_attribute(template.key_attribute(), new_key)
+                    .set_key_attribute(template, new_key)
                     .or_else_throw(|error| format!("Set element key failed: {error:?}'"));
             }
             self.fix_element_tag(template, &mut element);
@@ -196,7 +222,7 @@ impl XElement {
         };
 
         if let Some(OnRenderCallback(before_render)) = &self.before_render {
-            before_render(element.clone());
+            before_render(&element.html);
         }
 
         match &mut self.value {
@@ -216,8 +242,8 @@ impl XElement {
                         old_attributes,
                         &element,
                     );
-                    merge_events::merge(new_events, old_events, &element);
-                    merge_children::merge(template, new_children, old_children, &element);
+                    merge_events::merge(new_events, old_events, &element.html);
+                    merge_children::merge(template, new_children, old_children, &element.html);
                 }
                 XElementValue::Dynamic { .. } | XElementValue::Generated { .. } => {
                     // The reactive callback may still active!
@@ -228,8 +254,8 @@ impl XElement {
                     };
                     debug!("A node changed from Dynamic/Generated to Static");
                     merge_attributes::merge(template.depth(), new_attributes, &mut [], &element);
-                    merge_events::merge(new_events, &[], &element);
-                    merge_children::merge(template, new_children, &mut [], &element);
+                    merge_events::merge(new_events, &[], &element.html);
+                    merge_children::merge(template, new_children, &mut [], &element.html);
                 }
             },
             XElementValue::Dynamic(XDynamicElement(new_reactive_callback)) => {
@@ -253,13 +279,13 @@ impl XElement {
                 };
             }
             XElementValue::Generated { .. } => {
-                warn!("Illegal {} state", XElement::type_name());
+                warn!("Illegal {XELEMENT} state");
                 debug_assert!(false);
             }
         }
 
         if let Some(OnRenderCallback(after_render)) = &self.after_render {
-            after_render(element);
+            after_render(&element.html);
         }
     }
 
@@ -277,47 +303,50 @@ impl XElement {
         }
     }
 
-    fn fix_element_tag(&self, template: &XTemplate, element: &mut Element) -> Option<()> {
+    fn fix_element_tag(&self, template: &XTemplate, element: &mut LiveElement) -> Option<()> {
         let Some(new_tag) = self.tag_name.as_deref() else {
             return Some(());
         };
-        let old_tag = element.tag_name().to_lowercase();
+        let html = &element.html;
+        let old_tag = html.tag_name().to_lowercase();
         if old_tag == new_tag {
             return Some(());
         }
 
         info!(old_tag, new_tag, "Changing element tag");
-        debug!(old_tag, new_tag, "Tag was {}", element.outer_html());
-        let document = element.owner_document()?;
-        let new_element: Element = document
+        debug!(old_tag, new_tag, "Tag was {}", html.outer_html());
+        let document = html.owner_document()?;
+        let new_html: Element = document
             .create_element(new_tag)
             .inspect_err(|error| warn!("Create new element '{new_tag}' failed: {error:?}'"))
             .ok()?;
 
         #[cfg(debug_assertions)]
-        let () = new_element
+        let () = new_html
             .set_attribute("trz-old-tag", &old_tag)
             .inspect_err(|error| warn!("Set old-tag attribute failed: {error:?}'"))
             .ok()?;
 
-        if let Some(key) = element.get_attribute(template.key_attribute()) {
-            let () = new_element
-                .set_attribute(template.key_attribute(), &key)
+        // Note: replaceWith() doesn't always work in Chrome when replacing nodes with different tag names.
+        let Some(parent) = html.parent_node() else {
+            warn!("Node has no parent!");
+            return None;
+        };
+        let key_attribute = element.get_key_attribute(template);
+        let insertion = parent.insert_before(&new_html, html.next_sibling().as_ref());
+        html.remove();
+        insertion
+            .inspect_err(|error| warn!("Failed to insert before: {error:?}"))
+            .ok()?;
+        element.html = new_html.clone();
+
+        if let Some(key) = key_attribute {
+            let () = element
+                .set_key_attribute(template, &key)
                 .inspect_err(|error| warn!("Set element key failed: {error:?}'"))
                 .ok()?;
         }
 
-        // Note: replaceWith() doesn't always work in Chrome when replacing nodes with different tag names.
-        let Some(parent) = element.parent_node() else {
-            warn!("Node has no parent!");
-            return None;
-        };
-        let insertion = parent.insert_before(&new_element, element.next_sibling().as_ref());
-        element.remove();
-        insertion
-            .inspect_err(|error| warn!("Failed to insert before: {error:?}"))
-            .ok()?;
-        *element = new_element.clone();
         Some(())
     }
 }

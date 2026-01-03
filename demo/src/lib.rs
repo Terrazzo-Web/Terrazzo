@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "diagnostics"), allow(unused))]
+#![cfg_attr(not(feature = "debug"), allow(unused))]
 
 mod api;
 mod assets;

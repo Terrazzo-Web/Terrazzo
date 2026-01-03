@@ -5,7 +5,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 
 /// Options for [build].
@@ -160,7 +159,7 @@ fn rm<E>(path: &Path, error: E) -> Result<(), E> {
 /// Errors returned by [build].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{t}] {0}", t = Self::type_name())]
+#[error("[{BUILD_ERROR}] {0}")]
 pub struct BuildError(#[from] BuildErrorInner);
 
 #[nameth]

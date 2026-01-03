@@ -9,18 +9,22 @@ fn nameth_struct() {
     #[nameth]
     struct ZeroStruct;
     assert_eq!("ZeroStruct", ZeroStruct::type_name());
+    assert_eq!("ZeroStruct", ZERO_STRUCT);
 
     #[nameth]
     struct EmptyStruct {}
     assert_eq!("EmptyStruct", EmptyStruct::type_name());
+    assert_eq!("EmptyStruct", EMPTY_STRUCT);
 
     #[nameth]
     struct TupleStruct(#[expect(unused)] i32, #[expect(unused)] String);
     assert_eq!("TupleStruct", TupleStruct::type_name());
+    assert_eq!("TupleStruct", TUPLE_STRUCT);
 
     #[nameth]
     struct GenericStruct<T, U: std::fmt::Display>(T, U);
     assert_eq!("GenericStruct", GenericStruct::<i32, i32>::type_name());
+    assert_eq!("GenericStruct", GENERIC_STRUCT);
 
     #[nameth]
     struct GenericStructWithDefaults<T = String, U: std::fmt::Display = &'static str>(T, U);
@@ -28,6 +32,7 @@ fn nameth_struct() {
         "GenericStructWithDefaults",
         GenericStructWithDefaults::<i32, i32>::type_name()
     );
+    assert_eq!("GenericStructWithDefaults", GENERIC_STRUCT_WITH_DEFAULTS);
 }
 
 #[test]
@@ -50,6 +55,7 @@ fn nameth_enum() {
         TestEnum::StructVariant { a: 0, b: "".into() }.name()
     );
     assert_eq!("TestEnum", TestEnum::type_name());
+    assert_eq!("TestEnum", TEST_ENUM);
 
     #[nameth]
     #[expect(unused)]
@@ -69,6 +75,7 @@ fn nameth_enum() {
         "GenericEnumWithDefaults",
         GenericEnumWithDefaults::<i32, i32>::type_name()
     );
+    assert_eq!("GenericEnumWithDefaults", GENERIC_ENUM_WITH_DEFAULTS);
 }
 
 #[test]

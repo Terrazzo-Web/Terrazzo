@@ -10,6 +10,7 @@ use crate::security_configuration::common::get_or_init;
 
 /// A [CertificateConfig] that computes the certificate and intermediates once,
 /// and then memoizes the results.
+#[nameth]
 pub struct MemoizedCertificate<C> {
     base: C,
     intermediates: std::sync::Mutex<Option<Arc<Vec<X509>>>>,
@@ -72,14 +73,15 @@ impl CertificateConfig for CachedCertificate {
 }
 
 mod debug {
-    use nameth::NamedType as _;
 
+    use super::CACHED_CERTIFICATE;
     use super::CachedCertificate;
+    use super::MEMOIZED_CERTIFICATE;
     use super::MemoizedCertificate;
 
     impl<C: std::fmt::Debug> std::fmt::Debug for MemoizedCertificate<C> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("MemoizedCertificate")
+            f.debug_struct(MEMOIZED_CERTIFICATE)
                 .field("base", &self.base)
                 .finish()
         }
@@ -87,7 +89,7 @@ mod debug {
 
     impl std::fmt::Debug for CachedCertificate {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(CachedCertificate::type_name())
+            f.debug_struct(CACHED_CERTIFICATE)
                 .field("intermediates", &self.intermediates)
                 .field("certificate", &self.certificate)
                 .finish()

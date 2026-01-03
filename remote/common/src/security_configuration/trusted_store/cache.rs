@@ -66,14 +66,12 @@ mod debug {
     use std::fmt::Debug;
     use std::fmt::Formatter;
 
-    use nameth::NamedType as _;
-
+    use super::CACHED_TRUSTED_STORE_CONFIG;
     use super::CachedTrustedStoreConfig;
 
     impl Debug for CachedTrustedStoreConfig {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(CachedTrustedStoreConfig::type_name())
-                .finish()
+            f.debug_struct(CACHED_TRUSTED_STORE_CONFIG).finish()
         }
     }
 }

@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 
 use nameth::NamedEnumValues as _;
-use nameth::NamedType as _;
 use nameth::nameth;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::IntoWasmClosure;
@@ -48,7 +47,7 @@ macro_rules! impl_owned_callback {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum CallbackSelfDropError {
-    #[error("[{}][{}] The callback was already dropped!", Self::type_name(), self.name())]
+    #[error("[{CALLBACK_SELF_DROP_ERROR}][{}] The callback was already dropped!",   self.name())]
     AlreadyDropped,
 }
 

@@ -2,7 +2,7 @@
 mod verbose {
     use std::ops::DerefMut;
 
-    use crate::attribute::XAttributeValue;
+    use crate::attribute::value::XAttributeValue;
     use crate::element::XElement;
     use crate::element::XElementValue;
     use crate::element::template::XTemplate;
@@ -49,17 +49,17 @@ mod verbose {
                     attributes, events, ..
                 } => {
                     for attribute in attributes {
-                        let attribute_name = &attribute.name;
+                        let attribute_id = &attribute.id;
                         match &attribute.value {
-                            XAttributeValue::Null => rest += &format!(" {attribute_name}=null"),
+                            XAttributeValue::Null => rest += &format!(" {attribute_id}=null"),
                             XAttributeValue::Static(value) => {
-                                rest += &format!(" {attribute_name}={value:?}")
+                                rest += &format!(" {attribute_id}={value:?}")
                             }
                             XAttributeValue::Dynamic { .. } => {
-                                rest += &format!(" {attribute_name}=<Dynamic>")
+                                rest += &format!(" {attribute_id}=<Dynamic>")
                             }
                             XAttributeValue::Generated { .. } => {
-                                rest += &format!(" {attribute_name}=<Generated>")
+                                rest += &format!(" {attribute_id}=<Generated>")
                             }
                         }
                     }
@@ -165,7 +165,7 @@ mod verbose {
             }
 
             let expected = r#"
-<div key='root' class=Str("root-css-style") data-dyn-attribute=<Dynamic>>
+<div key='root' data-dyn-attribute 0:0=<Dynamic> class 1:0=Str("root-css-style")>
     "Text"
     <ul key=#0>
         <li key='1'>
@@ -193,13 +193,12 @@ mod verbose {
 
 #[cfg(feature = "concise-traces")]
 mod concise {
-    use nameth::NamedType as _;
-
+    use crate::element::XELEMENT;
     use crate::element::XElement;
 
     impl std::fmt::Debug for XElement {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct(XElement::type_name())
+            f.debug_struct(XELEMENT)
                 .field("key", &self.key)
                 .field("tag_name", &self.tag_name)
                 .finish()

@@ -1,12 +1,14 @@
 use quote::quote;
 
+use super::attribute::XAttribute;
+use super::attribute::XAttributeKind;
 use super::event::process_event;
 use super::html_element_visitor::HtmlElementVisitor;
 
 pub struct XElement {
     pub tag_name: Option<proc_macro2::TokenStream>,
     pub key: proc_macro2::TokenStream,
-    pub attributes: Vec<proc_macro2::TokenStream>,
+    pub attributes: Vec<XAttribute>,
     pub events: Vec<proc_macro2::TokenStream>,
     pub children: Vec<proc_macro2::TokenStream>,
     pub dynamic: Option<proc_macro2::TokenStream>,
@@ -25,12 +27,19 @@ impl XElement {
             "key" => self.key = quote! { XKey::Named(#value.into()) },
             "before-render" => self.before_render = Some(quote!(#value)),
             "after-render" => self.after_render = Some(quote!(#value)),
-            _ => self.attributes.push(quote! {
-                gen_attributes.push(XAttribute {
-                    name: #name.into(),
-                    value: #value.into(),
-                });
-            }),
+            _ => {
+                let value = quote! { #value.into() };
+                self.attributes.push(XAttribute::new_static(
+                    &name,
+                    XAttributeKind::Attribute,
+                    move |this| {
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
+                        }
+                    },
+                ));
+            }
         }
     }
 
@@ -45,14 +54,19 @@ impl XElement {
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                self.attributes.push(quote! {
-                    if let Some(value) = #value {
-                        gen_attributes.push(XAttribute {
-                            name: #name.into(),
-                            value: value.into(),
-                        });
-                    }
-                });
+                let value = quote! { #value };
+                self.attributes.push(XAttribute::new_static(
+                    &name,
+                    XAttributeKind::Attribute,
+                    move |this| {
+                        let generated = this.to_tokens(quote! { value.into() });
+                        quote! {
+                            if let Some(value) = #value {
+                                gen_attributes.push(#generated);
+                            }
+                        }
+                    },
+                ));
             }
         }
     }
@@ -63,12 +77,17 @@ impl XElement {
             return;
         };
         let name = ident_to_kebab_case(name);
-        self.attributes.push(quote! {
-            gen_attributes.push(XAttribute {
-                name: XAttributeName::Style(#name.into()),
-                value: #value.into(),
-            });
-        })
+        let value = quote! { #value.into() };
+        self.attributes.push(XAttribute::new_static(
+            &name,
+            XAttributeKind::Style,
+            move |this| {
+                let generated = this.to_tokens(value);
+                quote! {
+                    gen_attributes.push(#generated);
+                }
+            },
+        ));
     }
 
     pub fn process_dynamic_attribute(
@@ -82,24 +101,28 @@ impl XElement {
             return;
         };
         let name = ident_to_kebab_case(name);
-        let name_value = if is_style_attribute {
-            quote! { XAttributeName::Style(#name.into()) }
+        let kind = if is_style_attribute {
+            XAttributeKind::Style
         } else {
-            quote! { #name.into() }
+            XAttributeKind::Attribute
         };
         match name.as_str() {
             "key" => self.key = quote! { compile_error!() },
             "before-render" => self.before_render = Some(quote! { compile_error!() }),
             "after-render" => self.after_render = Some(quote! { compile_error!() }),
             _ => {
-                self.attributes.push(quote! {
-                    gen_attributes.push(XAttribute {
-                        name: #name_value,
-                        value: XAttributeValue::Dynamic(
-                            (#value).into(),
-                        ),
-                    });
-                });
+                let value = quote! {
+                    XAttributeValue::Dynamic(
+                        (#value).into(),
+                    )
+                };
+                self.attributes
+                    .push(XAttribute::new_dynamic(&name, kind, move |this| {
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
+                        }
+                    }));
             }
         }
     }

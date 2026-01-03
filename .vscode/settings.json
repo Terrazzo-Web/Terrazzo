@@ -4,5 +4,6 @@
         "client",
         "debug",
         "server",
+        "no_wasm_build",
     ],
 }

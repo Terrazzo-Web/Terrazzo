@@ -71,7 +71,7 @@ humantime = { version = "2.3.0" }
 hyper-util = { version = "0.1.19" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.4" }
-libc = { version = "0.2.178" }
+libc = { version = "0.2.179" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }
@@ -85,7 +85,7 @@ prost = { version = "0.14.1" }
 prost-types = { version = "0.14.1" }
 quote = { version = "1.0.42" }
 rcgen = { version = "0.14.6" }
-reqwest = { version = "0.12.27" }
+reqwest = { version = "0.13.1" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rsass = { version = "0.29.2" }
@@ -99,20 +99,20 @@ serde_json = { version = "1.0.148" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
-syn = { version = "2.0.111" }
+syn = { version = "2.0.112" }
 tempfile = { version = "3.24.0" }
 thiserror = { version = "2.0.17" }
-tokio = { version = "1.48.0" }
+tokio = { version = "1.49.0" }
 tokio-rustls = { version = "0.26.4" }
 tokio-tungstenite = { version = "0.28.0" }
 tokio-util = { version = "0.7.17" }
-toml = { version = "0.9.8" }
+toml = { version = "0.9.10" }
 tonic = { version = "0.14.2" }
 tonic-prost = { version = "0.14.2" }
 tonic-prost-build = { version = "0.14.2" }
 tower = { version = "0.5.2" }
 tower-http = { version = "0.6.8" }
-tracing = { version = "0.1.43" }
+tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.22" }
 tracing-subscriber-wasm = { version = "0.1.0" }

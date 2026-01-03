@@ -11,15 +11,18 @@ use web_sys::window;
 use super::XElement;
 use super::XElementValue;
 use super::template::XTemplate;
+use crate::element::template::LiveElement;
 use crate::key::XKey;
 use crate::node::XNode;
 use crate::node::XText;
 use crate::prelude::OrElseLog as _;
+use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeName;
 use crate::prelude::XAttributeValue;
 use crate::prelude::diagnostics::error;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
+use crate::string::XString;
 use crate::utils::Ptr;
 
 pub fn merge(
@@ -124,7 +127,7 @@ fn merge_element<'t>(
         new_element.merge(
             template,
             old_element,
-            Ptr::new(Mutex::new(cur_element.to_owned())),
+            Ptr::new(Mutex::new(LiveElement::new(cur_element.to_owned()))),
         );
         return;
     } else {
@@ -198,45 +201,42 @@ fn create_new_element(
     template: &XTemplate,
     element: &Element,
     new_element: &XElement,
-) -> Option<Element> {
+) -> Option<LiveElement> {
+    static XMLNS: XAttributeName = XAttributeName {
+        name: XString::Str("xmlns"),
+        kind: XAttributeKind::Attribute,
+    };
     let Some(tag_name) = new_element.tag_name.as_deref() else {
         error!("Failed to create new element with undefined tag name");
         return None;
     };
-    let cur_element = if let XElementValue::Static { attributes, .. } = &new_element.value
+    let html = if let XElementValue::Static { attributes, .. } = &new_element.value
         && let Some(xmlns) = attributes
             .iter()
-            .find(|a| {
-                let XAttributeName::Attribute(name) = &a.name else {
-                    return false;
-                };
-                return name.as_str() == "xmlns";
-            })
+            .find(|a| a.id.name == XMLNS)
             .and_then(|xmlns| {
                 let XAttributeValue::Static(xmlns) = &xmlns.value else {
                     return None;
                 };
-                return xmlns.as_str().into();
+                return Some(xmlns.as_str());
             }) {
         document.create_element_ns(Some(xmlns), tag_name)
     } else {
         document.create_element(tag_name)
     };
 
-    let cur_element = cur_element
-        .inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"))
-        .ok()?;
+    let html =
+        html.inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"));
+    let cur_element = LiveElement::new(html.ok()?);
 
     if let XKey::Named(key) = &new_element.key {
         let () = cur_element
-            .set_attribute(template.key_attribute(), key)
-            .inspect_err(|error| {
-                warn!("Set element key failed: {error:?}'");
-            })
+            .set_key_attribute(template, key)
+            .inspect_err(|error| warn!("Set element key failed: {error:?}'"))
             .ok()?;
     }
 
-    if let Err(error) = element.append_child(&cur_element) {
+    if let Err(error) = element.append_child(&cur_element.html) {
         warn!("Failed to append cur_element: {error:?}");
         return None;
     }

@@ -24,7 +24,7 @@ pub fn timer_demo(#[signal] mut enable_timer: bool, counter: XSignal<i32>) -> XE
         let handle = window
             .set_interval_with_callback_and_timeout_and_arguments_0(
                 closure.as_ref().unchecked_ref(),
-                Duration::from_secs(1).as_millis() as i32,
+                Duration::from_millis(300).as_millis() as i32,
             )
             .or_throw("set_interval");
         let enabled_state = Cell::new(Some((handle, closure)));

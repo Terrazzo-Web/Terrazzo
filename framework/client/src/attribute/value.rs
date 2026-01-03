@@ -3,7 +3,7 @@ use super::template::XDynamicAttribute;
 use crate::signal::reactive_closure::reactive_closure_builder::Consumers;
 use crate::string::XString;
 
-/// Represents the value of an [XAttribute].
+/// Represents the value of an [XAttribute](super::XAttribute).
 ///
 /// Usually the `#[template]` macro takes care of generating the code for [XAttributeValue]s.
 pub enum XAttributeValue {

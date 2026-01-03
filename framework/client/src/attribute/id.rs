@@ -1,6 +1,6 @@
 use super::name::XAttributeName;
 
-/// Represents the unique ID of an [XAttribute].
+/// Represents the unique ID of an [XAttribute](super::XAttribute).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct XAttributeId {
     pub name: XAttributeName,

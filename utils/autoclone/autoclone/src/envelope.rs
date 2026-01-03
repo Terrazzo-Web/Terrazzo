@@ -40,22 +40,26 @@ struct EnvelopeArgs {
 }
 
 /// From
+/// ```
 /// #[derive(PartialEq, Eq, Hash)]
 /// struct MyStruct {
 ///   field: String,
 ///   other: i32,
 /// }
-///
+/// ```
 /// to
+/// ```
+/// # #[derive(PartialEq, Eq, Hash)] struct MyStruct;
 /// #[derive(PartialEq, Eq, Hash)]
-/// struct MyStructPtr(Arc<MyStruct>);
+/// struct MyStructPtr(std::sync::Arc<MyStruct>);
 ///
 /// struct MyStructInner {
 ///   field: String,
 ///   other: i32,
 /// }
+/// ```
 ///
-/// impl Deref + AsRef
+/// + `impl Deref + AsRef`
 struct EnvelopeVisitor {
     args: EnvelopeArgs,
     items: Vec<proc_macro2::TokenStream>,

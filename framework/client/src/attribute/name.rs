@@ -1,6 +1,6 @@
 use crate::string::XString;
 
-/// Represents the name of an [XAttribute].
+/// Represents the name of an [XAttribute](super::XAttribute).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct XAttributeName {
     pub name: XString,
@@ -16,7 +16,7 @@ pub enum XAttributeKind {
     ///
     /// Example:
     /// `<div style="width:100%'> ... </div>`
-    /// would have the following [XAttribute]:
+    /// would have the following [XAttribute](super::XAttribute):
     /// ```
     /// # use terrazzo_client::prelude::*;
     /// # let _ =

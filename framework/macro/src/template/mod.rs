@@ -99,7 +99,7 @@ pub fn template(
         ));
     }
 
-    let result = if args.wrap || returns_attribute_template(&original_item_fn) {
+    let result = if args.wrap {
         item_fn.attrs = vec![];
         item_fn.vis = Visibility::Inherited;
         item_fn.sig.ident = format_ident!("__{}_aux", item_fn.sig.ident);
@@ -185,23 +185,6 @@ pub fn template(
     }
 
     Ok(result)
-}
-
-fn returns_attribute_template(f: &syn::ItemFn) -> bool {
-    let syn::ReturnType::Type(_, t) = &f.sig.output else {
-        return false;
-    };
-    let syn::Type::Path(syn::TypePath {
-        qself: None,
-        path: p,
-    }) = &**t
-    else {
-        return false;
-    };
-    let Some(i) = p.get_ident() else {
-        return false;
-    };
-    i == "XAttributeValue"
 }
 
 fn item_to_string(item: &syn::ItemFn) -> String {

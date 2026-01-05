@@ -159,7 +159,7 @@ mod verbose {
                 div(key = "child", class = "child-css-style", span("Child"))
             }
 
-            #[template]
+            #[template(wrap = true)]
             fn dyn_attribute() -> XAttributeValue {
                 "custom-value"
             }

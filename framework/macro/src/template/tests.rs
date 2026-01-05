@@ -234,7 +234,7 @@ pub fn sample(arg: XSignal<String>) -> impl Fn(XAttributeTemplate) -> Consumers 
     }
     move |element| __sample_aux(element, arg.clone())
 }"#;
-    let actual = template(quote! { attribute = true }, sample)?;
+    let actual = template(quote! { wrap = true }, sample)?;
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);

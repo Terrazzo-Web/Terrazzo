@@ -210,7 +210,7 @@ fn drop_zone<S: TabsState>(
     )
 }
 
-#[template]
+#[template(wrap = true)]
 #[html]
 fn drop_zone_class(
     #[signal] is_dragging: bool,

@@ -94,7 +94,7 @@ fn result(
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicS_UnderlineS_Class => div(
-            style %= style_tpl::bold2(bold.clone()),
+            style %= style_tpl::bold(bold.clone()),
             style = ITALIC,
             style = UNDERLINE,
             class = style::rbox,
@@ -199,22 +199,22 @@ mod style_tpl {
     use super::UNDERLINE;
     use super::style;
 
-    #[template]
+    #[template(wrap = true)]
     pub fn bold(#[signal] mut bold: bool) -> XAttributeValue {
         bold.then_some(BOLD)
     }
 
-    #[template]
+    #[template(wrap = true)]
     pub fn italic(#[signal] mut italic: bool) -> XAttributeValue {
         italic.then_some(ITALIC)
     }
 
-    #[template]
+    #[template(wrap = true)]
     pub fn underline(#[signal] mut underline: bool) -> XAttributeValue {
         underline.then_some(UNDERLINE)
     }
 
-    #[template]
+    #[template(wrap = true)]
     pub fn active(#[signal] mut active: bool) -> XAttributeValue {
         active.then_some(style::active)
     }

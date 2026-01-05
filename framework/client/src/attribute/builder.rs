@@ -86,7 +86,7 @@ impl ChangeType {
         let mut has_null = false;
         for attribute in attributes {
             match attribute {
-                AttributeValueDiff::Undefined => (),
+                AttributeValueDiff::Undefined => return Self::Same,
                 AttributeValueDiff::Same { .. } => has_data = true,
                 AttributeValueDiff::Null => has_null = true,
                 AttributeValueDiff::Value { .. } => return Self::Value,
@@ -124,7 +124,6 @@ mod tests {
     #[test]
     fn aggregate_attribute_same_and_value() {
         let values = [
-            AttributeValueDiff::Undefined,
             AttributeValueDiff::Same("same".into()),
             AttributeValueDiff::Value("other".into()),
         ];
@@ -135,7 +134,6 @@ mod tests {
     #[test]
     fn aggregate_attribute_same_and_null() {
         let values = [
-            AttributeValueDiff::Undefined,
             AttributeValueDiff::Same("same".into()),
             AttributeValueDiff::Null,
         ];
@@ -145,7 +143,7 @@ mod tests {
 
     #[test]
     fn aggregate_attribute_null() {
-        let values = [AttributeValueDiff::Null, AttributeValueDiff::Undefined];
+        let values = [AttributeValueDiff::Null, AttributeValueDiff::Null];
         let result = super::aggregate_attribute(&values);
         assert_eq!(Some(None), result)
     }

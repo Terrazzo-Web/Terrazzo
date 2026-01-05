@@ -149,7 +149,7 @@ mod verbose {
                         li(key = "3", "Third"),
                     ),
                     p(|t| child(t)),
-                    data_dyn_attribute %= |t| dyn_attribute(t),
+                    data_dyn_attribute %= dyn_attribute(),
                 )
             }
 
@@ -159,7 +159,7 @@ mod verbose {
                 div(key = "child", class = "child-css-style", span("Child"))
             }
 
-            #[template]
+            #[template(wrap = true)]
             fn dyn_attribute() -> XAttributeValue {
                 "custom-value"
             }

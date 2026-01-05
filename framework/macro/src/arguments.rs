@@ -13,6 +13,9 @@ pub struct MacroArgs {
 
     #[deluxe(default)]
     pub key: Option<syn::Expr>,
+
+    #[deluxe(default)]
+    pub wrap: bool,
 }
 
 impl MacroArgs {

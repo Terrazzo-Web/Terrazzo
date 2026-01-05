@@ -124,7 +124,6 @@ mod tests {
     #[test]
     fn aggregate_attribute_same_and_value() {
         let values = [
-            AttributeValueDiff::Undefined,
             AttributeValueDiff::Same("same".into()),
             AttributeValueDiff::Value("other".into()),
         ];
@@ -135,7 +134,6 @@ mod tests {
     #[test]
     fn aggregate_attribute_same_and_null() {
         let values = [
-            AttributeValueDiff::Undefined,
             AttributeValueDiff::Same("same".into()),
             AttributeValueDiff::Null,
         ];
@@ -145,7 +143,7 @@ mod tests {
 
     #[test]
     fn aggregate_attribute_null() {
-        let values = [AttributeValueDiff::Null, AttributeValueDiff::Undefined];
+        let values = [AttributeValueDiff::Null, AttributeValueDiff::Null];
         let result = super::aggregate_attribute(&values);
         assert_eq!(Some(None), result)
     }

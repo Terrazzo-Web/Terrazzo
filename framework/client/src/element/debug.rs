@@ -149,7 +149,7 @@ mod verbose {
                         li(key = "3", "Third"),
                     ),
                     p(|t| child(t)),
-                    data_dyn_attribute %= |t| dyn_attribute(t),
+                    data_dyn_attribute %= dyn_attribute(),
                 )
             }
 

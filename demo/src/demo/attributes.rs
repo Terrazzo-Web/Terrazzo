@@ -44,10 +44,7 @@ pub fn attributes_demo() -> XElement {
                         Some(!b)
                     });
                 },
-                class %= move |t: XAttributeTemplate| {
-                    autoclone!(bold);
-                    style_tpl::active(t, bold.clone())
-                },
+                class %= style_tpl::active(bold.clone()),
                 b("B"),
             ),
             button(
@@ -58,10 +55,7 @@ pub fn attributes_demo() -> XElement {
                         Some(!i)
                     });
                 },
-                class %= move |t: XAttributeTemplate| {
-                    autoclone!(italic);
-                    style_tpl::active(t, italic.clone())
-                },
+                class %= style_tpl::active(italic.clone()),
                 i("I"),
             ),
             button(
@@ -72,10 +66,7 @@ pub fn attributes_demo() -> XElement {
                         Some(!u)
                     });
                 },
-                class %= move |t: XAttributeTemplate| {
-                    autoclone!(underline);
-                    style_tpl::active(t, underline.clone())
-                },
+                class %= style_tpl::active(underline.clone()),
                 u("U"),
             ),
         ),
@@ -85,7 +76,6 @@ pub fn attributes_demo() -> XElement {
     )
 }
 
-#[autoclone]
 #[template(tag = div)]
 #[html]
 fn result(
@@ -97,51 +87,30 @@ fn result(
     let value = match flavor {
         Flavor::Zero => div(class = style::rbox, "Hello, world! - zero"),
         Flavor::BoldS_ItalicS_UnderlineS_Class => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
+            style = BOLD,
             style = ITALIC,
             style = UNDERLINE,
             class = style::rbox,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicS_UnderlineS_Class => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
+            style %= style_tpl::bold2(bold.clone()),
             style = ITALIC,
             style = UNDERLINE,
             class = style::rbox,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineS_Class => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(italic);
-                style_tpl::italic(t, italic.clone())
-            },
+            style %= style_tpl::bold(bold.clone()),
+            style %= style_tpl::italic(italic.clone()),
             style = UNDERLINE,
             class = style::rbox,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineD_Class => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(italic);
-                style_tpl::italic(t, italic.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(underline);
-                style_tpl::underline(t, underline.clone())
-            },
+            style %= style_tpl::bold(bold.clone()),
+            style %= style_tpl::italic(italic.clone()),
+            style %= style_tpl::underline(underline.clone()),
             class = style::rbox,
             "{flavor:?}",
         ),
@@ -155,10 +124,7 @@ fn result(
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicS_UnderlineS_Style => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
+            style %= style_tpl::bold(bold.clone()),
             style = ITALIC,
             style = UNDERLINE,
             style = MARGIN,
@@ -167,14 +133,8 @@ fn result(
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineS_Style => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(italic);
-                style_tpl::italic(t, italic.clone())
-            },
+            style %= style_tpl::bold(bold.clone()),
+            style %= style_tpl::italic(italic.clone()),
             style = UNDERLINE,
             style = MARGIN,
             style = PADDING,
@@ -182,18 +142,9 @@ fn result(
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineD_Style => div(
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(bold);
-                style_tpl::bold(t, bold.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(italic);
-                style_tpl::italic(t, italic.clone())
-            },
-            style %= move |t: XAttributeTemplate| {
-                autoclone!(underline);
-                style_tpl::underline(t, underline.clone())
-            },
+            style %= style_tpl::bold(bold.clone()),
+            style %= style_tpl::italic(italic.clone()),
+            style %= style_tpl::underline(underline.clone()),
             style = MARGIN,
             style = PADDING,
             style = BORDER,

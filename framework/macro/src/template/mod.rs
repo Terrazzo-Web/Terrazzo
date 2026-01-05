@@ -1,4 +1,5 @@
 use quote::ToTokens as _;
+use quote::format_ident;
 use quote::quote;
 use quote::quote_spanned;
 use readonly::process_readonly_input;
@@ -27,7 +28,7 @@ pub fn template(
 
     body = quote! {
         let generated_body = move || #body;
-        generated_template.apply(generated_body)
+        __generated_template.apply(generated_body)
     };
     let mut inputs: Vec<_> = item_fn.sig.inputs.iter_mut().collect();
     inputs.reverse();
@@ -66,23 +67,23 @@ pub fn template(
 
     let element: syn::FnArg = {
         let span = item_fn.sig.ident.span();
-        syn::parse2(quote_spanned! {span=> generated_template: #template_type})?
+        syn::parse2(quote_spanned! {span=> __generated_template: #template_type})?
     };
     item_fn.sig.inputs.insert(0, element);
 
     let block = quote! {
         {
-            let generated_template1 = generated_template.clone();
+            let __generated_template1 = __generated_template.clone();
             #(#prelude)*
             make_reactive_closure()
                 .named(#name)
                 .closure(move || {
-                    let generated_template = generated_template.clone();
+                    let __generated_template = __generated_template.clone();
                     #(#copies)*
                     #body
                 })
                 #(#bind_signals)*
-                .register(generated_template1)
+                .register(__generated_template1)
         }
     };
     item_fn.block = Box::new(syn::parse2(block)?);
@@ -91,20 +92,21 @@ pub fn template(
         Box::new(syn::parse2(quote! { Consumers }).unwrap()),
     );
 
-    let result = if let Some(tag) = args.tag {
-        assert!(tag != "tag");
+    if args.tag.is_some() && args.wrap {
+        return Err(syn::Error::new_spanned(
+            args.tag,
+            "Template attributes can't have a tag",
+        ));
+    }
+
+    let result = if args.wrap || returns_attribute_template(&original_item_fn) {
         item_fn.attrs = vec![];
         item_fn.vis = Visibility::Inherited;
+        item_fn.sig.ident = format_ident!("__{}_aux", item_fn.sig.ident);
         let aux = item_fn.to_token_stream();
-        let tag = tag.to_string();
-        let key = args
-            .key
-            .map(|key| quote! { XKey::Named(#key.into()) })
-            .unwrap_or_else(|| quote! { XKey::default()});
-        let name = original_item_fn.sig.ident.clone();
-        let params = original_item_fn
-            .sig
-            .inputs
+        let name = item_fn.sig.ident.clone();
+        let inputs = &original_item_fn.sig.inputs;
+        let params = inputs
             .iter()
             .map(|p| {
                 let syn::FnArg::Typed(syn::PatType { pat, .. }) = p else {
@@ -117,6 +119,47 @@ pub fn template(
         original_item_fn.block = Box::new(
             syn::parse2(quote! {
                 {
+                    #[doc(hidden)]
+                    #aux
+                    move |element| #name(element #(,#params.clone())*)
+                }
+            })
+            .unwrap(),
+        );
+        original_item_fn.sig.output = syn::ReturnType::Type(
+            Default::default(),
+            Box::new(syn::parse2(quote! { impl Fn(XAttributeTemplate) -> Consumers }).unwrap()),
+        );
+        original_item_fn.to_token_stream()
+    } else if let Some(tag) = args.tag {
+        if tag == "tag" {
+            return Err(syn::Error::new_spanned(tag, "Template tag can't be 'tag'"));
+        }
+        item_fn.attrs = vec![];
+        item_fn.vis = Visibility::Inherited;
+        item_fn.sig.ident = format_ident!("__{}_aux", item_fn.sig.ident);
+        let aux = item_fn.to_token_stream();
+        let tag = tag.to_string();
+        let key = args
+            .key
+            .map(|key| quote! { XKey::Named(#key.into()) })
+            .unwrap_or_else(|| quote! { XKey::default()});
+        let name = item_fn.sig.ident.clone();
+        let inputs = &original_item_fn.sig.inputs;
+        let params = inputs
+            .iter()
+            .map(|p| {
+                let syn::FnArg::Typed(syn::PatType { pat, .. }) = p else {
+                    panic!()
+                };
+                quote! { #pat }
+            })
+            .collect::<Vec<_>>();
+        let mut original_item_fn = original_item_fn;
+        original_item_fn.block = Box::new(
+            syn::parse2(quote! {
+                {
+                    #[doc(hidden)]
                     #aux
                     XElement {
                         tag_name: Some(#tag.into()),
@@ -142,6 +185,23 @@ pub fn template(
     }
 
     Ok(result)
+}
+
+fn returns_attribute_template(f: &syn::ItemFn) -> bool {
+    let syn::ReturnType::Type(_, t) = &f.sig.output else {
+        return false;
+    };
+    let syn::Type::Path(syn::TypePath {
+        qself: None,
+        path: p,
+    }) = &**t
+    else {
+        return false;
+    };
+    let Some(i) = p.get_ident() else {
+        return false;
+    };
+    i == "XAttributeValue"
 }
 
 fn item_to_string(item: &syn::ItemFn) -> String {

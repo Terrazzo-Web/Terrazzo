@@ -173,15 +173,11 @@ fn drop_zone<S: TabsState>(
 ) -> XElement {
     let drop_zone_active = XSignal::new("drop-zone-active", false);
     li(
-        class %= move |a| {
-            autoclone!(is_dragging, drop_zone_active, options);
-            drop_zone_class(
-                a,
-                is_dragging.clone(),
-                drop_zone_active.clone(),
-                options.clone(),
-            )
-        },
+        class %= drop_zone_class(
+            is_dragging.clone(),
+            drop_zone_active.clone(),
+            options.clone(),
+        ),
         div(
             class = options.title_drop_zone.clone(),
             style %= move |a: XAttributeTemplate| {

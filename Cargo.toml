@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.21"
+version = "0.1.22"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,17 +45,17 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.21", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.21", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.21", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.21", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.21", path = "framework/build" }
-terrazzo-client = { version = "0.1.21", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.21", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.21", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.21", path = "remote/client" }
-trz-gateway-common = { version = "0.1.21", path = "remote/common" }
-trz-gateway-server = { version = "0.1.21", path = "remote/server" }
+autoclone = { version = "0.1.22", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.22", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.22", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.22", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.22", path = "framework/build" }
+terrazzo-client = { version = "0.1.22", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.22", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.22", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.22", path = "remote/client" }
+trz-gateway-common = { version = "0.1.22", path = "remote/common" }
+trz-gateway-server = { version = "0.1.22", path = "remote/server" }
 
 axum = { version = "0.8.8" }
 axum-server = { version = "0.8.0" }
@@ -99,7 +99,7 @@ serde_json = { version = "1.0.148" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
-syn = { version = "2.0.112" }
+syn = { version = "2.0.113" }
 tempfile = { version = "3.24.0" }
 thiserror = { version = "2.0.17" }
 tokio = { version = "1.49.0" }

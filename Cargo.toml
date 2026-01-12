@@ -81,9 +81,9 @@ pin-project = { version = "1.1.10" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.104" }
-prost = { version = "0.14.1" }
-prost-types = { version = "0.14.1" }
-quote = { version = "1.0.42" }
+prost = { version = "0.14.3" }
+prost-types = { version = "0.14.3" }
+quote = { version = "1.0.43" }
 rcgen = { version = "0.14.6" }
 reqwest = { version = "0.13.1" }
 reqwest-wasm = { version = "0.11.16" }
@@ -95,22 +95,22 @@ rustls = { version = "0.23.36" }
 rustls-native-certs = { version = "0.8.3" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde_json = { version = "1.0.148" }
+serde_json = { version = "1.0.149" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
-syn = { version = "2.0.113" }
+syn = { version = "2.0.114" }
 tempfile = { version = "3.24.0" }
 thiserror = { version = "2.0.17" }
 tokio = { version = "1.49.0" }
 tokio-rustls = { version = "0.26.4" }
 tokio-tungstenite = { version = "0.28.0" }
 tokio-util = { version = "0.7.18" }
-toml = { version = "0.9.10" }
+toml = { version = "0.9.11" }
 tonic = { version = "0.14.2" }
 tonic-prost = { version = "0.14.2" }
 tonic-prost-build = { version = "0.14.2" }
-tower = { version = "0.5.2" }
+tower = { version = "0.5.3" }
 tower-http = { version = "0.6.8" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }

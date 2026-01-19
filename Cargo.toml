@@ -84,7 +84,7 @@ proc-macro2 = { version = "1.0.104" }
 prost = { version = "0.14.3" }
 prost-types = { version = "0.14.3" }
 quote = { version = "1.0.43" }
-rcgen = { version = "0.14.6" }
+rcgen = { version = "0.14.7" }
 reqwest = { version = "0.13.1" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
@@ -101,7 +101,7 @@ server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
 syn = { version = "2.0.114" }
 tempfile = { version = "3.24.0" }
-thiserror = { version = "2.0.17" }
+thiserror = { version = "2.0.18" }
 tokio = { version = "1.49.0" }
 tokio-rustls = { version = "0.26.4" }
 tokio-tungstenite = { version = "0.28.0" }

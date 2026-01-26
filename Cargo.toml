@@ -80,10 +80,10 @@ pem = { version = "3.0.6" }
 pin-project = { version = "1.1.10" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.37" }
-proc-macro2 = { version = "1.0.104" }
+proc-macro2 = { version = "1.0.106" }
 prost = { version = "0.14.3" }
 prost-types = { version = "0.14.3" }
-quote = { version = "1.0.43" }
+quote = { version = "1.0.44" }
 rcgen = { version = "0.14.7" }
 reqwest = { version = "0.13.1" }
 reqwest-wasm = { version = "0.11.16" }
@@ -116,7 +116,7 @@ tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.22" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-uuid = { version = "1.19.0" }
+uuid = { version = "1.20.0" }
 wasm-bindgen = { version = "0.2.106" }
 wasm-bindgen-futures = { version = "0.4.56" }
 wasm-bindgen-test = { version = "0.3.56" }

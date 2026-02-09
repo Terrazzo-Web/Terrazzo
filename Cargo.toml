@@ -71,7 +71,7 @@ humantime = { version = "2.3.0" }
 hyper-util = { version = "0.1.20" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.4" }
-libc = { version = "0.2.179" }
+libc = { version = "0.2.181" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }
@@ -85,7 +85,7 @@ prost = { version = "0.14.3" }
 prost-types = { version = "0.14.3" }
 quote = { version = "1.0.44" }
 rcgen = { version = "0.14.7" }
-reqwest = { version = "0.13.1" }
+reqwest = { version = "0.13.2" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rsass = { version = "0.29.2" }
@@ -100,7 +100,7 @@ serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
 syn = { version = "2.0.114" }
-tempfile = { version = "3.24.0" }
+tempfile = { version = "3.25.0" }
 thiserror = { version = "2.0.18" }
 tokio = { version = "1.49.0" }
 tokio-rustls = { version = "0.26.4" }

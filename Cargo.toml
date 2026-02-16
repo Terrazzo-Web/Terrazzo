@@ -106,7 +106,7 @@ tokio = { version = "1.49.0" }
 tokio-rustls = { version = "0.26.4" }
 tokio-tungstenite = { version = "0.28.0" }
 tokio-util = { version = "0.7.18" }
-toml = { version = "0.9.11" }
+toml = { version = "1.0.2" }
 tonic = { version = "0.14.3" }
 tonic-prost = { version = "0.14.3" }
 tonic-prost-build = { version = "0.14.3" }

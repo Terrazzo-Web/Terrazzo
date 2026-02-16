@@ -64,7 +64,7 @@ cms = { version = "0.2.3" }
 darling = { version = "0.23.0" }
 dashmap = { version = "6.1.0" }
 deluxe = { version = "0.5.0" }
-futures = { version = "0.3.31" }
+futures = { version = "0.3.32" }
 hostname = { version = "0.4.2" }
 http = { version = "1.4.0" }
 humantime = { version = "2.3.0" }
@@ -99,7 +99,7 @@ serde_json = { version = "1.0.149" }
 serde_urlencoded = { version = "0.7.1" }
 server_fn_macro = { version = "0.8.8" }
 stylance = { version = "0.7.4" }
-syn = { version = "2.0.114" }
+syn = { version = "2.0.116" }
 tempfile = { version = "3.25.0" }
 thiserror = { version = "2.0.18" }
 tokio = { version = "1.49.0" }
@@ -107,16 +107,16 @@ tokio-rustls = { version = "0.26.4" }
 tokio-tungstenite = { version = "0.28.0" }
 tokio-util = { version = "0.7.18" }
 toml = { version = "1.0.2" }
-tonic = { version = "0.14.3" }
-tonic-prost = { version = "0.14.3" }
-tonic-prost-build = { version = "0.14.3" }
+tonic = { version = "0.14.4" }
+tonic-prost = { version = "0.14.4" }
+tonic-prost-build = { version = "0.14.4" }
 tower = { version = "0.5.3" }
 tower-http = { version = "0.6.8" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.22" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-uuid = { version = "1.20.0" }
+uuid = { version = "1.21.0" }
 wasm-bindgen = { version = "0.2.106" }
 wasm-bindgen-futures = { version = "0.4.56" }
 wasm-bindgen-test = { version = "0.3.56" }

@@ -71,7 +71,7 @@ humantime = { version = "2.3.0" }
 hyper-util = { version = "0.1.20" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
-libc = { version = "0.2.182" }
+libc = { version = "0.2.183" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 oid-registry = { version = "0.8.1" }

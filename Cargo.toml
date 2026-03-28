@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.23"
+version = "0.1.24"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -45,17 +45,17 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.1.23", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.1.23", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.1.23", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.1.23", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.1.23", path = "framework/build" }
-terrazzo-client = { version = "0.1.23", path = "framework/client" }
-terrazzo-fixture = { version = "0.1.23", path = "utils/fixture" }
-terrazzo-macro = { version = "0.1.23", path = "framework/macro" }
-trz-gateway-client = { version = "0.1.23", path = "remote/client" }
-trz-gateway-common = { version = "0.1.23", path = "remote/common" }
-trz-gateway-server = { version = "0.1.23", path = "remote/server" }
+autoclone = { version = "0.1.24", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.1.24", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.1.24", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.1.24", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.1.24", path = "framework/build" }
+terrazzo-client = { version = "0.1.24", path = "framework/client" }
+terrazzo-fixture = { version = "0.1.24", path = "utils/fixture" }
+terrazzo-macro = { version = "0.1.24", path = "framework/macro" }
+trz-gateway-client = { version = "0.1.24", path = "remote/client" }
+trz-gateway-common = { version = "0.1.24", path = "remote/common" }
+trz-gateway-server = { version = "0.1.24", path = "remote/server" }
 
 axum = { version = "0.8.8" }
 axum-server = { version = "0.8.0" }
@@ -116,12 +116,12 @@ tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-uuid = { version = "1.22.0" }
-wasm-bindgen = { version = "0.2.106" }
-wasm-bindgen-futures = { version = "0.4.64" }
+uuid = { version = "1.23.0" }
+wasm-bindgen = { version = "0.2.115" }
+wasm-bindgen-futures = { version = "0.4.65" }
 wasm-bindgen-test = { version = "0.3.64" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.91" }
+web-sys = { version = "0.3.92" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

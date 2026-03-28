@@ -47,7 +47,7 @@ pub fn template(
             }
             {
                 let ty = &mut input.ty;
-                *ty = Box::new(syn::parse2(quote! { XSignal<#ty> })?);
+                **ty = syn::parse2(quote! { XSignal<#ty> })?;
             }
         } else {
             process_readonly_input(&mut copies, input);
@@ -86,7 +86,7 @@ pub fn template(
                 .register(__generated_template1)
         }
     };
-    item_fn.block = Box::new(syn::parse2(block)?);
+    *item_fn.block = syn::parse2(block)?;
     item_fn.sig.output = syn::ReturnType::Type(
         syn::Token![->](item_fn.sig.output.span()),
         Box::new(syn::parse2(quote! { Consumers }).unwrap()),
@@ -116,16 +116,14 @@ pub fn template(
             })
             .collect::<Vec<_>>();
         let mut original_item_fn = original_item_fn;
-        original_item_fn.block = Box::new(
-            syn::parse2(quote! {
-                {
-                    #[doc(hidden)]
-                    #aux
-                    move |element| #name(element #(,#params.clone())*)
-                }
-            })
-            .unwrap(),
-        );
+        original_item_fn.block = syn::parse2(quote! {
+            {
+                #[doc(hidden)]
+                #aux
+                move |element| #name(element #(,#params.clone())*)
+            }
+        })
+        .unwrap();
         original_item_fn.sig.output = syn::ReturnType::Type(
             Default::default(),
             Box::new(syn::parse2(quote! { impl Fn(XAttributeTemplate) -> Consumers }).unwrap()),
@@ -156,7 +154,7 @@ pub fn template(
             })
             .collect::<Vec<_>>();
         let mut original_item_fn = original_item_fn;
-        original_item_fn.block = Box::new(
+        *original_item_fn.block =
             syn::parse2(quote! {
                 {
                     #[doc(hidden)]
@@ -170,8 +168,7 @@ pub fn template(
                     }
                 }
             })
-            .unwrap(),
-        );
+            .unwrap();
         original_item_fn.to_token_stream()
     } else {
         item_fn.to_token_stream()

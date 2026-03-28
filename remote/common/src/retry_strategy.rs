@@ -231,7 +231,7 @@ impl RetryStrategy {
                 let r: u64 = random.finish();
 
                 // generate a random number between [0..1]
-                let r = r as f64 / (u64::MAX - u64::MIN) as f64;
+                let r = r as f64 / u64::MAX as f64;
 
                 // generate a random number between [(1-f/2) .. (1+f/2))]
                 let r = 1.0 + *factor * (r - 0.5);

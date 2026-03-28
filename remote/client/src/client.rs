@@ -13,7 +13,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument;
-use tracing::error;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;

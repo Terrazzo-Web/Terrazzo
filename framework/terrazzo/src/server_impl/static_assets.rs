@@ -258,7 +258,11 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
 
 #[cfg(debug_assertions)]
 fn get_asset_content(path: &str, asset: &Asset) -> Vec<u8> {
-    assert!(cfg!(feature = "debug"));
+    #[allow(clippy::assertions_on_constants)]
+    {
+        assert!(cfg!(feature = "debug"));
+    }
+
     #[cfg(all(feature = "debug", not(feature = "client")))]
     {
         let asset_extension = || {

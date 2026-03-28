@@ -10,4 +10,5 @@ pub mod more_event;
 pub mod rand;
 pub mod resize_event;
 pub mod select;
+pub mod sleep;
 pub mod tabs;

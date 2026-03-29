@@ -53,7 +53,16 @@ async fn status() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn certificate() -> Result<(), Box<dyn Error>> {
+async fn certificate_http() -> Result<(), Box<dyn Error>> {
+    certificate("http").await
+}
+
+#[tokio::test]
+async fn certificate_https() -> Result<(), Box<dyn Error>> {
+    certificate("https").await
+}
+
+async fn certificate(scheme: &str) -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let (_server, handle, _crash) = Server::run(config.clone()).await?;
@@ -64,6 +73,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        scheme,
         GetCertificateRequest {
             auth_code: AuthCode::current(),
             public_key: &private_key,
@@ -96,6 +106,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        "https",
         GetCertificateRequest {
             auth_code: AuthCode::from("invalid-code"),
             public_key: &private_key,
@@ -124,6 +135,7 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        "https",
         GetCertificateRequest {
             auth_code: AuthCode::current(),
             public_key: &private_key,
@@ -173,12 +185,13 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
 async fn send_certificate_request(
     config: &TestConfig,
     client: reqwest::Client,
+    scheme: &str,
     request: GetCertificateRequest<AuthCode, &PKeyRef<impl HasPublic>>,
 ) -> Result<Response, Box<dyn Error>> {
     let public_key = request.public_key.public_key_to_pem().pem_string()?;
     let request = client
         .get(format!(
-            "https://{}:{}/remote/certificate",
+            "{scheme}://{}:{}/remote/certificate",
             config.host(),
             config.port
         ))

@@ -15,6 +15,7 @@ use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use terrazzo_fixture::Fixture;
 use tokio::io::AsyncReadExt as _;
+use tokio::io::AsyncWriteExt as _;
 use tokio::net::TcpStream;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
@@ -191,6 +192,33 @@ async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[tokio::test]
+async fn http_keep_alive_connection_stays_open_for_3_seconds() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let (_server, handle, _crash) = Server::run(config.clone()).await?;
+
+    let _client = make_client(&config).await?;
+
+    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    send_plaintext_keep_alive_request(&mut stream, &config).await?;
+    assert_eq!(
+        StatusCode::NOT_FOUND,
+        read_http_response_status(&mut stream).await?
+    );
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
+
+    send_plaintext_keep_alive_request(&mut stream, &config).await?;
+    assert_eq!(
+        StatusCode::NOT_FOUND,
+        read_http_response_status(&mut stream).await?
+    );
+
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
 async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Error>> {
     let client = {
         use reqwest::tls::Certificate;
@@ -242,6 +270,68 @@ async fn send_certificate_request(
             name: request.name,
         })?);
     Ok(request.send().await?)
+}
+
+async fn send_plaintext_keep_alive_request(
+    stream: &mut TcpStream,
+    config: &TestConfig,
+) -> Result<(), Box<dyn Error>> {
+    stream
+        .write_all(
+            format!(
+                "GET /404-not-found HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\n\r\n",
+                config.host()
+            )
+            .as_bytes(),
+        )
+        .await?;
+    stream.flush().await?;
+    Ok(())
+}
+
+async fn read_http_response_status(stream: &mut TcpStream) -> Result<StatusCode, Box<dyn Error>> {
+    let mut response = Vec::new();
+    let header_end = loop {
+        let mut chunk = [0; 1024];
+        let bytes_read =
+            tokio::time::timeout(Duration::from_secs(3), stream.read(&mut chunk)).await??;
+        if bytes_read == 0 {
+            return Err("Connection closed before complete HTTP response".into());
+        }
+        response.extend_from_slice(&chunk[..bytes_read]);
+        if let Some(header_end) = response.windows(4).position(|window| window == b"\r\n\r\n") {
+            break header_end + 4;
+        }
+    };
+
+    let header_text = std::str::from_utf8(&response[..header_end])?;
+    let mut lines = header_text.split("\r\n");
+    let status_line = lines.next().ok_or("Missing HTTP status line")?;
+    let status = status_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or("Missing HTTP status code")?
+        .parse::<u16>()?;
+    let content_length = lines
+        .filter_map(|line| line.split_once(':'))
+        .find_map(|(name, value)| {
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>())
+        })
+        .transpose()?
+        .unwrap_or(0);
+
+    while response.len() < header_end + content_length {
+        let mut chunk = [0; 1024];
+        let bytes_read =
+            tokio::time::timeout(Duration::from_secs(3), stream.read(&mut chunk)).await??;
+        if bytes_read == 0 {
+            return Err("Connection closed before complete HTTP body".into());
+        }
+        response.extend_from_slice(&chunk[..bytes_read]);
+    }
+
+    Ok(StatusCode::from_u16(status)?)
 }
 
 #[derive(Debug)]

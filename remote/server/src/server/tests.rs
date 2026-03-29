@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::ErrorKind;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -13,7 +14,11 @@ use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use terrazzo_fixture::Fixture;
+use tokio::io::AsyncReadExt as _;
+use tokio::io::AsyncWriteExt as _;
+use tokio::net::TcpStream;
 use tracing::debug;
+use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
@@ -34,6 +39,7 @@ use super::gateway_config::GatewayConfig;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
 use crate::auth_code::AuthCode;
+use crate::server::HTTP_TIMEOUT;
 
 const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
     certificate: "root-ca-cert.pem",
@@ -53,7 +59,16 @@ async fn status() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn certificate() -> Result<(), Box<dyn Error>> {
+async fn certificate_http() -> Result<(), Box<dyn Error>> {
+    certificate("http").await
+}
+
+#[tokio::test]
+async fn certificate_https() -> Result<(), Box<dyn Error>> {
+    certificate("https").await
+}
+
+async fn certificate(scheme: &str) -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let (_server, handle, _crash) = Server::run(config.clone()).await?;
@@ -64,6 +79,7 @@ async fn certificate() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        scheme,
         GetCertificateRequest {
             auth_code: AuthCode::current(),
             public_key: &private_key,
@@ -96,6 +112,7 @@ async fn invalid_auth_code() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        "https",
         GetCertificateRequest {
             auth_code: AuthCode::from("invalid-code"),
             public_key: &private_key,
@@ -124,6 +141,7 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     let response = send_certificate_request(
         &config,
         client,
+        "https",
         GetCertificateRequest {
             auth_code: AuthCode::current(),
             public_key: &private_key,
@@ -134,6 +152,82 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     assert_eq!(StatusCode::OK, response.status());
 
     let _pem = response.text().await?;
+
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let (_server, handle, _crash) = Server::run(config.clone()).await?;
+
+    let _client = make_client(&config).await?;
+
+    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    let start = Instant::now();
+    let mut buffer = [0; 1];
+    let read_result = tokio::time::timeout(Duration::from_secs(3), stream.read(&mut buffer)).await;
+    let elapsed = start.elapsed();
+
+    debug!("Read result: {read_result:?}, elapsed time: {elapsed:?}");
+    match read_result {
+        Ok(Err(error))
+            if matches!(
+                error.kind(),
+                ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted
+            ) =>
+        {
+            ()
+        }
+        other => {
+            panic!("Expected the idle TCP connection to fail with RST after timeout, got {other:?}")
+        }
+    }
+    assert!(
+        elapsed >= Duration::from_millis(900),
+        "Connection closed too early after {elapsed:?}",
+    );
+
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn http_connection_times_out() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let (_server, handle, _crash) = Server::run(config.clone()).await?;
+
+    let _client = make_client(&config).await?;
+
+    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    send_plaintext_keep_alive_request(&mut stream, &config).await?;
+    assert_eq!(
+        StatusCode::NOT_FOUND,
+        read_http_response_status(&mut stream).await?
+    );
+
+    let start = Instant::now();
+    let mut buffer = [0; 1];
+    let idle_read_result = tokio::time::timeout(
+        HTTP_TIMEOUT + Duration::from_secs(1),
+        stream.read(&mut buffer),
+    )
+    .await;
+    let elapsed = start.elapsed();
+    info!("Timeout: {idle_read_result:?}, elapsed: {elapsed:?}");
+
+    assert!(
+        elapsed >= HTTP_TIMEOUT - Duration::from_millis(100),
+        "Connection closed too early after {elapsed:?}",
+    );
+
+    if let Ok(Ok(0)) = idle_read_result {
+    } else {
+        panic!("Unexpected read result: {idle_read_result:?}")
+    }
 
     let () = handle.stop("End of test").await?;
     Ok(())
@@ -173,12 +267,13 @@ async fn make_client(config: &TestConfig) -> Result<reqwest::Client, Box<dyn Err
 async fn send_certificate_request(
     config: &TestConfig,
     client: reqwest::Client,
+    scheme: &str,
     request: GetCertificateRequest<AuthCode, &PKeyRef<impl HasPublic>>,
 ) -> Result<Response, Box<dyn Error>> {
     let public_key = request.public_key.public_key_to_pem().pem_string()?;
     let request = client
         .get(format!(
-            "https://{}:{}/remote/certificate",
+            "{scheme}://{}:{}/remote/certificate",
             config.host(),
             config.port
         ))
@@ -189,6 +284,68 @@ async fn send_certificate_request(
             name: request.name,
         })?);
     Ok(request.send().await?)
+}
+
+async fn send_plaintext_keep_alive_request(
+    stream: &mut TcpStream,
+    config: &TestConfig,
+) -> Result<(), Box<dyn Error>> {
+    stream
+        .write_all(
+            format!(
+                "GET /404-not-found HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\n\r\n",
+                config.host()
+            )
+            .as_bytes(),
+        )
+        .await?;
+    stream.flush().await?;
+    Ok(())
+}
+
+async fn read_http_response_status(stream: &mut TcpStream) -> Result<StatusCode, Box<dyn Error>> {
+    let mut response = Vec::new();
+    let header_end = loop {
+        let mut chunk = [0; 1024];
+        let bytes_read =
+            tokio::time::timeout(Duration::from_secs(3), stream.read(&mut chunk)).await??;
+        if bytes_read == 0 {
+            return Err("Connection closed before complete HTTP response".into());
+        }
+        response.extend_from_slice(&chunk[..bytes_read]);
+        if let Some(header_end) = response.windows(4).position(|window| window == b"\r\n\r\n") {
+            break header_end + 4;
+        }
+    };
+
+    let header_text = std::str::from_utf8(&response[..header_end])?;
+    let mut lines = header_text.split("\r\n");
+    let status_line = lines.next().ok_or("Missing HTTP status line")?;
+    let status = status_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or("Missing HTTP status code")?
+        .parse::<u16>()?;
+    let content_length = lines
+        .filter_map(|line| line.split_once(':'))
+        .find_map(|(name, value)| {
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>())
+        })
+        .transpose()?
+        .unwrap_or(0);
+
+    while response.len() < header_end + content_length {
+        let mut chunk = [0; 1024];
+        let bytes_read =
+            tokio::time::timeout(Duration::from_secs(3), stream.read(&mut chunk)).await??;
+        if bytes_read == 0 {
+            return Err("Connection closed before complete HTTP body".into());
+        }
+        response.extend_from_slice(&chunk[..bytes_read]);
+    }
+
+    Ok(StatusCode::from_u16(status)?)
 }
 
 #[derive(Debug)]

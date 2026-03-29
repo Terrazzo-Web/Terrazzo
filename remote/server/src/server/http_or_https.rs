@@ -3,6 +3,7 @@ use std::io::ErrorKind;
 use std::pin::Pin;
 use std::task::Poll;
 use std::task::ready;
+use std::time::Duration;
 
 use axum_server::accept::Accept;
 use futures::FutureExt;
@@ -13,6 +14,8 @@ use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
 use tracing::debug;
+
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Clone)]
 pub struct HttpOrHttps<TLS, PLAIN> {
@@ -40,6 +43,7 @@ where
             buffer: Default::default(),
             pos: 0,
             accept: self.clone(),
+            timeout: Box::pin(tokio::time::sleep(HANDSHAKE_TIMEOUT)),
         })
     }
 }
@@ -61,6 +65,7 @@ where
         buffer: StreamHeader,
         pos: usize,
         accept: HttpOrHttps<T, P>,
+        timeout: Pin<Box<tokio::time::Sleep>>,
     },
 
     AcceptTls {
@@ -98,9 +103,28 @@ where
                     stream,
                     buffer,
                     pos,
+                    timeout,
                     ..
                 } => {
                     debug!(pos, ?buffer, "Polling stream header");
+
+                    match timeout.poll_unpin(cx) {
+                        Poll::Ready(()) => {
+                            let FuturePeekStreamImpl::Header { stream, .. } =
+                                std::mem::take(&mut self.0)
+                            else {
+                                unreachable!()
+                            };
+                            stream.set_zero_linger()?;
+                            return Err(std::io::Error::new(
+                                ErrorKind::TimedOut,
+                                "TLS handshake timed out",
+                            ))
+                            .into();
+                        }
+                        Poll::Pending => (),
+                    }
+
                     let mut buf = ReadBuf::new(buffer);
                     buf.advance(*pos);
                     let old_pos = *pos;

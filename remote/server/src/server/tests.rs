@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::ErrorKind;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -13,6 +14,8 @@ use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use terrazzo_fixture::Fixture;
+use tokio::io::AsyncReadExt as _;
+use tokio::net::TcpStream;
 use tracing::debug;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
@@ -146,6 +149,43 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
     assert_eq!(StatusCode::OK, response.status());
 
     let _pem = response.text().await?;
+
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let (_server, handle, _crash) = Server::run(config.clone()).await?;
+
+    let _client = make_client(&config).await?;
+
+    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    let start = Instant::now();
+    let mut buffer = [0; 1];
+    let read_result = tokio::time::timeout(Duration::from_secs(3), stream.read(&mut buffer)).await;
+    let elapsed = start.elapsed();
+
+    debug!("Read result: {read_result:?}, elapsed time: {elapsed:?}");
+    match read_result {
+        Ok(Err(error))
+            if matches!(
+                error.kind(),
+                ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted
+            ) =>
+        {
+            ()
+        }
+        other => {
+            panic!("Expected the idle TCP connection to fail with RST after timeout, got {other:?}")
+        }
+    }
+    assert!(
+        elapsed >= Duration::from_millis(900),
+        "Connection closed too early after {elapsed:?}",
+    );
 
     let () = handle.stop("End of test").await?;
     Ok(())

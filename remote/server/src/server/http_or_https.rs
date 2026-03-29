@@ -110,6 +110,12 @@ where
 
                     match timeout.poll_unpin(cx) {
                         Poll::Ready(()) => {
+                            let FuturePeekStreamImpl::Header { stream, .. } =
+                                std::mem::take(&mut self.0)
+                            else {
+                                unreachable!()
+                            };
+                            stream.set_zero_linger()?;
                             return Err(std::io::Error::new(
                                 ErrorKind::TimedOut,
                                 "TLS handshake timed out",

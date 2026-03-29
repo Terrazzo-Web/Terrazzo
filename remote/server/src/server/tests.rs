@@ -18,6 +18,7 @@ use tokio::io::AsyncReadExt as _;
 use tokio::io::AsyncWriteExt as _;
 use tokio::net::TcpStream;
 use tracing::debug;
+use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
@@ -38,6 +39,7 @@ use super::gateway_config::GatewayConfig;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
 use crate::auth_code::AuthCode;
+use crate::server::HTTP_TIMEOUT;
 
 const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
     certificate: "root-ca-cert.pem",
@@ -193,7 +195,7 @@ async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn http_keep_alive_connection_stays_open_for_3_seconds() -> Result<(), Box<dyn Error>> {
+async fn http_connection_times_out() -> Result<(), Box<dyn Error>> {
     let _use_temp_dir = use_temp_dir();
     let config = TestConfig::new();
     let (_server, handle, _crash) = Server::run(config.clone()).await?;
@@ -207,13 +209,25 @@ async fn http_keep_alive_connection_stays_open_for_3_seconds() -> Result<(), Box
         read_http_response_status(&mut stream).await?
     );
 
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    let start = Instant::now();
+    let mut buffer = [0; 1];
+    let idle_read_result = tokio::time::timeout(
+        HTTP_TIMEOUT + Duration::from_secs(1),
+        stream.read(&mut buffer),
+    )
+    .await;
+    let elapsed = start.elapsed();
+    info!("Timeout: {idle_read_result:?}, elapsed: {elapsed:?}");
 
-    send_plaintext_keep_alive_request(&mut stream, &config).await?;
-    assert_eq!(
-        StatusCode::NOT_FOUND,
-        read_http_response_status(&mut stream).await?
+    assert!(
+        elapsed >= HTTP_TIMEOUT - Duration::from_millis(100),
+        "Connection closed too early after {elapsed:?}",
     );
+
+    if let Ok(Ok(0)) = idle_read_result {
+    } else {
+        panic!("Unexpected read result: {idle_read_result:?}")
+    }
 
     let () = handle.stop("End of test").await?;
     Ok(())

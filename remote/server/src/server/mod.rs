@@ -5,6 +5,7 @@ use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use axum_server::Handle;
 use axum_server::accept::DefaultAcceptor;
@@ -14,6 +15,7 @@ use futures::FutureExt;
 use futures::future::Shared;
 use gateway_config::app_config::AppConfig;
 use http_or_https::HttpOrHttps;
+use hyper_util::rt::TokioTimer;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use rustls::ClientConfig;
@@ -56,6 +58,12 @@ mod tunnel;
 
 #[cfg(test)]
 mod tests;
+
+const HTTP_TIMEOUT: Duration = if cfg!(test) {
+    Duration::from_secs(3)
+} else {
+    Duration::from_secs(60 * 5)
+};
 
 /// The Terrazzo Gateway server.
 pub struct Server {
@@ -189,12 +197,20 @@ impl Server {
         let app = self.make_app();
 
         let handle = Handle::new();
-        let axum_server = axum_server::bind(socket_addr)
+        let mut axum_server = axum_server::bind(socket_addr)
             .acceptor(HttpOrHttps {
                 tls: RustlsAcceptor::new(self.tls_server.clone()),
                 plaintext: DefaultAcceptor,
             })
             .handle(handle.clone());
+        axum_server
+            .http_builder()
+            .http1()
+            .timer(TokioTimer::new())
+            .header_read_timeout(HTTP_TIMEOUT)
+            .http2()
+            .timer(TokioTimer::new())
+            .keep_alive_timeout(HTTP_TIMEOUT);
 
         let shutdown = self.shutdown.clone();
         tokio::spawn(

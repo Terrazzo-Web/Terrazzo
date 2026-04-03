@@ -31,7 +31,7 @@ fn sample() {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -67,7 +67,7 @@ fn sample() {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -102,7 +102,7 @@ fn sample() {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -146,7 +146,7 @@ fn outer() {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -202,7 +202,7 @@ fn outer() {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }

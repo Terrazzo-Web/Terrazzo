@@ -1,0 +1,39 @@
+[package]
+name = "crate_universe_deps"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
+
+[lib]
+
+[dependencies]
+include_directory = { workspace = true }
+instant-acme = { workspace = true }
+mime_guess = { workspace = true }
+rcgen = { workspace = true }
+rsass = { workspace = true }
+rsass-macros = { workspace = true }
+stylance = { workspace = true }
+tower-http = { workspace = true, features = [
+    "fs",
+    "sensitive-headers",
+    "trace",
+] }
+tracing-subscriber-wasm = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true, features = [
+    "DataTransfer",
+    "Document",
+    "DragEvent",
+    "Element",
+    "FocusEvent",
+    "Headers",
+    "HtmlSelectElement",
+    "MouseEvent",
+    "Performance",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+] }

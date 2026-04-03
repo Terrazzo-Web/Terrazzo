@@ -28,7 +28,7 @@ fn sample(__generated_template: <XElement as IsTemplated>::Template) -> Consumer
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -62,7 +62,7 @@ fn sample(
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -102,7 +102,7 @@ fn sample(
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -152,7 +152,7 @@ fn sample(
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -198,7 +198,7 @@ pub fn sample(arg: &str) -> XElement {
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }
@@ -238,7 +238,7 @@ pub fn sample(arg: XSignal<String>) -> impl Fn(XAttributeTemplate) -> Consumers 
     let actual = item_to_string(&syn::parse2(actual)?);
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
     Ok(())
 }

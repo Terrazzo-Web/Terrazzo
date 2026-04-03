@@ -3,7 +3,7 @@ use terrazzo_macro::html;
 use terrazzo_macro::template;
 use web_sys::MouseEvent;
 
-stylance::import_crate_style!(style, "src/client_impl/widgets/link.scss");
+stylance::import_style!(style, "link.scss");
 
 /// A clickable link with a styled underline effect.
 #[html]

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "bazel/crate_universe_deps",
     "demo",
     "framework/build",
     "framework/client",
@@ -117,11 +118,11 @@ tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 uuid = { version = "1.23.0" }
-wasm-bindgen = { version = "0.2.115" }
-wasm-bindgen-futures = { version = "0.4.65" }
-wasm-bindgen-test = { version = "0.3.64" }
+wasm-bindgen = { version = "=0.2.105" }
+wasm-bindgen-futures = { version = "=0.4.55" }
+wasm-bindgen-test = { version = "=0.3.55" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.92" }
+web-sys = { version = "=0.3.82" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

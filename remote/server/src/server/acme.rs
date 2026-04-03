@@ -126,11 +126,11 @@ pub enum AcmeError {
 
 impl PartialEq for AcmeConfig {
     fn eq(&self, other: &Self) -> bool {
-        (match (self.environment, other.environment) {
+        matches!(
+            (self.environment, other.environment),
             (LetsEncrypt::Production, LetsEncrypt::Production)
-            | (LetsEncrypt::Staging, LetsEncrypt::Staging) => true,
-            _ => false,
-        }) && credentials_eq(&self.credentials, &other.credentials)
+                | (LetsEncrypt::Staging, LetsEncrypt::Staging)
+        ) && credentials_eq(&self.credentials, &other.credentials)
             && self.contact == other.contact
             && self.domain == other.domain
             && self.certificate == other.certificate

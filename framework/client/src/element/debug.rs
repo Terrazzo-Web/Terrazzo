@@ -185,7 +185,7 @@ mod verbose {
             let actual = format!("{:?}", html());
             if expected.trim() != actual.trim() {
                 println!("{}", actual);
-                assert!(false);
+                panic!();
             }
         }
     }

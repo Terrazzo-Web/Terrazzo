@@ -1,0 +1,10 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "nameth",
+    package_name = "utils/nameth/nameth",
+    assets = [{"targets": ["README.md"]}],
+    deps_proc_macro = ["//utils/nameth/nameth-macro"],
+)

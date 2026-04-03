@@ -7,7 +7,7 @@ use terrazzo_macro::template;
 use wasm_bindgen::JsCast as _;
 use web_sys::HtmlElement;
 
-stylance::import_crate_style!(style, "src/client_impl/widgets/tabs.scss");
+stylance::import_style!(style, "tabs.scss");
 
 const DRAG_KEY: &str = "id";
 

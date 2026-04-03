@@ -1,0 +1,6 @@
+exports_files([
+    "Cargo.lock",
+    "Cargo.toml",
+    "MODULE.bazel",
+    "rust-toolchain.toml",
+])

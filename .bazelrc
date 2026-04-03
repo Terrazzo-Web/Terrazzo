@@ -1,0 +1,8 @@
+common --enable_platform_specific_config
+
+build --@rules_rust//rust/settings:toolchain_linker_preference=cc
+build:linux --linkopt=-fuse-ld=bfd
+build:linux --host_linkopt=-fuse-ld=bfd
+
+build:macos --action_env=PROTOC=/opt/homebrew/bin/protoc
+build:macos --host_action_env=PROTOC=/opt/homebrew/bin/protoc

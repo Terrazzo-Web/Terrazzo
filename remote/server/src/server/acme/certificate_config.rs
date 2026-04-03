@@ -48,7 +48,7 @@ impl AcmeCertificateConfig {
     ) -> Self {
         let state = if let Some(pem) = &acme_config.certificate {
             Arc::new(Mutex::new(
-                parse_acme_certificate(&pem)
+                parse_acme_certificate(pem)
                     .map(AcmeCertificateState::Done)
                     .unwrap_or_else(|error| AcmeCertificateState::Failed(error.into())),
             ))
@@ -165,7 +165,7 @@ impl AcmeCertificateConfig {
                         };
                         DiffOption::from(DiffArc::from(AcmeConfig {
                             certificate: None,
-                            ..AcmeConfig::clone(&old)
+                            ..AcmeConfig::clone(old)
                         }))
                     });
                 })?;
@@ -179,7 +179,7 @@ impl AcmeCertificateConfig {
                     DiffOption::from(DiffArc::from(AcmeConfig {
                         credentials: Some(new_credentials).into(),
                         certificate: Some(result.certificate.clone()),
-                        ..AcmeConfig::clone(&old)
+                        ..AcmeConfig::clone(old)
                     }))
                 });
             } else if Some(&result.certificate) != self.acme_config.certificate.as_ref() {
@@ -190,7 +190,7 @@ impl AcmeCertificateConfig {
                     info!("Update Let's Encrypt certificate");
                     DiffOption::from(DiffArc::from(AcmeConfig {
                         certificate: Some(result.certificate.clone()),
-                        ..AcmeConfig::clone(&old)
+                        ..AcmeConfig::clone(old)
                     }))
                 });
             }

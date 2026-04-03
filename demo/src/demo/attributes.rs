@@ -8,7 +8,7 @@ use terrazzo::widgets::select;
 use terrazzo::widgets::select::SelectPtr;
 use web_sys::MouseEvent;
 
-stylance::import_style!(style, "attributes.scss");
+stylance::import_crate_style!(style, "src/demo/attributes.scss");
 
 #[autoclone]
 #[template(tag = div)]

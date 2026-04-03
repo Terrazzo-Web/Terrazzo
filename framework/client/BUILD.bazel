@@ -1,0 +1,23 @@
+load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules_matrix(
+    package_name = "framework/client",
+    assets = [{"targets": ["README.md"]}],
+    crate_name = "terrazzo_client",
+    deps_dev_proc_macro = ["//framework/macro:client"],
+    deps_proc_macro = ["//utils/autoclone/autoclone"],
+    overrides = {
+        "client": {},
+        "client-debug": {
+            "crate_features": ["diagnostics"],
+            "deps": [
+                "@crates//:tracing",
+                "@crates//:tracing-subscriber",
+                "@crates//:tracing-subscriber-wasm",
+            ],
+        },
+    },
+    deps = ["//utils/nameth/nameth"],
+)

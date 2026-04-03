@@ -116,11 +116,8 @@ mod tests {
         }
         assert_eq!(vec!["init", "batched"], *v.borrow());
 
-        Batch::try_push(|| {
-            assert!(false, "Batch is not active");
-            move |_version| panic!("Batch is not active")
-        })
-        .expect_err("Batch is not active");
+        Batch::try_push(|| move |_version| panic!("Batch is not active"))
+            .expect_err("Batch is not active");
         assert_eq!(vec!["init", "batched"], *v.borrow());
 
         {
@@ -136,11 +133,8 @@ mod tests {
         }
         assert_eq!(vec!["init", "batched", "batched2"], *v.borrow());
 
-        Batch::try_push(|| {
-            assert!(false, "Batch is not active");
-            move |_version| panic!("Batch is not active")
-        })
-        .expect_err("Batch is not active");
+        Batch::try_push(|| move |_version| panic!("Batch is not active"))
+            .expect_err("Batch is not active");
         assert_eq!(vec!["init", "batched", "batched2"], *v.borrow());
     }
 }

@@ -23,7 +23,7 @@ async fn trivial() -> Result<(), EndToEndError> {
 async fn with_sleep() -> Result<(), EndToEndError> {
     EndToEnd::run(async |end_to_end| {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        Ok(run_trivial_test(&end_to_end).await?)
+        run_trivial_test(&end_to_end).await
     })
     .await
 }
@@ -87,13 +87,13 @@ async fn run_trivial_test(end_to_end: &EndToEnd<'_>) -> Result<(), Box<dyn std::
     let client_name = &end_to_end.client.client_name;
     let channel = server
         .connections()
-        .get_client(&client_name)
+        .get_client(client_name)
         .ok_or(format!("Client {client_name} not found"))?;
     let mut grpc_client = TestTunnelServiceClient::new(channel);
     let response = grpc_client
-        .calculate(tonic::Request::new(
-            { Expression::from(5) + Expression::from(2) * 3.into() }.into(),
-        ))
+        .calculate(tonic::Request::new({
+            Expression::from(5) + Expression::from(2) * 3.into()
+        }))
         .await?
         .into_inner();
     assert_eq!(Value::from(11), response);

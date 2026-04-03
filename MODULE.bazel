@@ -1,0 +1,43 @@
+module(name = "terrazzo")
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
+bazel_dep(name = "rules_rust", version = "0.69.0")
+bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.69.0")
+bazel_dep(name = "platforms", version = "1.0.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    extra_target_triples = ["wasm32-unknown-unknown"],
+    versions = ["1.92.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+register_toolchains("@rules_rust_wasm_bindgen//:default_wasm_bindgen_toolchain")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crate, "crates")
+
+bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+bindeps.spec(
+    package = "stylance-cli",
+    repositories = ["bindeps"],
+    version = "=0.7.4",
+)
+bindeps.annotation(
+    crate = "stylance-cli",
+    gen_all_binaries = True,
+    repositories = ["bindeps"],
+)
+bindeps.from_specs(
+    name = "bindeps",
+)
+use_repo(bindeps, "bindeps")

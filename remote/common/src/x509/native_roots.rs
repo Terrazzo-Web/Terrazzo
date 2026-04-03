@@ -32,6 +32,6 @@ mod tests {
             .all_certificates()
             .into_iter()
             .collect();
-        assert!(native_roots.len() > 0);
+        assert!(!native_roots.is_empty());
     }
 }

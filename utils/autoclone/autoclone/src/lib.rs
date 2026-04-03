@@ -60,9 +60,6 @@ fn ident_to_snake_case(name: impl std::fmt::Display + Copy) -> String {
 mod tests {
     #[test]
     fn ident_to_snake_case() {
-        assert_eq!(
-            "file_system_io",
-            super::ident_to_snake_case(&"FileSystemIO")
-        );
+        assert_eq!("file_system_io", super::ident_to_snake_case("FileSystemIO"));
     }
 }

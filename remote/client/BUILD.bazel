@@ -1,0 +1,18 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "client",
+    package_name = "remote/client",
+    assets = [{"targets": ["README.md"]}],
+    crate_name = "trz_gateway_client",
+    deps_dev = [
+        "//remote/server",
+        "//utils/fixture",
+    ],
+    deps = [
+        "//remote/common",
+        "//utils/nameth/nameth",
+    ],
+)

@@ -477,6 +477,6 @@ fn run_test_args(args: proc_macro2::TokenStream, sample: proc_macro2::TokenStrea
     .unwrap_or_else(|error| format!("Error {error}\nParsing {actual}"));
     if expected.trim() != actual.trim() {
         println!("{}", actual);
-        assert!(false);
+        panic!();
     }
 }

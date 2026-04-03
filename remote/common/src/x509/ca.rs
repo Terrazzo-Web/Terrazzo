@@ -134,113 +134,114 @@ mod tests {
 
     #[test]
     fn make_ca() -> Result<(), Box<dyn Error>> {
-        Ok({
-            let ca = super::make_ca(
-                CertitficateName {
-                    country: Some(['D', 'E']),
-                    state_or_province: Some("Bayern"),
-                    locality: Some("Munich"),
-                    organization: Some("Terrazzo"),
-                    common_name: Some("Terrazzo Test Root CA"),
-                },
-                Validity {
-                    from: SystemTime::now(),
-                    to: SystemTime::now() + Duration::from_secs(1) * 3600,
-                },
-            )?;
-            let text = ca.certificate.to_text().pem_string().unwrap();
-            let _debug = scopeguard::guard_on_unwind((), |_| {
-                println!("Certificate is\n{text}");
-            });
+        let ca = super::make_ca(
+            CertitficateName {
+                country: Some(['D', 'E']),
+                state_or_province: Some("Bayern"),
+                locality: Some("Munich"),
+                organization: Some("Terrazzo"),
+                common_name: Some("Terrazzo Test Root CA"),
+            },
+            Validity {
+                from: SystemTime::now(),
+                to: SystemTime::now() + Duration::from_secs(1) * 3600,
+            },
+        )?;
+        let text = ca.certificate.to_text().pem_string().unwrap();
+        let _debug = scopeguard::guard_on_unwind((), |_| {
+            println!("Certificate is\n{text}");
+        });
 
-            assert!(text.contains("Signature Algorithm: ecdsa-with-SHA256"));
-            assert!(text.contains(
+        assert!(text.contains("Signature Algorithm: ecdsa-with-SHA256"));
+        assert!(
+            text.contains(
                 "Issuer: C=DE, ST=Bayern, L=Munich, O=Terrazzo, CN=Terrazzo Test Root CA"
-            ));
-            assert!(text.contains(
+            )
+        );
+        assert!(
+            text.contains(
                 "Issuer: C=DE, ST=Bayern, L=Munich, O=Terrazzo, CN=Terrazzo Test Root CA"
-            ));
-            assert!(text.contains("CA:TRUE"));
-            assert!(text.contains("X509v3 Subject Key Identifier"));
-            assert!(
-                !text
-                    .to_ascii_uppercase()
-                    .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
-            );
-        })
+            )
+        );
+        assert!(text.contains("CA:TRUE"));
+        assert!(text.contains("X509v3 Subject Key Identifier"));
+        assert!(
+            !text
+                .to_ascii_uppercase()
+                .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
+        );
+        Ok(())
     }
 
     #[test]
     fn sign_payload() -> Result<(), Box<dyn Error>> {
         const DATA: &str = "Hello, world! 😃";
 
-        Ok({
-            let ca = super::make_ca(
-                CertitficateName {
-                    country: Some(['D', 'E']),
-                    state_or_province: Some("Bayern"),
-                    locality: Some("Munich"),
-                    organization: Some("Terrazzo"),
-                    common_name: Some("Terrazzo Test Root CA"),
-                },
-                Validity {
-                    from: SystemTime::now(),
-                    to: SystemTime::now() + Duration::from_secs(1) * 3600,
-                },
-            )?;
-            let public_key = ca.certificate.public_key()?;
+        let ca = super::make_ca(
+            CertitficateName {
+                country: Some(['D', 'E']),
+                state_or_province: Some("Bayern"),
+                locality: Some("Munich"),
+                organization: Some("Terrazzo"),
+                common_name: Some("Terrazzo Test Root CA"),
+            },
+            Validity {
+                from: SystemTime::now(),
+                to: SystemTime::now() + Duration::from_secs(1) * 3600,
+            },
+        )?;
+        let public_key = ca.certificate.public_key()?;
 
-            let signature = {
-                let mut signer = Signer::new_without_digest(&ca.private_key)?;
-                signer.update(DATA.as_bytes())?;
-                signer.sign_to_vec()?
-            };
+        let signature = {
+            let mut signer = Signer::new_without_digest(&ca.private_key)?;
+            signer.update(DATA.as_bytes())?;
+            signer.sign_to_vec()?
+        };
 
-            {
-                let mut verifier = Verifier::new_without_digest(&public_key)?;
-                verifier.update(DATA.as_bytes())?;
-                assert!(verifier.verify(&signature)?);
-            }
-
-            let ca = super::make_ca(
-                CertitficateName {
-                    country: Some(['D', 'E']),
-                    state_or_province: Some("Bayern"),
-                    locality: Some("Munich"),
-                    organization: Some("Terrazzo"),
-                    common_name: Some("Terrazzo Test Root CA"),
-                },
-                Validity {
-                    from: SystemTime::now(),
-                    to: SystemTime::now() + Duration::from_secs(1) * 3600,
-                },
-            )?;
-            let public_key = ca.certificate.public_key()?;
+        {
             let mut verifier = Verifier::new_without_digest(&public_key)?;
             verifier.update(DATA.as_bytes())?;
-            assert_eq!(false, verifier.verify(&signature)?);
-        })
+            assert!(verifier.verify(&signature)?);
+        }
+
+        let ca = super::make_ca(
+            CertitficateName {
+                country: Some(['D', 'E']),
+                state_or_province: Some("Bayern"),
+                locality: Some("Munich"),
+                organization: Some("Terrazzo"),
+                common_name: Some("Terrazzo Test Root CA"),
+            },
+            Validity {
+                from: SystemTime::now(),
+                to: SystemTime::now() + Duration::from_secs(1) * 3600,
+            },
+        )?;
+        let public_key = ca.certificate.public_key()?;
+        let mut verifier = Verifier::new_without_digest(&public_key)?;
+        verifier.update(DATA.as_bytes())?;
+        assert!(!verifier.verify(&signature)?);
+        Ok(())
     }
 
     #[test]
     fn invalid_name() -> Result<(), Box<dyn Error>> {
-        Ok({
-            let too_long: String = (0..200).map(|_| 'X').collect();
-            let Err(MakeCaError::MakeName(..)) = super::make_ca(
-                CertitficateName {
-                    country: Some(['D', 'E']),
-                    state_or_province: Some("Bayern"),
-                    locality: Some("Munich"),
-                    organization: Some("Terrazzo"),
-                    common_name: Some(&too_long),
-                },
-                Validity {
-                    from: SystemTime::now(),
-                    to: SystemTime::now() + Duration::from_secs(1) * 3600,
-                },
-            ) else {
-                panic!()
-            };
-        })
+        let too_long: String = (0..200).map(|_| 'X').collect();
+        let Err(MakeCaError::MakeName(..)) = super::make_ca(
+            CertitficateName {
+                country: Some(['D', 'E']),
+                state_or_province: Some("Bayern"),
+                locality: Some("Munich"),
+                organization: Some("Terrazzo"),
+                common_name: Some(&too_long),
+            },
+            Validity {
+                from: SystemTime::now(),
+                to: SystemTime::now() + Duration::from_secs(1) * 3600,
+            },
+        ) else {
+            panic!()
+        };
+        Ok(())
     }
 }

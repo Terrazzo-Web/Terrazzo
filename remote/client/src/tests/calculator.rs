@@ -37,7 +37,7 @@ fn calculate_impl(request: &Expression) -> Result<Value, Status> {
             let operands = [&operation.left, &operation.right]
                 .map(Option::as_ref)
                 .map(|e| e.ok_or_else(|| Status::invalid_argument("null operand")))
-                .map(|e| e.map(|e| calculate_impl(&*e)));
+                .map(|e| e.map(|e| calculate_impl(e)));
             let [a, b] = operands;
             let operands = [a??, b??].map(|e| {
                 e.kind
@@ -75,7 +75,7 @@ fn calculate_impl(request: &Expression) -> Result<Value, Status> {
                 },
             }
         }
-        expression::Kind::Value(value) => value.clone(),
+        expression::Kind::Value(value) => *value,
     };
     Ok(result)
 }

@@ -712,15 +712,15 @@ mod tests {
     fn derive_eq() {
         let main = Arc::new(DynamicConfig::from("hello".to_owned()));
         let derived = main.derive(
-            |main| Box::new(main.to_uppercase()),
-            DynamicConfig::if_change(|_m, d: &Box<String>| d.to_lowercase()),
+            |main| main.to_uppercase(),
+            DynamicConfig::if_change(|_m, d: &String| d.to_lowercase()),
         );
         assert_eq!("hello", main.get());
-        assert_eq!("HELLO", *derived.get());
+        assert_eq!("HELLO", derived.get());
 
-        derived.set(|_| Box::new("HELLO_WORLD".to_owned()));
+        derived.set(|_| "HELLO_WORLD".to_owned());
         assert_eq!("hello_world", main.get());
-        assert_eq!("HELLO_WORLD", *derived.get());
+        assert_eq!("HELLO_WORLD", derived.get());
     }
 
     #[test]

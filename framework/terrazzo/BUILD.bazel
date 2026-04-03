@@ -1,0 +1,89 @@
+load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load("//bazel:stylance_rules.bzl", "stylance_rule")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules_matrix(
+    package_name = "framework/terrazzo",
+    assets = [
+        {"targets": ["README.md"]},
+        {
+            "targets": glob(["src/**/*.scss"]),
+            "copy": True,
+        },
+    ],
+    crate_features = ["client"],
+    crate_name = "terrazzo",
+    deps_proc_macro = [
+        "//framework/macro:client",
+        "//utils/autoclone/autoclone",
+    ],
+    overrides = {
+        "client": {
+            "crate_features": ["max_client_level_info"],
+            "deps": ["//framework/client"],
+        },
+        "client-debug": {
+            "deps": [
+                "//framework/client:client-debug",
+                "@crates//:rsass",
+            ],
+            "crate_features": [
+                "debug",
+                "diagnostics",
+                "max_client_level_debug",
+            ],
+        },
+    },
+    deps = [
+        "//utils/nameth/nameth",
+        "@crates//:futures",
+        "@crates//:scopeguard",
+        "@crates//:stylance",
+        "@crates//:thiserror",
+        "@crates//:wasm-bindgen",
+        "@crates//:wasm-bindgen-futures",
+        "@crates//:web-sys",
+    ],
+)
+
+rust_rules_matrix(
+    package_name = "framework/terrazzo",
+    assets = [
+        {
+            "targets": ["README.md"],
+        },
+        {
+            "targets": [":common_scss"],
+            "prefix": "target/css/",
+            "copy": True,
+        },
+    ],
+    crate_features = ["server"],
+    crate_name = "terrazzo",
+    deps_proc_macro = [
+        "//framework/macro:server",
+        "//utils/autoclone/autoclone",
+        "@crates//:rsass-macros",
+    ],
+    overrides = {
+        "server": {},
+        "server-debug": {
+            "deps": ["@crates//:rsass"],
+            "crate_features": ["debug"],
+        },
+    },
+    deps = [
+        "@crates//:axum",
+        "@crates//:http",
+        "@crates//:include_directory",
+        "@crates//:mime",
+        "@crates//:mime_guess",
+        "@crates//:tracing",
+    ],
+)
+
+stylance_rule(
+    name = "common_scss",
+    output = "common.scss",
+)

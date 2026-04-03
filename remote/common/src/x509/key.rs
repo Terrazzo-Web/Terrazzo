@@ -38,24 +38,23 @@ mod tests {
 
     #[test]
     fn make_key() -> Result<(), Box<dyn Error>> {
-        Ok({
-            let private_key = super::make_key()?;
-            let public_key = private_key.public_key_to_pem()?;
-            let public_key = public_key.pem_string()?;
-            let _debug = scopeguard::guard_on_unwind((), |_| {
-                println!("Public key is\n{public_key}");
-            });
-            assert!(public_key.starts_with("-----BEGIN PUBLIC KEY-----"));
-            let public_key = PKey::public_key_from_pem(public_key.as_bytes())?;
-            assert_eq!(
-                (256, 128, 72),
-                (
-                    public_key.bits(),
-                    public_key.security_bits(),
-                    public_key.size()
-                )
-            );
-            assert!(public_key.public_eq(&private_key));
-        })
+        let private_key = super::make_key()?;
+        let public_key = private_key.public_key_to_pem()?;
+        let public_key = public_key.pem_string()?;
+        let _debug = scopeguard::guard_on_unwind((), |_| {
+            println!("Public key is\n{public_key}");
+        });
+        assert!(public_key.starts_with("-----BEGIN PUBLIC KEY-----"));
+        let public_key = PKey::public_key_from_pem(public_key.as_bytes())?;
+        assert_eq!(
+            (256, 128, 72),
+            (
+                public_key.bits(),
+                public_key.security_bits(),
+                public_key.size()
+            )
+        );
+        assert!(public_key.public_eq(&private_key));
+        Ok(())
     }
 }

@@ -177,10 +177,7 @@ async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
             if matches!(
                 error.kind(),
                 ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted
-            ) =>
-        {
-            ()
-        }
+            ) => {}
         other => {
             panic!("Expected the idle TCP connection to fail with RST after timeout, got {other:?}")
         }

@@ -198,62 +198,60 @@ mod tests {
     #[test]
     fn make_cert() -> Result<(), Box<dyn Error>> {
         let ca = make_test_ca()?;
-        Ok({
-            let test_cert = make_test_cert(ca.as_ref())?;
-            let text = test_cert.certificate.to_text().pem_string()?;
-            let ca_text = ca.certificate.to_text().pem_string()?;
-            let _debug = scopeguard::guard_on_unwind((), |_| {
-                println!("CA is\n{ca_text}");
-                println!("Certificate is\n{text}");
-            });
+        let test_cert = make_test_cert(ca.as_ref())?;
+        let text = test_cert.certificate.to_text().pem_string()?;
+        let ca_text = ca.certificate.to_text().pem_string()?;
+        let _debug = scopeguard::guard_on_unwind((), |_| {
+            println!("CA is\n{ca_text}");
+            println!("Certificate is\n{text}");
+        });
 
-            assert!(text.contains("Signature Algorithm: ecdsa-with-SHA256"));
-            assert!(text.contains(
+        assert!(text.contains("Signature Algorithm: ecdsa-with-SHA256"));
+        assert!(
+            text.contains(
                 "Issuer: C=DE, ST=Bayern, L=Munich, O=Terrazzo, CN=Terrazzo Test Root CA"
-            ));
-            assert!(
-                text.contains("Subject: C=DE, ST=Bayern, L=Munich, O=Terrazzo, CN=Terrazzo Client")
-            );
-            assert!(text.contains("X509v3 Subject Key Identifier"));
-            assert!(text.contains("X509v3 Authority Key Identifier"));
-            // AuthorityKeyIdentifier.issuer(true)
-            assert!(
-                text.contains(
-                    "DirName:/C=DE/ST=Bayern/L=Munich/O=Terrazzo/CN=Terrazzo Test Root CA"
-                )
-            );
-            assert!(
-                !text
-                    .to_ascii_uppercase()
-                    .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
-            );
-        })
+            )
+        );
+        assert!(
+            text.contains("Subject: C=DE, ST=Bayern, L=Munich, O=Terrazzo, CN=Terrazzo Client")
+        );
+        assert!(text.contains("X509v3 Subject Key Identifier"));
+        assert!(text.contains("X509v3 Authority Key Identifier"));
+        // AuthorityKeyIdentifier.issuer(true)
+        assert!(
+            text.contains("DirName:/C=DE/ST=Bayern/L=Munich/O=Terrazzo/CN=Terrazzo Test Root CA")
+        );
+        assert!(
+            !text
+                .to_ascii_uppercase()
+                .contains("DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09")
+        );
+        Ok(())
     }
 
     #[test]
     fn sign_payload() -> Result<(), Box<dyn Error>> {
         let ca = make_test_ca()?;
 
-        Ok({
-            let test_cert = make_test_cert(ca.as_ref())?;
+        let test_cert = make_test_cert(ca.as_ref())?;
 
-            let signature = {
-                let mut signer = Signer::new_without_digest(&test_cert.private_key)?;
-                signer.update(DATA.as_bytes())?;
-                signer.sign_to_vec()?
-            };
+        let signature = {
+            let mut signer = Signer::new_without_digest(&test_cert.private_key)?;
+            signer.update(DATA.as_bytes())?;
+            signer.sign_to_vec()?
+        };
 
-            assert!(validate_signature(
-                test_cert.certificate.public_key()?,
-                &signature
-            )?);
+        assert!(validate_signature(
+            test_cert.certificate.public_key()?,
+            &signature
+        )?);
 
-            let test_cert2 = make_test_cert(ca.as_ref())?;
-            assert!(!validate_signature(
-                test_cert2.certificate.public_key()?,
-                &signature
-            )?);
-        })
+        let test_cert2 = make_test_cert(ca.as_ref())?;
+        assert!(!validate_signature(
+            test_cert2.certificate.public_key()?,
+            &signature
+        )?);
+        Ok(())
     }
 
     fn validate_signature(
@@ -262,7 +260,7 @@ mod tests {
     ) -> Result<bool, Box<dyn Error>> {
         let mut verifier = Verifier::new_without_digest(&public_key)?;
         verifier.update(DATA.as_bytes())?;
-        Ok(verifier.verify(&signature)?)
+        Ok(verifier.verify(signature)?)
     }
 
     #[test]

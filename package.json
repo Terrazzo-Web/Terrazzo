@@ -1,0 +1,11 @@
+{
+  "name": "terrazzo",
+  "private": true,
+  "scripts": {
+    "test:demo": "./demo/scripts/integration-test.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.2",
+    "playwright": "1.54.2"
+  }
+}

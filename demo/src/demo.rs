@@ -14,6 +14,7 @@ mod timer;
 pub fn run() -> XElement {
     let demo = Demo::new();
     return div(
+        key = "root",
         counter::counter_demo(demo.counter),
         timer::timer_demo(demo.enable_timer, demo.timer),
         api::api_demo(),

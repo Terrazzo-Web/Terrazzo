@@ -1,4 +1,5 @@
 name: Publish (dry-run)
+description: Performs a dry-run publish of all Terrazzo crates to verify they can be published.
 runs:
   using: "composite"
   steps:

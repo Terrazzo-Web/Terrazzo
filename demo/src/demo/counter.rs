@@ -11,7 +11,8 @@ use super::show_counter;
 #[template(tag = div)]
 #[html]
 pub fn counter_demo(counter: XSignal<i32>) -> XElement {
-    div(
+    tag(
+        id = "counter",
         h1("Counter"),
         button(
             click = move |_ev: MouseEvent| {

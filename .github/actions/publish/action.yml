@@ -1,4 +1,5 @@
 name: Publish
+description: Publishes all crates to crates.io
 runs:
   using: "composite"
   steps:

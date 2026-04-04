@@ -1,8 +1,10 @@
 common --enable_platform_specific_config
+common --disk_cache=~/.bazel/cache/disk
+common --repository_cache=~/.bazel/cache/repository
 
 build --@rules_rust//rust/settings:toolchain_linker_preference=cc
 build:linux --linkopt=-fuse-ld=bfd
 build:linux --host_linkopt=-fuse-ld=bfd
 
+build:linux --action_env=PROTOC=/usr/bin/protoc
 build:macos --action_env=PROTOC=/opt/homebrew/bin/protoc
-build:macos --host_action_env=PROTOC=/opt/homebrew/bin/protoc

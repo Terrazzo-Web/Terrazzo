@@ -17,7 +17,10 @@ async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
 
   expect(response.ok(), `${path} should load successfully`).toBeTruthy();
-  await expect(response.headerValue('content-type')).resolves.toMatch(contentTypePattern);
+
+  if (contentTypePattern) {
+    expect(response.headers()['content-type']).toMatch(contentTypePattern);
+  }
 }
 
 test.describe('demo counter', () => {

@@ -17,10 +17,7 @@ async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
 
   expect(response.ok(), `${path} should load successfully`).toBeTruthy();
-
-  if (contentTypePattern) {
-    expect(response.headers()['content-type']).toMatch(contentTypePattern);
-  }
+  expect(response.headers()['content-type']).toMatch(contentTypePattern);
 }
 
 test.describe('demo counter', () => {
@@ -60,19 +57,19 @@ test.describe('demo counter', () => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 
-  test('loads /static/common.css', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/common.css');
+  test('loads /static/common.css and keeps the current mime type', async ({ request }) => {
+    await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 
-  test('loads /static/bootstrap.js', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/bootstrap.js');
+  test('loads /static/bootstrap.js with the current mime type', async ({ request }) => {
+    await expectStaticAssetLoads(request, '/static/bootstrap.js', /^text\/javascript\b/i);
   });
 
-  test('loads /static/wasm/terrazzo_demo.js', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo.js');
+  test('loads /static/wasm/terrazzo_demo.js with the current mime type', async ({ request }) => {
+    await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo.js', /^text\/javascript\b/i);
   });
 
-  test('loads /static/wasm/terrazzo_demo_bg.wasm', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo_bg.wasm');
+  test('loads /static/wasm/terrazzo_demo_bg.wasm with the current mime type', async ({ request }) => {
+    await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo_bg.wasm', /^application\/wasm\b/i);
   });
 });

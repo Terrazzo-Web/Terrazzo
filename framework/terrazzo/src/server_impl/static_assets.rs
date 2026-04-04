@@ -352,7 +352,15 @@ pub fn resolve_root(root: impl AsRef<Path>) -> PathBuf {
     for leg in root.as_ref().iter() {
         if leg.as_encoded_bytes().starts_with(b"$") {
             let leg = std::env::var(&leg.to_string_lossy().as_ref()[1..]);
-            result.push(leg.unwrap());
+            result.push(
+                leg.inspect_err(|error| {
+                    warn!(
+                        "Failed to resolve root for {:?}. ERROR={error}",
+                        root.as_ref()
+                    )
+                })
+                .unwrap(),
+            );
         } else {
             result.push(leg);
         }

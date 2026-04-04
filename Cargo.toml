@@ -6,6 +6,7 @@ members = [
     "framework/client",
     "framework/macro",
     "framework/terrazzo",
+    "game",
     "remote/client",
     "remote/common",
     "remote/server",

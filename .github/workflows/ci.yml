@@ -21,9 +21,9 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
       - name: Build debug
-        run: cargo build --bins --features=server,max_level_debug,debug,diagnostics
+        run: cargo build --locked --bins --features=server,max_level_debug,debug,diagnostics
       - name: Build release
-        run: cargo build --bins --features=server,max_level_info --release
+        run: cargo build --locked --bins --features=server,max_level_info --release
       - uses: actions/setup-node@v4
       - name: Install Playwright
         run: npm ci
@@ -44,11 +44,11 @@ jobs:
       - name: Bazel build
         run: |
           export PROTOC=$(which protoc)
-          bazel build --action_env=PROTOC //...
+          bazel build --lockfile_mode=error --action_env=PROTOC //...
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
-          bazel test --action_env=PROTOC //...
+          bazel test --lockfile_mode=error --action_env=PROTOC //...
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check
   publish-dry-run:

@@ -5,7 +5,7 @@
     "test:demo": "./demo/scripts/integration-test.sh"
   },
   "devDependencies": {
-    "@playwright/test": "1.54.2",
-    "playwright": "1.54.2"
+    "@playwright/test": "1.59.1",
+    "playwright": "1.59.1"
   }
 }

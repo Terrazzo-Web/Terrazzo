@@ -2,7 +2,8 @@
   "name": "terrazzo",
   "private": true,
   "scripts": {
-    "test:demo": "./demo/scripts/integration-test.sh"
+    "test:demo:debug": "./demo/scripts/integration-test.sh target/debug/demo-server",
+    "test:demo:release": "./demo/scripts/integration-test.sh target/release/demo-server"
   },
   "devDependencies": {
     "@playwright/test": "1.59.1",

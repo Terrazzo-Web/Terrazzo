@@ -29,8 +29,10 @@ jobs:
         run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run integration test
-        run: npm run test:demo
+      - name: Run integration test against debug
+        run: npm run test:demo:debug
+      - name: Run integration test against release
+        run: npm run test:demo:release
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

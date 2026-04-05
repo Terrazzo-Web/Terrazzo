@@ -33,7 +33,7 @@
     "rust-analyzer.inlayHints.parameterHints.enable": false,
     "terminal.integrated.suggest.enabled": false,
     "workbench.activityBar.compact": true,
-    "workbench.colorTheme": "Dark+",
+    "workbench.colorTheme": "VS Code Dark",
     "workbench.editor.editorActionsLocation": "titleBar",
     "workbench.editor.enablePreview": false,
     "workbench.editor.focusRecentEditorAfterClose": false,

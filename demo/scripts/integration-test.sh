@@ -3,7 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVER_BIN="$ROOT_DIR/target/release/demo-server"
+SERVER_BIN_INPUT="${1:-}"
+SERVER_BIN=""
 SERVER_LOG="${SERVER_LOG:-$(mktemp -t terrazzo-demo-server.XXXXXX.log)}"
 SERVER_PID=""
 
@@ -16,9 +17,19 @@ cleanup() {
 
 trap cleanup EXIT
 
+if [[ -z "${SERVER_BIN_INPUT}" ]]; then
+  echo "Usage: $0 <path-to-demo-server>" >&2
+  exit 1
+fi
+
+if [[ "${SERVER_BIN_INPUT}" = /* ]]; then
+  SERVER_BIN="${SERVER_BIN_INPUT}"
+else
+  SERVER_BIN="$ROOT_DIR/${SERVER_BIN_INPUT}"
+fi
+
 if [[ ! -x "${SERVER_BIN}" ]]; then
-  echo "Expected executable at ${SERVER_BIN}. Build it first with:" >&2
-  echo "  cargo build --bin demo-server --features server,max_level_info --release" >&2
+  echo "Expected executable at ${SERVER_BIN}." >&2
   exit 1
 fi
 

@@ -33,6 +33,7 @@ pub fn attributes_demo() -> XElement {
     );
     tag(
         key = "attributes",
+        id = "attributes",
         h1("Attributes"),
         select.show(),
         span(

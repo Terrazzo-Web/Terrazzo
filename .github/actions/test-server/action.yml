@@ -1,7 +1,0 @@
-name: Test
-runs:
-  using: "composite"
-  steps:
-    - name: Test server
-      run: cargo test --features=server
-      shell: bash

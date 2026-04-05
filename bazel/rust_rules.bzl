@@ -97,7 +97,7 @@ def _rust_rules_impl(
         crate_features = "!!",
         crate_features_dev = "!!",
         rustc_env_files = "!!",
-        assets = "!!",
+        assets = ["!!"],
         generate_tests = "!!",
         **kwargs):
     if package_name == None:

@@ -4,41 +4,61 @@ on:
   pull_request:
     branches:
       - main
+permissions:
+  contents: write
 jobs:
-  check:
+  cargo-build:
     runs-on: ubuntu-latest
-    name: Sanity checks
+    name: Cargo build and test
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ./.github/actions/setup
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Set up
+        uses: ./.github/actions/setup
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
-      - uses: ./.github/actions/check-compile
-      - uses: ./.github/actions/check-clippy
-      - uses: ./.github/actions/check-rustfmt
-      - uses: ./.github/actions/check-documentation
-  test:
+      - name: Build debug
+        run: cargo build --bins --features=server,max_level_debug,debug,diagnostics
+      - name: Build release
+        run: cargo build --bins --features=server,max_level_info --release
+      - uses: actions/setup-node@v4
+      - name: Install Playwright
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run integration test
+        run: npm run test:demo
+      - name: Commit generated changes
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: apply Cargo-generated updates"
+  bazel-build:
     runs-on: ubuntu-latest
-    name: Unit tests
+    name: Bazel build and test
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ./.github/actions/setup
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Set up
+        uses: ./.github/actions/setup
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
-      - uses: ./.github/actions/test-compile
-      - uses: ./.github/actions/test-client
-      - uses: ./.github/actions/test-server
-  build:
-    runs-on: ubuntu-latest
-    name: Compilation check
-    steps:
-      - uses: actions/checkout@v6.0.2
-      - uses: ./.github/actions/setup
+      - name: Bazel build
+        run: |
+          export PROTOC=$(which protoc)
+          bazel build --action_env=PROTOC //...
+      - name: Bazel test
+        run: |
+          export PROTOC=$(which protoc)
+          bazel test --action_env=PROTOC //...
+      - name: Buildifier check
+        run: bazel run //bazel:buildifier_check
+      - name: Commit generated changes
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          cache-level: "lenient"
-      - uses: ./.github/actions/build-client
-      - uses: ./.github/actions/build-server
-      - uses: ./.github/actions/build-demo
+          commit_message: "chore: apply Bazel-generated updates"

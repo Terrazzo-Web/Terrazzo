@@ -21,9 +21,9 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
       - name: Build debug
-        run: cargo build --bins --features=server,max_level_debug,debug,diagnostics
+        run: cargo build --locked --bins --features=server,max_level_debug,debug,diagnostics
       - name: Build release
-        run: cargo build --bins --features=server,max_level_info --release
+        run: cargo build --locked --bins --features=server,max_level_info --release
       - uses: actions/setup-node@v4
       - name: Install Playwright
         run: npm ci

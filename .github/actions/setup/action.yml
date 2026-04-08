@@ -64,3 +64,11 @@ runs:
       uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ inputs.github-token }}
+
+    - uses: actions/setup-node@v4
+    - name: Install Playwright
+      shell: bash
+      run: npm ci
+    - name: Install Chromium
+      shell: bash
+      run: npx playwright install --with-deps chromium

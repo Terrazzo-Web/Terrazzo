@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     pkg-config \
     protobuf-compiler \
+    npm \
  && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 \

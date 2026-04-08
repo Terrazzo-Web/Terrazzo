@@ -38,7 +38,11 @@ SERVER_PID="$!"
 
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-    npx playwright test "${ROOT_DIR}/demo/scripts/integration-test.spec.mjs"
+    (
+      cd "$ROOT_DIR"
+      pwd
+      npx playwright test "demo/scripts/integration-test.spec.mjs"
+    )
     exit 0
   fi
   sleep 1

@@ -147,9 +147,6 @@ sh_test(
     data = [
         ":server",
         "//bazel:playwright_setup",
-        "//:package-lock.json",
-        "//:package.json",
-        "scripts/integration-test.sh",
         "scripts/integration-test.spec.mjs",
     ],
 )

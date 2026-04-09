@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SERVER_BIN_INPUT="${1:-}"
 SERVER_BIN=""
-SERVER_LOG="${SERVER_LOG:-$(mktemp -t terrazzo-demo-server.XXXXXX.log)}"
+SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
 SERVER_PID=""
 
 cleanup() {
@@ -13,6 +13,7 @@ cleanup() {
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
+  rm -f "$SERVER_LOG"
 }
 
 trap cleanup EXIT
@@ -39,9 +40,10 @@ SERVER_PID="$!"
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
     (
-      cd "$ROOT_DIR"
-      pwd
-      npx playwright test "demo/scripts/integration-test.spec.mjs"
+      cp demo/scripts/integration-test.spec.mjs integration-test.spec.mjs
+      npm install
+      npx playwright install --with-deps chromium
+      npx playwright test integration-test.spec.mjs
     )
     exit 0
   fi

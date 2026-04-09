@@ -1,5 +1,5 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 
@@ -143,6 +143,8 @@ sh_test(
     args = ["$(location :server)"],
     data = [
         ":server",
+        "//:package-lock.json",
+        "//:package.json",
         "scripts/integration-test.sh",
         "scripts/integration-test.spec.mjs",
     ],

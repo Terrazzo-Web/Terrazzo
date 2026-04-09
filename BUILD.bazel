@@ -2,5 +2,7 @@ exports_files([
     "Cargo.lock",
     "Cargo.toml",
     "MODULE.bazel",
+    "package.json",
+    "package-lock.json",
     "rust-toolchain.toml",
 ])

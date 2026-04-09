@@ -7,7 +7,6 @@ PLAYWRIGHT_ROOT="${2:?Usage: $0 <path-to-demo-server> <playwright-root>}"
 
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 PLAYWRIGHT_ROOT="${TEST_SRCDIR}/${TEST_WORKSPACE}/${PLAYWRIGHT_ROOT}"
-PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_ROOT}/ms-playwright"
 
 SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
 SERVER_PID=""
@@ -29,6 +28,7 @@ cp demo/scripts/integration-test.spec.mjs integration-test.spec.mjs
 
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
+    export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_ROOT}/ms-playwright"
     "${PLAYWRIGHT_ROOT}/node_modules/.bin/playwright" test \
       integration-test.spec.mjs
     exit 0

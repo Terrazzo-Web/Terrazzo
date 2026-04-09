@@ -1,5 +1,5 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
-load("//bazel:playwright_rules.bzl", "playwright_setup")
+load(":playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
 

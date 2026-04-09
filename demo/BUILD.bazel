@@ -140,9 +140,13 @@ rust_rules_matrix(
 sh_test(
     name = "integration-test",
     srcs = ["scripts/bazel-integration-test.sh"],
-    args = ["$(location :server)"],
+    args = [
+        "$(location :server)",
+        "$(location //bazel:playwright_setup)",
+    ],
     data = [
         ":server",
+        "//bazel:playwright_setup",
         "//:package-lock.json",
         "//:package.json",
         "scripts/integration-test.sh",

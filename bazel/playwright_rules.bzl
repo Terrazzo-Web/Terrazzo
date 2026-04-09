@@ -25,18 +25,15 @@ cp "$package_json" "$output_dir/package.json"
 cp "$package_lock" "$output_dir/package-lock.json"
 
 cd "$output_dir"
+export HOME="$output_dir/home"
+export TMPDIR="$output_dir/tmp"
+export npm_config_cache="$output_dir/npm-cache"
 export PLAYWRIGHT_BROWSERS_PATH="$output_dir/ms-playwright"
+mkdir -p "$HOME" "$TMPDIR" "$npm_config_cache" "$PLAYWRIGHT_BROWSERS_PATH"
 
-echo "npm install"
-npm install
-
-echo "npx playwright install --with-deps chromium"
-npx playwright install --with-deps chromium
+npm ci
+./node_modules/.bin/playwright install chromium
 """,
-        execution_requirements = {
-            "local": "1",
-            "no-sandbox": "1",
-        },
         mnemonic = "PlaywrightSetup",
         progress_message = "Preparing Playwright dependencies for %s" % ctx.label,
     )

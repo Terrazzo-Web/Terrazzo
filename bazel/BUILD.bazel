@@ -1,4 +1,5 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load("//bazel:playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -17,4 +18,8 @@ buildifier(
     name = "buildifier_check",
     lint_mode = "warn",
     mode = "check",
+)
+
+playwright_setup(
+    name = "playwright_setup",
 )

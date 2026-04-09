@@ -28,6 +28,7 @@ runs:
           ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
+          ~/.bazel/cache/shared/
           target/
         key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/*.lock') }}
     - name: Setup cache for Rust compilation
@@ -43,6 +44,7 @@ runs:
           ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
+          ~/.bazel/cache/shared/
           target/
         key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/*.lock') }}
         restore-keys: |

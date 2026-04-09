@@ -8,3 +8,6 @@ build:linux --host_linkopt=-fuse-ld=bfd
 
 build:linux --action_env=PROTOC=/usr/bin/protoc
 build:macos --action_env=PROTOC=/opt/homebrew/bin/protoc
+
+test --test_env=PLAYWRIGHT_BROWSERS_PATH=~/.bazel/cache/shared/playwright-browsers
+test --sandbox_writable_path=~/.bazel/cache/shared/playwright-browsers

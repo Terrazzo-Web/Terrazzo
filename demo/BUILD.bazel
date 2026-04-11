@@ -127,6 +127,7 @@ rust_rules_matrix(
     deps = ["@crates//:tokio"],
 )
 
+# TODO: this should be factored into a generic rule
 sh_test(
     name = "integration-test",
     srcs = ["scripts/bazel-integration-test.sh"],

@@ -26,7 +26,8 @@ cleanup() {
 
 trap cleanup EXIT
 
-"${SERVER_BIN}" --port 3000 >"${SERVER_LOG}" 2>&1 &
+# TODO the port should be randomized
+"${SERVER_BIN}" --port 3000 > "${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
 for _ in $(seq 1 60); do
@@ -38,7 +39,7 @@ for _ in $(seq 1 60); do
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    "${NPX_BIN}" playwright test test "$(basename "${TEST_SPEC}")"
+    "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")"
     exit 0
   fi
   sleep 1

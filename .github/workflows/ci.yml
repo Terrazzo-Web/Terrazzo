@@ -15,20 +15,25 @@ jobs:
     name: Cargo build and test
     steps:
       - uses: actions/checkout@v6.0.2
+
       - name: Set up
         uses: ./.github/actions/setup
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
+
       - name: Build debug
         run: cargo build --locked --bins --features=server,max_level_debug,debug,diagnostics
       - name: Build release
         run: cargo build --locked --bins --features=server,max_level_info --release
+
+      # TODO: how to cache this??
       - uses: actions/setup-node@v6
       - name: Install Playwright
         run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+        
       - name: Run integration test against debug
         run: npm run test:demo:debug
       - name: Run integration test against release

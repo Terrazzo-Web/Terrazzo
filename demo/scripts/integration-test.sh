@@ -17,7 +17,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-"${SERVER_BIN}" --port 3000 >"${SERVER_LOG}" 2>&1 &
+"${SERVER_BIN}" --port 3000 > "${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
 for _ in $(seq 1 60); do

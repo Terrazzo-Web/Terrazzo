@@ -19,6 +19,7 @@ register_toolchains("@rust_toolchains//:all")
 
 register_toolchains("@rules_rust_wasm_bindgen//:default_wasm_bindgen_toolchain")
 
+# TODO Could this be moved into an extension?
 crates = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates.render_config(
     default_alias_rule_bzl = "//bazel:crate_aliases.bzl",

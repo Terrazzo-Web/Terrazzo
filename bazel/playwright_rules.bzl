@@ -3,7 +3,7 @@
 def _playwright_setup_impl(ctx):
     output_dir = ctx.actions.declare_directory(ctx.label.name)
 
-    ctx.actions.run_shell(
+    ctx.actions.run(
         inputs = [
             ctx.file.package_json,
             ctx.file.package_lock,
@@ -14,27 +14,10 @@ def _playwright_setup_impl(ctx):
             ctx.file.package_json.path,
             ctx.file.package_lock.path,
         ],
-        command = """set -euo pipefail
-
-output_dir="$(realpath "$1")"
-package_json="$(realpath "$2")"
-package_lock="$(realpath "$3")"
-
-mkdir -p "$output_dir"
-cp "$package_json" "$output_dir/package.json"
-cp "$package_lock" "$output_dir/package-lock.json"
-
-# HOME and TMPDIR must match values set at test execution time.
-export HOME="$output_dir/home"
-export TMPDIR="$output_dir/tmp"
-mkdir -p "$HOME" "$TMPDIR"
-
-cd "$output_dir"
-npm ci
-./node_modules/.bin/playwright install chromium
-""",
+        executable = ctx.executable._setup_script,
         mnemonic = "PlaywrightSetup",
         progress_message = "Preparing Playwright dependencies for %s" % ctx.label,
+        tools = [ctx.executable._setup_script],
     )
 
     return [DefaultInfo(files = depset([output_dir]))]
@@ -49,6 +32,12 @@ playwright_setup = rule(
         "package_lock": attr.label(
             allow_single_file = True,
             default = "//:package-lock.json",
+        ),
+        "_setup_script": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = "//bazel:playwright_setup.sh",
+            executable = True,
         ),
     },
 )

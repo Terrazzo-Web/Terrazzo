@@ -3,6 +3,7 @@
 use std::env::set_current_dir;
 use std::iter::once;
 
+use clap::Parser as _;
 use terrazzo::axum;
 use terrazzo::axum::Router;
 use terrazzo::axum::extract::Path;
@@ -12,10 +13,8 @@ use terrazzo::static_assets;
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
-use tracing::debug;
 use tracing::enabled;
 use tracing::info;
-use clap::Parser as _;
 
 use crate::api;
 use crate::assets;
@@ -26,6 +25,9 @@ const PORT: u16 = if cfg!(debug_assertions) { 3001 } else { 3000 };
 struct Args {
     #[arg(short = 'p', long = "port", default_value_t = PORT)]
     port: u16,
+
+    #[arg(long = "set_current_port")]
+    set_current_port: Option<String>,
 }
 
 pub async fn run_server() {
@@ -57,7 +59,11 @@ pub async fn run_server() {
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", args.port))
         .await
         .unwrap();
-    debug!("listening on {}", listener.local_addr().unwrap());
-    info!("listening on {}", listener.local_addr().unwrap());
+    let local_addr = listener.local_addr().unwrap();
+    info!("listening on {}", local_addr);
+    if let Some(set_current_port) = &args.set_current_port {
+        std::fs::write(set_current_port, local_addr.port().to_string())
+            .expect("write port to file");
+    }
     axum::serve(listener, router).await.unwrap();
 }

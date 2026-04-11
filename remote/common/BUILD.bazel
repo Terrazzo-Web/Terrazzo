@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 rust_rules(
     name = "common",
     package_name = "remote/common",
+    # TODO: shorten this for trivial case
     assets = [{"targets": ["README.md"]}],
     crate_name = "trz_gateway_common",
     deps = [

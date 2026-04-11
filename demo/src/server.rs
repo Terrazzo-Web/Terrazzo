@@ -1,5 +1,4 @@
-// TODO remove this
-#![allow(unused_crate_dependencies)]
+#![cfg_attr(not(feature = "bazel"), allow(unused_crate_dependencies))]
 
 #[tokio::main]
 async fn main() {

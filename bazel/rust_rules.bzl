@@ -183,7 +183,7 @@ def _rust_rules_impl(
         ],
         data = data,
         rustc_env_files = rustc_env_files + [":" + name + "-manifest-dir-env"],
-        crate_features = crate_features,
+        crate_features = crate_features + ["bazel"],
         **kwargs
     )
 
@@ -206,7 +206,7 @@ def _rust_rules_impl(
                 proc_macro_dev = True,
             ),
             data = data,
-            crate_features = crate_features_dev,
+            crate_features = crate_features_dev + ["bazel"],
         )
 
         rustfmt_test(

@@ -182,7 +182,10 @@ def _rust_rules_impl(
             package_name = package_name,
             proc_macro = True,
         ),
-        compile_data = [":" + mirror + "-data"],
+        compile_data = [
+            ":" + mirror + "-data",
+            ":" + mirror + "-manifest",
+        ],
         data = data,
         rustc_env_files = rustc_env_files + [":" + name + "-manifest-dir-env"],
         crate_features = crate_features,

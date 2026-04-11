@@ -102,6 +102,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "@crates//:clap",
         "@crates//:tokio",
         "@crates//:tower-http",
         "@crates//:tracing",
@@ -116,25 +117,14 @@ rust_rules_matrix(
     crate_root = "src/server.rs",
     overrides = {
         "server": {
-            "deps": [
-                ":server-lib",
-                "//framework/terrazzo:server",
-            ],
+            "deps": [":server-lib"],
         },
         "server-debug": {
-            "deps": [
-                ":server-lib-debug",
-                "//framework/terrazzo:server-debug",
-            ],
+            "deps": [":server-lib-debug"],
         },
     },
     rule = "binary",
-    deps = [
-        "@crates//:tokio",
-        "@crates//:tower-http",
-        "@crates//:tracing",
-        "@crates//:tracing-subscriber",
-    ],
+    deps = ["@crates//:tokio"],
 )
 
 sh_test(

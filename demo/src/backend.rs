@@ -15,14 +15,22 @@ use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
 use tracing::info;
+use clap::Parser as _;
 
 use crate::api;
 use crate::assets;
 
 const PORT: u16 = if cfg!(debug_assertions) { 3001 } else { 3000 };
 
+#[derive(clap::Parser)]
+struct Args {
+    #[arg(short = 'p', long = "port", default_value_t = PORT)]
+    port: u16,
+}
+
 pub async fn run_server() {
     set_current_dir(std::env::var("HOME").expect("HOME")).expect("set_current_dir");
+    let args = Args::parse();
 
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
@@ -46,7 +54,7 @@ pub async fn run_server() {
     } else {
         router
     };
-    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{PORT}"))
+    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", args.port))
         .await
         .unwrap();
     debug!("listening on {}", listener.local_addr().unwrap());

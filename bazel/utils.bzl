@@ -1,12 +1,12 @@
 """Shared Bazel utilities."""
 
 def make_rules_matrix(single_rule, overrides, **kwargs):
-    """Rust rules bundle
+    """Calls a rule once or expands it into named override variants.
 
     Args:
-      single_rule: Map of parameters to generate a matrix of rust_rules
-      overrides: Map of parameters to generate a matrix of rust_rules
-      **kwargs: Additional arguments
+      single_rule: Rule function to call for the base target or each override.
+      overrides: Optional map of target names to per-target argument overrides.
+      **kwargs: Base arguments passed to the rule and merged with each override.
     """
     if overrides == None:
         single_rule(**kwargs)

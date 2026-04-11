@@ -46,6 +46,7 @@ crates_opt.annotation(
         "max_level_info",
         "release_max_level_info",
     ],
+    repositories = ["crates_opt"],
 )
 crates_opt.from_cargo(
     name = "crates_opt",

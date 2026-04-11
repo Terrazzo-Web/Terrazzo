@@ -26,10 +26,8 @@ rust_rules_matrix(
         "client-debug": {
             "deps": [
                 "//framework/client:client-debug",
-                "@crates//:rsass",
             ],
             "crate_features": [
-                "debug",
                 "diagnostics",
                 "max_client_level_debug",
             ],

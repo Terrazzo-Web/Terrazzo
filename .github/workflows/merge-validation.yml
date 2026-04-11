@@ -26,11 +26,10 @@ jobs:
       - name: Build release
         run: cargo build --bins --features=server,max_level_info --release
 
-      # TODO: replace with calls to demo/scripts/integration-test.sh target/debug/demo-server
       - name: Run integration test against debug
-        run: npm run test:demo:debug
+        run: ./demo/scripts/integration-test.sh target/debug/demo-server
       - name: Run integration test against release
-        run: npm run test:demo:release
+        run: ./demo/scripts/integration-test.sh target/release/demo-server
 
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7

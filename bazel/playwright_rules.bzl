@@ -16,20 +16,17 @@ def _playwright_setup_impl(ctx):
         ],
         command = """set -euo pipefail
 
-output_dir="$1"
-package_json="$2"
-package_lock="$3"
+output_dir="$(realpath "$1")"
+package_json="$(realpath "$2")"
+package_lock="$(realpath "$3")"
 
 mkdir -p "$output_dir"
 cp "$package_json" "$output_dir/package.json"
 cp "$package_lock" "$output_dir/package-lock.json"
 
-cd "$output_dir"
 export HOME="$output_dir/home"
 export TMPDIR="$output_dir/tmp"
-export npm_config_cache="$output_dir/npm-cache"
-export PLAYWRIGHT_BROWSERS_PATH="$output_dir/ms-playwright"
-mkdir -p "$HOME" "$TMPDIR" "$npm_config_cache" "$PLAYWRIGHT_BROWSERS_PATH"
+mkdir -p "$HOME" "$TMPDIR"
 
 npm ci
 ./node_modules/.bin/playwright install chromium

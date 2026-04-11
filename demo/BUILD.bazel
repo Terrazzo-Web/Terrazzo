@@ -133,11 +133,15 @@ sh_test(
     args = [
         "$(location :server)",
         "$(rootpath //bazel:playwright_setup)",
+        "$(rootpath @local_node_tools//:node)",
+        "$(rootpath @local_node_tools//:npx)",
         "$(rootpath scripts/integration-test.spec.mjs)",
     ],
     data = [
         "scripts/integration-test.spec.mjs",
         ":server",
         "//bazel:playwright_setup",
+        "@local_node_tools//:node",
+        "@local_node_tools//:npx",
     ],
 )

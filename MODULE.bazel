@@ -70,3 +70,6 @@ bindeps.from_specs(
     name = "bindeps",
 )
 use_repo(bindeps, "bindeps")
+
+local_node_tools = use_extension("//bazel:local_node_tools.bzl", "local_node_tools_ext")
+use_repo(local_node_tools, "local_node_tools")

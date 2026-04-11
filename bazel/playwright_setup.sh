@@ -4,6 +4,8 @@ set -euo pipefail
 output_dir="$(realpath "$1")"
 package_json="$(realpath "$2")"
 package_lock="$(realpath "$3")"
+node_bin="$(realpath "$4")"
+npm_bin="$(realpath "$5")"
 
 mkdir -p "$output_dir"
 cp "$package_json" "$output_dir/package.json"
@@ -14,6 +16,8 @@ export HOME="$output_dir/home"
 export TMPDIR="$output_dir/tmp"
 mkdir -p "$HOME" "$TMPDIR"
 
+export PATH="$(dirname "$node_bin")${PATH:+:$PATH}"
+
 cd "$output_dir"
-npm ci
+"$npm_bin" ci
 ./node_modules/.bin/playwright install chromium

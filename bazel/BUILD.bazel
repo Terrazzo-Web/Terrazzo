@@ -28,3 +28,5 @@ buildifier(
 playwright_setup(
     name = "playwright_setup",
 )
+
+exports_files(["playwright_test.sh"])

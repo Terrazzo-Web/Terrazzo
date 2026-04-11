@@ -1,4 +1,6 @@
-"""Rules for preparing Playwright dependencies for Bazel tests."""
+"""Rules for preparing and running Playwright dependencies for Bazel tests."""
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 def _playwright_setup_impl(ctx):
     output_dir = ctx.actions.declare_directory(ctx.label.name)
@@ -59,3 +61,24 @@ playwright_setup = rule(
         ),
     },
 )
+
+def playwright_test(name, server, test, **kwargs):
+    sh_test(
+        name = name,
+        srcs = ["//bazel:playwright_test.sh"],
+        args = [
+            "$(location %s)" % server,
+            "$(rootpath //bazel:playwright_setup)",
+            "$(rootpath @local_node_tools//:node)",
+            "$(rootpath @local_node_tools//:npx)",
+            "$(rootpath %s)" % test,
+        ],
+        data = [
+            server,
+            test,
+            "//bazel:playwright_setup",
+            "@local_node_tools//:node",
+            "@local_node_tools//:npx",
+        ],
+        **kwargs
+    )

@@ -1,5 +1,5 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//bazel:playwright_rules.bzl", "playwright_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 
@@ -127,22 +127,8 @@ rust_rules_matrix(
     deps = ["@crates//:tokio"],
 )
 
-# TODO: this should be factored into a generic rule
-sh_test(
+playwright_test(
     name = "integration-test",
-    srcs = ["scripts/bazel-integration-test.sh"],
-    args = [
-        "$(location :server)",
-        "$(rootpath //bazel:playwright_setup)",
-        "$(rootpath @local_node_tools//:node)",
-        "$(rootpath @local_node_tools//:npx)",
-        "$(rootpath scripts/integration-test.spec.mjs)",
-    ],
-    data = [
-        "scripts/integration-test.spec.mjs",
-        ":server",
-        "//bazel:playwright_setup",
-        "@local_node_tools//:node",
-        "@local_node_tools//:npx",
-    ],
+    server = ":server",
+    test = "scripts/integration-test.spec.mjs",
 )

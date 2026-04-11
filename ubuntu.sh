@@ -35,16 +35,30 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-# TODO: if the $CONTAINER_FILE content chained, rebuild the image and start a new container.
-# if ! podman image exists "$IMAGE_NAME"; then
-  if [[ ! -f "$CONTAINER_FILE" ]]; then
-    echo "Image '$IMAGE_NAME' does not exist and no Dockerfile was found at '$CONTAINER_FILE'." >&2
-    exit 1
+if [[ ! -f "$CONTAINER_FILE" ]]; then
+  echo "No Dockerfile was found at '$CONTAINER_FILE'." >&2
+  exit 1
+fi
+
+container_file_hash="$(
+  sha256sum "$CONTAINER_FILE" | awk '{print $1}'
+)"
+existing_container_file_hash="$(
+  podman image inspect "$IMAGE_NAME" --format '{{ index .Config.Labels "devbox.container-file-sha256" }}' 2>/dev/null || true
+)"
+
+if [[ "$existing_container_file_hash" != "$container_file_hash" ]]; then
+  if podman container exists "$CONTAINER_NAME"; then
+    podman rm -f "$CONTAINER_NAME" >/dev/null
   fi
 
   echo "Building image '$IMAGE_NAME' from '$CONTAINER_FILE'..." >&2
-  podman build -t "$IMAGE_NAME" -f "$CONTAINER_FILE" "$(dirname "$CONTAINER_FILE")"
-# fi
+  podman build \
+    --label "devbox.container-file-sha256=$container_file_hash" \
+    -t "$IMAGE_NAME" \
+    -f "$CONTAINER_FILE" \
+    "$(dirname "$CONTAINER_FILE")"
+fi
 
 if ! podman container exists "$CONTAINER_NAME"; then
   podman run -d \

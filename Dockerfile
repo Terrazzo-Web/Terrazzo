@@ -36,6 +36,6 @@ COPY package.json package-lock.json /root/
 RUN cd /root \
     npm ci && \
     npx playwright install --with-deps chromium && \
-    rm -rfv /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
 CMD ["tail", "-f", "/dev/null"]

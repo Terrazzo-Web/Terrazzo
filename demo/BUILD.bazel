@@ -1,5 +1,5 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
-load("//bazel:playwright_rules.bzl", "playwright_test")
+load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 
@@ -127,8 +127,14 @@ rust_rules_matrix(
     deps = ["@crates//:tokio"],
 )
 
-playwright_test(
-    name = "integration-test",
-    server = ":server",
+playwright_matrix_test(
+    overrides = {
+        "integration-test-debug": {
+            "server": ":server-debug",
+        },
+        "integration-test-release": {
+            "server": ":server",
+        },
+    },
     test = "scripts/integration-test.spec.mjs",
 )

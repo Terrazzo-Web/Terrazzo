@@ -1,6 +1,7 @@
 """Rules for preparing and running Playwright dependencies for Bazel tests."""
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":utils.bzl", "make_rules_matrix")
 
 def _playwright_setup_impl(ctx):
     output_dir = ctx.actions.declare_directory(ctx.label.name)
@@ -62,7 +63,25 @@ playwright_setup = rule(
     },
 )
 
+def playwright_matrix_test(overrides = {}, **kwargs):
+    """Creates a matrix of Playwright tests.
+
+    Args:
+      overrides: Mapping of attribute names to lists of values used to expand
+        multiple `playwright_test` targets via `make_rules_matrix`.
+      **kwargs: Base arguments forwarded to each generated `playwright_test`.
+    """
+    make_rules_matrix(playwright_test, overrides, **kwargs)
+
 def playwright_test(name, server, test, **kwargs):
+    """Defines a Playwright test.
+
+    Args:
+      name: Name of the Bazel test target.
+      server: Label of the server binary or script started by the test wrapper.
+      test: Label of the Playwright test entrypoint to execute.
+      **kwargs: Additional arguments forwarded to `sh_test`.
+    """
     sh_test(
         name = name,
         srcs = ["//bazel:playwright_test.sh"],

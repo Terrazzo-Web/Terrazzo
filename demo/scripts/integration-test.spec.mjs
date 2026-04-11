@@ -57,10 +57,6 @@ test.describe('demo counter', () => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 
-  test('loads /static/common.css and keeps the current mime type', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
-  });
-
   test('loads /static/bootstrap.js with the current mime type', async ({ request }) => {
     await expectStaticAssetLoads(request, '/static/bootstrap.js', /^text\/javascript\b/i);
   });

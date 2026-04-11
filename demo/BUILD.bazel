@@ -142,7 +142,8 @@ sh_test(
     srcs = ["scripts/bazel-integration-test.sh"],
     args = [
         "$(location :server)",
-        "$(location //bazel:playwright_setup)",
+        "$(rootpath //bazel:playwright_setup)",
+        "$(rootpath scripts/integration-test.spec.mjs)",
     ],
     data = [
         ":server",

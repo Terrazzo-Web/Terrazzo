@@ -19,13 +19,40 @@ register_toolchains("@rust_toolchains//:all")
 
 register_toolchains("@rules_rust_wasm_bindgen//:default_wasm_bindgen_toolchain")
 
-crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crate.from_cargo(
+crates = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates.render_config(
+    default_alias_rule_bzl = "//bazel:crate_aliases.bzl",
+    default_alias_rule_name = "cfg_alias",
+)
+crates.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crate, "crates")
+use_repo(crates, "crates")
+
+crates_dbg = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_dbg.from_cargo(
+    name = "crates_plain",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_dbg, "crates_plain")
+
+crates_opt = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_opt.annotation(
+    crate = "tracing",
+    crate_features = [
+        "max_level_info",
+        "release_max_level_info",
+    ],
+)
+crates_opt.from_cargo(
+    name = "crates_opt",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_opt, "crates_opt")
 
 bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 bindeps.spec(

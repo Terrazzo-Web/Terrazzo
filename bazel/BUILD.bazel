@@ -3,6 +3,11 @@ load(":playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
 
+config_setting(
+    name = "opt",
+    values = {"compilation_mode": "opt"},
+)
+
 alias(
     name = "stylance",
     actual = "@bindeps//:stylance-cli__stylance",

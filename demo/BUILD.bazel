@@ -146,8 +146,8 @@ sh_test(
         "$(rootpath scripts/integration-test.spec.mjs)",
     ],
     data = [
+        "scripts/integration-test.spec.mjs",
         ":server",
         "//bazel:playwright_setup",
-        "scripts/integration-test.spec.mjs",
     ],
 )

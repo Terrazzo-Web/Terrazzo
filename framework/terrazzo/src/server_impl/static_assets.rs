@@ -25,27 +25,22 @@ pub struct AssetBuilder {
 
     mime: Option<HeaderValue>,
 
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "debug")]
     full_path: PathBuf,
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(feature = "debug"))]
     content: &'static [u8],
 }
 
 impl AssetBuilder {
     /// Create a new asset with a static content.
-    pub fn new(
-        cargo_manifest_dir: &'static str,
-        full_path: impl AsRef<Path>,
-        content: &'static [u8],
-    ) -> Self {
+    pub fn new(full_path: impl AsRef<Path>, content: &'static [u8]) -> Self {
         let full_path = full_path.as_ref().to_owned();
         let asset_name = full_path.file_name().unwrap();
         let asset_name = asset_name.to_str().unwrap().to_owned();
 
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(feature = "debug"))]
         {
-            let _unused = cargo_manifest_dir;
             return Self {
                 asset_name,
                 mime: None,
@@ -53,26 +48,9 @@ impl AssetBuilder {
             };
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "debug")]
         {
             let _ = content;
-            fn is_src_dir(leg: &OsStr) -> bool {
-                leg.to_string_lossy().as_ref() == "src"
-            }
-            let full_path = if full_path.iter().any(is_src_dir) {
-                let relative_path: PathBuf = full_path
-                    .iter()
-                    .skip_while(|leg| !is_src_dir(leg))
-                    .collect();
-                let in_src_path = Path::new(cargo_manifest_dir).join(relative_path);
-                if in_src_path.exists() {
-                    in_src_path
-                } else {
-                    full_path
-                }
-            } else {
-                full_path
-            };
             return Self {
                 asset_name,
                 full_path,
@@ -114,7 +92,7 @@ impl AssetBuilder {
 
     /// Records the asset in a static table.
     pub fn install(self) {
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "debug")]
         println!("Installing {:?} => {:?}", self.asset_name, self.full_path);
         let mime = if let Some(mime) = self.mime {
             mime
@@ -127,7 +105,7 @@ impl AssetBuilder {
                 })
         };
 
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(feature = "debug"))]
         add(
             self.asset_name,
             Asset {
@@ -136,7 +114,7 @@ impl AssetBuilder {
             },
         );
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "debug")]
         add(
             self.asset_name,
             Asset {
@@ -154,9 +132,8 @@ impl AssetBuilder {
 macro_rules! declare_asset {
     ($file:expr $(,)?) => {
         $crate::static_assets::AssetBuilder::new(
-            env!("CARGO_MANIFEST_DIR"),
-            concat!(env!("CARGO_MANIFEST_DIR"), $file),
-            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), $file)),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $file)),
         )
     };
 }
@@ -166,7 +143,6 @@ macro_rules! declare_asset {
 macro_rules! declare_scss_asset {
     ($file:expr $(,)?) => {
         $crate::static_assets::AssetBuilder::new(
-            env!("CARGO_MANIFEST_DIR"),
             concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
             $crate::static_assets::__macro_support::include_scss!($file).as_bytes(),
         )
@@ -182,13 +158,9 @@ macro_rules! declare_scss_asset {
 #[macro_export]
 macro_rules! declare_scss_asset {
     ($file:expr $(,)?) => {
-        $crate::static_assets::AssetBuilder::new(
-            env!("CARGO_MANIFEST_DIR"),
-            $file,
-            $file.as_bytes(),
-        )
-        .mime($crate::mime::TEXT_CSS_UTF_8.as_ref())
-        .extension("css")
+        $crate::static_assets::AssetBuilder::new($file, $file.as_bytes())
+            .mime($crate::mime::TEXT_CSS_UTF_8.as_ref())
+            .extension("css")
     };
 }
 
@@ -201,10 +173,10 @@ pub mod __macro_support {
 struct Asset {
     mime: HeaderValue,
 
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "debug")]
     full_path: PathBuf,
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(feature = "debug"))]
     content: &'static [u8],
 }
 
@@ -231,7 +203,7 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
         return ready(Response::builder().status(404).body(Body::empty()).unwrap());
     };
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(feature = "debug"))]
     {
         return ready(
             Response::builder()
@@ -243,7 +215,7 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
         );
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "debug")]
     {
         let content = get_asset_content(path, asset);
         return ready(
@@ -256,13 +228,8 @@ pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(feature = "debug")]
 fn get_asset_content(path: &str, asset: &Asset) -> Vec<u8> {
-    #[allow(clippy::assertions_on_constants)]
-    {
-        assert!(cfg!(feature = "debug"));
-    }
-
     #[cfg(all(feature = "debug", not(feature = "client")))]
     {
         let asset_extension = || {
@@ -308,45 +275,39 @@ macro_rules! declare_assets_dir {
         use $crate::static_assets::__macro_support::include_directory;
         static DIR: include_directory::Dir<'_> = include_directory::include_directory!($dir);
         let root = $crate::static_assets::resolve_root($dir);
-        $crate::static_assets::install_dir(env!("CARGO_MANIFEST_DIR"), $prefix, &root, &DIR);
+        $crate::static_assets::install_dir($prefix, &root, &DIR);
     }};
 }
 
 /// Loads all the files in a folder (recursively) into the server binary as static assets.
-pub fn install_dir(
-    cargo_manifest_dir: &'static str,
-    prefix: &str,
-    root: &Path,
-    dir: &Dir<'static>,
-) {
+pub fn install_dir(prefix: &str, root: &Path, dir: &Dir<'static>) {
     for entry in dir.entries() {
         if let Some(dir) = entry.as_dir() {
             let _ = root; // only used in debug mode.
-            install_dir(cargo_manifest_dir, prefix, root, dir);
-        }
-        if let Some(file) = entry.as_file() {
+            install_dir(prefix, root, dir);
+        } else if let Some(file) = entry.as_file() {
             let asset_name = Path::new(prefix).join(entry.path());
             let asset_name = asset_name.as_os_str().to_str().unwrap();
 
-            #[cfg(not(debug_assertions))]
+            #[cfg(not(feature = "debug"))]
             let full_path = file.path();
 
-            #[cfg(debug_assertions)]
+            #[cfg(feature = "debug")]
             let full_path = root.join(file.path());
 
-            AssetBuilder::new(cargo_manifest_dir, full_path, file.contents())
+            AssetBuilder::new(full_path, file.contents())
                 .asset_name(asset_name)
                 .install();
         }
     }
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(feature = "debug"))]
 pub fn resolve_root(_: impl AsRef<Path>) -> PathBuf {
     PathBuf::default()
 }
 
-#[cfg(debug_assertions)]
+#[cfg(feature = "debug")]
 pub fn resolve_root(root: impl AsRef<Path>) -> PathBuf {
     let mut result = PathBuf::new();
     for leg in root.as_ref().iter() {

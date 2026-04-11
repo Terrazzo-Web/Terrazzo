@@ -33,7 +33,7 @@ for _ in $(seq 1 60); do
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    ./node_modules/.bin/playwright test "$(basename "${TEST_SPEC}")"
+    npx playwright test test "$(basename "${TEST_SPEC}")"
     exit 0
   fi
   sleep 1

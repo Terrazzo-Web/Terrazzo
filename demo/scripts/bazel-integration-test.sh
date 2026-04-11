@@ -2,11 +2,12 @@
 
 set -euo pipefail
 
-SERVER_BIN="${1:?Usage: $0 <path-to-demo-server> <playwright-root>}"
-PLAYWRIGHT_ROOT="${2:?Usage: $0 <path-to-demo-server> <playwright-root>}"
+SERVER_BIN="${1:?Usage: $0 <path-to-demo-server> <playwright-root> <test-spec>}"
+PLAYWRIGHT_ROOT="${2:?Usage: $0 <path-to-demo-server> <playwright-root> <test-spec>}"
+TEST_SPEC="${3:?Usage: $0 <path-to-demo-server> <playwright-root> <test-spec>}"
 
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
-PLAYWRIGHT_ROOT="${TEST_SRCDIR}/${TEST_WORKSPACE}/${PLAYWRIGHT_ROOT}"
+TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
 
 SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
 SERVER_PID=""
@@ -24,13 +25,15 @@ trap cleanup EXIT
 "${SERVER_BIN}" >"${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
-cp demo/scripts/integration-test.spec.mjs integration-test.spec.mjs
-
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-    export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_ROOT}/ms-playwright"
-    "${PLAYWRIGHT_ROOT}/node_modules/.bin/playwright" test \
-      integration-test.spec.mjs
+    export HOME="$PLAYWRIGHT_ROOT/home"
+    export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
+    ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
+    ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
+    ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
+    cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
+    ./node_modules/.bin/playwright test "$(basename "${TEST_SPEC}")"
     exit 0
   fi
   sleep 1

@@ -59,8 +59,12 @@ def rust_rules(
       crate_features: List of features enabled
       crate_features_dev: List of features enabled for tests
       rustc_env_files: Environment variables
-      assets: Either a list of asset maps or a shorthand list of target strings,
-        which expands to [{"targets": <list>}]
+      assets: Asset specs to stage alongside the crate. Each item may be a
+        target string, a list of target strings, or a map with:
+        - targets: target string or list of target strings
+        - prefix: optional relative output directory for the copied/linked assets
+        - copy: optional bool; when true copy assets, otherwise symlink them
+        String items expand to {"targets": [<items>]}.
       generate_tests: Whether to generate rust test and clippy targets
       **kwargs: Additional arguments
     """
@@ -108,7 +112,6 @@ def _rust_rules_impl(
     asset_link_targets = []
     i = 0
     for asset in assets:
-        # TODO: document the format of assets parameter in method rust_rules()
         if type(asset) == "string":
             asset = [asset]
         if type(asset) == "list":

@@ -85,6 +85,7 @@ max_level_info = [
 concise-traces = ["terrazzo?/concise-traces"]
 debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
 no_wasm_build = []
+bazel = []
 
 [package.metadata.stylance]
 output_file = "./target/css/demo.scss"

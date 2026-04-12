@@ -80,14 +80,14 @@ rust_rules_matrix(
         "server-lib": {
             "assets": [{
                 "targets": [":client"],
-                "prefix": "target/game/assets/wasm",
+                "prefix": "target/assets/wasm",
             }],
             "deps": ["//framework/terrazzo:server"],
         },
         "server-lib-debug": {
             "assets": [{
                 "targets": [":client-debug"],
-                "prefix": "target/game/assets/wasm",
+                "prefix": "target/assets/wasm",
             }],
             "deps": ["//framework/terrazzo:server-debug"],
         },

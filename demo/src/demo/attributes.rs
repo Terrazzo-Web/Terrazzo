@@ -152,7 +152,7 @@ fn result(
             "{flavor:?}",
         ),
     };
-    tag([value]..)
+    tag(id = "attributes-result", [value]..)
 }
 
 static MARGIN: &str = "margin: 5px 0 5px 0;";

@@ -146,7 +146,7 @@ def _rust_rules_impl(
             srcs = asset["targets"],
             out_dir = "{}/{}/{}".format(CARGO_ROOT, name, asset_prefix),
             visibility = ["//visibility:private"],
-            tags = ["manual"],
+            tags = ["manual", "no-cache"],
         )
 
     mirror = name + "-mirror"
@@ -156,28 +156,28 @@ def _rust_rules_impl(
         asset_copy_targets = asset_copy_targets,
         asset_link_targets = asset_link_targets,
         visibility = ["//visibility:private"],
-        tags = ["manual"],
+        tags = ["manual"] + (["no-cache"] if asset_link_targets else []),
     )
     native.filegroup(
         name = mirror + "-rs",
         srcs = [":" + mirror],
         output_group = "rs_files",
         visibility = ["//visibility:private"],
-        tags = ["manual"],
+        tags = ["manual", "no-cache"],
     )
     native.filegroup(
         name = mirror + "-data",
         srcs = [":" + mirror],
         output_group = "data_files",
         visibility = ["//visibility:private"],
-        tags = ["manual"],
+        tags = ["manual", "no-cache"],
     )
     native.filegroup(
         name = mirror + "-manifest",
         srcs = [":" + mirror],
         output_group = "manifest_file",
         visibility = ["//visibility:private"],
-        tags = ["manual"],
+        tags = ["manual", "no-cache"],
     )
 
     if rule == "library":

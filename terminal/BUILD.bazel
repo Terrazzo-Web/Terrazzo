@@ -12,7 +12,12 @@ rust_rules_matrix(
             "copy": True,
         },
     ],
-    crate_features = ["client"],
+    crate_features = [
+        "client",
+        "converter-client",
+        "converter",
+        "remotes-ui",
+    ],
     overrides = {
         "client-lib": {
             "deps": ["//framework/terrazzo:client"],
@@ -37,7 +42,6 @@ rust_rules_matrix(
     },
     deps = [
         "//utils/nameth/nameth",
-        "@crates//:scopeguard",
         "@crates//:serde_json",
         "@crates//:stylance",
         "@crates//:thiserror",
@@ -80,7 +84,7 @@ rust_rules_matrix(
             "copy": True,
         },
     ],
-    crate_features = ["server"],
+    crate_features = ["converter-server"],
     crate_name = "terrazzo_terminal",
     overrides = {
         "server-lib": {

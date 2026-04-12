@@ -62,3 +62,10 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"
+      - name: DEBUG
+        shell: bash
+        run: |
+          set -x
+          ls -la ~/
+          ls -la ~/.cache
+          ls -la ~/.cache/bazel

@@ -5,7 +5,7 @@ package(default_visibility = ["//visibility:public"])
 rust_rules(
     name = "client",
     package_name = "remote/client",
-    assets = [{"targets": ["README.md"]}],
+    assets = ["README.md"],
     crate_name = "trz_gateway_client",
     deps_dev = [
         "//remote/server",

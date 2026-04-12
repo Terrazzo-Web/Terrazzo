@@ -5,7 +5,7 @@ package(default_visibility = ["//visibility:public"])
 rust_rules(
     name = "client",
     package_name = "framework/macro",
-    assets = [{"targets": ["README.md"]}],
+    assets = ["README.md"],
     crate_features = ["client"],
     crate_name = "terrazzo_macro",
     rule = "proc_macro",
@@ -14,7 +14,7 @@ rust_rules(
 rust_rules(
     name = "server",
     package_name = "framework/macro",
-    assets = [{"targets": ["README.md"]}],
+    assets = ["README.md"],
     crate_features = ["server"],
     crate_name = "terrazzo_macro",
     rule = "proc_macro",

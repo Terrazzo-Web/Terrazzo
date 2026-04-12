@@ -59,7 +59,8 @@ def rust_rules(
       crate_features: List of features enabled
       crate_features_dev: List of features enabled for tests
       rustc_env_files: Environment variables
-      assets: Map "/prefix" → { targets: [":target"], copy: True|False }, to copy assets from other rules under a prefix
+      assets: Either a list of asset maps or a shorthand list of target strings,
+        which expands to [{"targets": <list>}]
       generate_tests: Whether to generate rust test and clippy targets
       **kwargs: Additional arguments
     """
@@ -107,7 +108,13 @@ def _rust_rules_impl(
     asset_link_targets = []
     i = 0
     for asset in assets:
-        i += 1
+        # TODO: document the format of assets parameter in method rust_rules()
+        if type(asset) == "string":
+            asset = [asset]
+        if type(asset) == "list":
+            asset = {"targets": asset}
+        if type(asset["targets"]) == "string":
+            asset["targets"] = [asset["targets"]]
 
         if "prefix" in asset:
             asset_prefix = asset["prefix"]
@@ -123,6 +130,7 @@ def _rust_rules_impl(
         if asset_prefix[0] == "/":
             fail("asset_prefix should be a relative path, got " + asset_prefix)
 
+        i += 1
         asset_target = name + "-asset-" + str(i)
         if asset_copy:
             asset_copy_targets.append(":" + asset_target)
@@ -132,6 +140,8 @@ def _rust_rules_impl(
             name = asset_target,
             srcs = asset["targets"],
             out_dir = "{}/{}/{}".format(CARGO_ROOT, name, asset_prefix),
+            visibility = ["//visibility:private"],
+            tags = ["manual"],
         )
 
     mirror = name + "-mirror"
@@ -140,21 +150,29 @@ def _rust_rules_impl(
         rust_target = name,
         asset_copy_targets = asset_copy_targets,
         asset_link_targets = asset_link_targets,
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-rs",
         srcs = [":" + mirror],
         output_group = "rs_files",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-data",
         srcs = [":" + mirror],
         output_group = "data_files",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-manifest",
         srcs = [":" + mirror],
         output_group = "manifest_file",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
 
     if rule == "library":
@@ -242,6 +260,8 @@ def _rust_rules_impl(
         name = name + "-manifest-dir-env",
         manifest = ":" + mirror + "-manifest",
         out = name + "-manifest-dir.env",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
 
 def _mirror_sources_impl(ctx):

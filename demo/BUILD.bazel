@@ -70,13 +70,11 @@ stylance_rule(
 rust_rules_matrix(
     package_name = "demo",
     assets = [
-        {
-            "targets": [
-                "assets/index.html",
-                "assets/bootstrap.js",
-                "assets/favicon/favicon.ico",
-            ],
-        },
+        [
+            "assets/index.html",
+            "assets/bootstrap.js",
+            "assets/favicon/favicon.ico",
+        ],
         {
             "targets": [":demo_scss"],
             "prefix": "target/css/",

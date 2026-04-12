@@ -4,7 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
     package_name = "remote/server",
-    assets = [{"targets": ["README.md"]}],
+    assets = ["README.md"],
     crate_name = "trz_gateway_server",
     deps_dev = ["//utils/fixture"],
     deps_proc_macro = ["//utils/autoclone/autoclone"],

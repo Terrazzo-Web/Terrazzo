@@ -70,7 +70,7 @@ rust_rules_matrix(
         glob(["assets/game/**"]),
         {
             "targets": [":game_scss"],
-            "prefix": "target/css/",
+            "prefix": "target/css",
             "copy": True,
         },
     ],

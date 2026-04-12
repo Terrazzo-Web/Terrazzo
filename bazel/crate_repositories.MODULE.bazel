@@ -1,0 +1,51 @@
+crates = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates.render_config(
+    default_alias_rule_bzl = "//bazel:crate_aliases.bzl",
+    default_alias_rule_name = "cfg_alias",
+)
+crates.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates, "crates")
+
+crates_dbg = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_dbg.from_cargo(
+    name = "crates_plain",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_dbg, "crates_plain")
+
+crates_opt = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_opt.annotation(
+    crate = "tracing",
+    crate_features = [
+        "max_level_info",
+        "release_max_level_info",
+    ],
+    repositories = ["crates_opt"],
+)
+crates_opt.from_cargo(
+    name = "crates_opt",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_opt, "crates_opt")
+
+bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+bindeps.spec(
+    package = "stylance-cli",
+    repositories = ["bindeps"],
+    version = "=0.7.4",
+)
+bindeps.annotation(
+    crate = "stylance-cli",
+    gen_all_binaries = True,
+    repositories = ["bindeps"],
+)
+bindeps.from_specs(
+    name = "bindeps",
+)
+use_repo(bindeps, "bindeps")

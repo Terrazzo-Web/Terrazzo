@@ -51,7 +51,7 @@ rust_rules_matrix(
         "README.md",
         {
             "targets": ":common_scss",
-            "prefix": "target/css/",
+            "prefix": "target/css",
             "copy": True,
         },
     ],

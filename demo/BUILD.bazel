@@ -77,7 +77,7 @@ rust_rules_matrix(
         ],
         {
             "targets": [":demo_scss"],
-            "prefix": "target/css/",
+            "prefix": "target/css",
             "copy": True,
         },
     ],

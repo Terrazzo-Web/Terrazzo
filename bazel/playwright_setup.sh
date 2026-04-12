@@ -2,8 +2,8 @@
 set -euo pipefail
 
 output_dir="$(realpath "$1")"
-package_json="$2"
-package_lock="$3"
+package_json="$(realpath "$2")"
+package_lock="$(realpath "$3")"
 node_bin="$(realpath "$4")"
 npm_bin="$(realpath "$5")"
 

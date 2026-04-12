@@ -132,8 +132,6 @@ def _rust_rules_impl(
             continue
         if asset_prefix[0] == "/":
             fail("asset_prefix should be a relative path, got " + asset_prefix)
-        if asset_prefix[-1] == "/":
-            fail("asset_prefix should not end with /, got " + asset_prefix)
 
         i += 1
         asset_target = name + "-asset-" + str(i)

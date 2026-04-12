@@ -2981,6 +2981,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "terrazzo-pty"
+version = "0.1.24"
+dependencies = [
+ "bytes",
+ "futures",
+ "libc",
+ "nameth",
+ "pin-project",
+ "rustix",
+ "scopeguard",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "trz-gateway-common",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"

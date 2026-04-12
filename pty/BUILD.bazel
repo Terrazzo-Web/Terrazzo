@@ -4,5 +4,8 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "pty",
+    assets = ["README.md"],
     crate_name = "terrazzo_pty",
+    deps = ["//utils/nameth/nameth"],
+    deps_dev = ["//remote/common"],
 )

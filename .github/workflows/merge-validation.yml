@@ -62,7 +62,7 @@ jobs:
           echo ls -la ~/.cache/bazel
           ls -la ~/.cache/bazel
           echo ls -la ~/.cache/bazel/_bazel_runner
-          ls -la ~/.cache/bazel/_bazel_runner
+          ls -laR ~/.cache/bazel/_bazel_runner
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)

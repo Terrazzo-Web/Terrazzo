@@ -78,10 +78,13 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     // }
     let () = wasm_pack
         .status()
-        .map_err(|_| BuildErrorInner::WasmPackError)?
+        .map_err(BuildErrorInner::WasmPackError)?
         .success()
         .then_some(())
-        .ok_or(BuildErrorInner::WasmPackError)?;
+        .ok_or(BuildErrorInner::WasmPackError(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "wasm-pack failed",
+        )))?;
 
     // .../server/assets/wasm
     let assets_dir = server_dir.join("assets");
@@ -171,8 +174,8 @@ enum BuildErrorInner {
     #[error("[{n}] Failed to eraze old client pkg folder", n = self.name())]
     RmClientPkgError,
 
-    #[error("[{n}] Failed build the WASM", n = self.name())]
-    WasmPackError,
+    #[error("[{n}] Failed build the WASM: {0}", n = self.name())]
+    WasmPackError(std::io::Error),
 
     #[error("[{n}] Failed to eraze server assets wasm folder", n = self.name())]
     RmServerAssetsWasmError,

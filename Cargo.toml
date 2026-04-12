@@ -147,7 +147,7 @@ tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
-uuid = { version = "1.23.0" }
+uuid = { version = "1.23.0", features = ["v4", "fast-rng"] }
 wasm-bindgen = { version = "=0.2.105" }
 wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }

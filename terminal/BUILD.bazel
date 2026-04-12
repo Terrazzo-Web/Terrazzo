@@ -1,0 +1,138 @@
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
+load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load("//bazel:stylance_rules.bzl", "stylance_rule")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules_matrix(
+    package_name = "demo",
+    assets = [
+        {
+            "targets": glob(["src/**/*.scss"]),
+            "copy": True,
+        },
+    ],
+    crate_features = ["client"],
+    overrides = {
+        "client-lib": {
+            "deps": ["//framework/terrazzo:client"],
+        },
+        "client-lib-debug": {
+            "deps": ["//framework/terrazzo:client-debug"],
+        },
+        "client-shared-lib": {
+            "deps": ["//framework/terrazzo:client"],
+            "generate_tests": False,
+            "rule": "shared_library",
+            "target_compatible_with": ["@platforms//cpu:wasm32"],
+            "crate_name": "terrazzo_demo",
+        },
+        "client-shared-lib-debug": {
+            "deps": ["//framework/terrazzo:client-debug"],
+            "generate_tests": False,
+            "rule": "shared_library",
+            "target_compatible_with": ["@platforms//cpu:wasm32"],
+            "crate_name": "terrazzo_demo_debug",
+        },
+    },
+    deps = [
+        "//utils/nameth/nameth",
+        "@crates//:scopeguard",
+        "@crates//:serde_json",
+        "@crates//:stylance",
+        "@crates//:thiserror",
+        "@crates//:wasm-bindgen",
+        "@crates//:wasm-bindgen-futures",
+        "@crates//:web-sys",
+    ],
+)
+
+rust_wasm_bindgen(
+    name = "client",
+    out_name = "terrazzo_demo",
+    target = "web",
+    wasm_file = ":client-shared-lib",
+)
+
+rust_wasm_bindgen(
+    name = "client-debug",
+    out_name = "terrazzo_demo",
+    target = "web",
+    wasm_file = ":client-shared-lib-debug",
+)
+
+stylance_rule(
+    name = "demo_scss",
+    output = "target/css/demo.scss",
+)
+
+rust_rules_matrix(
+    package_name = "demo",
+    assets = [
+        [
+            "assets/index.html",
+            "assets/bootstrap.js",
+            "assets/favicon/favicon.ico",
+        ],
+        {
+            "targets": [":demo_scss"],
+            "prefix": "target/css",
+            "copy": True,
+        },
+    ],
+    crate_features = ["server"],
+    crate_name = "terrazzo_demo",
+    overrides = {
+        "server-lib": {
+            "assets": [{
+                "targets": [":client"],
+                "prefix": "assets/wasm",
+            }],
+            "deps": ["//framework/terrazzo:server"],
+        },
+        "server-lib-debug": {
+            "assets": [{
+                "targets": [":client-debug"],
+                "prefix": "assets/wasm",
+            }],
+            "deps": ["//framework/terrazzo:server-debug"],
+        },
+    },
+    deps = [
+        "@crates//:clap",
+        "@crates//:tokio",
+        "@crates//:tower-http",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+rust_rules_matrix(
+    package_name = "demo",
+    crate_features = ["server"],
+    crate_name = "demo_server",
+    crate_root = "src/server.rs",
+    overrides = {
+        "server": {
+            "deps": [":server-lib"],
+        },
+        "server-debug": {
+            "deps": [":server-lib-debug"],
+        },
+    },
+    rule = "binary",
+    deps = ["@crates//:tokio"],
+)
+
+playwright_matrix_test(
+    overrides = {
+        "integration-test-debug": {
+            "server": ":server-debug",
+        },
+        "integration-test-release": {
+            "server": ":server",
+        },
+    },
+    test = "scripts/integration-test.spec.mjs",
+)

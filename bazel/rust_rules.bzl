@@ -156,7 +156,7 @@ def _rust_rules_impl(
         asset_copy_targets = asset_copy_targets,
         asset_link_targets = asset_link_targets,
         visibility = ["//visibility:private"],
-        tags = ["manual", "no-cache"],
+        tags = ["manual"] + (["no-cache"] if asset_link_targets else []),
     )
     native.filegroup(
         name = mirror + "-rs",
@@ -266,7 +266,7 @@ def _rust_rules_impl(
         manifest = ":" + mirror + "-manifest",
         out = name + "-manifest-dir.env",
         visibility = ["//visibility:private"],
-        tags = ["manual", "no-cache"],
+        tags = ["manual"],
     )
 
 def _mirror_sources_impl(ctx):

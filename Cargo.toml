@@ -60,6 +60,7 @@ terrazzo-macro = { version = "0.1.24", path = "framework/macro" }
 trz-gateway-client = { version = "0.1.24", path = "remote/client" }
 trz-gateway-common = { version = "0.1.24", path = "remote/common" }
 trz-gateway-server = { version = "0.1.24", path = "remote/server" }
+terrazzo-pty = { version = "0.1.24", path = "pty" }
 
 axum = { version = "0.8.8" }
 axum-extra = { version = "0.12.5" }
@@ -118,7 +119,7 @@ serde_json = { version = "1.0.149" }
 serde-wasm-bindgen = { version = "0.5.0" }
 serde_yaml_ng = { version = "0.10.0" }
 serde_urlencoded = { version = "0.7.1" }
-server_fn = { version = "0.8.11" }
+server_fn = { version = "=0.8.3" }
 server_fn_macro = { version = "0.8.10" }
 sha2 = { version = "0.10.9" }
 simple_asn1 = { version = "0.6.4" }
@@ -150,7 +151,7 @@ uuid = { version = "1.23.0" }
 wasm-bindgen = { version = "=0.2.105" }
 wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }
-wasm-streams = { version = "0.5.0" }
+wasm-streams = { version = "=0.4.2" }
 web-sys = { version = "=0.3.82" }
 x509-parser = { version = "0.18.1" }
 

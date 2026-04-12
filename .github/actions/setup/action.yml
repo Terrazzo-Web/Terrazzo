@@ -72,4 +72,7 @@ runs:
       run: npm ci
     - name: Install Chromium
       shell: bash
-      run: npx playwright install --with-deps chromium
+      run: |
+        npx playwright install --with-deps chromium
+        ls -la ~/
+        ls -la ~/.cache

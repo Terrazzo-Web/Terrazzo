@@ -52,6 +52,17 @@ jobs:
         run: |
           export PROTOC=$(which protoc)
           bazel build --action_env=PROTOC //...
+      - name: DEBUG
+        shell: bash
+        run: |
+          echo ls -la ~/
+          ls -la ~/
+          echo ls -la ~/.cache
+          ls -la ~/.cache
+          echo ls -la ~/.cache/bazel
+          ls -la ~/.cache/bazel
+          echo ls -la ~/.cache/bazel/_bazel_runner
+          ls -la ~/.cache/bazel/_bazel_runner
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
@@ -62,10 +73,3 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"
-      - name: DEBUG
-        shell: bash
-        run: |
-          set -x
-          ls -la ~/
-          ls -la ~/.cache
-          ls -la ~/.cache/bazel

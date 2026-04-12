@@ -84,7 +84,7 @@ trz-gateway-common = { workspace = true, optional = true }
 trz-gateway-server = { workspace = true, optional = true, features = ["acme"] }
 unescaper = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true, features = ["v4", "fast-rng"] }
+uuid = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 wasm-streams = { workspace = true, optional = true }

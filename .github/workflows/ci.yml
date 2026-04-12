@@ -48,7 +48,7 @@ jobs:
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
-          bazel test --lockfile_mode=error --action_env=PROTOC //... --test_output=streamed
+          bazel test --lockfile_mode=error --action_env=PROTOC //...
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check
   publish-dry-run:

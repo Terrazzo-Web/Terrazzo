@@ -6,7 +6,7 @@ package(default_visibility = ["//visibility:public"])
 rust_rules_matrix(
     package_name = "framework/terrazzo",
     assets = [
-        {"targets": ["README.md"]},
+        "README.md",
         {
             "targets": glob(["src/**/*.scss"]),
             "copy": True,
@@ -26,10 +26,8 @@ rust_rules_matrix(
         "client-debug": {
             "deps": [
                 "//framework/client:client-debug",
-                "@crates//:rsass",
             ],
             "crate_features": [
-                "debug",
                 "diagnostics",
                 "max_client_level_debug",
             ],
@@ -50,11 +48,9 @@ rust_rules_matrix(
 rust_rules_matrix(
     package_name = "framework/terrazzo",
     assets = [
+        "README.md",
         {
-            "targets": ["README.md"],
-        },
-        {
-            "targets": [":common_scss"],
+            "targets": ":common_scss",
             "prefix": "target/css/",
             "copy": True,
         },

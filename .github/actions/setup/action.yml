@@ -16,7 +16,7 @@ runs:
   using: "composite"
   steps:
     - name: Setup cache for Rust compilation
-      if: ${{ inputs.cache-level == 'strict' }}
+      if: ${{ inputs.cache-level != 'off' }}
       uses: actions/cache@v5.0.4
       with:
         path: |
@@ -29,24 +29,10 @@ runs:
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
           target/
-        key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/*.lock') }}
-    - name: Setup cache for Rust compilation
-      if: ${{ inputs.cache-level == 'lenient' }}
-      uses: actions/cache@v5.0.4
-      with:
-        path: |
-          ~/.cargo/.crates.toml
-          ~/.cargo/.crates2.json
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          ~/.bazel/cache/disk/
-          ~/.bazel/cache/repository/
-          target/
+          ~/.cache/ms-playwright/
         key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/*.lock') }}
         restore-keys: |
-          ${{ runner.os }}-${{ github.job }}-
+          ${{ inputs.cache-level == 'lenient' && format('{0}-{1}-', runner.os, github.job) || '__strict_cache_no_restore__-' }}
 
     - name: Add wasm32 compilation target
       shell: bash
@@ -64,3 +50,11 @@ runs:
       uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ inputs.github-token }}
+
+    - uses: actions/setup-node@v4
+    - name: Install Playwright
+      shell: bash
+      run: npm ci
+    - name: Install Chromium
+      shell: bash
+      run: npx playwright install --with-deps chromium

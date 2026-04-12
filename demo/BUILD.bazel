@@ -1,4 +1,5 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 
@@ -69,13 +70,11 @@ stylance_rule(
 rust_rules_matrix(
     package_name = "demo",
     assets = [
-        {
-            "targets": [
-                "assets/index.html",
-                "assets/bootstrap.js",
-                "assets/favicon/favicon.ico",
-            ],
-        },
+        [
+            "assets/index.html",
+            "assets/bootstrap.js",
+            "assets/favicon/favicon.ico",
+        ],
         {
             "targets": [":demo_scss"],
             "prefix": "target/css/",
@@ -101,6 +100,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "@crates//:clap",
         "@crates//:tokio",
         "@crates//:tower-http",
         "@crates//:tracing",
@@ -115,23 +115,24 @@ rust_rules_matrix(
     crate_root = "src/server.rs",
     overrides = {
         "server": {
-            "deps": [
-                ":server-lib",
-                "//framework/terrazzo:server",
-            ],
+            "deps": [":server-lib"],
         },
         "server-debug": {
-            "deps": [
-                ":server-lib-debug",
-                "//framework/terrazzo:server-debug",
-            ],
+            "deps": [":server-lib-debug"],
         },
     },
     rule = "binary",
-    deps = [
-        "@crates//:tokio",
-        "@crates//:tower-http",
-        "@crates//:tracing",
-        "@crates//:tracing-subscriber",
-    ],
+    deps = ["@crates//:tokio"],
+)
+
+playwright_matrix_test(
+    overrides = {
+        "integration-test-debug": {
+            "server": ":server-debug",
+        },
+        "integration-test-release": {
+            "server": ":server",
+        },
+    },
+    test = "scripts/integration-test.spec.mjs",
 )

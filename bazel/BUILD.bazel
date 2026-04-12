@@ -1,6 +1,12 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load(":playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "opt",
+    values = {"compilation_mode": "opt"},
+)
 
 alias(
     name = "stylance",
@@ -18,3 +24,9 @@ buildifier(
     lint_mode = "warn",
     mode = "check",
 )
+
+playwright_setup(
+    name = "playwright_setup",
+)
+
+exports_files(["playwright_test.sh"])

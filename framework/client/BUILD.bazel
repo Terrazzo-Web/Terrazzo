@@ -4,12 +4,14 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
     package_name = "framework/client",
-    assets = [{"targets": ["README.md"]}],
+    assets = ["README.md"],
     crate_name = "terrazzo_client",
     deps_dev_proc_macro = ["//framework/macro:client"],
     deps_proc_macro = ["//utils/autoclone/autoclone"],
     overrides = {
-        "client": {},
+        "client": {
+            "crate_features": ["concise-traces"],
+        },
         "client-debug": {
             "crate_features": ["diagnostics"],
             "deps": [

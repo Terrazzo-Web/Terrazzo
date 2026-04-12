@@ -20,17 +20,17 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
+
       - name: Build debug
         run: cargo build --bins --features=server,max_level_debug,debug,diagnostics
       - name: Build release
         run: cargo build --bins --features=server,max_level_info --release
-      - uses: actions/setup-node@v6
-      - name: Install Playwright
-        run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Run integration test
-        run: npm run test:demo
+
+      - name: Run integration test against debug
+        run: ./demo/scripts/integration-test.sh target/debug/demo-server
+      - name: Run integration test against release
+        run: ./demo/scripts/integration-test.sh target/release/demo-server
+
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

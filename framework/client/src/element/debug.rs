@@ -204,4 +204,9 @@ mod concise {
                 .finish()
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use terrazzo_macro as _;
+    }
 }

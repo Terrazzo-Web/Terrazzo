@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const SECOND = 1000;
-const BASE_URL = 'http://127.0.0.1:3000';
+const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 
 function counterControls(page) {
   const counter = page.locator('#counter');
@@ -15,8 +15,8 @@ function counterControls(page) {
 
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
-
-  expect(response.ok(), `${path} should load successfully`).toBeTruthy();
+  const failureDetails = `status=${response.status()} headers=${JSON.stringify(response.headers())}`;
+  expect(response.ok(), `${path} should load successfully (${failureDetails})`).toBeTruthy();
   expect(response.headers()['content-type']).toMatch(contentTypePattern);
 }
 
@@ -54,10 +54,6 @@ test.describe('demo counter', () => {
   });
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
-    await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
-  });
-
-  test('loads /static/common.css and keeps the current mime type', async ({ request }) => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 

@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVER_BIN="$ROOT_DIR/target/release/demo-server"
-SERVER_LOG="${SERVER_LOG:-$(mktemp -t terrazzo-demo-server.XXXXXX.log)}"
+SERVER_BIN="${1:?Usage: $0 <path-to-demo-server>}"
+
+SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
 SERVER_PID=""
 
 cleanup() {
@@ -12,22 +12,18 @@ cleanup() {
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
+  rm -f "${SERVER_LOG}"
 }
 
 trap cleanup EXIT
 
-if [[ ! -x "${SERVER_BIN}" ]]; then
-  echo "Expected executable at ${SERVER_BIN}. Build it first with:" >&2
-  echo "  cargo build --bin demo-server --features server,max_level_info --release" >&2
-  exit 1
-fi
-
-"${SERVER_BIN}" >"${SERVER_LOG}" 2>&1 &
+"${SERVER_BIN}" --port 3000 > "${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-    npx playwright test "${ROOT_DIR}/demo/scripts/integration-test.spec.mjs"
+    npx playwright test "demo/scripts/integration-test.spec.mjs" \
+      || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi
   sleep 1

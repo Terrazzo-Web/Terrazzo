@@ -64,13 +64,10 @@ stylance_rule(
 rust_rules_matrix(
     package_name = "game",
     assets = [
-        {
-            "targets": [
-                "assets/bootstrap.js",
-                "assets/images/favicon.ico",
-                "assets/index.html",
-            ] + glob(["assets/game/**"]),
-        },
+        "assets/bootstrap.js",
+        "assets/images/favicon.ico",
+        "assets/index.html",
+        glob(["assets/game/**"]),
         {
             "targets": [":game_scss"],
             "prefix": "target/css/",

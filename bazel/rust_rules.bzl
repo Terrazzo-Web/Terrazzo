@@ -17,6 +17,7 @@ load(
     "rust_test",
     "rustfmt_test",
 )
+load(":utils.bzl", "make_rules_matrix")
 
 CARGO_ROOT = "cargo_root"
 
@@ -27,13 +28,7 @@ def rust_rules_matrix(overrides = {}, **kwargs):
       overrides: Map of parameters to generate a matrix of rust_rules
       **kwargs: Additional arguments
     """
-    if overrides == None:
-        rust_rules(**kwargs)
-        return
-
-    for override_name, override_values in overrides.items():
-        kwargs_override = _merge_dicts_concat_lists(kwargs, override_values)
-        rust_rules(name = override_name, **kwargs_override)
+    make_rules_matrix(rust_rules, overrides, **kwargs)
 
 def rust_rules(
         name,
@@ -64,7 +59,12 @@ def rust_rules(
       crate_features: List of features enabled
       crate_features_dev: List of features enabled for tests
       rustc_env_files: Environment variables
-      assets: Map "/prefix" → { targets: [":target"], copy: True|False }, to copy assets from other rules under a prefix
+      assets: Asset specs to stage alongside the crate. Each item may be a
+        target string, a list of target strings, or a map with:
+        - targets: target string or list of target strings
+        - prefix: optional relative output directory for the copied/linked assets
+        - copy: optional bool; when true copy assets, otherwise symlink them
+        String items expand to {"targets": [<items>]}.
       generate_tests: Whether to generate rust test and clippy targets
       **kwargs: Additional arguments
     """
@@ -112,7 +112,12 @@ def _rust_rules_impl(
     asset_link_targets = []
     i = 0
     for asset in assets:
-        i += 1
+        if type(asset) == "string":
+            asset = [asset]
+        if type(asset) == "list":
+            asset = {"targets": asset}
+        if type(asset["targets"]) == "string":
+            asset["targets"] = [asset["targets"]]
 
         if "prefix" in asset:
             asset_prefix = asset["prefix"]
@@ -128,6 +133,7 @@ def _rust_rules_impl(
         if asset_prefix[0] == "/":
             fail("asset_prefix should be a relative path, got " + asset_prefix)
 
+        i += 1
         asset_target = name + "-asset-" + str(i)
         if asset_copy:
             asset_copy_targets.append(":" + asset_target)
@@ -137,6 +143,8 @@ def _rust_rules_impl(
             name = asset_target,
             srcs = asset["targets"],
             out_dir = "{}/{}/{}".format(CARGO_ROOT, name, asset_prefix),
+            visibility = ["//visibility:private"],
+            tags = ["manual"],
         )
 
     mirror = name + "-mirror"
@@ -145,21 +153,29 @@ def _rust_rules_impl(
         rust_target = name,
         asset_copy_targets = asset_copy_targets,
         asset_link_targets = asset_link_targets,
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-rs",
         srcs = [":" + mirror],
         output_group = "rs_files",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-data",
         srcs = [":" + mirror],
         output_group = "data_files",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
     native.filegroup(
         name = mirror + "-manifest",
         srcs = [":" + mirror],
         output_group = "manifest_file",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
 
     if rule == "library":
@@ -182,10 +198,13 @@ def _rust_rules_impl(
             package_name = package_name,
             proc_macro = True,
         ),
-        compile_data = [":" + mirror + "-data"],
+        compile_data = [
+            ":" + mirror + "-data",
+            ":" + mirror + "-manifest",
+        ],
         data = data,
         rustc_env_files = rustc_env_files + [":" + name + "-manifest-dir-env"],
-        crate_features = crate_features,
+        crate_features = crate_features + ["bazel"],
         **kwargs
     )
 
@@ -208,7 +227,7 @@ def _rust_rules_impl(
                 proc_macro_dev = True,
             ),
             data = data,
-            crate_features = crate_features_dev,
+            crate_features = crate_features_dev + ["bazel"],
         )
 
         rustfmt_test(
@@ -244,6 +263,8 @@ def _rust_rules_impl(
         name = name + "-manifest-dir-env",
         manifest = ":" + mirror + "-manifest",
         out = name + "-manifest-dir.env",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
     )
 
 def _mirror_sources_impl(ctx):
@@ -362,16 +383,3 @@ _link_assets_to_dir = rule(
         "srcs": attr.label_list(mandatory = True),
     },
 )
-
-def _merge_dicts_concat_lists(a, b):
-    result = dict(a)
-    for k, v_b in b.items():
-        if k in a:
-            v_a = a[k]
-            if type(v_a) == "list" and type(v_b) == "list":
-                result[k] = v_a + v_b
-            else:
-                fail("Mismatch {} != {}".format(v_a, v_b))
-        else:
-            result[k] = v_b
-    return result

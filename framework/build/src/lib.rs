@@ -76,6 +76,7 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     // for (key, value) in wasm_pack.get_envs() {
     //     println! { "cargo::warning={key} = {value}", key = key.to_string_lossy(), value = value.unwrap().to_string_lossy() };
     // }
+    let wasm_pack_command = format_command(&wasm_pack);
     let () = wasm_pack
         .status()
         .map_err(BuildErrorInner::WasmPackError)?
@@ -83,7 +84,7 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
         .then_some(())
         .ok_or(BuildErrorInner::WasmPackError(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "wasm-pack failed",
+            format!("wasm-pack failed: `{wasm_pack_command}`"),
         )))?;
 
     // .../server/assets/wasm
@@ -157,6 +158,28 @@ fn rm<E>(path: &Path, error: E) -> Result<(), E> {
         return Err(error);
     };
     status.success().then_some(()).ok_or(error)
+}
+
+fn format_command(command: &std::process::Command) -> String {
+    let mut formatted = vec![command.get_program().to_string_lossy().into_owned()];
+    formatted.extend(
+        command
+            .get_args()
+            .map(|arg| shell_escape(arg.to_string_lossy().as_ref())),
+    );
+    formatted.join(" ")
+}
+
+fn shell_escape(arg: &str) -> String {
+    if !arg.is_empty()
+        && arg
+            .bytes()
+            .all(|byte| matches!(byte, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'.' | b'_' | b'-' | b'='))
+    {
+        return arg.to_owned();
+    }
+
+    format!("'{}'", arg.replace('\'', r"'\''"))
 }
 
 /// Errors returned by [build].

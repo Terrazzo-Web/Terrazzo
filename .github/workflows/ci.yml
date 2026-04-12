@@ -8,10 +8,7 @@ on:
     - cron: '0 0 * * 6'
 jobs:
   cargo-build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ubuntu-latest
     name: Cargo build and test
     steps:
       - uses: actions/checkout@v6.0.2

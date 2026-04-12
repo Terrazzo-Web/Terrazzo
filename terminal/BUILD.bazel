@@ -1,5 +1,4 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
-load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 
@@ -74,8 +73,7 @@ rust_rules_matrix(
             "assets/index.html",
             "assets/bootstrap.js",
             "assets/images/favicon.ico",
-            "assets/icons"
-        ],
+        ] + glob(["assets/icons/*.svg"]),
         {
             "targets": [":terminal_scss"],
             "prefix": "target/css",

@@ -51,7 +51,7 @@ runs:
       with:
         repo-token: ${{ inputs.github-token }}
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
     - name: Install Playwright
       shell: bash
       run: npm ci

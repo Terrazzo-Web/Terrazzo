@@ -49,7 +49,7 @@ fn main() {
         server_dir,
         wasm_pack_options,
     })
-    .unwrap_or_else(|error| eprintln!("Failed!! {error}"));
+    .unwrap();
 
     terrazzo_build::build_css();
 }

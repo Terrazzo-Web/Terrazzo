@@ -76,22 +76,12 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     // for (key, value) in wasm_pack.get_envs() {
     //     println! { "cargo::warning={key} = {value}", key = key.to_string_lossy(), value = value.unwrap().to_string_lossy() };
     // }
-    let wasm_pack_command = format_command(&wasm_pack);
-    println! { "cargo::warning={}", format_target_wasm_listing(&client_dir.join("target").join("wasm")) };
-    let wasm_pack_status = wasm_pack
+    let () = wasm_pack
         .status()
-        .map_err(BuildErrorInner::WasmPackError)?
+        .map_err(|_| BuildErrorInner::WasmPackError)?
         .success()
         .then_some(())
-        .ok_or(BuildErrorInner::WasmPackError(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!(
-                "wasm-pack failed: `{}`{}",
-                wasm_pack_command,
-                format_target_wasm_listing(&client_dir.join("target").join("wasm")),
-            ),
-        )))?;
-    let () = wasm_pack_status;
+        .ok_or(BuildErrorInner::WasmPackError)?;
 
     // .../server/assets/wasm
     let assets_dir = server_dir.join("assets");
@@ -166,68 +156,6 @@ fn rm<E>(path: &Path, error: E) -> Result<(), E> {
     status.success().then_some(()).ok_or(error)
 }
 
-fn format_command(command: &std::process::Command) -> String {
-    let mut formatted = vec![command.get_program().to_string_lossy().into_owned()];
-    formatted.extend(
-        command
-            .get_args()
-            .map(|arg| shell_escape(arg.to_string_lossy().as_ref())),
-    );
-    formatted.join(" ")
-}
-
-fn shell_escape(arg: &str) -> String {
-    if !arg.is_empty()
-        && arg
-            .bytes()
-            .all(|byte| matches!(byte, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'.' | b'_' | b'-' | b'='))
-    {
-        return arg.to_owned();
-    }
-
-    format!("'{}'", arg.replace('\'', r"'\''"))
-}
-
-fn format_target_wasm_listing(target_wasm_dir: &Path) -> String {
-    let Ok(entries) = std::fs::read_dir(target_wasm_dir) else {
-        return format!(
-            "; `target/wasm` not readable at {}",
-            target_wasm_dir.display()
-        );
-    };
-
-    let mut entries = entries
-        .filter_map(Result::ok)
-        .map(|entry| {
-            let file_type_suffix = entry
-                .file_type()
-                .ok()
-                .map(|file_type| {
-                    if file_type.is_dir() {
-                        "/"
-                    } else if file_type.is_symlink() {
-                        "@"
-                    } else {
-                        ""
-                    }
-                })
-                .unwrap_or("?");
-            format!(
-                "{}{}",
-                entry.file_name().to_string_lossy(),
-                file_type_suffix
-            )
-        })
-        .collect::<Vec<_>>();
-    entries.sort();
-
-    if entries.is_empty() {
-        "; `target/wasm` is empty".to_owned()
-    } else {
-        format!("; `target/wasm` contains: {}", entries.join(", "))
-    }
-}
-
 /// Errors returned by [build].
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -243,8 +171,8 @@ enum BuildErrorInner {
     #[error("[{n}] Failed to eraze old client pkg folder", n = self.name())]
     RmClientPkgError,
 
-    #[error("[{n}] Failed build the WASM: {0}", n = self.name())]
-    WasmPackError(std::io::Error),
+    #[error("[{n}] Failed build the WASM", n = self.name())]
+    WasmPackError,
 
     #[error("[{n}] Failed to eraze server assets wasm folder", n = self.name())]
     RmServerAssetsWasmError,

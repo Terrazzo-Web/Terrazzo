@@ -29,7 +29,10 @@ jobs:
       - name: Run integration test against release
         run: ./demo/scripts/integration-test.sh target/release/demo-server
   bazel-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
     name: Bazel build and test
     steps:
       - uses: actions/checkout@v6.0.2

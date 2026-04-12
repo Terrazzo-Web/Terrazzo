@@ -40,7 +40,8 @@ jobs:
         uses: ./.github/actions/setup
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          cache-level: "lenient"
+          cache-level: "strict"
+
       - name: Bazel build
         run: |
           export PROTOC=$(which protoc)
@@ -49,6 +50,7 @@ jobs:
         run: |
           export PROTOC=$(which protoc)
           bazel test --lockfile_mode=error --action_env=PROTOC //...
+          
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check
   publish-dry-run:

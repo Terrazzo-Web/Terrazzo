@@ -22,8 +22,8 @@ SERVER_PID="$!"
 
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-    npx playwright test \
-      "demo/scripts/integration-test.spec.mjs"
+    npx playwright test "demo/scripts/integration-test.spec.mjs" \
+      || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi
   sleep 1

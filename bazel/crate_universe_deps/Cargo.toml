@@ -23,6 +23,8 @@ tower-http = { workspace = true, features = [
 tracing-subscriber-wasm = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = [
+    "Clipboard",
+    "ClipboardEvent",
     "DataTransfer",
     "Document",
     "DragEvent",
@@ -30,7 +32,11 @@ web-sys = { workspace = true, features = [
     "FocusEvent",
     "Headers",
     "HtmlSelectElement",
+    "HtmlTextAreaElement",
+    "InputEvent",
+    "KeyboardEvent",
     "MouseEvent",
+    "Navigator",
     "Performance",
     "Request",
     "RequestInit",

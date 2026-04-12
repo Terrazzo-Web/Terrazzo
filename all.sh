@@ -19,6 +19,6 @@ cargo build --features=server
 cargo test --features=client
 cargo test --features=server
 
-cargo doc --all-features
+cargo doc --workspace --all-features
 cargo build --bin demo-server --features server,max_level_debug,debug,diagnostics
 cargo build --bin demo-server --features server --release

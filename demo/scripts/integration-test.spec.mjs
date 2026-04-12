@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const SECOND = 1000;
-const BASE_URL = 'http://127.0.0.1:3000';
+const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 
 function counterControls(page) {
   const counter = page.locator('#counter');

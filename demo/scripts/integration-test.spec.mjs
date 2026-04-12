@@ -15,8 +15,8 @@ function counterControls(page) {
 
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
-
-  expect(response.ok(), `${path} should load successfully`).toBeTruthy();
+  const failureDetails = `status=${response.status()} headers=${JSON.stringify(response.headers())}`;
+  expect(response.ok(), `${path} should load successfully (${failureDetails})`).toBeTruthy();
   expect(response.headers()['content-type']).toMatch(contentTypePattern);
 }
 

@@ -11,6 +11,7 @@ members = [
     "remote/client",
     "remote/common",
     "remote/server",
+    "terminal",
     "utils/autoclone/autoclone-tests",
     "utils/autoclone/autoclone",
     "utils/fixture",

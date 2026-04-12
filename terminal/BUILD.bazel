@@ -6,7 +6,7 @@ load("//bazel:stylance_rules.bzl", "stylance_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "demo",
+    package_name = "terminal",
     assets = [
         {
             "targets": glob(["src/**/*.scss"]),
@@ -26,14 +26,14 @@ rust_rules_matrix(
             "generate_tests": False,
             "rule": "shared_library",
             "target_compatible_with": ["@platforms//cpu:wasm32"],
-            "crate_name": "terrazzo_demo",
+            "crate_name": "terrazzo_terminal",
         },
         "client-shared-lib-debug": {
             "deps": ["//framework/terrazzo:client-debug"],
             "generate_tests": False,
             "rule": "shared_library",
             "target_compatible_with": ["@platforms//cpu:wasm32"],
-            "crate_name": "terrazzo_demo_debug",
+            "crate_name": "terrazzo_terminal_debug",
         },
     },
     deps = [
@@ -50,39 +50,40 @@ rust_rules_matrix(
 
 rust_wasm_bindgen(
     name = "client",
-    out_name = "terrazzo_demo",
+    out_name = "terrazzo_terminal",
     target = "web",
     wasm_file = ":client-shared-lib",
 )
 
 rust_wasm_bindgen(
     name = "client-debug",
-    out_name = "terrazzo_demo",
+    out_name = "terrazzo_terminal",
     target = "web",
     wasm_file = ":client-shared-lib-debug",
 )
 
 stylance_rule(
-    name = "demo_scss",
-    output = "target/css/demo.scss",
+    name = "terminal_scss",
+    output = "target/css/terminal.scss",
 )
 
 rust_rules_matrix(
-    package_name = "demo",
+    package_name = "terminal",
     assets = [
         [
             "assets/index.html",
             "assets/bootstrap.js",
-            "assets/favicon/favicon.ico",
+            "assets/images/favicon.ico",
+            "assets/icons"
         ],
         {
-            "targets": [":demo_scss"],
+            "targets": [":terminal_scss"],
             "prefix": "target/css",
             "copy": True,
         },
     ],
     crate_features = ["server"],
-    crate_name = "terrazzo_demo",
+    crate_name = "terrazzo_terminal",
     overrides = {
         "server-lib": {
             "assets": [{
@@ -109,9 +110,9 @@ rust_rules_matrix(
 )
 
 rust_rules_matrix(
-    package_name = "demo",
+    package_name = "terminal",
     crate_features = ["server"],
-    crate_name = "demo_server",
+    crate_name = "terminal_server",
     crate_root = "src/server.rs",
     overrides = {
         "server": {
@@ -123,16 +124,4 @@ rust_rules_matrix(
     },
     rule = "binary",
     deps = ["@crates//:tokio"],
-)
-
-playwright_matrix_test(
-    overrides = {
-        "integration-test-debug": {
-            "server": ":server-debug",
-        },
-        "integration-test-release": {
-            "server": ":server",
-        },
-    },
-    test = "scripts/integration-test.spec.mjs",
 )

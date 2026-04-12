@@ -43,7 +43,7 @@ tokio-rustls = { workspace = true }
 tonic = { workspace = true }
 tower = { workspace = true, features = ["balance", "buffer", "util"] }
 tracing = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true }
 
 [dev-dependencies]
 mime = { workspace = true }

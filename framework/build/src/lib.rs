@@ -77,15 +77,21 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     //     println! { "cargo::warning={key} = {value}", key = key.to_string_lossy(), value = value.unwrap().to_string_lossy() };
     // }
     let wasm_pack_command = format_command(&wasm_pack);
-    let () = wasm_pack
+    println! { "cargo::warning={}", format_target_wasm_listing(&client_dir.join("target").join("wasm")) };
+    let wasm_pack_status = wasm_pack
         .status()
         .map_err(BuildErrorInner::WasmPackError)?
         .success()
         .then_some(())
         .ok_or(BuildErrorInner::WasmPackError(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("wasm-pack failed: `{wasm_pack_command}`"),
+            format!(
+                "wasm-pack failed: `{}`{}",
+                wasm_pack_command,
+                format_target_wasm_listing(&client_dir.join("target").join("wasm")),
+            ),
         )))?;
+    let () = wasm_pack_status;
 
     // .../server/assets/wasm
     let assets_dir = server_dir.join("assets");
@@ -180,6 +186,46 @@ fn shell_escape(arg: &str) -> String {
     }
 
     format!("'{}'", arg.replace('\'', r"'\''"))
+}
+
+fn format_target_wasm_listing(target_wasm_dir: &Path) -> String {
+    let Ok(entries) = std::fs::read_dir(target_wasm_dir) else {
+        return format!(
+            "; `target/wasm` not readable at {}",
+            target_wasm_dir.display()
+        );
+    };
+
+    let mut entries = entries
+        .filter_map(Result::ok)
+        .map(|entry| {
+            let file_type_suffix = entry
+                .file_type()
+                .ok()
+                .map(|file_type| {
+                    if file_type.is_dir() {
+                        "/"
+                    } else if file_type.is_symlink() {
+                        "@"
+                    } else {
+                        ""
+                    }
+                })
+                .unwrap_or("?");
+            format!(
+                "{}{}",
+                entry.file_name().to_string_lossy(),
+                file_type_suffix
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+
+    if entries.is_empty() {
+        "; `target/wasm` is empty".to_owned()
+    } else {
+        format!("; `target/wasm` contains: {}", entries.join(", "))
+    }
 }
 
 /// Errors returned by [build].

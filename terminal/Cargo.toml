@@ -246,7 +246,6 @@ converter-server = [
     "dep:unescaper",
     "dep:url",
     "dep:x509-parser",
-    "hickory-client/serde",
     "server",
 ]
 

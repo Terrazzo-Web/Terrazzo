@@ -183,5 +183,8 @@ rust_rules_matrix(
         },
     },
     rule = "binary",
-    deps = ["@crates//:tokio"],
+    deps = [
+        "@crates//:tokio",
+        "@crates//:tracing",
+    ],
 )

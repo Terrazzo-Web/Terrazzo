@@ -10,83 +10,149 @@ crates.from_cargo(
 )
 use_repo(crates, "crates")
 
-crates_plain_backend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_plain_backend.annotation(
+macro_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+macro_client.spec(package = "deluxe", version = "=0.5.0", repositories = ["macro_client"])
+macro_client.spec(package = "prettyplease", version = "=0.2.37", repositories = ["macro_client"])
+macro_client.spec(package = "proc-macro2", version = "=1.0.106", repositories = ["macro_client"])
+macro_client.spec(package = "quote", version = "=1.0.45", repositories = ["macro_client"])
+macro_client.spec(package = "server_fn_macro", version = "=0.8.10", repositories = ["macro_client"])
+macro_client.spec(
+    package = "syn",
+    version = "=2.0.117",
+    features = ["full", "visit-mut"],
+    repositories = ["macro_client"],
+)
+macro_client.from_specs(
+    name = "macro_client",
+)
+use_repo(macro_client, "macro_client")
+
+macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+macro_server.spec(package = "deluxe", version = "=0.5.0", repositories = ["macro_server"])
+macro_server.spec(package = "prettyplease", version = "=0.2.37", repositories = ["macro_server"])
+macro_server.spec(package = "proc-macro2", version = "=1.0.106", repositories = ["macro_server"])
+macro_server.spec(package = "quote", version = "=1.0.45", repositories = ["macro_server"])
+macro_server.spec(
+    package = "server_fn_macro",
+    version = "=0.8.10",
+    features = [
+        "axum",
+        "ssr",
+    ],
+    repositories = ["macro_server"],
+)
+macro_server.spec(
+    package = "syn",
+    version = "=2.0.117",
+    features = ["full", "visit-mut"],
+    repositories = ["macro_server"],
+)
+macro_server.from_specs(
+    name = "macro_server",
+)
+use_repo(macro_server, "macro_server")
+
+crates_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_server.annotation(
     crate = "server_fn",
     crate_features = [
         "axum",
+        "axum-no-default",
         "browser",
+        "generic",
+        "ssr",
     ],
-    repositories = ["crates_plain_backend"],
+    deps = [
+        "@crates_client__axum-0.8.8//:axum",
+        "@crates_client__http-body-util-0.1.3//:http_body_util",
+        "@crates_client__hyper-1.9.0//:hyper",
+        "@crates_client__inventory-0.3.24//:inventory",
+        "@crates_client__tokio-1.51.1//:tokio",
+        "@crates_client__tower-0.5.3//:tower",
+        "@crates_client__tower-layer-0.3.3//:tower_layer",
+    ],
+    repositories = ["crates_server"],
 )
-crates_plain_backend.from_cargo(
-    name = "crates_plain_backend",
+crates_server.from_cargo(
+    name = "crates_server",
     cargo_lockfile = "//bazel:Cargo.backend.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_plain_backend, "crates_plain_backend")
+use_repo(crates_server, "crates_server")
 
-crates_plain_frontend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_plain_frontend.annotation(
+crates_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_client.annotation(
     crate = "server_fn",
     crate_features = [
         "browser",
     ],
-    repositories = ["crates_plain_frontend"],
+    repositories = ["crates_client"],
 )
-crates_plain_frontend.from_cargo(
-    name = "crates_plain_frontend",
+crates_client.from_cargo(
+    name = "crates_client",
     cargo_lockfile = "//bazel:Cargo.frontend.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_plain_frontend, "crates_plain_frontend")
+use_repo(crates_client, "crates_client")
 
-crates_opt_backend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_opt_backend.annotation(
+crates_opt_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_opt_server.annotation(
     crate = "server_fn",
     crate_features = [
         "axum",
+        "axum-no-default",
         "browser",
+        "generic",
+        "ssr",
     ],
-    repositories = ["crates_opt_backend"],
+    deps = [
+        "@crates_opt_client__axum-0.8.8//:axum",
+        "@crates_opt_client__http-body-util-0.1.3//:http_body_util",
+        "@crates_opt_client__hyper-1.9.0//:hyper",
+        "@crates_opt_client__inventory-0.3.24//:inventory",
+        "@crates_opt_client__tokio-1.51.1//:tokio",
+        "@crates_opt_client__tower-0.5.3//:tower",
+        "@crates_opt_client__tower-layer-0.3.3//:tower_layer",
+    ],
+    repositories = ["crates_opt_server"],
 )
-crates_opt_backend.annotation(
+crates_opt_server.annotation(
     crate = "tracing",
     crate_features = [
         "max_level_info",
         "release_max_level_info",
     ],
-    repositories = ["crates_opt_backend"],
+    repositories = ["crates_opt_server"],
 )
-crates_opt_backend.from_cargo(
-    name = "crates_opt_backend",
+crates_opt_server.from_cargo(
+    name = "crates_opt_server",
     cargo_lockfile = "//bazel:Cargo.backend.opt.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_opt_backend, "crates_opt_backend")
+use_repo(crates_opt_server, "crates_opt_server")
 
-crates_opt_frontend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_opt_frontend.annotation(
+crates_opt_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_opt_client.annotation(
     crate = "server_fn",
     crate_features = [
         "browser",
     ],
-    repositories = ["crates_opt_frontend"],
+    repositories = ["crates_opt_client"],
 )
-crates_opt_frontend.annotation(
+crates_opt_client.annotation(
     crate = "tracing",
     crate_features = [
         "max_level_info",
         "release_max_level_info",
     ],
-    repositories = ["crates_opt_frontend"],
+    repositories = ["crates_opt_client"],
 )
-crates_opt_frontend.from_cargo(
-    name = "crates_opt_frontend",
+crates_opt_client.from_cargo(
+    name = "crates_opt_client",
     cargo_lockfile = "//bazel:Cargo.frontend.opt.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_opt_frontend, "crates_opt_frontend")
+use_repo(crates_opt_client, "crates_opt_client")
 
 bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 bindeps.spec(

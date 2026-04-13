@@ -11,9 +11,9 @@ def _mapped_label(actual, source_prefix, target_prefix):
 def cfg_alias(name, actual, tags = None, **kwargs):
     """Creates an alias that switches crate_universe repos by mode and platform.
 
-    Backend targets use `@crates_plain_backend__` or `@crates_opt_backend__`.
-    `wasm32-unknown-unknown` targets use `@crates_plain_frontend__` or
-    `@crates_opt_frontend__`. Labels outside `@crates__` pass through unchanged.
+    Backend targets use `@crates_client__` or `@crates_opt_client__`.
+    `wasm32-unknown-unknown` targets use `@crates_client__` or
+    `@crates_opt_client__`. Labels outside `@crates__` pass through unchanged.
 
     Args:
         name: The alias target name to define in the current package.
@@ -23,7 +23,6 @@ def cfg_alias(name, actual, tags = None, **kwargs):
     """
     actual_str = str(actual)
     source_prefix = "@crates__"
-
     if not actual_str.startswith(source_prefix):
         native.alias(
             name = name,
@@ -75,11 +74,11 @@ def cfg_alias(name, actual, tags = None, **kwargs):
     native.alias(
         name = name,
         actual = select({
-            ":opt_frontend": _mapped_label(actual, source_prefix, "@crates_opt_frontend__"),
-            ":fastbuild_frontend": _mapped_label(actual, source_prefix, "@crates_plain_frontend__"),
-            ":dbg_frontend": _mapped_label(actual, source_prefix, "@crates_plain_frontend__"),
-            ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_backend__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain_backend__"),
+            ":opt_frontend": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
+            ":fastbuild_frontend": _mapped_label(actual, source_prefix, "@crates_client__"),
+            ":dbg_frontend": _mapped_label(actual, source_prefix, "@crates_client__"),
+            ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_client__"),
         }),
         tags = tags,
         **kwargs

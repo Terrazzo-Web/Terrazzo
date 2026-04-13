@@ -8,6 +8,15 @@ rust_rules(
     assets = ["README.md"],
     crate_features = ["client"],
     crate_name = "terrazzo_macro",
+    use_cargo_deps = False,
+    deps = [
+        "@macro_client//:deluxe",
+        "@macro_client//:prettyplease",
+        "@macro_client//:proc-macro2",
+        "@macro_client//:quote",
+        "@macro_client//:server_fn_macro",
+        "@macro_client//:syn",
+    ],
     rule = "proc_macro",
 )
 
@@ -17,5 +26,14 @@ rust_rules(
     assets = ["README.md"],
     crate_features = ["server"],
     crate_name = "terrazzo_macro",
+    use_cargo_deps = False,
+    deps = [
+        "@macro_server//:deluxe",
+        "@macro_server//:prettyplease",
+        "@macro_server//:proc-macro2",
+        "@macro_server//:quote",
+        "@macro_server//:server_fn_macro",
+        "@macro_server//:syn",
+    ],
     rule = "proc_macro",
 )

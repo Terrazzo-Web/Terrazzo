@@ -35,6 +35,7 @@ def rust_rules(
         package_name = None,
         deps = [],
         deps_proc_macro = [],
+        use_cargo_deps = True,
         deps_dev = [],
         deps_dev_proc_macro = [],
         data = [],
@@ -52,6 +53,7 @@ def rust_rules(
       package_name: Name of the Rust package in the crate universe
       deps: Additional dependencies
       deps_proc_macro: Additional macro dependencies
+      use_cargo_deps: Whether to include auto-generated crate-universe deps
       deps_dev: Additional dependencies for tests
       deps_dev_proc_macro: Additional macro dependencies for tests
       data: Data deps
@@ -73,6 +75,7 @@ def rust_rules(
         package_name,
         deps,
         deps_proc_macro,
+        use_cargo_deps,
         deps_dev,
         deps_dev_proc_macro,
         data,
@@ -90,6 +93,7 @@ def _rust_rules_impl(
         package_name = "!!",
         deps = "!!",
         deps_proc_macro = "!!",
+        use_cargo_deps = "!!",
         deps_dev = "!!",
         deps_dev_proc_macro = "!!",
         data = "!!",
@@ -191,11 +195,13 @@ def _rust_rules_impl(
     else:
         fail("Unknown rust target rule: " + rule)
 
+    package_deps = all_crate_deps(package_name = package_name, normal = True) if use_cargo_deps else []
+
     rule(
         name = name,
         srcs = [":" + mirror + "-rs"],
         lint_config = ":" + name + "-lints",
-        deps = deps + all_crate_deps(package_name = package_name, normal = True),
+        deps = deps + package_deps,
         proc_macro_deps = deps_proc_macro + all_crate_deps(
             package_name = package_name,
             proc_macro = True,

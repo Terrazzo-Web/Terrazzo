@@ -18,6 +18,7 @@ macro_client.annotation(
         "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
+# TODO: use crates.from_cargo
 macro_client.spec(
     package = "deluxe",
     repositories = ["macro_client"],

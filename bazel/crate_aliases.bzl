@@ -37,14 +37,14 @@ def cfg_alias(name, actual, tags = None, **kwargs):
             name = "opt_server",
             values = {"compilation_mode": "opt"},
         )
-    if "fastbuild_backend" not in native.existing_rules():
+    if "fastbuild_server" not in native.existing_rules():
         native.config_setting(
-            name = "fastbuild_backend",
+            name = "fastbuild_server",
             values = {"compilation_mode": "fastbuild"},
         )
-    if "dbg_backend" not in native.existing_rules():
+    if "dbg_server" not in native.existing_rules():
         native.config_setting(
-            name = "dbg_backend",
+            name = "dbg_server",
             values = {"compilation_mode": "dbg"},
         )
     if "opt_client" not in native.existing_rules():
@@ -59,7 +59,7 @@ def cfg_alias(name, actual, tags = None, **kwargs):
         selects.config_setting_group(
             name = "fastbuild_client",
             match_all = [
-                ":fastbuild_backend",
+                ":fastbuild_server",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
             ],
         )
@@ -67,7 +67,7 @@ def cfg_alias(name, actual, tags = None, **kwargs):
         selects.config_setting_group(
             name = "dbg_client",
             match_all = [
-                ":dbg_backend",
+                ":dbg_server",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
             ],
         )

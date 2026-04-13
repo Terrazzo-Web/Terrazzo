@@ -40,7 +40,7 @@ rust_rules_matrix(
             "generate_tests": False,
             "rule": "shared_library",
             "target_compatible_with": ["@platforms//cpu:wasm32"],
-            "crate_name": "terrazzo_terminal_debug",
+            "crate_name": "terrazzo_terminal",
         },
     },
     deps = [

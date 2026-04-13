@@ -30,7 +30,7 @@ trap cleanup EXIT
 "${SERVER_BIN}" --port 0 --set_current_endpoint "${SERVER_ENDPOINT_FILE}" > "${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
-for _ in $(seq 1 60); do
+for _ in $(seq 1 5); do
   if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
     SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
     SERVER_URL="http://${SERVER_ENDPOINT}"

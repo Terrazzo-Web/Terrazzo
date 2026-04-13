@@ -230,11 +230,10 @@ impl Server {
             tokio::spawn(async move {
                 autoclone!(set_current_endpoint);
                 if let Some(local_addr) = handle.listening().await {
-                    std::fs::write(
-                        set_current_endpoint,
-                        format!("{}:{}", local_addr.ip(), local_addr.port()),
-                    )
-                    .expect("write endpoint to file");
+                    let current_endpoint = format!("{}:{}", local_addr.ip(), local_addr.port());
+                    info!("Reporting current endpoint as: {current_endpoint}");
+                    std::fs::write(set_current_endpoint, current_endpoint)
+                        .expect("write endpoint to file");
                 }
             });
         }

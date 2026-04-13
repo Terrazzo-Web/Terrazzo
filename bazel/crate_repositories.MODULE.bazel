@@ -3,6 +3,12 @@ crates.render_config(
     default_alias_rule_bzl = "//bazel:crate_aliases.bzl",
     default_alias_rule_name = "cfg_alias",
 )
+crates.spec(
+    features = ["browser"],
+    package = "server_fn",
+    repositories = ["crates"],
+    version = "=0.8.3",
+)
 crates.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",

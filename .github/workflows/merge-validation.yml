@@ -32,7 +32,6 @@ jobs:
         run: ./demo/scripts/integration-test.sh target/release/demo-server
 
       - name: Commit generated changes
-        
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Cargo-generated updates"

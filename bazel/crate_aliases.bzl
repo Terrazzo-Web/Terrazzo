@@ -11,7 +11,7 @@ def _mapped_label(actual, source_prefix, target_prefix):
 def cfg_alias(name, actual, tags = None, **kwargs):
     """Creates an alias that switches crate_universe repos by mode and platform.
 
-    Backend targets use `@crates_client__` or `@crates_opt_client__`.
+    Backend targets use `@crates_server__` or `@crates_opt_server__`.
     `wasm32-unknown-unknown` targets use `@crates_client__` or
     `@crates_opt_client__`. Labels outside `@crates__` pass through unchanged.
 
@@ -32,9 +32,9 @@ def cfg_alias(name, actual, tags = None, **kwargs):
         )
         return
 
-    if "opt_backend" not in native.existing_rules():
+    if "opt_server" not in native.existing_rules():
         native.config_setting(
-            name = "opt_backend",
+            name = "opt_server",
             values = {"compilation_mode": "opt"},
         )
     if "fastbuild_backend" not in native.existing_rules():
@@ -47,25 +47,25 @@ def cfg_alias(name, actual, tags = None, **kwargs):
             name = "dbg_backend",
             values = {"compilation_mode": "dbg"},
         )
-    if "opt_frontend" not in native.existing_rules():
+    if "opt_client" not in native.existing_rules():
         selects.config_setting_group(
-            name = "opt_frontend",
+            name = "opt_client",
             match_all = [
-                ":opt_backend",
+                ":opt_server",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
             ],
         )
-    if "fastbuild_frontend" not in native.existing_rules():
+    if "fastbuild_client" not in native.existing_rules():
         selects.config_setting_group(
-            name = "fastbuild_frontend",
+            name = "fastbuild_client",
             match_all = [
                 ":fastbuild_backend",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
             ],
         )
-    if "dbg_frontend" not in native.existing_rules():
+    if "dbg_client" not in native.existing_rules():
         selects.config_setting_group(
-            name = "dbg_frontend",
+            name = "dbg_client",
             match_all = [
                 ":dbg_backend",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
@@ -74,11 +74,11 @@ def cfg_alias(name, actual, tags = None, **kwargs):
     native.alias(
         name = name,
         actual = select({
-            ":opt_frontend": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
-            ":fastbuild_frontend": _mapped_label(actual, source_prefix, "@crates_client__"),
-            ":dbg_frontend": _mapped_label(actual, source_prefix, "@crates_client__"),
-            ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_client__"),
+            ":opt_client": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
+            ":fastbuild_client": _mapped_label(actual, source_prefix, "@crates_client__"),
+            ":dbg_client": _mapped_label(actual, source_prefix, "@crates_client__"),
+            ":opt_server": _mapped_label(actual, source_prefix, "@crates_opt_server__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server__"),
         }),
         tags = tags,
         **kwargs

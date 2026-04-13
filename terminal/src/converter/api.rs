@@ -7,7 +7,8 @@ use terrazzo::server;
 
 use crate::api::client_address::ClientAddress;
 
-#[server(protocol = Http<Json, Json>)]
+#[cfg_attr(not(debug_assertions), server(protocol = Http<Json, Json>))]
+#[cfg_attr(debug_assertions, server(protocol = Http<Json, Json>, endpoint = "get_conversions_for_tests"))]
 pub async fn get_conversions(
     remote: Option<ClientAddress>,
     input: Arc<str>,

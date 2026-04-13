@@ -11,31 +11,12 @@ crates.from_cargo(
 use_repo(crates, "crates")
 
 crates_dbg = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_dbg.annotation(
-    crate = "server_fn",
-    override_target_lib = "@crates_plain_server_fn//:server_fn",
-    repositories = ["crates_plain"],
-)
 crates_dbg.from_cargo(
     name = "crates_plain",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo(crates_dbg, "crates_plain")
-
-crates_dbg_server_fn = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_dbg_server_fn.spec(
-    package = "server_fn",
-    version = "=0.8.3",
-    features = [
-        "axum",
-        "browser",
-    ],
-)
-crates_dbg_server_fn.from_specs(
-    name = "crates_plain_server_fn",
-)
-use_repo(crates_dbg_server_fn, "crates_plain_server_fn")
 
 crates_opt = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_opt.annotation(

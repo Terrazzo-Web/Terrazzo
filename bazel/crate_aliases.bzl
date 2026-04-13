@@ -24,25 +24,18 @@ def cfg_alias(name, actual, tags = None, **kwargs):
             name = "opt_backend",
             values = {"compilation_mode": "opt"},
         )
-    if "plain_frontend" not in native.existing_rules():
-        native.config_setting(
-            name = "plain_frontend",
-            constraint_values = ["@rules_rust//rust/platform:wasm32-unknown-unknown"],
-        )
-    if "opt_frontend" not in native.existing_rules():
-        native.config_setting(
-            name = "opt_frontend",
-            values = {"compilation_mode": "opt"},
-            constraint_values = ["@rules_rust//rust/platform:wasm32-unknown-unknown"],
-        )
     source_prefix = "@crates__"
     native.alias(
         name = name,
         actual = select({
-            ":opt_frontend": _mapped_label(actual, source_prefix, "@crates_opt_frontend__"),
-            ":plain_frontend": _mapped_label(actual, source_prefix, "@crates_plain_frontend__"),
-            ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_backend__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain_backend__"),
+            "@rules_rust//rust/platform:wasm32-unknown-unknown": select({
+                ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_frontend__"),
+                "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain_frontend__"),
+            }),
+            "//conditions:default": select({
+                ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_backend__"),
+                "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain_backend__"),
+            }),
         }),
         tags = tags,
         **kwargs

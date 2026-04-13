@@ -88,7 +88,6 @@ rust_rules_matrix(
         "server",
         "converter-server",
         "converter",
-        "remotes-ui",
     ],
     crate_name = "terrazzo_terminal",
     overrides = {

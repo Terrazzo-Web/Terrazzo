@@ -2,7 +2,6 @@
     all(feature = "client", not(feature = "diagnostics")),
     allow(unused, clippy::unnecessary_lazy_evaluations, clippy::single_match)
 )]
-#![allow(unused)] // TODO we need to remove the need to tolerate unused
 
 mod api;
 mod assets;

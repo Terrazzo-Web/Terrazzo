@@ -17,14 +17,21 @@ crates.from_cargo(
 use_repo(crates, "crates")
 
 crates_plain_backend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_plain_backend.spec(
-    features = [
+crates_plain_backend.annotation(
+    crate = "server_fn",
+    crate_features = [
         "axum",
         "browser",
     ],
-    package = "server_fn",
     repositories = ["crates_plain_backend"],
-    version = "=0.8.3",
+)
+crates_plain_backend.annotation(
+    crate = "server_fn_macro",
+    crate_features = [
+        "axum",
+        "ssr",
+    ],
+    repositories = ["crates_plain_backend"],
 )
 crates_plain_backend.from_cargo(
     name = "crates_plain_backend",
@@ -34,11 +41,12 @@ crates_plain_backend.from_cargo(
 use_repo(crates_plain_backend, "crates_plain_backend")
 
 crates_plain_frontend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_plain_frontend.spec(
-    features = ["browser"],
-    package = "server_fn",
+crates_plain_frontend.annotation(
+    crate = "server_fn",
+    crate_features = [
+        "browser",
+    ],
     repositories = ["crates_plain_frontend"],
-    version = "=0.8.3",
 )
 crates_plain_frontend.from_cargo(
     name = "crates_plain_frontend",
@@ -48,14 +56,21 @@ crates_plain_frontend.from_cargo(
 use_repo(crates_plain_frontend, "crates_plain_frontend")
 
 crates_opt_backend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_opt_backend.spec(
-    features = [
+crates_opt_backend.annotation(
+    crate = "server_fn",
+    crate_features = [
         "axum",
         "browser",
     ],
-    package = "server_fn",
     repositories = ["crates_opt_backend"],
-    version = "=0.8.3",
+)
+crates_opt_backend.annotation(
+    crate = "server_fn_macro",
+    crate_features = [
+        "axum",
+        "ssr",
+    ],
+    repositories = ["crates_opt_backend"],
 )
 crates_opt_backend.annotation(
     crate = "tracing",
@@ -73,11 +88,12 @@ crates_opt_backend.from_cargo(
 use_repo(crates_opt_backend, "crates_opt_backend")
 
 crates_opt_frontend = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_opt_frontend.spec(
-    features = ["browser"],
-    package = "server_fn",
+crates_opt_frontend.annotation(
+    crate = "server_fn",
+    crate_features = [
+        "browser",
+    ],
     repositories = ["crates_opt_frontend"],
-    version = "=0.8.3",
 )
 crates_opt_frontend.annotation(
     crate = "tracing",

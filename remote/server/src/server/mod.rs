@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use autoclone::autoclone;
 use axum_server::Handle;
 use axum_server::accept::DefaultAcceptor;
 use axum_server::tls_rustls::RustlsAcceptor;
@@ -74,6 +75,7 @@ pub struct Server {
     connections: Arc<Connections>,
     issuer_config: Arc<DynamicConfig<Result<Arc<IssuerConfig>, Arc<dyn IsGlobalError>>, RO>>,
     app_config: Box<dyn AppConfig>,
+    set_current_endpoint: Option<String>,
 }
 
 impl Server {
@@ -141,6 +143,7 @@ impl Server {
                     .map_err(|x| x.clone() as Arc<dyn IsGlobalError>)
             }),
             app_config: Box::new(config.app_config()),
+            set_current_endpoint: config.set_current_endpoint(),
         });
 
         let (host, port) = (config.host(), config.port());
@@ -193,6 +196,7 @@ impl Server {
         Ok((server, handle, server_crash_rx))
     }
 
+    #[autoclone]
     async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {
         let app = self.make_app();
 
@@ -215,11 +219,26 @@ impl Server {
         let shutdown = self.shutdown.clone();
         tokio::spawn(
             async move {
+                autoclone!(handle);
                 let () = shutdown.await;
                 handle.shutdown();
             }
             .in_current_span(),
         );
+
+        if let Some(set_current_endpoint) = &self.set_current_endpoint {
+            tokio::spawn(async move {
+                autoclone!(set_current_endpoint);
+                if let Some(local_addr) = handle.listening().await
+                    && local_addr.is_ipv4()
+                {
+                    let current_endpoint = format!("{}:{}", local_addr.ip(), local_addr.port());
+                    info!("Reporting current endpoint as: {current_endpoint}");
+                    std::fs::write(set_current_endpoint, current_endpoint)
+                        .expect("write endpoint to file");
+                }
+            });
+        }
 
         info!("Serving...");
         let () = axum_server

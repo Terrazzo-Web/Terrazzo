@@ -188,6 +188,7 @@ impl TabDescriptor for Conversion {
     fn item(&self, _state: &Self::State) -> impl Into<XNode> {
         let content = &self.content;
         pre(
+            class = "converter-output",
             "{content}",
             contenteditable = "true",
             keydown = |ev: KeyboardEvent| {

@@ -13,8 +13,10 @@ NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
 
-SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
-SERVER_PORT_FILE="${SERVER_PORT_FILE:-$(mktemp --tmpdir terrazzo-demo-server-port.XXXXXX)}"
+TMPDIR_ROOT="${TMPDIR:-/tmp}"
+TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
+SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
+SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-${TEST_TMPDIR%/}/server-endpoint}"
 SERVER_PID=""
 
 cleanup() {
@@ -22,18 +24,18 @@ cleanup() {
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
-  rm -f "${SERVER_LOG}" "${SERVER_PORT_FILE}"
+  rm -f "${SERVER_LOG}" "${SERVER_ENDPOINT_FILE}"
 }
 
 trap cleanup EXIT
 
-"${SERVER_BIN}" --port 0 --set_current_port "${SERVER_PORT_FILE}" > "${SERVER_LOG}" 2>&1 &
+"${SERVER_BIN}" --port 0 --set_current_endpoint "${SERVER_ENDPOINT_FILE}" > "${SERVER_LOG}" 2>&1 &
 SERVER_PID="$!"
 
-for _ in $(seq 1 60); do
-  if [[ -s "${SERVER_PORT_FILE}" ]]; then
-    SERVER_PORT="$(<"${SERVER_PORT_FILE}")"
-    SERVER_URL="http://127.0.0.1:${SERVER_PORT}"
+for _ in $(seq 1 5); do
+  if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
+    SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
+    SERVER_URL="http://${SERVER_ENDPOINT}"
   else
     SERVER_URL=""
   fi

@@ -84,9 +84,9 @@ mod tests {
                 .iter()
                 .filter(|conversion| conversion.language.name.as_ref() == language)
                 .collect::<Vec<_>>();
-            match matches.as_slice() {
-                &[] => "Not found".to_string(),
-                &[conversion] => conversion.content.clone(),
+            match *matches.as_slice() {
+                [] => "Not found".to_string(),
+                [conversion] => conversion.content.clone(),
                 _ => "Duplicates".to_string(),
             }
         }

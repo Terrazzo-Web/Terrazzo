@@ -19,14 +19,6 @@ crates_plain_backend.annotation(
     ],
     repositories = ["crates_plain_backend"],
 )
-crates_plain_backend.annotation(
-    crate = "server_fn_macro",
-    crate_features = [
-        "axum",
-        "ssr",
-    ],
-    repositories = ["crates_plain_backend"],
-)
 crates_plain_backend.from_cargo(
     name = "crates_plain_backend",
     cargo_lockfile = "//bazel:Cargo.backend.lock",
@@ -55,14 +47,6 @@ crates_opt_backend.annotation(
     crate_features = [
         "axum",
         "browser",
-    ],
-    repositories = ["crates_opt_backend"],
-)
-crates_opt_backend.annotation(
-    crate = "server_fn_macro",
-    crate_features = [
-        "axum",
-        "ssr",
     ],
     repositories = ["crates_opt_backend"],
 )

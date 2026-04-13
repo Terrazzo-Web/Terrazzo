@@ -45,7 +45,6 @@ rust_rules_matrix(
     deps = [
         "//utils/nameth/nameth",
         "@crates//:serde_json",
-        "@crates//:server_fn",
         "@crates//:stylance",
         "@crates//:thiserror",
         "@crates//:wasm-bindgen",

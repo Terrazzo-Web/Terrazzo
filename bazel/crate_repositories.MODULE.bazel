@@ -11,16 +11,39 @@ crates.from_cargo(
 use_repo(crates, "crates")
 
 macro_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-macro_client.spec(package = "deluxe", version = "=0.5.0", repositories = ["macro_client"])
-macro_client.spec(package = "prettyplease", version = "=0.2.37", repositories = ["macro_client"])
-macro_client.spec(package = "proc-macro2", version = "=1.0.106", repositories = ["macro_client"])
-macro_client.spec(package = "quote", version = "=1.0.45", repositories = ["macro_client"])
-macro_client.spec(package = "server_fn_macro", version = "=0.8.10", repositories = ["macro_client"])
 macro_client.spec(
-    package = "syn",
-    version = "=2.0.117",
-    features = ["full", "visit-mut"],
+    package = "deluxe",
     repositories = ["macro_client"],
+    version = "=0.5.0",
+)
+macro_client.spec(
+    package = "prettyplease",
+    repositories = ["macro_client"],
+    version = "=0.2.37",
+)
+macro_client.spec(
+    package = "proc-macro2",
+    repositories = ["macro_client"],
+    version = "=1.0.106",
+)
+macro_client.spec(
+    package = "quote",
+    repositories = ["macro_client"],
+    version = "=1.0.45",
+)
+macro_client.spec(
+    package = "server_fn_macro",
+    repositories = ["macro_client"],
+    version = "=0.8.10",
+)
+macro_client.spec(
+    features = [
+        "full",
+        "visit-mut",
+    ],
+    package = "syn",
+    repositories = ["macro_client"],
+    version = "=2.0.117",
 )
 macro_client.from_specs(
     name = "macro_client",
@@ -28,24 +51,43 @@ macro_client.from_specs(
 use_repo(macro_client, "macro_client")
 
 macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-macro_server.spec(package = "deluxe", version = "=0.5.0", repositories = ["macro_server"])
-macro_server.spec(package = "prettyplease", version = "=0.2.37", repositories = ["macro_server"])
-macro_server.spec(package = "proc-macro2", version = "=1.0.106", repositories = ["macro_server"])
-macro_server.spec(package = "quote", version = "=1.0.45", repositories = ["macro_server"])
 macro_server.spec(
-    package = "server_fn_macro",
-    version = "=0.8.10",
+    package = "deluxe",
+    repositories = ["macro_server"],
+    version = "=0.5.0",
+)
+macro_server.spec(
+    package = "prettyplease",
+    repositories = ["macro_server"],
+    version = "=0.2.37",
+)
+macro_server.spec(
+    package = "proc-macro2",
+    repositories = ["macro_server"],
+    version = "=1.0.106",
+)
+macro_server.spec(
+    package = "quote",
+    repositories = ["macro_server"],
+    version = "=1.0.45",
+)
+macro_server.spec(
     features = [
         "axum",
         "ssr",
     ],
+    package = "server_fn_macro",
     repositories = ["macro_server"],
+    version = "=0.8.10",
 )
 macro_server.spec(
+    features = [
+        "full",
+        "visit-mut",
+    ],
     package = "syn",
-    version = "=2.0.117",
-    features = ["full", "visit-mut"],
     repositories = ["macro_server"],
+    version = "=2.0.117",
 )
 macro_server.from_specs(
     name = "macro_server",
@@ -62,6 +104,7 @@ crates_server.annotation(
         "generic",
         "ssr",
     ],
+    repositories = ["crates_server"],
     deps = [
         "@crates//:axum",
         "@crates//:http-body-util",
@@ -71,7 +114,6 @@ crates_server.annotation(
         "@crates//:tower",
         "@crates//:tower-layer",
     ],
-    repositories = ["crates_server"],
 )
 crates_server.from_cargo(
     name = "crates_server",
@@ -105,6 +147,7 @@ crates_opt_server.annotation(
         "generic",
         "ssr",
     ],
+    repositories = ["crates_opt_server"],
     deps = [
         "@crates//:axum",
         "@crates//:http-body-util",
@@ -114,7 +157,6 @@ crates_opt_server.annotation(
         "@crates//:tower",
         "@crates//:tower-layer",
     ],
-    repositories = ["crates_opt_server"],
 )
 crates_opt_server.annotation(
     crate = "tracing",

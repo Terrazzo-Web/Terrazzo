@@ -10,29 +10,66 @@ crates.from_cargo(
 )
 use_repo(crates, "crates")
 
-crates_dbg = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_dbg.from_cargo(
-    name = "crates_plain",
+crates_dual = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_dual.spec(
+    features = [
+        "axum",
+        "browser",
+    ],
+    package = "server_fn",
+    repositories = [
+        "crates_plain_backend",
+        "crates_opt_backend",
+    ],
+    version = "=0.8.3",
+)
+crates_dual.spec(
+    features = ["browser"],
+    package = "server_fn",
+    repositories = [
+        "crates_plain_frontend",
+        "crates_opt_frontend",
+    ],
+    version = "=0.8.3",
+)
+crates_dual.from_cargo(
+    name = "crates_plain_backend",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_dbg, "crates_plain")
-
-crates_opt = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-crates_opt.annotation(
+crates_dual.from_cargo(
+    name = "crates_plain_frontend",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+crates_dual.annotation(
     crate = "tracing",
     crate_features = [
         "max_level_info",
         "release_max_level_info",
     ],
-    repositories = ["crates_opt"],
+    repositories = [
+        "crates_opt_backend",
+        "crates_opt_frontend",
+    ],
 )
-crates_opt.from_cargo(
-    name = "crates_opt",
+crates_dual.from_cargo(
+    name = "crates_opt_backend",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crates_opt, "crates_opt")
+crates_dual.from_cargo(
+    name = "crates_opt_frontend",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(
+    crates_dual,
+    "crates_opt_backend",
+    "crates_opt_frontend",
+    "crates_plain_backend",
+    "crates_plain_frontend",
+)
 
 bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 bindeps.spec(

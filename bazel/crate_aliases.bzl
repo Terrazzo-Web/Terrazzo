@@ -7,11 +7,11 @@ def _mapped_label(actual, source_prefix, target_prefix):
     return target_prefix + actual[len(source_prefix):]
 
 def cfg_alias(name, actual, tags = None, **kwargs):
-    """Creates an alias that switches crate_universe repos by compilation mode.
+    """Creates an alias that switches crate_universe repos by mode and platform.
 
-    In `opt` mode, labels under `@crates__` are remapped to `@crates_opt__`.
-    In all other modes, they are remapped to `@crates_plain__`. Labels outside
-    that prefix are passed through unchanged.
+    Backend targets use `@crates_plain_backend__` or `@crates_opt_backend__`.
+    `wasm32-unknown-unknown` targets use `@crates_plain_frontend__` or
+    `@crates_opt_frontend__`. Labels outside `@crates__` pass through unchanged.
 
     Args:
         name: The alias target name to define in the current package.
@@ -19,17 +19,30 @@ def cfg_alias(name, actual, tags = None, **kwargs):
         tags: Optional tags to attach to the generated alias target.
         **kwargs: Additional arguments forwarded to `native.alias`.
     """
-    if "compilation_mode_opt" not in native.existing_rules():
+    if "opt_backend" not in native.existing_rules():
         native.config_setting(
-            name = "compilation_mode_opt",
+            name = "opt_backend",
             values = {"compilation_mode": "opt"},
+        )
+    if "plain_frontend" not in native.existing_rules():
+        native.config_setting(
+            name = "plain_frontend",
+            constraint_values = ["@rules_rust//rust/platform:wasm32-unknown-unknown"],
+        )
+    if "opt_frontend" not in native.existing_rules():
+        native.config_setting(
+            name = "opt_frontend",
+            values = {"compilation_mode": "opt"},
+            constraint_values = ["@rules_rust//rust/platform:wasm32-unknown-unknown"],
         )
     source_prefix = "@crates__"
     native.alias(
         name = name,
         actual = select({
-            ":compilation_mode_opt": _mapped_label(actual, source_prefix, "@crates_opt__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain__"),
+            ":opt_frontend": _mapped_label(actual, source_prefix, "@crates_opt_frontend__"),
+            ":plain_frontend": _mapped_label(actual, source_prefix, "@crates_plain_frontend__"),
+            ":opt_backend": _mapped_label(actual, source_prefix, "@crates_opt_backend__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_plain_backend__"),
         }),
         tags = tags,
         **kwargs

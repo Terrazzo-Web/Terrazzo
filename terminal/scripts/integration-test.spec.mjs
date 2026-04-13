@@ -10,6 +10,22 @@ async function expectStaticAssetLoads(request, path, contentTypePattern) {
   expect(response.headers()['content-type']).toMatch(contentTypePattern);
 }
 
+async function fetchServerFnFromPage(page, path, payload) {
+  return page.evaluate(async ({ path, payload }) => {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'same-origin',
+    });
+    return {
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      body: await response.text(),
+    };
+  }, { path, payload });
+}
+
 test.describe('Converter', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(5 * SECOND);
@@ -19,5 +35,17 @@ test.describe('Converter', () => {
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
+  });
+
+  test('reports the current response for /api/fn/get2462584562250403446', async ({ page }) => {
+    const response = await fetchServerFnFromPage(
+      page,
+      '/api/fn/get2462584562250403446',
+      { remote: null },
+    );
+    expect(response.status).toBe(400);
+    expect(response.body).toContain(
+      'Could not find a server function at the route /api/fn/get2462584562250403446.',
+    );
   });
 });

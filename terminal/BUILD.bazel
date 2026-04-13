@@ -101,7 +101,7 @@ rust_rules_matrix(
         "server-lib-debug": {
             "assets": [{
                 "targets": [":client-debug"],
-                "prefix": "assets/wasm",
+                "prefix": "target/assets/wasm",
             }],
             "deps": ["//framework/terrazzo:server-debug"],
         },

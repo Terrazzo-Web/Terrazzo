@@ -26,23 +26,23 @@ terrazzo = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tower-http = { workspace = true, optional = true, features = [
-    "fs",
-    "sensitive-headers",
-    "trace",
+  "fs",
+  "sensitive-headers",
+  "trace",
 ] }
 tracing = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = [
-    "env-filter",
+  "env-filter",
 ] }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = [
-    "Headers",
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Window",
+  "Headers",
+  "Request",
+  "RequestInit",
+  "RequestMode",
+  "Response",
+  "Window",
 ] }
 
 [build-dependencies]
@@ -52,35 +52,35 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-    "dep:nameth",
-    "dep:scopeguard",
-    "dep:serde_json",
-    "dep:stylance",
-    "dep:thiserror",
-    "dep:wasm-bindgen-futures",
-    "dep:wasm-bindgen",
-    "dep:web-sys",
-    "web-sys/HtmlSelectElement",
-    "terrazzo/client",
+  "dep:nameth",
+  "dep:scopeguard",
+  "dep:serde_json",
+  "dep:stylance",
+  "dep:thiserror",
+  "dep:wasm-bindgen-futures",
+  "dep:wasm-bindgen",
+  "dep:web-sys",
+  "web-sys/HtmlSelectElement",
+  "terrazzo/client",
 ]
 server = [
-    "dep:clap",
-    "dep:tokio",
-    "dep:tower-http",
-    "dep:tracing-subscriber",
-    "dep:tracing",
-    "terrazzo/server",
+  "dep:clap",
+  "dep:tokio",
+  "dep:tower-http",
+  "dep:tracing-subscriber",
+  "dep:tracing",
+  "terrazzo/server",
 ]
 max_level_debug = [
-    "terrazzo?/max_client_level_debug",
-    "tracing?/max_level_debug",
-    "tracing?/release_max_level_debug",
+  "terrazzo?/max_client_level_debug",
+  "tracing?/max_level_debug",
+  "tracing?/release_max_level_debug",
 ]
 max_level_info = [
-    "terrazzo?/max_client_level_info",
-    "tracing?/max_level_info",
-    "tracing?/release_max_level_info",
-    "concise-traces",
+  "terrazzo?/max_client_level_info",
+  "tracing?/max_level_info",
+  "tracing?/release_max_level_info",
+  "concise-traces",
 ]
 concise-traces = ["terrazzo?/concise-traces"]
 debug = ["terrazzo/debug", "terrazzo?/diagnostics"]

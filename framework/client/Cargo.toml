@@ -22,16 +22,16 @@ tracing-subscriber = { workspace = true, optional = true }
 tracing-subscriber-wasm = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true, features = [
-    "Attr",
-    "CssStyleDeclaration",
-    "Document",
-    "Element",
-    "EventTarget",
-    "HtmlElement",
-    "HtmlInputElement",
-    "NodeList",
-    "Text",
-    "Window",
+  "Attr",
+  "CssStyleDeclaration",
+  "Document",
+  "Element",
+  "EventTarget",
+  "HtmlElement",
+  "HtmlInputElement",
+  "NodeList",
+  "Text",
+  "Window",
 ] }
 
 [dev-dependencies]
@@ -43,18 +43,15 @@ web-sys = { workspace = true, features = ["MouseEvent"] }
 [features]
 concise-traces = []
 diagnostics = [
-    "dep:tracing",
-    "dep:tracing-subscriber",
-    "dep:tracing-subscriber-wasm",
+  "dep:tracing",
+  "dep:tracing-subscriber",
+  "dep:tracing-subscriber-wasm",
 ]
 max_level_debug = [
-    "tracing?/max_level_debug",
-    "tracing?/release_max_level_debug",
+  "tracing?/max_level_debug",
+  "tracing?/release_max_level_debug",
 ]
-max_level_info = [
-    "tracing?/max_level_info",
-    "tracing?/release_max_level_info",
-]
+max_level_info = ["tracing?/max_level_info", "tracing?/release_max_level_info"]
 
 [lints]
 workspace = true

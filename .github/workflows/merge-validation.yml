@@ -32,7 +32,7 @@ jobs:
         run: ./demo/scripts/integration-test.sh target/release/demo-server
 
       - name: Commit generated changes
-        if: ${{ always() }}
+        
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Cargo-generated updates"
@@ -63,7 +63,6 @@ jobs:
         run: bazel run //bazel:buildifier
 
       - name: Commit generated changes
-        if: ${{ always() }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"

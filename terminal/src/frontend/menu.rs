@@ -33,6 +33,7 @@ pub fn menu() -> XElement {
         class = style::menu,
         div(
             class = style::menu_inner,
+            class = "app-menu-trigger",
             img(class = style::menu_icon, src = icons::menu()),
             mouseover = move |_: MouseEvent| {
                 autoclone!(hide_menu);

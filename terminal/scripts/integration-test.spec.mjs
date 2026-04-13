@@ -48,4 +48,22 @@ test.describe('Converter', () => {
       'Could not find a server function at the route /api/fn/get2462584562250403446.',
     );
   });
+
+  test('typing 123 shows 123 in the selected conversion panel', async ({ page }) => {
+    await page.locator('.app-menu-trigger').hover();
+    await page.getByText('Converter', { exact: true }).click();
+
+    const input = page.locator('textarea.converter-input');
+    await expect(input).toBeVisible();
+    await page.waitForTimeout(500);
+    const conversionsResponse = page.waitForResponse((response) =>
+      response.request().method() === 'POST' &&
+      response.url().includes('/api/fn/get_conversions'),
+    );
+    await input.click();
+    await input.pressSequentially('123');
+    expect((await conversionsResponse).ok()).toBeTruthy();
+
+    await expect(page.locator('pre.converter-output').first()).toHaveText('123');
+  });
 });

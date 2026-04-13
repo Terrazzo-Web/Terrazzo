@@ -1,3 +1,5 @@
+load("@crates//:defs.bzl", "all_crate_deps")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
@@ -65,11 +67,6 @@ rust_wasm_bindgen(
     wasm_file = ":client-shared-lib-debug",
 )
 
-stylance_rule(
-    name = "terminal_scss",
-    output = "target/css/terminal.scss",
-)
-
 rust_rules_matrix(
     package_name = "terminal",
     assets = [
@@ -77,6 +74,8 @@ rust_rules_matrix(
             "assets/index.html",
             "assets/bootstrap.js",
             "assets/images/favicon.ico",
+            "assets/jsdeps/dist/jsdeps.js",
+            "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
         ] + glob(["assets/icons/*.svg"]),
         {
             "targets": [":terminal_scss"],
@@ -84,13 +83,18 @@ rust_rules_matrix(
             "copy": True,
         },
     ],
-    crate_features = ["converter-server"],
+    crate_features = [
+        "server",
+        "converter-server",
+        "converter",
+        "remotes-ui",
+    ],
     crate_name = "terrazzo_terminal",
     overrides = {
         "server-lib": {
             "assets": [{
                 "targets": [":client"],
-                "prefix": "assets/wasm",
+                "prefix": "target/assets/wasm",
             }],
             "deps": ["//framework/terrazzo:server"],
         },
@@ -103,12 +107,64 @@ rust_rules_matrix(
         },
     },
     deps = [
+        ":protos",
+        "//remote/client",
+        "//remote/common",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+        "@crates//:axum-extra",
+        "@crates//:base64",
         "@crates//:clap",
+        "@crates//:cms",
+        "@crates//:const_format",
+        "@crates//:futures",
+        "@crates//:hickory-client",
+        "@crates//:humantime",
+        "@crates//:inventory",
+        "@crates//:jsonwebtoken",
+        "@crates//:nix",
+        "@crates//:oid-registry",
+        "@crates//:openssl",
+        "@crates//:pbkdf2",
+        "@crates//:pin-project",
+        "@crates//:prost",
+        "@crates//:prost-types",
+        "@crates//:regex",
+        "@crates//:rpassword",
+        "@crates//:rustls-native-certs",
+        "@crates//:scopeguard",
+        "@crates//:serde_yaml_ng",
+        "@crates//:sha2",
+        "@crates//:simple_asn1",
+        "@crates//:tls-parser",
         "@crates//:tokio",
+        "@crates//:tokio-rustls",
+        "@crates//:toml",
+        "@crates//:tonic",
+        "@crates//:tonic-prost",
+        "@crates//:tower",
         "@crates//:tower-http",
         "@crates//:tracing",
-        "@crates//:tracing-subscriber",
+        "@crates//:unescaper",
+        "@crates//:url",
+        "@crates//:uuid",
+        "@crates//:x509-parser",
     ],
+)
+
+cargo_build_script(
+    name = "protos",
+    srcs = ["build.rs"],
+    data = glob(["src/**/*.proto"]),
+    deps = all_crate_deps(
+        package_name = "terminal",
+        build = True,
+    ),
+)
+
+stylance_rule(
+    name = "terminal_scss",
+    output = "target/css/terrazzo-terminal.scss",
 )
 
 rust_rules_matrix(

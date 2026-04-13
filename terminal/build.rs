@@ -76,6 +76,7 @@ fn main() {
     build_protos();
 }
 
+// TODO: move to a child module "client"
 fn build_client() {
     if Feature::NoWasmBuild.is_set() {
         return;
@@ -144,6 +145,7 @@ fn build_client() {
     drop(disable_server_features);
 }
 
+// TODO: move to a child module "protos"
 fn build_protos() {
     if !Feature::Server.is_set() {
         return;

@@ -101,6 +101,7 @@ tonic-prost-build = { workspace = true }
 fluent-asserter = { workspace = true }
 
 [features]
+# TODO: can't be default othwewise all server deps are included in client build
 # default = ["prod"]
 rustdoc = []
 

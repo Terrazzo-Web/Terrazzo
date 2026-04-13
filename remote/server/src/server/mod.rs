@@ -229,13 +229,13 @@ impl Server {
         if let Some(set_current_endpoint) = &self.set_current_endpoint {
             tokio::spawn(async move {
                 autoclone!(set_current_endpoint);
-                if let Some(local_addr) = handle.listening().await {
-                    if local_addr.is_ipv4() {
-                        let current_endpoint = format!("{}:{}", local_addr.ip(), local_addr.port());
-                        info!("Reporting current endpoint as: {current_endpoint}");
-                        std::fs::write(set_current_endpoint, current_endpoint)
-                            .expect("write endpoint to file");
-                    }
+                if let Some(local_addr) = handle.listening().await
+                    && local_addr.is_ipv4()
+                {
+                    let current_endpoint = format!("{}:{}", local_addr.ip(), local_addr.port());
+                    info!("Reporting current endpoint as: {current_endpoint}");
+                    std::fs::write(set_current_endpoint, current_endpoint)
+                        .expect("write endpoint to file");
                 }
             });
         }

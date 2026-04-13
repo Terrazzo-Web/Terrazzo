@@ -16,7 +16,9 @@ const_format = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hickory-client = { workspace = true }
+http-body-util = { workspace = true }
 humantime = { workspace = true }
+hyper = { workspace = true }
 include_directory = { workspace = true }
 instant-acme = { workspace = true }
 inventory = { workspace = true }
@@ -55,6 +57,7 @@ tonic = { workspace = true }
 tonic-prost = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["fs", "sensitive-headers", "trace"] }
+tower-layer = { workspace = true }
 tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

@@ -13,8 +13,8 @@ NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
 
-SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
-SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-$(mktemp --tmpdir terrazzo-demo-server-endpoint.XXXXXX)}"
+SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir server.XXXXXX.log)}"
+SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-$(mktemp --tmpdir server-endpoint.XXXXXX)}"
 SERVER_PID=""
 
 cleanup() {

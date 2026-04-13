@@ -56,7 +56,11 @@ toml = { workspace = true }
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
 tower = { workspace = true }
-tower-http = { workspace = true, features = ["fs", "sensitive-headers", "trace"] }
+tower-http = { workspace = true, features = [
+  "fs",
+  "sensitive-headers",
+  "trace",
+] }
 tower-layer = { workspace = true }
 tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
@@ -70,24 +74,24 @@ wasm-bindgen-futures = { workspace = true }
 wasm-streams = { workspace = true }
 x509-parser = { workspace = true }
 web-sys = { workspace = true, features = [
-    "Clipboard",
-    "ClipboardEvent",
-    "DataTransfer",
-    "Document",
-    "DragEvent",
-    "Element",
-    "FocusEvent",
-    "Headers",
-    "HtmlSelectElement",
-    "HtmlTextAreaElement",
-    "InputEvent",
-    "KeyboardEvent",
-    "MouseEvent",
-    "Navigator",
-    "Performance",
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Window",
+  "Clipboard",
+  "ClipboardEvent",
+  "DataTransfer",
+  "Document",
+  "DragEvent",
+  "Element",
+  "FocusEvent",
+  "Headers",
+  "HtmlSelectElement",
+  "HtmlTextAreaElement",
+  "InputEvent",
+  "KeyboardEvent",
+  "MouseEvent",
+  "Navigator",
+  "Performance",
+  "Request",
+  "RequestInit",
+  "RequestMode",
+  "Response",
+  "Window",
 ] }

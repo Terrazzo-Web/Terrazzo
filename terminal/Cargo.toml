@@ -101,7 +101,6 @@ tonic-prost-build = { workspace = true }
 fluent-asserter = { workspace = true }
 
 [features]
-default = ["prod"]
 rustdoc = []
 bazel = []
 

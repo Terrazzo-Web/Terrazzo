@@ -13,8 +13,10 @@ NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
 
-SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir server.XXXXXX.log)}"
-SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-$(mktemp --tmpdir server-endpoint.XXXXXX)}"
+TMPDIR_ROOT="${TMPDIR:-/tmp}"
+TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
+SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
+SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-${TEST_TMPDIR%/}/server-endpoint}"
 SERVER_PID=""
 
 cleanup() {

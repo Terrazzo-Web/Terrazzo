@@ -17,6 +17,7 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
 
     /// The TCP port to listen to.
     pub port: T::Port,
+    pub set_current_endpoint: T::MaybeString,
 
     /// The file to store the pid of the daemon while it is running,
     pub pidfile: T::String,

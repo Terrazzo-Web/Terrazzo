@@ -13,6 +13,9 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn port(&self) -> u16 {
         self.as_ref().port()
     }
+    fn set_current_endpoint(&self) -> Option<String> {
+        self.as_ref().set_current_endpoint()
+    }
 
     type RootCaConfig = T::RootCaConfig;
     fn root_ca(&self) -> Self::RootCaConfig {

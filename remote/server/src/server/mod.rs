@@ -143,6 +143,7 @@ impl Server {
                     .map_err(|x| x.clone() as Arc<dyn IsGlobalError>)
             }),
             app_config: Box::new(config.app_config()),
+            set_current_endpoint: config.set_current_endpoint(),
         });
 
         let (host, port) = (config.host(), config.port());

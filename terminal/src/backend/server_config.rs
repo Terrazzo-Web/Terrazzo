@@ -92,6 +92,12 @@ impl GatewayConfig for TerminalBackendServer {
         self.config.server.with(|server| server.port)
     }
 
+    fn set_current_endpoint(&self) -> Option<String> {
+        self.config
+            .server
+            .with(|server| server.set_current_endpoint.to_owned())
+    }
+
     fn app_config(&self) -> impl AppConfig {
         let config = self.config.clone();
         let auth_config = self.auth_config.clone();

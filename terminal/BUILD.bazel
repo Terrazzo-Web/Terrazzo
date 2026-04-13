@@ -154,7 +154,7 @@ rust_rules_matrix(
 
 cargo_build_script(
     name = "protos",
-    srcs = ["build.rs"],
+    srcs = ["build/protos.rs"],
     data = glob(["src/**/*.proto"]),
     deps = all_crate_deps(
         package_name = "terminal",

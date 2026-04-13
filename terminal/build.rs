@@ -1,9 +1,14 @@
 use std::env;
-use std::path::PathBuf;
 
 use heck::ToKebabCase as _;
 use heck::ToShoutySnakeCase as _;
-use terrazzo_build::BuildOptions;
+use terrazzo_build as _;
+use tonic_prost_build as _;
+
+#[path = "build/client.rs"]
+mod client;
+#[path = "build/protos.rs"]
+mod protos;
 
 #[derive(Clone, Copy, Debug)]
 enum Feature {
@@ -72,98 +77,8 @@ impl Feature {
 }
 
 fn main() {
-    build_client();
-    build_protos();
-}
-
-// TODO: move to a child module "client"
-fn build_client() {
-    if Feature::NoWasmBuild.is_set() {
-        return;
-    }
-    if Feature::DocsRs.is_set() {
-        return;
-    }
-
-    let Some(disable_server_feature) = Feature::Server.disable() else {
-        return;
+    client::main();
+    if Feature::Server.is_set() {
+        protos::main();
     };
-    let disable_server_features = (
-        Feature::TerminalServer.disable(),
-        Feature::TextEditorServer.disable(),
-        Feature::ConverterServer.disable(),
-        Feature::PortForwardServer.disable(),
-        Feature::LogsPanelServer.disable(),
-    );
-
-    if Feature::Client.is_set() {
-        println!("cargo::warning=Can't enable both 'client' and 'server' features");
-    }
-
-    let cargo_manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
-    let server_dir = cargo_manifest_dir.join("target");
-    std::fs::create_dir_all(server_dir.join("assets")).expect("server_dir");
-    let client_dir: PathBuf = cargo_manifest_dir.clone();
-
-    let mut wasm_pack_options = vec!["--no-default-features".into()];
-    Feature::MaxLevelDebug.propagate(&mut wasm_pack_options);
-    Feature::MaxLevelInfo.propagate(&mut wasm_pack_options);
-    Feature::Diagnostics.propagate(&mut wasm_pack_options);
-    Feature::Debug.propagate(&mut wasm_pack_options);
-    if Feature::Terminal.is_set() {
-        Feature::TerminalClient.add(&mut wasm_pack_options);
-    }
-    if Feature::TextEditor.is_set() {
-        Feature::TextEditorClient.add(&mut wasm_pack_options);
-    }
-    if Feature::TextEditorSearch.is_set() {
-        Feature::TextEditorSearch.add(&mut wasm_pack_options);
-    }
-    if Feature::Converter.is_set() {
-        Feature::ConverterClient.add(&mut wasm_pack_options);
-    }
-    if Feature::PortForward.is_set() {
-        Feature::PortForwardClient.add(&mut wasm_pack_options);
-    }
-    if Feature::LogsPanel.is_set() {
-        Feature::LogsPanelClient.add(&mut wasm_pack_options);
-    }
-    let wasm_pack_options = wasm_pack_options
-        .iter()
-        .map(|s| s.as_str())
-        .collect::<Vec<_>>();
-    let wasm_pack_options = &wasm_pack_options;
-    terrazzo_build::build(BuildOptions {
-        client_dir,
-        server_dir,
-        wasm_pack_options,
-    })
-    .unwrap();
-    terrazzo_build::build_css();
-
-    drop(disable_server_feature);
-    drop(disable_server_features);
-}
-
-// TODO: move to a child module "protos"
-fn build_protos() {
-    if !Feature::Server.is_set() {
-        return;
-    };
-    tonic_prost_build::configure()
-        .bytes(".terrazzo.terminal.LeaseItem.data")
-        .bytes(".terrazzo.portforward.PortForwardDataRequest.data")
-        .bytes(".terrazzo.portforward.PortForwardDataResponse.data")
-        .compile_protos(
-            &[
-                "src/backend/protos/logs.proto",
-                "src/backend/protos/notify.proto",
-                "src/backend/protos/portforward.proto",
-                "src/backend/protos/remote_fn.proto",
-                "src/backend/protos/shared.proto",
-                "src/backend/protos/terminal.proto",
-            ],
-            &["src/backend/protos/"],
-        )
-        .unwrap();
 }

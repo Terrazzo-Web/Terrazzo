@@ -58,7 +58,8 @@ test.describe('Converter', () => {
     await page.waitForTimeout(500);
     const conversionsResponse = page.waitForResponse((response) =>
       response.request().method() === 'POST' &&
-      response.url().includes('/api/fn/get_conversions'),
+      response.url().includes('/api/fn/get_conversions') &&
+      (response.request().postData() ?? '').includes('abc'),
     );
     await input.click();
     await input.pressSequentially('abc');

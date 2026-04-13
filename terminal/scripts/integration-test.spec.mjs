@@ -49,7 +49,7 @@ test.describe('Converter', () => {
     );
   });
 
-  test('typing 123 shows 123 in the selected conversion panel', async ({ page }) => {
+  test('typing abc shows abc in the selected conversion panel', async ({ page }) => {
     await page.locator('.app-menu-trigger').hover();
     await page.getByText('Converter', { exact: true }).click();
 
@@ -61,9 +61,9 @@ test.describe('Converter', () => {
       response.url().includes('/api/fn/get_conversions'),
     );
     await input.click();
-    await input.pressSequentially('123');
+    await input.pressSequentially('abc');
     expect((await conversionsResponse).ok()).toBeTruthy();
 
-    await expect(page.locator('pre.converter-output').first()).toHaveText('123');
+    await expect(page.locator('pre.converter-output').first()).toHaveText('"abc"');
   });
 });

@@ -104,6 +104,7 @@ fluent-asserter = { workspace = true }
 # TODO: can't be default otherwise all server deps are included in client build
 # default = ["prod"]
 rustdoc = []
+bazel = []
 
 prod = ["max-level-info", "server-all"]
 server-all = [

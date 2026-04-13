@@ -90,9 +90,9 @@ rust_rules_matrix(
         "converter-server",
         "converter",
     ],
-    crate_name = "terrazzo_terminal",
     overrides = {
         "server-lib": {
+            "crate_name": "terrazzo_terminal",
             "assets": [{
                 "targets": [":client"],
                 "prefix": "target/assets/wasm",
@@ -100,6 +100,7 @@ rust_rules_matrix(
             "deps": ["//framework/terrazzo:server"],
         },
         "server-lib-debug": {
+            "crate_name": "terrazzo_terminal_debug",
             "assets": [{
                 "targets": [":client-debug"],
                 "prefix": "target/assets/wasm",
@@ -181,6 +182,7 @@ rust_rules_matrix(
         },
         "server-debug": {
             "deps": [":server-lib-debug"],
+            "crate_features": ["debug"],
         },
     },
     rule = "binary",

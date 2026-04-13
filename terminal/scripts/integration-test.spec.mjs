@@ -3,6 +3,13 @@ import { test, expect } from '@playwright/test';
 const SECOND = 1000;
 const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 
+async function expectStaticAssetLoads(request, path, contentTypePattern) {
+  const response = await request.get(`${BASE_URL}${path}`);
+  const failureDetails = `status=${response.status()} headers=${JSON.stringify(response.headers())}`;
+  expect(response.ok(), `${path} should load successfully (${failureDetails})`).toBeTruthy();
+  expect(response.headers()['content-type']).toMatch(contentTypePattern);
+}
+
 test.describe('Converter', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(5 * SECOND);

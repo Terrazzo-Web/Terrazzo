@@ -33,7 +33,7 @@ rust_rules_matrix(
             "generate_tests": False,
             "rule": "shared_library",
             "target_compatible_with": ["@platforms//cpu:wasm32"],
-            "crate_name": "terrazzo_terminal",
+            "crate_name": "terrazzo_terminal_debug",
         },
         "client-shared-lib-debug": {
             "deps": ["//framework/terrazzo:client-debug"],
@@ -43,6 +43,7 @@ rust_rules_matrix(
             "crate_name": "terrazzo_terminal",
         },
     },
+    rustc_env_files = ["rustc.env"],
     deps = [
         "//utils/nameth/nameth",
         "@crates//:serde_json",
@@ -106,6 +107,7 @@ rust_rules_matrix(
             "deps": ["//framework/terrazzo:server-debug"],
         },
     },
+    rustc_env_files = ["rustc.env"],
     deps = [
         ":protos",
         "//remote/client",

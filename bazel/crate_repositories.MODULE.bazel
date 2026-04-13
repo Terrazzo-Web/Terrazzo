@@ -15,7 +15,7 @@ macro_client.annotation(
     crate = "server_fn_macro",
     repositories = ["macro_client"],
     rustc_env = {
-        "SERVER_FN_OVERRIDE_KEY": "terrazzo",
+        "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
 macro_client.spec(
@@ -62,7 +62,7 @@ macro_server.annotation(
     crate = "server_fn_macro",
     repositories = ["macro_server"],
     rustc_env = {
-        "SERVER_FN_OVERRIDE_KEY": "terrazzo",
+        "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
 macro_server.spec(

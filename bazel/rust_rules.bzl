@@ -343,7 +343,7 @@ def _manifest_dir_env_impl(ctx):
     manifest = ctx.file.manifest
     out = ctx.outputs.out
 
-    command = "printf 'CARGO_MANIFEST_DIR=%s\\nSERVER_FN_OVERRIDE_KEY=terrazzo\\n' \"$(dirname \"$(realpath \"{}\")\")\" > \"{}\"".format(
+    command = "printf 'CARGO_MANIFEST_DIR=%s\\n' \"$(dirname \"$(realpath \"{}\")\")\" > \"{}\"".format(
         manifest.path,
         out.path,
     )

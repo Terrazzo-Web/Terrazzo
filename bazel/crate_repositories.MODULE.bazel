@@ -11,6 +11,13 @@ crates.from_cargo(
 use_repo(crates, "crates")
 
 macro_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+macro_client.annotation(
+    crate = "server_fn_macro",
+    repositories = ["macro_client"],
+    rustc_env = {
+        "SERVER_FN_OVERRIDE_KEY": "terrazzo",
+    },
+)
 macro_client.spec(
     package = "deluxe",
     repositories = ["macro_client"],
@@ -51,6 +58,13 @@ macro_client.from_specs(
 use_repo(macro_client, "macro_client")
 
 macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+macro_server.annotation(
+    crate = "server_fn_macro",
+    repositories = ["macro_server"],
+    rustc_env = {
+        "SERVER_FN_OVERRIDE_KEY": "terrazzo",
+    },
+)
 macro_server.spec(
     package = "deluxe",
     repositories = ["macro_server"],

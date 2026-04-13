@@ -25,6 +25,17 @@ cleanup() {
   rm -f "${SERVER_LOG}" "${SERVER_ENDPOINT_FILE}"
 }
 
+normalize_server_url() {
+  local endpoint="${1}"
+  if [[ "${endpoint}" == \[*\]:* ]]; then
+    printf 'http://%s\n' "${endpoint}"
+  elif [[ "${endpoint}" == *:*:* ]]; then
+    printf 'http://[%s]:%s\n' "${endpoint%:*}" "${endpoint##*:}"
+  else
+    printf 'http://%s\n' "${endpoint}"
+  fi
+}
+
 trap cleanup EXIT
 
 "${SERVER_BIN}" --port 0 --set_current_endpoint "${SERVER_ENDPOINT_FILE}" > "${SERVER_LOG}" 2>&1 &
@@ -33,7 +44,7 @@ SERVER_PID="$!"
 for _ in $(seq 1 5); do
   if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
     SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
-    SERVER_URL="http://${SERVER_ENDPOINT}"
+    SERVER_URL="$(normalize_server_url "${SERVER_ENDPOINT}")"
   else
     SERVER_URL=""
   fi

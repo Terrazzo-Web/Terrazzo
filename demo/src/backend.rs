@@ -26,8 +26,8 @@ struct Args {
     #[arg(short = 'p', long = "port", default_value_t = PORT)]
     port: u16,
 
-    #[arg(long = "set_current_port")]
-    set_current_port: Option<String>,
+    #[arg(long = "set_current_endpoint")]
+    set_current_endpoint: Option<String>,
 }
 
 pub async fn run_server() {
@@ -61,9 +61,12 @@ pub async fn run_server() {
         .unwrap();
     let local_addr = listener.local_addr().unwrap();
     info!("listening on {}", local_addr);
-    if let Some(set_current_port) = &args.set_current_port {
-        std::fs::write(set_current_port, local_addr.port().to_string())
-            .expect("write port to file");
+    if let Some(set_current_endpoint) = &args.set_current_endpoint {
+        std::fs::write(
+            set_current_endpoint,
+            format!("{}:{}", local_addr.ip(), local_addr.port()),
+        )
+        .expect("write endpoint to file");
     }
     axum::serve(listener, router).await.unwrap();
 }

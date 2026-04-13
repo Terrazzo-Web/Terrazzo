@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(long)]
     pub port: Option<u16>,
 
+    /// A temp file to write the port allocated dynamically.
+    #[arg(long = "set_current_endpoint")]
+    pub set_current_endpoint: Option<String>,
+
     /// The file to store the pid of the daemon while it is running.
     #[arg(long)]
     pub pidfile: Option<String>,

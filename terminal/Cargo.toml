@@ -69,15 +69,15 @@ tonic = { workspace = true, optional = true }
 tonic-prost = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true, features = [
-    "sensitive-headers",
-    "trace",
+  "sensitive-headers",
+  "trace",
 ] }
 tracing = { workspace = true, optional = true }
 tracing-futures = { workspace = true, features = [
-    "futures-03",
+  "futures-03",
 ], optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = [
-    "env-filter",
+  "env-filter",
 ] }
 trz-gateway-client = { workspace = true, optional = true }
 trz-gateway-common = { workspace = true, optional = true }
@@ -106,70 +106,70 @@ bazel = []
 
 prod = ["max-level-info", "server-all"]
 server-all = [
-    "converter-server",
-    "logs-panel-server",
-    "port-forward-server",
-    "terminal-server",
-    "text-editor-server",
+  "converter-server",
+  "logs-panel-server",
+  "port-forward-server",
+  "terminal-server",
+  "text-editor-server",
 ]
 client-all = [
-    "converter-client",
-    "logs-panel-client",
-    "port-forward-client",
-    "terminal-client",
-    "text-editor-client",
+  "converter-client",
+  "logs-panel-client",
+  "port-forward-client",
+  "terminal-client",
+  "text-editor-client",
 ]
 
 client = [
-    "dep:stylance",
-    "dep:wasm-bindgen-futures",
-    "dep:wasm-bindgen",
-    "server_fn/browser",
-    "terrazzo/client",
+  "dep:stylance",
+  "dep:wasm-bindgen-futures",
+  "dep:wasm-bindgen",
+  "server_fn/browser",
+  "terrazzo/client",
 ]
 server = [
-    "dep:axum-extra",
-    "dep:base64",
-    "dep:clap",
-    "dep:const_format",
-    "dep:futures",
-    "dep:humantime",
-    "dep:inventory",
-    "dep:jsonwebtoken",
-    "dep:nix",
-    "dep:openssl",
-    "dep:pbkdf2",
-    "dep:pin-project",
-    "dep:prost-types",
-    "dep:prost",
-    "dep:rpassword",
-    "dep:scopeguard",
-    "dep:sha2",
-    "dep:tokio",
-    "dep:toml",
-    "dep:tonic",
-    "dep:tonic-prost",
-    "dep:tower-http",
-    "dep:tower",
-    "dep:tracing",
-    "dep:trz-gateway-client",
-    "dep:trz-gateway-common",
-    "dep:trz-gateway-server",
-    "dep:uuid",
-    "server_fn/axum",
-    "server_fn/browser",
-    "terrazzo/server",
+  "dep:axum-extra",
+  "dep:base64",
+  "dep:clap",
+  "dep:const_format",
+  "dep:futures",
+  "dep:humantime",
+  "dep:inventory",
+  "dep:jsonwebtoken",
+  "dep:nix",
+  "dep:openssl",
+  "dep:pbkdf2",
+  "dep:pin-project",
+  "dep:prost-types",
+  "dep:prost",
+  "dep:rpassword",
+  "dep:scopeguard",
+  "dep:sha2",
+  "dep:tokio",
+  "dep:toml",
+  "dep:tonic",
+  "dep:tonic-prost",
+  "dep:tower-http",
+  "dep:tower",
+  "dep:tracing",
+  "dep:trz-gateway-client",
+  "dep:trz-gateway-common",
+  "dep:trz-gateway-server",
+  "dep:uuid",
+  "server_fn/axum",
+  "server_fn/browser",
+  "terrazzo/server",
 ]
 max-level-debug = [
-    "terrazzo?/max_client_level_debug",
-    "tracing?/max_level_debug",
-    "tracing?/release_max_level_debug",
+  "terrazzo?/max_client_level_debug",
+  "tracing?/max_level_debug",
+  "tracing?/release_max_level_debug",
 ]
 max-level-info = [
-    "terrazzo?/max_client_level_info",
-    "tracing?/max_level_info",
-    "tracing?/release_max_level_info",
-    "concise-traces",
+  "terrazzo?/max_client_level_info",
+  "tracing?/max_level_info",
+  "tracing?/release_max_level_info",
+  "concise-traces",
 ]
 concise-traces = ["terrazzo?/concise-traces"]
 diagnostics = ["terrazzo?/diagnostics"]
@@ -180,56 +180,56 @@ remotes-ui = []
 
 terminal = ["correlation-id"]
 terminal-client = [
-    "client",
-    "dep:futures",
-    "dep:pin-project",
-    "dep:scopeguard",
-    "dep:wasm-streams",
-    "dep:web-sys",
-    "terminal",
+  "client",
+  "dep:futures",
+  "dep:pin-project",
+  "dep:scopeguard",
+  "dep:wasm-streams",
+  "dep:web-sys",
+  "terminal",
 ]
 terminal-server = [
-    "dep:dashmap",
-    "dep:pin-project",
-    "dep:static_assertions",
-    "dep:terrazzo-pty",
-    "dep:tracing-futures",
-    "server",
-    "terminal",
+  "dep:dashmap",
+  "dep:pin-project",
+  "dep:static_assertions",
+  "dep:terrazzo-pty",
+  "dep:tracing-futures",
+  "server",
+  "terminal",
 ]
 
 text-editor = []
 text-editor-client = [
-    "client",
-    "dep:futures",
-    "dep:scopeguard",
-    "dep:serde-wasm-bindgen",
-    "remotes-ui",
-    "text-editor",
-    "web-sys/KeyboardEvent",
+  "client",
+  "dep:futures",
+  "dep:scopeguard",
+  "dep:serde-wasm-bindgen",
+  "remotes-ui",
+  "text-editor",
+  "web-sys/KeyboardEvent",
 ]
 text-editor-server = [
-    "dep:libc",
-    "dep:notify",
-    #"dep:tantivy",
-    "dep:tokio-stream",
-    "server",
-    "text-editor",
+  "dep:libc",
+  "dep:notify",
+  #"dep:tantivy",
+  "dep:tokio-stream",
+  "server",
+  "text-editor",
 ]
 
 converter = []
 converter-client = [
-    "client",
-    "converter",
-    "dep:web-sys",
-    "remotes-ui",
-    "web-sys/Clipboard",
-    "web-sys/ClipboardEvent",
-    "web-sys/DragEvent",
-    "web-sys/HtmlTextAreaElement",
-    "web-sys/InputEvent",
-    "web-sys/KeyboardEvent",
-    "web-sys/Navigator",
+  "client",
+  "converter",
+  "dep:web-sys",
+  "remotes-ui",
+  "web-sys/Clipboard",
+  "web-sys/ClipboardEvent",
+  "web-sys/DragEvent",
+  "web-sys/HtmlTextAreaElement",
+  "web-sys/InputEvent",
+  "web-sys/KeyboardEvent",
+  "web-sys/Navigator",
 ]
 converter-server = [
     "converter",
@@ -250,24 +250,24 @@ converter-server = [
 
 port-forward = []
 port-forward-client = [
-    "client",
-    "dep:bitflags",
-    "dep:scopeguard",
-    "dep:web-sys",
-    "port-forward",
-    "remotes-ui",
-    "web-sys/HtmlOptionElement",
-    "web-sys/HtmlSelectElement",
-    "web-sys/KeyboardEvent",
+  "client",
+  "dep:bitflags",
+  "dep:scopeguard",
+  "dep:web-sys",
+  "port-forward",
+  "remotes-ui",
+  "web-sys/HtmlOptionElement",
+  "web-sys/HtmlSelectElement",
+  "web-sys/KeyboardEvent",
 ]
 port-forward-server = ["port-forward", "server"]
 
 logs-panel = []
 logs-panel-client = [
-    "client",
-    "dep:futures",
-    "logs-panel",
-    "web-sys/HtmlDivElement",
+  "client",
+  "dep:futures",
+  "logs-panel",
+  "web-sys/HtmlDivElement",
 ]
 logs-panel-server = ["dep:tracing-subscriber", "logs-panel", "server"]
 

@@ -22,11 +22,11 @@ rustix = { workspace = true, features = ["fs", "process", "pty"] }
 scopeguard = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [
-    "macros",
-    "net",
-    "process",
-    "rt",
-    "time",
+  "macros",
+  "net",
+  "process",
+  "rt",
+  "time",
 ] }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }

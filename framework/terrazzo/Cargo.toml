@@ -17,9 +17,9 @@ keywords = ["terrazzo", "wasm"]
 [dependencies]
 autoclone = { workspace = true }
 axum = { workspace = true, optional = true, features = [
-    "http1",
-    "http2",
-    "tracing",
+  "http1",
+  "http2",
+  "tracing",
 ] }
 futures = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
@@ -38,15 +38,15 @@ tracing = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = [
-    "DataTransfer",
-    "Document",
-    "DragEvent",
-    "Element",
-    "FocusEvent",
-    "HtmlSelectElement",
-    "MouseEvent",
-    "Performance",
-    "Window",
+  "DataTransfer",
+  "Document",
+  "DragEvent",
+  "Element",
+  "FocusEvent",
+  "HtmlSelectElement",
+  "MouseEvent",
+  "Performance",
+  "Window",
 ] }
 
 [build-dependencies]
@@ -55,26 +55,26 @@ terrazzo-build = { workspace = true }
 
 [features]
 client = [
-    "dep:futures",
-    "dep:nameth",
-    "dep:scopeguard",
-    "dep:stylance",
-    "dep:terrazzo-client",
-    "dep:thiserror",
-    "dep:wasm-bindgen",
-    "dep:wasm-bindgen-futures",
-    "dep:web-sys",
-    "terrazzo-macro/client",
+  "dep:futures",
+  "dep:nameth",
+  "dep:scopeguard",
+  "dep:stylance",
+  "dep:terrazzo-client",
+  "dep:thiserror",
+  "dep:wasm-bindgen",
+  "dep:wasm-bindgen-futures",
+  "dep:web-sys",
+  "terrazzo-macro/client",
 ]
 server = [
-    "dep:axum",
-    "dep:http",
-    "dep:include_directory",
-    "dep:mime_guess",
-    "dep:mime",
-    "dep:rsass-macros",
-    "dep:tracing",
-    "terrazzo-macro/server",
+  "dep:axum",
+  "dep:http",
+  "dep:include_directory",
+  "dep:mime_guess",
+  "dep:mime",
+  "dep:rsass-macros",
+  "dep:tracing",
+  "terrazzo-macro/server",
 ]
 concise-traces = ["terrazzo-client?/concise-traces"]
 rustdoc = []

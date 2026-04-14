@@ -113,9 +113,7 @@ fn show_app(#[signal] app: App, remote: XSignal<Remote>) -> XElement {
         class = style::app_content,
         match app {
             #[cfg(feature = "terminal")]
-            App::Terminal => {
-                div(move |t| crate::terminal::terminals(t, remote.clone()))
-            }
+            App::Terminal => div(move |t| crate::terminal::terminals(t, remote.clone())),
             #[cfg(feature = "text-editor")]
             App::TextEditor => div(move |t| crate::text_editor::ui::text_editor(t, remote.clone())),
             #[cfg(feature = "converter")]

@@ -1,0 +1,205 @@
+load("@crates//:defs.bzl", "all_crate_deps")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
+load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load("//bazel:stylance_rules.bzl", "stylance_rule")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules_matrix(
+    package_name = "terminal",
+    assets = [
+        {
+            "targets": glob(["src/**/*.scss"]),
+            "copy": True,
+        },
+    ],
+    crate_features = [
+        "client",
+        "converter-client",
+        "converter",
+        "remotes-ui",
+    ],
+    overrides = {
+        "client-lib": {
+            "deps": ["//framework/terrazzo:client"],
+        },
+        "client-lib-debug": {
+            "deps": ["//framework/terrazzo:client-debug"],
+        },
+        "client-shared-lib": {
+            "deps": ["//framework/terrazzo:client"],
+            "generate_tests": False,
+            "rule": "shared_library",
+            "target_compatible_with": ["@platforms//cpu:wasm32"],
+            "crate_name": "terrazzo_terminal",
+        },
+        "client-shared-lib-debug": {
+            "deps": ["//framework/terrazzo:client-debug"],
+            "generate_tests": False,
+            "rule": "shared_library",
+            "target_compatible_with": ["@platforms//cpu:wasm32"],
+            "crate_name": "terrazzo_terminal_debug",
+        },
+    },
+    rustc_env_files = ["rustc.env"],
+    deps = [
+        "//utils/nameth/nameth",
+        "@crates//:serde_json",
+        "@crates//:stylance",
+        "@crates//:thiserror",
+        "@crates//:wasm-bindgen",
+        "@crates//:wasm-bindgen-futures",
+        "@crates//:web-sys",
+    ],
+)
+
+rust_wasm_bindgen(
+    name = "client",
+    out_name = "terrazzo_terminal",
+    target = "web",
+    wasm_file = ":client-shared-lib",
+)
+
+rust_wasm_bindgen(
+    name = "client-debug",
+    out_name = "terrazzo_terminal",
+    target = "web",
+    wasm_file = ":client-shared-lib-debug",
+)
+
+rust_rules_matrix(
+    package_name = "terminal",
+    assets = [
+        [
+            "assets/index.html",
+            "assets/bootstrap.js",
+            "assets/images/favicon.ico",
+            "assets/jsdeps/dist/jsdeps.js",
+            "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
+        ] + glob(["assets/icons/*.svg"]),
+        {
+            "targets": [":terminal_scss"],
+            "prefix": "target/css",
+            "copy": True,
+        },
+    ],
+    crate_features = [
+        "server",
+        "converter-server",
+        "converter",
+    ],
+    overrides = {
+        "server-lib": {
+            "crate_name": "terrazzo_terminal",
+            "assets": [{
+                "targets": [":client"],
+                "prefix": "target/assets/wasm",
+            }],
+            "deps": ["//framework/terrazzo:server"],
+        },
+        "server-lib-debug": {
+            "crate_name": "terrazzo_terminal_debug",
+            "assets": [{
+                "targets": [":client-debug"],
+                "prefix": "target/assets/wasm",
+            }],
+            "deps": ["//framework/terrazzo:server-debug"],
+        },
+    },
+    rustc_env_files = ["rustc.env"],
+    deps = [
+        ":protos",
+        "//remote/client",
+        "//remote/common",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+        "@crates//:axum-extra",
+        "@crates//:base64",
+        "@crates//:clap",
+        "@crates//:cms",
+        "@crates//:const_format",
+        "@crates//:futures",
+        "@crates//:hickory-client",
+        "@crates//:humantime",
+        "@crates//:inventory",
+        "@crates//:jsonwebtoken",
+        "@crates//:nix",
+        "@crates//:oid-registry",
+        "@crates//:openssl",
+        "@crates//:pbkdf2",
+        "@crates//:pin-project",
+        "@crates//:prost",
+        "@crates//:prost-types",
+        "@crates//:regex",
+        "@crates//:rpassword",
+        "@crates//:rustls-native-certs",
+        "@crates//:scopeguard",
+        "@crates//:serde_yaml_ng",
+        "@crates//:server_fn",
+        "@crates//:sha2",
+        "@crates//:simple_asn1",
+        "@crates//:tls-parser",
+        "@crates//:tokio",
+        "@crates//:tokio-rustls",
+        "@crates//:toml",
+        "@crates//:tonic",
+        "@crates//:tonic-prost",
+        "@crates//:tower",
+        "@crates//:tower-http",
+        "@crates//:tracing",
+        "@crates//:unescaper",
+        "@crates//:url",
+        "@crates//:uuid",
+        "@crates//:x509-parser",
+    ],
+)
+
+cargo_build_script(
+    name = "protos",
+    srcs = ["build/protos.rs"],
+    data = glob(["src/**/*.proto"]),
+    deps = all_crate_deps(
+        package_name = "terminal",
+        build = True,
+    ),
+)
+
+stylance_rule(
+    name = "terminal_scss",
+    output = "target/css/terrazzo-terminal.scss",
+)
+
+rust_rules_matrix(
+    package_name = "terminal",
+    crate_features = ["server"],
+    crate_name = "terminal_server",
+    crate_root = "src/server.rs",
+    overrides = {
+        "server": {
+            "deps": [":server-lib"],
+        },
+        "server-debug": {
+            "deps": [":server-lib-debug"],
+            "crate_features": ["debug"],
+        },
+    },
+    rule = "binary",
+    deps = [
+        "@crates//:tokio",
+        "@crates//:tracing",
+    ],
+)
+
+playwright_matrix_test(
+    overrides = {
+        "integration-test-debug": {
+            "server": ":server-debug",
+        },
+        "integration-test-release": {
+            "server": ":server",
+        },
+    },
+    test = "scripts/integration-test.spec.mjs",
+)

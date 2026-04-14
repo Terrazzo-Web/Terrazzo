@@ -44,6 +44,7 @@ def rust_rules(
         rustc_env_files = [],
         assets = [],
         generate_tests = True,
+        all_crate_deps = all_crate_deps,
         **kwargs):
     """Rust rules bundle
 
@@ -66,6 +67,7 @@ def rust_rules(
         - copy: optional bool; when true copy assets, otherwise symlink them
         String items expand to {"targets": [<items>]}.
       generate_tests: Whether to generate rust test and clippy targets
+      all_crate_deps: The dependency API to use to resolve dependencies
       **kwargs: Additional arguments
     """
     _rust_rules_impl(
@@ -82,6 +84,7 @@ def rust_rules(
         rustc_env_files,
         assets,
         generate_tests,
+        all_crate_deps,
         **kwargs
     )
 
@@ -99,6 +102,7 @@ def _rust_rules_impl(
         rustc_env_files = "!!",
         assets = ["!!"],
         generate_tests = "!!",
+        all_crate_deps = "!!",
         **kwargs):
     if package_name == None:
         package_name = name
@@ -191,15 +195,17 @@ def _rust_rules_impl(
     else:
         fail("Unknown rust target rule: " + rule)
 
+    package_deps = all_crate_deps(package_name = package_name, normal = True) if all_crate_deps else []
+
     rule(
         name = name,
         srcs = [":" + mirror + "-rs"],
         lint_config = ":" + name + "-lints",
-        deps = deps + all_crate_deps(package_name = package_name, normal = True),
+        deps = deps + package_deps,
         proc_macro_deps = deps_proc_macro + all_crate_deps(
             package_name = package_name,
             proc_macro = True,
-        ),
+        ) if all_crate_deps else [],
         compile_data = [
             ":" + mirror + "-data",
             ":" + mirror + "-manifest",
@@ -223,11 +229,11 @@ def _rust_rules_impl(
             deps = deps_dev + all_crate_deps(
                 package_name = package_name,
                 normal_dev = True,
-            ),
+            ) if all_crate_deps else [],
             proc_macro_deps = deps_dev_proc_macro + all_crate_deps(
                 package_name = package_name,
                 proc_macro_dev = True,
-            ),
+            ) if all_crate_deps else [],
             data = data,
             crate_features = crate_features_dev + ["bazel"],
         )

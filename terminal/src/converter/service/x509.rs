@@ -163,7 +163,7 @@ RD66UosBh50=
         let conversion = CERTIFICATE
             .get_conversion("Terrazzo Terminal Root CA")
             .await;
-        assert!(conversion.contains(&"Terrazzo Terminal Root CA"));
+        assert!(conversion.contains("Terrazzo Terminal Root CA"));
         assert_eq!(
             vec!["ASN.1", "Terrazzo Terminal Root CA"],
             CERTIFICATE.get_languages().await

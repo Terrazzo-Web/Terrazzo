@@ -44,6 +44,7 @@ impl Config {
             server: DiffArc::from(ServerConfig {
                 host: Some(server.host.clone()),
                 port: Some(server.port),
+                set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
                 password: server.password.clone(),
@@ -83,6 +84,7 @@ fn merge_server_config(
             host.unwrap_or(HOST).to_owned()
         },
         port,
+        set_current_endpoint: cli.set_current_endpoint.clone(),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);

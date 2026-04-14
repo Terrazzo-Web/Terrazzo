@@ -79,6 +79,9 @@ jobs:
           export PROTOC=$(which protoc)
           bazel test --action_env=PROTOC //...
 
+      - name: Update auto-generated files
+        run: bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run
+
       - name: Buildifier
         run: bazel run //bazel:buildifier
 

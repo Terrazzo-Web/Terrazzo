@@ -19,7 +19,7 @@ register_toolchains("@rust_toolchains//:all")
 
 register_toolchains("@rules_rust_wasm_bindgen//:default_wasm_bindgen_toolchain")
 
-include("//bazel:crate_repositories.MODULE.bazel")
+include("//bazel:crate_repos.MODULE.bazel")
 
 local_node_tools = use_extension("//bazel:local_node_tools.bzl", "local_node_tools_ext")
 use_repo(local_node_tools, "local_node_tools")

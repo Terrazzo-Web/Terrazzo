@@ -1,0 +1,15 @@
+crate_macro_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate_macro_client.annotation(
+    crate = "server_fn_macro",
+    crate_features = [],
+    repositories = ["crate_macro_client"],
+    rustc_env = {
+        "SERVER_FN_OVERRIDE_KEY": "tbd",
+    },
+)
+crate_macro_client.from_cargo(
+    name = "crate_macro_client",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crate_macro_client, "crate_macro_client")

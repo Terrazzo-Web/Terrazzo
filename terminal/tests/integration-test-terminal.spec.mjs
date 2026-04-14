@@ -22,7 +22,8 @@ test.describe('Terminal', () => {
   });
 
   test('opens a new terminal tab and runs a command', async ({ page }) => {
-    await page.locator('div[class*="add-tab-icon"] img').waitFor({ timeout: 30 * SECOND });
+    await page.locator('div[class^="add-tab-icon-"] img').waitFor({ timeout: 30 * SECOND });
+    await page.locator('div[class^="add-tab-icon-"] img').click();
 
     await expect(page.locator('.xterm')).toHaveCount(1);
 

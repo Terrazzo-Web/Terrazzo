@@ -14,5 +14,20 @@ fi
 src="$1"
 dest="${BUILD_WORKSPACE_DIRECTORY}/$2"
 
+normalize() {
+  tr -d ' \t\n\r'
+}
+
+src_normalized="$(normalize < "$src")"
+if [[ -f "$dest" ]]; then
+  dest_normalized="$(normalize < "$dest")"
+else
+  dest_normalized=""
+fi
+
+if [[ "$src_normalized" == "$dest_normalized" ]]; then
+  exit 0
+fi
+
 mkdir -p "$(dirname "$dest")"
 cp "$src" "$dest"

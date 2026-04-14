@@ -38,6 +38,20 @@ jobs:
       - name: Run Prettier
         run: npx --yes prettier --write "**/*.{yml,yaml}"
 
+      - name: Check for jsdeps changes
+        id: jsdeps-changed
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            jsdeps:
+              - 'terminal/assets/jsdeps/**'
+      - name: Update webpack deps
+        if: steps.jsdeps-changed.outputs.jsdeps == 'true'
+        run: |
+          cd terminal/assets/jsdeps
+          npm install
+          npx webpack
+
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

@@ -667,7 +667,7 @@ dependencies = [
  "rsass-macros",
  "rustls-native-certs",
  "scopeguard",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "serde_yaml_ng",
  "sha2",
  "simple_asn1",
@@ -1352,7 +1352,7 @@ dependencies = [
  "gloo-events",
  "gloo-utils 0.1.7",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.5.0",
  "serde_urlencoded",
  "thiserror 1.0.69",
  "wasm-bindgen",
@@ -3510,6 +3510,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4237,7 +4248,7 @@ dependencies = [
  "rustls-native-certs",
  "scopeguard",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "serde_yaml_ng",
  "server_fn",

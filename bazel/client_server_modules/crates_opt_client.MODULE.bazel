@@ -15,7 +15,7 @@ crates_opt_client.annotation(
 )
 crates_opt_client.from_cargo(
     name = "crates_opt_client",
-    cargo_lockfile = "//bazel:crates_opt_client.lock",
+    cargo_lockfile = "//bazel/client_server_modules:crates_opt_client.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo(crates_opt_client, "crates_opt_client")

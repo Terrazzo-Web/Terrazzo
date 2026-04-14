@@ -10,8 +10,8 @@ crates.from_cargo(
 )
 use_repo(crates, "crates")
 
-include("//bazel:crate_macro_client.MODULE.bazel")
-include("//bazel:crate_macro_server.MODULE.bazel")
+include("//bazel/crate_macros:generated.crate_macro_client.MODULE.bazel")
+include("//bazel/crate_macros:generated.crate_macro_server.MODULE.bazel")
 include("//bazel/client_server_modules:generated.crates_server_plain.MODULE.bazel")
 include("//bazel/client_server_modules:generated.crates_client_plain.MODULE.bazel")
 include("//bazel/client_server_modules:generated.crates_server_opt.MODULE.bazel")

@@ -1,5 +1,7 @@
 """Rules for generating MODULE.bazel fragments."""
 
+load("//bazel:generated_file.bzl", "generate_file")
+
 def _crate_macro_module_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".MODULE.bazel.generated")
 
@@ -41,4 +43,9 @@ def crate_macro_module(name, features):
     _crate_macro_module(
         name = name,
         module_features = features,
+    )
+    generate_file(
+        name = name + "_update",
+        src = ":" + name,
+        dest = name + ".MODULE.bazel",
     )

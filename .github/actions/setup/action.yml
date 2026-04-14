@@ -40,7 +40,7 @@ runs:
 
     - name: Restore cache for Rust compilation
       if: ${{ inputs.cache-level == 'lenient' }}
-      uses: actions/cache/restore@v4.3.0
+      uses: actions/cache/restore@v5.0.5
       with:
         path: |
           ~/.cargo/.crates.toml

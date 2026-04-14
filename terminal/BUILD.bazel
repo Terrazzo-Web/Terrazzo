@@ -156,21 +156,6 @@ rust_rules_matrix(
     ],
 )
 
-cargo_build_script(
-    name = "protos",
-    srcs = ["build/protos.rs"],
-    data = glob(["src/**/*.proto"]),
-    deps = all_crate_deps(
-        package_name = "terminal",
-        build = True,
-    ),
-)
-
-stylance_rule(
-    name = "terminal_scss",
-    output = "target/css/terrazzo-terminal.scss",
-)
-
 rust_rules_matrix(
     package_name = "terminal",
     all_crate_deps = None,
@@ -189,6 +174,21 @@ rust_rules_matrix(
     },
     rule = "binary",
     deps = ["@crates//:tracing"],
+)
+
+cargo_build_script(
+    name = "protos",
+    srcs = ["build/protos.rs"],
+    data = glob(["src/**/*.proto"]),
+    deps = all_crate_deps(
+        package_name = "terminal",
+        build = True,
+    ),
+)
+
+stylance_rule(
+    name = "terminal_scss",
+    output = "target/css/terrazzo-terminal.scss",
 )
 
 playwright_matrix_test(

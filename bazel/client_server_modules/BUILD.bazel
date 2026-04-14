@@ -2,64 +2,53 @@ load("//bazel/client_server_modules:crate_client_server.bzl", "crate_client_serv
 
 package(default_visibility = ["//visibility:public"])
 
+SERVER_FN_SERVER_DEPS = [
+    "@crates//:axum",
+    "@crates//:http-body-util",
+    "@crates//:hyper",
+    "@crates//:inventory",
+    "@crates//:tokio",
+    "@crates//:tower",
+    "@crates//:tower-layer",
+]
+
+SERVER_FN_CLIENT_FEATURES = [
+    "browser",
+]
+
+SERVER_FN_SERVER_FEATURES = [
+    "axum",
+    "axum-no-default",
+    "browser",
+    "generic",
+    "ssr",
+]
+
+TRACING_OPT_FEATURES = [
+    "max_level_info",
+    "release_max_level_info",
+]
+
 crate_client_server_module(
     name = "crates_server",
-    server_fn_deps = [
-        "@crates//:axum",
-        "@crates//:http-body-util",
-        "@crates//:hyper",
-        "@crates//:inventory",
-        "@crates//:tokio",
-        "@crates//:tower",
-        "@crates//:tower-layer",
-    ],
-    server_fn_features = [
-        "axum",
-        "axum-no-default",
-        "browser",
-        "generic",
-        "ssr",
-    ],
+    server_fn_deps = SERVER_FN_SERVER_DEPS,
+    server_fn_features = SERVER_FN_SERVER_FEATURES,
 )
 
 crate_client_server_module(
     name = "crates_client",
-    server_fn_features = [
-        "browser",
-    ],
+    server_fn_features = SERVER_FN_CLIENT_FEATURES,
 )
 
 crate_client_server_module(
     name = "crates_opt_server",
-    server_fn_deps = [
-        "@crates//:axum",
-        "@crates//:http-body-util",
-        "@crates//:hyper",
-        "@crates//:inventory",
-        "@crates//:tokio",
-        "@crates//:tower",
-        "@crates//:tower-layer",
-    ],
-    server_fn_features = [
-        "axum",
-        "axum-no-default",
-        "browser",
-        "generic",
-        "ssr",
-    ],
-    tracing_features = [
-        "max_level_info",
-        "release_max_level_info",
-    ],
+    server_fn_deps = SERVER_FN_SERVER_DEPS,
+    server_fn_features = SERVER_FN_SERVER_FEATURES,
+    tracing_features = TRACING_OPT_FEATURES,
 )
 
 crate_client_server_module(
     name = "crates_opt_client",
-    server_fn_features = [
-        "browser",
-    ],
-    tracing_features = [
-        "max_level_info",
-        "release_max_level_info",
-    ],
+    server_fn_features = SERVER_FN_CLIENT_FEATURES,
+    tracing_features = TRACING_OPT_FEATURES,
 )

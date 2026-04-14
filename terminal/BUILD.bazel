@@ -173,6 +173,7 @@ stylance_rule(
 
 rust_rules_matrix(
     package_name = "terminal",
+    all_crate_deps = None,
     crate_features = ["server"],
     crate_name = "terminal_server",
     crate_root = "src/server.rs",
@@ -187,10 +188,7 @@ rust_rules_matrix(
         },
     },
     rule = "binary",
-    deps = [
-        "@crates//:tokio",
-        "@crates//:tracing",
-    ],
+    deps = ["@crates//:tracing"],
 )
 
 playwright_matrix_test(

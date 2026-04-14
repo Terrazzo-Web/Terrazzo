@@ -10,7 +10,8 @@ crates.from_cargo(
 )
 use_repo(crates, "crates")
 
-include("//bazel:crate_macros.MODULE.bazel")
+include("//bazel:crate_macro_client.MODULE.bazel")
+include("//bazel:crate_macro_server.MODULE.bazel")
 
 crates_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_server.annotation(

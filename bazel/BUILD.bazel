@@ -33,12 +33,12 @@ playwright_setup(
 exports_files(["playwright_test.sh"])
 
 crate_macro_module(
-    name = "macro_client",
+    name = "crate_macro_client",
     features = [],
 )
 
 crate_macro_module(
-    name = "macro_server",
+    name = "crate_macro_server",
     features = [
         "axum",
         "ssr",

@@ -17,7 +17,7 @@ ignore_whitespace="$3"
 
 if [[ "$ignore_whitespace" == "true" ]]; then
   normalize() {
-    tr -d ' \t\n\r'
+    tr -d ' \t\n\r,'
   }
 
   src_normalized="$(normalize < "$src")"
@@ -32,5 +32,7 @@ if [[ "$ignore_whitespace" == "true" ]]; then
   fi
 fi
 
+echo "Updating $dest"
 mkdir -p "$(dirname "$dest")"
 cp "$src" "$dest"
+chmod 644 "$dest"

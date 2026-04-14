@@ -14,4 +14,5 @@ def generate_file(name, src, dest, ignore_whitespace = False):
             native.package_name() + "/" + dest,
             "true" if ignore_whitespace else "false",
         ],
+        tags=["auto-generated"]
     )

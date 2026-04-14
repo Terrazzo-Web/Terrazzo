@@ -11,9 +11,9 @@ def _mapped_label(actual, source_prefix, target_prefix):
 def cfg_alias(name, actual, tags = None, **kwargs):
     """Creates an alias that switches crate_universe repos by mode and platform.
 
-    Backend targets use `@crates_server__` or `@crates_opt_server__`.
-    `wasm32-unknown-unknown` targets use `@crates_client__` or
-    `@crates_opt_client__`. Labels outside `@crates__` pass through unchanged.
+    Backend targets use `@crates_server_plain__` or `@crates_server_opt__`.
+    `wasm32-unknown-unknown` targets use `@crates_client_plain__` or
+    `@crates_client_opt__`. Labels outside `@crates__` pass through unchanged.
 
     Args:
         name: The alias target name to define in the current package.
@@ -74,11 +74,11 @@ def cfg_alias(name, actual, tags = None, **kwargs):
     native.alias(
         name = name,
         actual = select({
-            ":opt_client": _mapped_label(actual, source_prefix, "@crates_opt_client__"),
-            ":fastbuild_client": _mapped_label(actual, source_prefix, "@crates_client__"),
-            ":dbg_client": _mapped_label(actual, source_prefix, "@crates_client__"),
-            ":opt_server": _mapped_label(actual, source_prefix, "@crates_opt_server__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server__"),
+            ":opt_client": _mapped_label(actual, source_prefix, "@crates_client_opt__"),
+            ":fastbuild_client": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
+            ":dbg_client": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
+            ":opt_server": _mapped_label(actual, source_prefix, "@crates_server_opt__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server_plain__"),
         }),
         tags = tags,
         **kwargs

@@ -1,0 +1,18 @@
+crates_client_plain = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_client_plain.annotation(
+    crate = "server_fn",
+    crate_features = ["browser"],
+    repositories = ["crates_client_plain"],
+    deps = [],
+)
+crates_client_plain.annotation(
+    crate = "tracing",
+    crate_features = [],
+    repositories = ["crates_client_plain"],
+)
+crates_client_plain.from_cargo(
+    name = "crates_client_plain",
+    cargo_lockfile = "//bazel/client_server_modules:generated.crates_client_plain.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_client_plain, "crates_client_plain")

@@ -6,6 +6,7 @@ load(":terminal_rules.bzl", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
 
+# TODO: derive dependencies required by features from Cargo.toml
 terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
@@ -70,6 +71,73 @@ terminal_rules(
         "server",
         "converter-server",
         "converter",
+    ],
+)
+
+terminal_rules(
+    client_deps = [
+        "//utils/nameth/nameth",
+        "@crates//:futures",
+        "@crates//:pin-project",
+        "@crates//:scopeguard",
+        "@crates//:wasm-streams",
+        "@crates//:web-sys",
+    ],
+    client_features = [
+        "client",
+        "terminal-client",
+        "terminal",
+    ],
+    prefix = "terminal",
+    server_deps = [
+        ":protos",
+        "//remote/client",
+        "//remote/common",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+        "@crates//:axum-extra",
+        "@crates//:base64",
+        "@crates//:clap",
+        "@crates//:cms",
+        "@crates//:const_format",
+        "@crates//:futures",
+        "@crates//:hickory-client",
+        "@crates//:humantime",
+        "@crates//:inventory",
+        "@crates//:jsonwebtoken",
+        "@crates//:nix",
+        "@crates//:oid-registry",
+        "@crates//:openssl",
+        "@crates//:pbkdf2",
+        "@crates//:pin-project",
+        "@crates//:prost",
+        "@crates//:prost-types",
+        "@crates//:regex",
+        "@crates//:rpassword",
+        "@crates//:rustls-native-certs",
+        "@crates//:scopeguard",
+        "@crates//:serde_yaml_ng",
+        "@crates//:server_fn",
+        "@crates//:sha2",
+        "@crates//:simple_asn1",
+        "@crates//:tls-parser",
+        "@crates//:tokio",
+        "@crates//:tokio-rustls",
+        "@crates//:toml",
+        "@crates//:tonic",
+        "@crates//:tonic-prost",
+        "@crates//:tower",
+        "@crates//:tower-http",
+        "@crates//:tracing",
+        "@crates//:unescaper",
+        "@crates//:url",
+        "@crates//:uuid",
+        "@crates//:x509-parser",
+    ],
+    server_features = [
+        "server",
+        "terminal-server",
+        "terminal",
     ],
 )
 

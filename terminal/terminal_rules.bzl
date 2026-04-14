@@ -1,3 +1,5 @@
+"""Rules to build Terrazzo Terminal"""
+
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 

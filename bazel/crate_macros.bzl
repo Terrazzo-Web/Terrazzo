@@ -48,4 +48,5 @@ def crate_macro_module(name, features):
         name = name + "_update",
         src = ":" + name,
         dest = name + ".MODULE.bazel",
+        ignore_whitespace = True,
     )

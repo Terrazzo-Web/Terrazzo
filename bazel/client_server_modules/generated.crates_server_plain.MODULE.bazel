@@ -26,7 +26,7 @@ crates_server_plain.annotation(
 )
 crates_server_plain.from_cargo(
     name = "crates_server_plain",
-    cargo_lockfile = "//bazel/client_server_modules:crates_server_plain.lock",
+    cargo_lockfile = "//bazel/client_server_modules:generated.crates_server_plain.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo(crates_server_plain, "crates_server_plain")

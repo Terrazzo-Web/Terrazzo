@@ -29,7 +29,7 @@ crates_server_opt.annotation(
 )
 crates_server_opt.from_cargo(
     name = "crates_server_opt",
-    cargo_lockfile = "//bazel/client_server_modules:crates_server_opt.lock",
+    cargo_lockfile = "//bazel/client_server_modules:generated.crates_server_opt.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo(crates_server_opt, "crates_server_opt")

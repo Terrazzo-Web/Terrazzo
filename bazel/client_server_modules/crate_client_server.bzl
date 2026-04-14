@@ -3,35 +3,30 @@
 load("//bazel:generated_file.bzl", "generate_file")
 
 def _format_string_list(values):
-    return ", ".join(['"%s"' % value for value in values])
-
-def _format_list_block(values):
-    if not values:
-        return "[]"
-    return "[\n%s\n    ]" % "\n".join(['        "%s",' % value for value in values])
+    return ",".join(['"%s"' % value for value in values])
 
 def _crate_client_server_module_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".MODULE.bazel.generated")
 
     server_fn_features = _format_string_list(ctx.attr.server_fn_features)
-    server_fn_deps = _format_list_block(ctx.attr.server_fn_deps)
-    tracing_features = _format_list_block(ctx.attr.tracing_features)
+    server_fn_deps = _format_string_list(ctx.attr.server_fn_deps)
+    tracing_features = _format_string_list(ctx.attr.tracing_features)
 
     content = """{name} = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 {name}.annotation(
     crate = "server_fn",
     crate_features = [{server_fn_features}],
     repositories = ["{name}"],
-    deps = {server_fn_deps},
+    deps = [{server_fn_deps}],
 )
 {name}.annotation(
     crate = "tracing",
-    crate_features = {tracing_features},
+    crate_features = [{tracing_features}],
     repositories = ["{name}"],
 )
 {name}.from_cargo(
     name = "{name}",
-    cargo_lockfile = "//bazel/client_server_modules:{name}.lock",
+    cargo_lockfile = "//bazel/client_server_modules:generated.{name}.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo({name}, "{name}")
@@ -67,6 +62,6 @@ def crate_client_server_module(name, server_fn_features, server_fn_deps = [], tr
     generate_file(
         name = name + "_update",
         src = ":" + name,
-        dest = name + ".MODULE.bazel",
+        dest = "generated." + name + ".MODULE.bazel",
         ignore_whitespace = True,
     )

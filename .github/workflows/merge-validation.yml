@@ -35,6 +35,8 @@ jobs:
         run: cargo install taplo-cli --locked
       - name: Format Cargo.toml files
         run: find . -name "Cargo.toml" -exec taplo fmt {} +
+      - name: Run Prettier
+        run: npx --yes prettier --write "**/*.{yml,yaml}"
 
       - name: Check for jsdeps changes
         id: jsdeps-changed
@@ -84,6 +86,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"
-          
+
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check

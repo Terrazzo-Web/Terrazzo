@@ -6,7 +6,9 @@ def _format_string_list(values):
     return ", ".join(['"%s"' % value for value in values])
 
 def _format_list_block(values):
-    return "[%s]" % "\n".join(['"%s",' % value for value in values])
+    if not values:
+        return "[]"
+    return "[\n%s\n    ]" % "\n".join(['        "%s",' % value for value in values])
 
 def _crate_client_server_module_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".MODULE.bazel.generated")
@@ -29,7 +31,7 @@ def _crate_client_server_module_impl(ctx):
 )
 {name}.from_cargo(
     name = "{name}",
-    cargo_lockfile = "//bazel:{name}.lock",
+    cargo_lockfile = "//bazel/client_server_modules:{name}.lock",
     manifests = ["//:Cargo.toml"],
 )
 use_repo({name}, "{name}")

@@ -1,3 +1,4 @@
+# This file is automatically @generated.
 crates_client_plain = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_client_plain.annotation(
     crate = "server_fn",

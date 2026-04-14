@@ -1,30 +1,14 @@
+# This file is automatically @generated.
 crates_server_opt = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_server_opt.annotation(
     crate = "server_fn",
-    crate_features = [
-        "axum",
-        "axum-no-default",
-        "browser",
-        "generic",
-        "ssr",
-    ],
+    crate_features = ["axum","axum-no-default","browser","generic","ssr"],
     repositories = ["crates_server_opt"],
-    deps = [
-        "@crates//:axum",
-        "@crates//:http-body-util",
-        "@crates//:hyper",
-        "@crates//:inventory",
-        "@crates//:tokio",
-        "@crates//:tower",
-        "@crates//:tower-layer",
-    ],
+    deps = ["@crates//:axum","@crates//:http-body-util","@crates//:hyper","@crates//:inventory","@crates//:tokio","@crates//:tower","@crates//:tower-layer"],
 )
 crates_server_opt.annotation(
     crate = "tracing",
-    crate_features = [
-        "max_level_info",
-        "release_max_level_info",
-    ],
+    crate_features = ["max_level_info","release_max_level_info"],
     repositories = ["crates_server_opt"],
 )
 crates_server_opt.from_cargo(

@@ -32,53 +32,41 @@ def cfg_alias(name, actual, tags = None, **kwargs):
         )
         return
 
-    if "opt_server" not in native.existing_rules():
+    if "opt_mode" not in native.existing_rules():
         native.config_setting(
-            name = "opt_server",
+            name = "opt_mode",
             values = {"compilation_mode": "opt"},
         )
-    if "fastbuild_server" not in native.existing_rules():
-        native.config_setting(
-            name = "fastbuild_server",
-            values = {"compilation_mode": "fastbuild"},
-        )
-    if "dbg_server" not in native.existing_rules():
-        native.config_setting(
-            name = "dbg_server",
-            values = {"compilation_mode": "dbg"},
-        )
-    if "opt_client" not in native.existing_rules():
+    if "wasm_client" not in native.existing_rules():
         selects.config_setting_group(
-            name = "opt_client",
+            name = "wasm_client",
             match_all = [
-                ":opt_server",
                 "@rules_rust//rust/platform:wasm32-unknown-unknown",
             ],
         )
-    if "fastbuild_client" not in native.existing_rules():
-        selects.config_setting_group(
-            name = "fastbuild_client",
-            match_all = [
-                ":fastbuild_server",
-                "@rules_rust//rust/platform:wasm32-unknown-unknown",
-            ],
-        )
-    if "dbg_client" not in native.existing_rules():
-        selects.config_setting_group(
-            name = "dbg_client",
-            match_all = [
-                ":dbg_server",
-                "@rules_rust//rust/platform:wasm32-unknown-unknown",
-            ],
-        )
+
+    native.alias(
+        name = name + "__client",
+        actual = select({
+            ":opt_mode": _mapped_label(actual, source_prefix, "@crates_client_opt__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
+        }),
+        tags = tags,
+    )
+    native.alias(
+        name = name + "__server",
+        actual = select({
+            ":opt_mode": _mapped_label(actual, source_prefix, "@crates_server_opt__"),
+            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server_plain__"),
+        }),
+        tags = tags,
+    )
+
     native.alias(
         name = name,
         actual = select({
-            ":opt_client": _mapped_label(actual, source_prefix, "@crates_client_opt__"),
-            ":fastbuild_client": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
-            ":dbg_client": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
-            ":opt_server": _mapped_label(actual, source_prefix, "@crates_server_opt__"),
-            "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server_plain__"),
+            ":wasm_client": ":" + name + "__client",
+            "//conditions:default": ":" + name + "__server",
         }),
         tags = tags,
         **kwargs

@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 0 * * 6'
+    - cron: "0 0 * * 6"
 jobs:
   cargo-build:
     runs-on: ubuntu-latest
@@ -23,7 +23,7 @@ jobs:
         run: cargo build --locked --bins --features=server,server-all,max_level_debug,debug,diagnostics
       - name: Build release
         run: cargo build --locked --bins --features=server,server-all,max_level_info --release
-        
+
       - name: Run integration test against debug
         run: ./demo/scripts/integration-test.sh target/debug/demo-server
       - name: Run integration test against release
@@ -32,7 +32,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ubuntu-latest, macos-latest]
     name: Bazel build and test
     steps:
       - uses: actions/checkout@v6.0.2

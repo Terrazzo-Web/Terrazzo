@@ -2,7 +2,7 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_binary")
 
-def generate_file(name, src, dest):
+def generate_file(name, src, dest, ignore_whitespace = False):
     sh_binary(
         name = name,
         srcs = ["//bazel:generated_file.sh"],
@@ -13,5 +13,6 @@ def generate_file(name, src, dest):
         args = [
             "$(location %s)" % src,
             native.package_name() + "/" + dest,
+            "true" if ignore_whitespace else "false",
         ],
     )

@@ -6,27 +6,30 @@ if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
   exit 1
 fi
 
-if [[ $# -ne 2 ]]; then
-  echo "usage: $0 <src> <dest>" >&2
+if [[ $# -ne 3 ]]; then
+  echo "usage: $0 <src> <dest> <ignore_whitespace>" >&2
   exit 1
 fi
 
 src="$1"
 dest="${BUILD_WORKSPACE_DIRECTORY}/$2"
+ignore_whitespace="$3"
 
-normalize() {
-  tr -d ' \t\n\r'
-}
+if [[ "$ignore_whitespace" == "true" ]]; then
+  normalize() {
+    tr -d ' \t\n\r'
+  }
 
-src_normalized="$(normalize < "$src")"
-if [[ -f "$dest" ]]; then
-  dest_normalized="$(normalize < "$dest")"
-else
-  dest_normalized=""
-fi
+  src_normalized="$(normalize < "$src")"
+  if [[ -f "$dest" ]]; then
+    dest_normalized="$(normalize < "$dest")"
+  else
+    dest_normalized=""
+  fi
 
-if [[ "$src_normalized" == "$dest_normalized" ]]; then
-  exit 0
+  if [[ "$src_normalized" == "$dest_normalized" ]]; then
+    exit 0
+  fi
 fi
 
 mkdir -p "$(dirname "$dest")"

@@ -72,6 +72,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"
-          
+
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check

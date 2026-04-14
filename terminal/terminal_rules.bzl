@@ -7,6 +7,17 @@ def terminal_rules(
         client_deps = [],
         server_features = [],
         server_deps = []):
+    """Defines the client and server Bazel targets for the terminal package.
+
+    Args:
+        prefix: String prepended to each generated target name.
+        client_features: List of Rust crate features enabled for client targets.
+        client_deps: List of additional dependencies for client targets.
+        server_features: List of Rust crate features enabled for server library targets.
+        server_deps: List of additional dependencies for server library targets.
+    """
+    if prefix and not prefix.endswith("-"):
+        prefix += "-"
     rust_rules_matrix(
         package_name = "terminal",
         assets = [

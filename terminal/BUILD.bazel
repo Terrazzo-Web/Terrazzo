@@ -20,6 +20,7 @@ terminal_rules(
         "converter",
         "remotes-ui",
     ],
+    prefix = "converter",
     server_deps = [
         ":protos",
         "//remote/client",
@@ -89,13 +90,13 @@ stylance_rule(
 
 playwright_matrix_test(
     overrides = {
-        "integration-test-debug": {
-            "server": ":server-debug",
+        "converter-integration-test-debug": {
+            "server": ":converter-server-debug",
         },
-        "integration-test-release": {
-            "server": ":server",
+        "converter-integration-test-release": {
+            "server": ":converter-server",
             "tags": ["opt_mode"],
         },
     },
-    test = "scripts/integration-test.spec.mjs",
+    test = "tests/converter-integration-test.spec.mjs",
 )

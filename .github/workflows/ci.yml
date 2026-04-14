@@ -23,7 +23,7 @@ jobs:
         run: cargo build --locked --bins --features=server,server-all,max_level_debug,debug,diagnostics
       - name: Build release
         run: cargo build --locked --bins --features=server,server-all,max_level_info --release
-        
+
       - name: Run integration test against debug
         run: ./demo/scripts/integration-test.sh target/debug/demo-server
       - name: Run integration test against release

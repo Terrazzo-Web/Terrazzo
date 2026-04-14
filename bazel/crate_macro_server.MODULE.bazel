@@ -1,18 +1,18 @@
-macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-macro_server.annotation(
+crate_macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate_macro_server.annotation(
     crate = "server_fn_macro",
     crate_features = [
         "axum",
         "ssr",
     ],
-    repositories = ["macro_server"],
+    repositories = ["crate_macro_server"],
     rustc_env = {
         "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
-macro_server.from_cargo(
-    name = "macro_server",
+crate_macro_server.from_cargo(
+    name = "crate_macro_server",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(macro_server, "macro_server")
+use_repo(crate_macro_server, "crate_macro_server")

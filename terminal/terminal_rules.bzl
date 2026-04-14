@@ -70,40 +70,44 @@ def terminal_rules(
         wasm_file = ":" + prefix + "client-shared-lib-debug",
     )
 
+    server_assets_common = [
+        [
+            "assets/index.html",
+            "assets/bootstrap.js",
+            "assets/images/favicon.ico",
+            "assets/jsdeps/dist/jsdeps.js",
+            "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
+        ] + native.glob(["assets/icons/*.svg"]),
+        {
+            "targets": [":terminal_scss"],
+            "prefix": "target/css",
+            "copy": True,
+        },
+    ]
+    server_assets_release = [{
+        "targets": [":" + prefix + "client"],
+        "prefix": "target/assets/wasm",
+        "copy": True,
+    }]
+    server_assets_debug = [{
+        "targets": [":" + prefix + "client-debug"],
+        "prefix": "target/assets/wasm",
+        "copy": True,
+    }]
+
     rust_rules_matrix(
         package_name = "terminal",
-        assets = [
-            [
-                "assets/index.html",
-                "assets/bootstrap.js",
-                "assets/images/favicon.ico",
-                "assets/jsdeps/dist/jsdeps.js",
-                "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
-            ] + native.glob(["assets/icons/*.svg"]),
-            {
-                "targets": [":terminal_scss"],
-                "prefix": "target/css",
-                "copy": True,
-            },
-        ],
+        assets = server_assets_common,
         crate_features = server_features,
         overrides = {
             prefix + "server-lib": {
                 "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_"),
-                "assets": [{
-                    "targets": [":" + prefix + "client"],
-                    "prefix": "target/assets/wasm",
-                    "copy": True,
-                }],
+                "assets": server_assets_release,
                 "deps": ["//framework/terrazzo:server"],
             },
             prefix + "server-lib-debug": {
                 "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_") + "_debug",
-                "assets": [{
-                    "targets": [":" + prefix + "client-debug"],
-                    "prefix": "target/assets/wasm",
-                    "copy": True,
-                }],
+                "assets": server_assets_debug,
                 "deps": ["//framework/terrazzo:server-debug"],
             },
         },
@@ -125,6 +129,7 @@ def terminal_rules(
                 "deps": [":" + prefix + "server-lib"],
             },
             prefix + "server-debug": {
+                "assets": server_assets_common + server_assets_debug,
                 "aliases": {
                     ":" + prefix + "server-lib-debug": "terrazzo_terminal",
                 },

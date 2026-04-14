@@ -6,9 +6,7 @@ def generate_file(name, src, dest, ignore_whitespace = False):
     sh_binary(
         name = name,
         srcs = ["//bazel:generated_file.sh"],
-        data = [
-            src,
-        ],
+        data = [            src,        ],
         args = [
             "$(location %s)" % src,
             native.package_name() + "/" + dest,

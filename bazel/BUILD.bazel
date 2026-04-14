@@ -1,5 +1,4 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
-load(":crate_macros.bzl", "crate_macro_module")
 load(":playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
@@ -30,17 +29,7 @@ playwright_setup(
     name = "playwright_setup",
 )
 
-exports_files(["playwright_test.sh"])
-
-crate_macro_module(
-    name = "crate_macro_client",
-    features = [],
-)
-
-crate_macro_module(
-    name = "crate_macro_server",
-    features = [
-        "axum",
-        "ssr",
-    ],
-)
+exports_files([
+    "generated_file.sh",
+    "playwright_test.sh",
+])

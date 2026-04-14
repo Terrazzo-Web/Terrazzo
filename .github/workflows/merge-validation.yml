@@ -78,6 +78,7 @@ jobs:
         run: |
           export PROTOC=$(which protoc)
           bazel test --action_env=PROTOC //...
+          bazel test --action_env=PROTOC -c opt --test_tag_filters=opt_mode //...
 
       - name: Update auto-generated files
         run: bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run

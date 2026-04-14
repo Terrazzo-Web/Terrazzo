@@ -181,6 +181,7 @@ rust_rules_matrix(
             "deps": [":server-lib"],
         },
         "server-debug": {
+            "aliases": {":server-lib-debug": "terrazzo_terminal"},
             "deps": [":server-lib-debug"],
             "crate_features": ["debug"],
         },

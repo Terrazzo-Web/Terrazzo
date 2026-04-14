@@ -89,7 +89,7 @@ def terminal_rules(
         crate_features = server_features,
         overrides = {
             prefix + "server-lib": {
-                "crate_name": "terrazzo_terminal",
+                "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_"),
                 "assets": [{
                     "targets": [":" + prefix + "client"],
                     "prefix": "target/assets/wasm",
@@ -98,7 +98,7 @@ def terminal_rules(
                 "deps": ["//framework/terrazzo:server"],
             },
             prefix + "server-lib-debug": {
-                "crate_name": "terrazzo_terminal_debug",
+                "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_") + "_debug",
                 "assets": [{
                     "targets": [":" + prefix + "client-debug"],
                     "prefix": "target/assets/wasm",
@@ -119,6 +119,9 @@ def terminal_rules(
         crate_root = "src/server.rs",
         overrides = {
             prefix + "server": {
+                "aliases": {
+                    ":" + prefix + "server-lib": "terrazzo_terminal",
+                },
                 "deps": [":" + prefix + "server-lib"],
             },
             prefix + "server-debug": {

@@ -37,19 +37,19 @@ test.describe('Converter', () => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 
-  test('reports the current response for /api/fn/get2462584562250403446', async ({ page }) => {
+  test('Invalid server_fn endpoint', async ({ page }) => {
     const response = await fetchServerFnFromPage(
       page,
-      '/api/fn/get2462584562250403446',
-      { remote: null },
+      '/api/fn/invalid_server_fn_endpoint',
+      { parameter: "abc" },
     );
     expect(response.status).toBe(400);
     expect(response.body).toContain(
-      'Could not find a server function at the route /api/fn/get2462584562250403446.',
+      'Could not find a server function at the route /api/fn/invalid_server_fn_endpoint.',
     );
   });
 
-  test('typing abc shows abc in the selected conversion panel', async ({ page }) => {
+  test('typing abc shows abc', async ({ page }) => {
     await page.locator('.app-menu-trigger').hover();
     await page.getByText('Converter', { exact: true }).click();
 
@@ -66,4 +66,32 @@ test.describe('Converter', () => {
 
     await expect(page.locator('pre.converter-output').first()).toHaveText('"abc"');
   });
+
+  test('typing a JWT shows parsed JWT content', async ({ page }) => {
+    const jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2In0.eyJpc3MiOiJodHRwczovL29wZW5pZC5leGFtcGxlLmNvbSIsInN1YiI6IjEyMzQ1Njc4OTAiLCJhdWQiOiJjbGllbnQtMTIzIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDAsIm5vbmNlIjoiYWJjMTIzIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJqb2huQGV4YW1wbGUuY29tIn0.Qh6cZf5tR8wPz7g9m1Xl3k2YV9JpL0aWZx3nF5K8mJp2ZrT7vLw9sX1yQd6fG8hJkL2mN4pQ7rS9tU1vW3xY5zA';
+
+    await page.locator('.app-menu-trigger').hover();
+    await page.getByText('Converter', { exact: true }).click();
+
+    const input = page.locator('textarea.converter-input');
+    await expect(input).toBeVisible();
+    await page.waitForTimeout(500);
+    const conversionsResponse = page.waitForResponse((response) =>
+      response.request().method() === 'POST' &&
+      response.url().includes('/api/fn/get_conversions'),
+    );
+    await input.fill(jwt);
+    expect((await conversionsResponse).ok()).toBeTruthy();
+
+    const jwtTab = page.getByText('JWT', { exact: true });
+    await expect(jwtTab).toBeVisible();
+    await jwtTab.click();
+
+    await expect(page.locator('pre.converter-output').first()).toContainText('aud: client-123');
+    await expect(page.locator('pre.converter-output').first()).toContainText('email: john@example.com');
+    await expect(page.locator('pre.converter-output').first()).toHaveText(
+      /exp: 1700003600 = 2023-11-14T23:13:20Z \(.+ ago\)/,
+    );
+  });
+
 });

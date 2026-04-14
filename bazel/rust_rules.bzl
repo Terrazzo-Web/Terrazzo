@@ -35,7 +35,6 @@ def rust_rules(
         package_name = None,
         deps = [],
         deps_proc_macro = [],
-        use_cargo_deps = True,
         deps_dev = [],
         deps_dev_proc_macro = [],
         data = [],
@@ -45,6 +44,7 @@ def rust_rules(
         rustc_env_files = [],
         assets = [],
         generate_tests = True,
+        all_crate_deps = all_crate_deps,
         **kwargs):
     """Rust rules bundle
 
@@ -53,7 +53,6 @@ def rust_rules(
       package_name: Name of the Rust package in the crate universe
       deps: Additional dependencies
       deps_proc_macro: Additional macro dependencies
-      use_cargo_deps: Whether to include auto-generated crate-universe deps
       deps_dev: Additional dependencies for tests
       deps_dev_proc_macro: Additional macro dependencies for tests
       data: Data deps
@@ -68,6 +67,7 @@ def rust_rules(
         - copy: optional bool; when true copy assets, otherwise symlink them
         String items expand to {"targets": [<items>]}.
       generate_tests: Whether to generate rust test and clippy targets
+      all_crate_deps: The dependency API to use to resolve dependencies
       **kwargs: Additional arguments
     """
     _rust_rules_impl(
@@ -75,7 +75,6 @@ def rust_rules(
         package_name,
         deps,
         deps_proc_macro,
-        use_cargo_deps,
         deps_dev,
         deps_dev_proc_macro,
         data,
@@ -85,6 +84,7 @@ def rust_rules(
         rustc_env_files,
         assets,
         generate_tests,
+        all_crate_deps,
         **kwargs
     )
 
@@ -93,7 +93,6 @@ def _rust_rules_impl(
         package_name = "!!",
         deps = "!!",
         deps_proc_macro = "!!",
-        use_cargo_deps = "!!",
         deps_dev = "!!",
         deps_dev_proc_macro = "!!",
         data = "!!",
@@ -103,6 +102,7 @@ def _rust_rules_impl(
         rustc_env_files = "!!",
         assets = ["!!"],
         generate_tests = "!!",
+        all_crate_deps = "!!",
         **kwargs):
     if package_name == None:
         package_name = name
@@ -195,7 +195,7 @@ def _rust_rules_impl(
     else:
         fail("Unknown rust target rule: " + rule)
 
-    package_deps = all_crate_deps(package_name = package_name, normal = True) if use_cargo_deps else []
+    package_deps = all_crate_deps(package_name = package_name, normal = True) if all_crate_deps else []
 
     rule(
         name = name,
@@ -205,7 +205,7 @@ def _rust_rules_impl(
         proc_macro_deps = deps_proc_macro + all_crate_deps(
             package_name = package_name,
             proc_macro = True,
-        ),
+        ) if all_crate_deps else [],
         compile_data = [
             ":" + mirror + "-data",
             ":" + mirror + "-manifest",
@@ -229,11 +229,11 @@ def _rust_rules_impl(
             deps = deps_dev + all_crate_deps(
                 package_name = package_name,
                 normal_dev = True,
-            ),
+            ) if all_crate_deps else [],
             proc_macro_deps = deps_dev_proc_macro + all_crate_deps(
                 package_name = package_name,
                 proc_macro_dev = True,
-            ),
+            ) if all_crate_deps else [],
             data = data,
             crate_features = crate_features_dev + ["bazel"],
         )

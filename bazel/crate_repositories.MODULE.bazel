@@ -18,95 +18,29 @@ macro_client.annotation(
         "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
-
-# TODO: use crates.from_cargo
-macro_client.spec(
-    package = "deluxe",
-    repositories = ["macro_client"],
-    version = "=0.5.0",
-)
-macro_client.spec(
-    package = "prettyplease",
-    repositories = ["macro_client"],
-    version = "=0.2.37",
-)
-macro_client.spec(
-    package = "proc-macro2",
-    repositories = ["macro_client"],
-    version = "=1.0.106",
-)
-macro_client.spec(
-    package = "quote",
-    repositories = ["macro_client"],
-    version = "=1.0.45",
-)
-macro_client.spec(
-    package = "server_fn_macro",
-    repositories = ["macro_client"],
-    version = "=0.8.10",
-)
-macro_client.spec(
-    features = [
-        "full",
-        "visit-mut",
-    ],
-    package = "syn",
-    repositories = ["macro_client"],
-    version = "=2.0.117",
-)
-macro_client.from_specs(
+macro_client.from_cargo(
     name = "macro_client",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
 )
 use_repo(macro_client, "macro_client")
 
 macro_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 macro_server.annotation(
     crate = "server_fn_macro",
+    crate_features = [
+        "axum",
+        "ssr",
+    ],
     repositories = ["macro_server"],
     rustc_env = {
         "SERVER_FN_OVERRIDE_KEY": "tbd",
     },
 )
-macro_server.spec(
-    package = "deluxe",
-    repositories = ["macro_server"],
-    version = "=0.5.0",
-)
-macro_server.spec(
-    package = "prettyplease",
-    repositories = ["macro_server"],
-    version = "=0.2.37",
-)
-macro_server.spec(
-    package = "proc-macro2",
-    repositories = ["macro_server"],
-    version = "=1.0.106",
-)
-macro_server.spec(
-    package = "quote",
-    repositories = ["macro_server"],
-    version = "=1.0.45",
-)
-macro_server.spec(
-    features = [
-        "axum",
-        "ssr",
-    ],
-    package = "server_fn_macro",
-    repositories = ["macro_server"],
-    version = "=0.8.10",
-)
-macro_server.spec(
-    features = [
-        "full",
-        "visit-mut",
-    ],
-    package = "syn",
-    repositories = ["macro_server"],
-    version = "=2.0.117",
-)
-macro_server.from_specs(
+macro_server.from_cargo(
     name = "macro_server",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
 )
 use_repo(macro_server, "macro_server")
 

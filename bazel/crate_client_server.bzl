@@ -5,37 +5,28 @@ load("//bazel:generated_file.bzl", "generate_file")
 def _format_string_list(values):
     return ", ".join(['"%s"' % value for value in values])
 
+def _format_list_block(values):
+    return "[%s]" % "\n".join(['"%s",' % value for value in values])
+
 def _crate_client_server_module_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".MODULE.bazel.generated")
 
     server_fn_features = _format_string_list(ctx.attr.server_fn_features)
-    server_fn_deps = "\n".join(['        "%s",' % dep for dep in ctx.attr.server_fn_deps])
-    tracing_features = _format_string_list(ctx.attr.tracing_features)
-    tracing_annotation = ""
-    if ctx.attr.tracing_features:
-        tracing_annotation = """
-{name}.annotation(
-    crate = "tracing",
-    crate_features = [{tracing_features}],
-    repositories = ["{name}"],
-)""".format(
-            name = ctx.attr.name,
-            tracing_features = tracing_features,
-        )
-
-    server_fn_deps_arg = ""
-    if ctx.attr.server_fn_deps:
-        server_fn_deps_arg = """
-    deps = [
-{server_fn_deps}
-    ],""".format(server_fn_deps = server_fn_deps)
+    server_fn_deps = _format_list_block(ctx.attr.server_fn_deps)
+    tracing_features = _format_list_block(ctx.attr.tracing_features)
 
     content = """{name} = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 {name}.annotation(
     crate = "server_fn",
     crate_features = [{server_fn_features}],
-    repositories = ["{name}"],{server_fn_deps_arg}
-){tracing_annotation}
+    repositories = ["{name}"],
+    deps = {server_fn_deps},
+)
+{name}.annotation(
+    crate = "tracing",
+    crate_features = {tracing_features},
+    repositories = ["{name}"],
+)
 {name}.from_cargo(
     name = "{name}",
     cargo_lockfile = "//bazel:{name}.lock",
@@ -45,8 +36,8 @@ use_repo({name}, "{name}")
 """.format(
         name = ctx.attr.name,
         server_fn_features = server_fn_features,
-        server_fn_deps_arg = server_fn_deps_arg,
-        tracing_annotation = tracing_annotation,
+        server_fn_deps = server_fn_deps,
+        tracing_features = tracing_features,
     )
 
     ctx.actions.write(out, content)

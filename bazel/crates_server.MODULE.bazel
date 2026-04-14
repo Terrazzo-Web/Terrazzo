@@ -19,6 +19,11 @@ crates_server.annotation(
         "@crates//:tower-layer",
     ],
 )
+crates_server.annotation(
+    crate = "tracing",
+    crate_features = [],
+    repositories = ["crates_server"],
+)
 crates_server.from_cargo(
     name = "crates_server",
     cargo_lockfile = "//bazel:crates_server.lock",

@@ -1,10 +1,9 @@
 crates_opt_client = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_opt_client.annotation(
     crate = "server_fn",
-    crate_features = [
-        "browser",
-    ],
+    crate_features = ["browser"],
     repositories = ["crates_opt_client"],
+    deps = [],
 )
 crates_opt_client.annotation(
     crate = "tracing",

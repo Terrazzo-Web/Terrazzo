@@ -23,6 +23,7 @@ def terminal_rules(
     rust_rules_matrix(
         package_name = "terminal",
         assets = [
+            native.glob(["src/**/*.js"]),
             {
                 "targets": native.glob(["src/**/*.scss"]),
                 "copy": True,
@@ -92,6 +93,7 @@ def terminal_rules(
                 "assets": [{
                     "targets": [":" + prefix + "client"],
                     "prefix": "target/assets/wasm",
+                    "copy": True,
                 }],
                 "deps": ["//framework/terrazzo:server"],
             },
@@ -100,6 +102,7 @@ def terminal_rules(
                 "assets": [{
                     "targets": [":" + prefix + "client-debug"],
                     "prefix": "target/assets/wasm",
+                    "copy": True,
                 }],
                 "deps": ["//framework/terrazzo:server-debug"],
             },

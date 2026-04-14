@@ -8,10 +8,27 @@ NODE_BIN="${3:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx
 NPX_BIN="${4:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
 TEST_SPEC="${5:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
 
+SERVER_PACKAGE_DIR="$(dirname "${SERVER_BIN}")"
+SERVER_TARGET_NAME="$(basename "${SERVER_BIN}")"
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
+
+if [[ "${SERVER_TARGET_NAME}" == *-debug ]]; then
+  SERVER_LIB_TARGET="${SERVER_TARGET_NAME%-debug}-lib-debug"
+else
+  SERVER_LIB_TARGET="${SERVER_TARGET_NAME}-lib"
+fi
+
+SERVER_BIN_REALPATH="$(realpath "${SERVER_BIN}")"
+SERVER_BIN_DIR="$(dirname "${SERVER_BIN_REALPATH}")"
+CARGO_MANIFEST_DIR="${SERVER_BIN_DIR}/cargo_root/${SERVER_LIB_TARGET}"
+
+if [[ ! -d "${CARGO_MANIFEST_DIR}/assets" ]]; then
+  echo "Expected Bazel-staged assets under ${CARGO_MANIFEST_DIR}/assets for ${SERVER_TARGET_NAME}" >&2
+  exit 1
+fi
 
 TMPDIR_ROOT="${TMPDIR:-/tmp}"
 TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
@@ -29,7 +46,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-CARGO_MANIFEST_DIR=. \
+CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
 RUST_BACKTRACE=1 \
 "${SERVER_BIN}" \
     --port 0 \

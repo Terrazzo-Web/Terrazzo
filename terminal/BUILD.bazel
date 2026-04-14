@@ -163,5 +163,18 @@ playwright_matrix_test(
             "tags": ["opt_mode"],
         },
     },
-    test = "tests/converter-integration-test.spec.mjs",
+    test = "tests/integration-test-converter.spec.mjs",
+)
+
+playwright_matrix_test(
+    overrides = {
+        "terminal-integration-test-debug": {
+            "server": ":terminal-server-debug",
+        },
+        "terminal-integration-test-release": {
+            "server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    test = "tests/integration-test-terminal.spec.mjs",
 )

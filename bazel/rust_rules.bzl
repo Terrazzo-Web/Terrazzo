@@ -377,6 +377,8 @@ def _link_assets_to_dir_impl(ctx):
         else:
             out = ctx.actions.declare_file(out_path)
         commands.append('mkdir -p "$(dirname "{}")"'.format(out.path))
+
+        # Is this necessary? I was hoping that ln -s would always work. Maybe we need to create symlinks
         if src.is_directory:
             commands.append('mkdir -p "{}"'.format(out.path))
             commands.append('cp -R "$(realpath "{}")"/. "{}"'.format(src.path, out.path))

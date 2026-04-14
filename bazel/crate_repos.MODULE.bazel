@@ -10,19 +10,7 @@ crates.from_cargo(
 )
 use_repo(crates, "crates")
 
-make_macros_repo = use_extension("//bazel:crate_macros.bzl", "make_macros_repo")
-make_macros_repo.macros_repo(
-    name = "macro_client",
-    server_fn_macro_features = [],
-)
-make_macros_repo.macros_repo(
-    name = "macro_server",
-    server_fn_macro_features = [
-        "axum",
-        "ssr",
-    ],
-)
-use_repo(make_macros_repo, "macro_client", "macro_server")
+include("//bazel:crate_macros.MODULE.bazel")
 
 crates_server = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crates_server.annotation(

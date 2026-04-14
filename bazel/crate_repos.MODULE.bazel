@@ -12,10 +12,10 @@ use_repo(crates, "crates")
 
 include("//bazel:crate_macro_client.MODULE.bazel")
 include("//bazel:crate_macro_server.MODULE.bazel")
-include("//bazel/client_server_modules:crates_server.MODULE.bazel")
-include("//bazel/client_server_modules:crates_client.MODULE.bazel")
-include("//bazel/client_server_modules:crates_opt_server.MODULE.bazel")
-include("//bazel/client_server_modules:crates_opt_client.MODULE.bazel")
+include("//bazel/client_server_modules:crates_server_plain.MODULE.bazel")
+include("//bazel/client_server_modules:crates_client_plain.MODULE.bazel")
+include("//bazel/client_server_modules:crates_server_opt.MODULE.bazel")
+include("//bazel/client_server_modules:crates_client_opt.MODULE.bazel")
 
 bindeps = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 bindeps.spec(

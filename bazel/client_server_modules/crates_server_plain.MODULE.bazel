@@ -1,0 +1,32 @@
+crates_server_plain = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates_server_plain.annotation(
+    crate = "server_fn",
+    crate_features = [
+        "axum",
+        "axum-no-default",
+        "browser",
+        "generic",
+        "ssr",
+    ],
+    repositories = ["crates_server_plain"],
+    deps = [
+        "@crates//:axum",
+        "@crates//:http-body-util",
+        "@crates//:hyper",
+        "@crates//:inventory",
+        "@crates//:tokio",
+        "@crates//:tower",
+        "@crates//:tower-layer",
+    ],
+)
+crates_server_plain.annotation(
+    crate = "tracing",
+    crate_features = [],
+    repositories = ["crates_server_plain"],
+)
+crates_server_plain.from_cargo(
+    name = "crates_server_plain",
+    cargo_lockfile = "//bazel/client_server_modules:crates_server_plain.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates_server_plain, "crates_server_plain")

@@ -30,25 +30,25 @@ TRACING_OPT_FEATURES = [
 ]
 
 crate_client_server_module(
-    name = "crates_server",
+    name = "crates_server_plain",
     server_fn_deps = SERVER_FN_SERVER_DEPS,
     server_fn_features = SERVER_FN_SERVER_FEATURES,
 )
 
 crate_client_server_module(
-    name = "crates_client",
+    name = "crates_client_plain",
     server_fn_features = SERVER_FN_CLIENT_FEATURES,
 )
 
 crate_client_server_module(
-    name = "crates_opt_server",
+    name = "crates_server_opt",
     server_fn_deps = SERVER_FN_SERVER_DEPS,
     server_fn_features = SERVER_FN_SERVER_FEATURES,
     tracing_features = TRACING_OPT_FEATURES,
 )
 
 crate_client_server_module(
-    name = "crates_opt_client",
+    name = "crates_client_opt",
     server_fn_features = SERVER_FN_CLIENT_FEATURES,
     tracing_features = TRACING_OPT_FEATURES,
 )

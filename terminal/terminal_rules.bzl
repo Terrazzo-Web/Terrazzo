@@ -1,11 +1,5 @@
-load("@crates//:defs.bzl", "all_crate_deps")
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
-load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
-
-package(default_visibility = ["//visibility:public"])
 
 def terminal_rules(
         prefix = "",
@@ -17,7 +11,7 @@ def terminal_rules(
         package_name = "terminal",
         assets = [
             {
-                "targets": glob(["src/**/*.scss"]),
+                "targets": native.glob(["src/**/*.scss"]),
                 "copy": True,
             },
         ],
@@ -71,7 +65,7 @@ def terminal_rules(
                 "assets/images/favicon.ico",
                 "assets/jsdeps/dist/jsdeps.js",
                 "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
-            ] + glob(["assets/icons/*.svg"]),
+            ] + native.glob(["assets/icons/*.svg"]),
             {
                 "targets": [":terminal_scss"],
                 "prefix": "target/css",

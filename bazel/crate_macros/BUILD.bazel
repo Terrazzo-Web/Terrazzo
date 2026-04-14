@@ -1,0 +1,14 @@
+load(":crate_macros.bzl", "crate_macro_module")
+
+crate_macro_module(
+    name = "crate_macro_client",
+    features = [],
+)
+
+crate_macro_module(
+    name = "crate_macro_server",
+    features = [
+        "axum",
+        "ssr",
+    ],
+)

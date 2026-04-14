@@ -21,5 +21,16 @@ test.describe('Terminal', () => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });
 
-  // TODO: add a test. Validate with bazel test //terminal:terminal-integration-test-debug
+  test('opens a new terminal tab and runs a command', async ({ page }) => {
+    await page.locator('div[class*="add-tab-icon"] img').waitFor({ timeout: 30 * SECOND });
+
+    await expect(page.locator('.xterm')).toHaveCount(1);
+
+    const activeTerminal = page.locator('.xterm').first();
+    await activeTerminal.click();
+    await page.keyboard.type('echo $((191*7))');
+    await page.keyboard.press('Enter');
+
+    await expect(activeTerminal).toContainText('1337');
+  });
 });

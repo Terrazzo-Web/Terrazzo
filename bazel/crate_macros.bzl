@@ -15,7 +15,7 @@ def _make_macros_repo_impl(ctx):
                 cargo_lockfile = "//:Cargo.lock",
                 manifests = ["//:Cargo.toml"],
             )
-            use_repo(crates, tag.name)
+            print("using repo " + tag.name)
 
 make_macros_repo = module_extension(
     implementation = _make_macros_repo_impl,

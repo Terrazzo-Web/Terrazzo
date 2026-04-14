@@ -29,7 +29,13 @@ cleanup() {
 
 trap cleanup EXIT
 
-RUST_BACKTRACE=1 "${SERVER_BIN}" --port 0 --set_current_endpoint "${SERVER_ENDPOINT_FILE}" > "${SERVER_LOG}" 2>&1 &
+CARGO_MANIFEST_DIR=. \
+RUST_BACKTRACE=1 \
+"${SERVER_BIN}" \
+    --port 0 \
+    --set_current_endpoint "${SERVER_ENDPOINT_FILE}" \
+  > "${SERVER_LOG}" 2>&1 &
+
 SERVER_PID="$!"
 
 for _ in $(seq 1 5); do

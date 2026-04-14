@@ -46,9 +46,7 @@ rust_rules_matrix(
     rustc_env_files = ["rustc.env"],
     deps = [
         "//utils/nameth/nameth",
-        "@crates//:serde_json",
         "@crates//:stylance",
-        "@crates//:thiserror",
         "@crates//:wasm-bindgen",
         "@crates//:wasm-bindgen-futures",
         "@crates//:web-sys",

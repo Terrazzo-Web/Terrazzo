@@ -77,7 +77,7 @@ jobs:
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
-          bazel test --action_env=PROTOC //...
+          bazel test --action_env=PROTOC //... --test_output=streamed
           bazel test --action_env=PROTOC -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
 
       - name: Update auto-generated files

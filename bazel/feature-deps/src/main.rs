@@ -132,7 +132,7 @@ fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<
             .iter()
             .map(|dependency| format!("{:?}", format!("@crates//:{dependency}")))
             .collect::<Vec<_>>()
-            .join(", ");
+            .join(",\n");
         parts.push(format!("[{deps}]"));
     }
 

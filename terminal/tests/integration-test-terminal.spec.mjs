@@ -87,9 +87,9 @@ test.describe('Terminal', () => {
     await expect(page.locator('li[class*="selected-"] .xterm')).toHaveCount(1);
 
     await activeTerminal.click();
-    await page.keyboard.type('echo "scale=6; 4*atan(1)" | bc -l');
+    await page.keyboard.type('echo $((191*7))');
     await page.keyboard.press('Enter');
-    await expect(activeTerminal).toContainText('3.141592');
+    await expect(activeTerminal).toContainText('2674');
     await expect(activeTerminal).not.toContainText('1337');
 
     const closeIcons = getCloseIcons(tabs);

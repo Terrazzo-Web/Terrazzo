@@ -5,10 +5,16 @@ load("//bazel:stylance_rules.bzl", "stylance_rule")
 load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load(
     ":terminal-features.bzl",
+    "CLIENT_ALL_DEPS",
+    "CLIENT_ALL_FEATURES",
     "CONVERTER_CLIENT_DEPS",
     "CONVERTER_CLIENT_FEATURES",
     "CONVERTER_SERVER_DEPS",
     "CONVERTER_SERVER_FEATURES",
+    "MAX_LEVEL_INFO_DEPS",
+    "MAX_LEVEL_INFO_FEATURES",
+    "PROD_DEPS",
+    "PROD_FEATURES",
     "TERMINAL_CLIENT_DEPS",
     "TERMINAL_CLIENT_FEATURES",
     "TERMINAL_SERVER_DEPS",
@@ -17,6 +23,19 @@ load(
 load(":terminal_rules.bzl", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
+
+terminal_rules(
+    client_deps = [
+        "//utils/nameth/nameth",
+    ] + CLIENT_ALL_DEPS + MAX_LEVEL_INFO_DEPS,
+    client_features = CLIENT_ALL_FEATURES + MAX_LEVEL_INFO_FEATURES,
+    server_deps = [
+        ":protos",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+    ] + PROD_DEPS,
+    server_features = PROD_FEATURES,
+)
 
 terminal_rules(
     client_deps = [

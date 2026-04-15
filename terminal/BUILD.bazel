@@ -6,9 +6,13 @@ load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load(
     ":terminal-features.bzl",
     "CONVERTER_CLIENT_DEPS",
+    "CONVERTER_CLIENT_FEATURES",
     "CONVERTER_SERVER_DEPS",
+    "CONVERTER_SERVER_FEATURES",
     "TERMINAL_CLIENT_DEPS",
+    "TERMINAL_CLIENT_FEATURES",
     "TERMINAL_SERVER_DEPS",
+    "TERMINAL_SERVER_FEATURES",
 )
 load(":terminal_rules.bzl", "terminal_rules")
 
@@ -18,47 +22,28 @@ terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
     ] + CONVERTER_CLIENT_DEPS,
-    client_features = [
-        "client",
-        "converter-client",
-        "converter",
-        "remotes-ui",
-    ],
+    client_features = CONVERTER_CLIENT_FEATURES,
     prefix = "converter",
     server_deps = [
         ":protos",
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + CONVERTER_SERVER_DEPS,
-    server_features = [
-        "server",
-        "converter-server",
-        "converter",
-    ],
+    server_features = CONVERTER_SERVER_FEATURES,
 )
 
 terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
     ] + TERMINAL_CLIENT_DEPS,
-    client_features = [
-        "client",
-        "correlation-id",
-        "terminal-client",
-        "terminal",
-    ],
+    client_features = TERMINAL_CLIENT_FEATURES,
     prefix = "terminal",
     server_deps = [
         ":protos",
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + TERMINAL_SERVER_DEPS,
-    server_features = [
-        "correlation-id",
-        "server",
-        "terminal-server",
-        "terminal",
-    ],
+    server_features = TERMINAL_SERVER_FEATURES,
 )
 
 cargo_build_script(

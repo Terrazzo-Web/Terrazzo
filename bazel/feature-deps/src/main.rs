@@ -146,37 +146,62 @@ fn emit_feature(
         child_features.insert(entry.clone());
     }
 
-    let expression = render_expression(&child_features, &dependencies);
+    let deps_expression = render_expression(&child_features, &dependencies, "DEPS", false);
+    let features_expression = render_expression(
+        &child_features,
+        &BTreeSet::from([feature_name.to_owned()]),
+        "FEATURES",
+        true,
+    );
     output.push_str(&format!(
         "{} = {}\n",
-        feature_constant_name(feature_name),
-        expression
+        feature_constant_name(feature_name, "DEPS"),
+        deps_expression
+    ));
+    output.push_str(&format!(
+        "{} = {}\n",
+        feature_constant_name(feature_name, "FEATURES"),
+        features_expression
     ));
     emitted.insert(feature_name.to_owned());
 
     Ok(())
 }
 
-fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<String>) -> String {
-    let mut parts = child_features
+fn render_expression(
+    child_features: &BTreeSet<String>,
+    values: &BTreeSet<String>,
+    suffix: &str,
+    values_first: bool,
+) -> String {
+    let child_parts = child_features
         .iter()
-        .map(|feature| feature_constant_name(feature))
+        .map(|feature| feature_constant_name(feature, suffix))
         .collect::<Vec<_>>();
+    let mut parts = Vec::new();
 
-    if !dependencies.is_empty() || parts.is_empty() {
-        let deps = dependencies
+    if !values.is_empty() || child_parts.is_empty() {
+        let values = values
             .iter()
-            .map(|dependency| format!("{dependency:?}"))
+            .map(|value| format!("{value:?}"))
             .collect::<Vec<_>>()
             .join(",\n");
-        parts.push(format!("[{deps}]"));
+        if values_first {
+            parts.push(format!("[{values}]"));
+        }
+        parts.extend(child_parts.iter().cloned());
+        if !values_first {
+            parts.push(format!("[{values}]"));
+        }
+    } else {
+        parts.extend(child_parts);
     }
 
     parts.join(" + ")
 }
 
-fn feature_constant_name(feature_name: &str) -> String {
-    format!("{}_DEPS", feature_name.to_shouty_snake_case())
+fn feature_constant_name(feature_name: &str, suffix: &str) -> String {
+    format!("{}_{}", feature_name.to_shouty_snake_case(), suffix)
 }
 
 fn format_dependency_label(
@@ -216,7 +241,9 @@ terminal = ["client", "dep:scopeguard", "web-sys/Window"]
 \"\"\"Generated feature dependency constants.\"\"\"\n\
 \n\
 CLIENT_DEPS = [\"@crates//:stylance\"]\n\
-TERMINAL_DEPS = CLIENT_DEPS + [\"@crates//:scopeguard\"]\n"
+CLIENT_FEATURES = [\"client\"]\n\
+TERMINAL_DEPS = CLIENT_DEPS + [\"@crates//:scopeguard\"]\n\
+TERMINAL_FEATURES = [\"terminal\"] + CLIENT_FEATURES\n"
         );
     }
 
@@ -234,7 +261,7 @@ debug = []
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nDEBUG_DEPS = []\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nDEBUG_DEPS = []\nDEBUG_FEATURES = [\"debug\"]\n"
         );
     }
 
@@ -268,7 +295,7 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = []\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = []\nSERVER_FEATURES = [\"server\"]\n"
         );
     }
 
@@ -293,7 +320,7 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = [\"//pty\",\n\"//remote/client\"]\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = [\"//pty\",\n\"//remote/client\"]\nSERVER_FEATURES = [\"server\"]\n"
         );
     }
 }

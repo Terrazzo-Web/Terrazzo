@@ -73,13 +73,14 @@ def playwright_matrix_test(overrides = {}, **kwargs):
     """
     make_rules_matrix(playwright_test, overrides, **kwargs)
 
-def playwright_test(name, server, test, **kwargs):
+def playwright_test(name, server, test, env = None, **kwargs):
     """Defines a Playwright test.
 
     Args:
       name: Name of the Bazel test target.
       server: Label of the server binary or script started by the test wrapper.
       test: Label of the Playwright test entrypoint to execute.
+      env: Optional environment variables passed to the test wrapper.
       **kwargs: Additional arguments forwarded to `sh_test`.
     """
     sh_test(
@@ -99,5 +100,6 @@ def playwright_test(name, server, test, **kwargs):
             "@local_node_tools//:node",
             "@local_node_tools//:npx",
         ],
+        env = env,
         **kwargs
     )

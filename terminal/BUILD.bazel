@@ -106,6 +106,25 @@ playwright_matrix_test(
     test = "tests/integration-test-terminal.spec.mjs",
 )
 
+playwright_matrix_test(
+    overrides = {
+        "terminal-password-update-test-debug": {
+            "env": {
+                "PLAYWRIGHT_USE_TEMP_CONFIG": "1",
+            },
+            "server": ":terminal-server-debug",
+        },
+        "terminal-password-update-test-release": {
+            "env": {
+                "PLAYWRIGHT_USE_TEMP_CONFIG": "1",
+            },
+            "server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    test = "tests/integration-test-password-update.spec.mjs",
+)
+
 feature_deps(
     dependency_aliases = {
         "terrazzo-pty": "//pty",

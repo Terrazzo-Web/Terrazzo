@@ -46,7 +46,7 @@ Add a dedicated end-to-end Playwright test that proves Terrazzo can transition f
   - initial page load reaches the terminal UI without login
   - CLI updates the config file successfully
   - server picks up the change via config polling
-  - page reload shows password login instead of immediate access
+  - page reload eventually shows password login instead of immediate access; because the config file is polled once per second, the transition may take at least 1 second after the password update
   - correct password restores access
 - Add one small Rust unit test around the non-interactive password input path if the implementation extracts a helper for “set password from provided string”; otherwise rely on the Playwright test as the primary coverage.
 

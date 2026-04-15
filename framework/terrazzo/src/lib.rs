@@ -24,3 +24,6 @@ macro_rules! declare_trait_aliias {
 
 #[cfg(feature = "debug")]
 use rsass as _;
+
+#[cfg(not(any(feature = "client", feature = "server")))]
+use terrazzo_macro as _;

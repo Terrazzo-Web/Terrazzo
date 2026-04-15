@@ -8,17 +8,17 @@ runs:
       shell: bash
     - name: Publish
       run: |
-        cargo publish --locked -p nameth-macro
-        cargo publish --locked -p nameth
-        cargo publish --locked -p autoclone
-        cargo publish --locked -p terrazzo-fixture
-        cargo publish --locked -p terrazzo-macro
-        cargo publish --locked -p terrazzo-client
-        cargo publish --locked -p terrazzo-build
-        cargo publish --locked -p terrazzo
-        cargo publish --locked -p trz-gateway-common
-        cargo publish --locked -p trz-gateway-server
-        cargo publish --locked -p trz-gateway-client
-        cargo publish --locked -p terrazzo-pty
-        cargo publish --locked -p terrazzo-terminal
+        cargo publish --locked -p nameth-macro || true
+        cargo publish --locked -p nameth || true
+        cargo publish --locked -p autoclone || true
+        cargo publish --locked -p terrazzo-fixture || true
+        cargo publish --locked -p terrazzo-macro || true
+        cargo publish --locked -p terrazzo-client || true
+        cargo publish --locked -p terrazzo-build || true
+        cargo publish --locked -p terrazzo || true
+        cargo publish --locked -p trz-gateway-common || true
+        cargo publish --locked -p trz-gateway-server || true
+        cargo publish --locked -p trz-gateway-client || true
+        cargo publish --locked -p terrazzo-pty || true
+        cargo publish --locked -p terrazzo-terminal --features prod
       shell: bash

@@ -16,6 +16,7 @@ runs:
         cargo publish --locked -p trz-gateway-common --dry-run
         cargo publish --locked -p trz-gateway-server --dry-run
         cargo publish --locked -p trz-gateway-client --dry-run
-        cargo publish --locked -p terrazzo-pty
-        cargo publish --locked -p terrazzo-terminal
+        cargo publish --locked -p terrazzo-pty --dry-run
+        cargo publish --locked -p terrazzo-terminal --dry-run
+        cargo publish --locked -p terrazzo-terminal --dry-run --features prod
       shell: bash

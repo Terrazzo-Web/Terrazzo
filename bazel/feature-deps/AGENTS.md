@@ -1,49 +1,168 @@
-# Utils to resolve the list of dependencies that are pulled by a feature
+# Feature Dependency Generator
 
-## Chapter 1. Format of the Cargo.toml file
+## Purpose
 
-We are only interested in the `[features]` section.
+`bazel/feature-deps` contains a small Rust command-line tool plus Bazel rules that
+generate checked-in `.bzl` files from a crate's `[features]` section in
+`Cargo.toml`.
 
-Each feature "F" pulls a list of dependencies that can have various formats:
-    (a) If the string starts with "dep:", it means feature "F" triggers an additional compile-time dependency
-    (b) If the string contains a slash, it means feature "F" activates another feature on a dependency
-    (c) Otherwise, the string points to another feature "F2" that is automatically pulled in by the feature "F"
+The generated `.bzl` file serves two purposes:
 
-## Chapter 2. Command line tool
+1. It exposes `*_DEPS` constants listing the Bazel dependency labels pulled in by
+   a feature.
+2. It exposes `*_FEATURES` constants listing the transitive Rust feature names
+   pulled in by a feature.
 
-A Rust executable that takes 2 parameters:
-    - the path to an existing Cargo.toml file
-    - the path to a .bzl file to be created
+This is currently used by `terminal/Cargo.toml` and
+`terminal/terminal-features.bzl`.
 
-Parsing of command-line parameters should be done with Rust clap crate.
+## Cargo.toml Semantics
 
-The command line tool should
-    1. Parse the `[features]` section of the Cargo.toml file.
-    2. Keep a hashset of features that have already been visited.
-    3. Follow instructions from Chapter 3.
+Only the `[features]` section is relevant.
 
-## Chapter 3. Algorithm
+For a feature entry string:
 
-For each feature, traverse the list of strings, referring to cases from Chapter 1:
-    - Case (a): record that there is an extra dependency in a "dependencies" sorted set. Strip out the "dep:"
-    - Case (b): ignore
-    - Case (c): recursively process that feature first. Record that feature name in a "child_features" sorted set
-       
-Then print a constant that is the upper-case name of the feature.
+- If it starts with `dep:`, it represents a dependency activated by that
+  feature.
+- If it contains `/`, it activates a feature on a dependency and is ignored by
+  this generator.
+- Otherwise, it references another feature in the same crate and should be
+  traversed recursively.
 
-The value of the constant is:
-- The sum of the "child_features" upper-case names. Because the algorithm is DFS, the constants for the child features will be printed before
-- Plus the list of strings in the "dependencies" set
+## Command-Line Tool
 
-## Chapter 4. Packaging
+The Rust executable is the `feature-deps` crate.
 
-Create Bazel rules
-    1. A Bazel rule to compile the Command line tool from Chapter 2. The name of the crate is "feature-deps".
-    2. A Bazel rule generates the .bzl file. It's a custom Bazel rule with multiple instructions
-        - parameters are name and path
-        - the name parameter defaults to the current package name (I think it's the same as the basename of the current directory), no slashes in that default name.
-        - path parameter points to a Cargo.toml file, and which defaults to the "Cargo.toml" file in the current folder
-        - the rule calls the feature-deps binary and generates a "generated.{name}-features.bzl" file
-        - the rule then calls the generate_file rule to copy the generated "generated.{name}-features.bzl" into checked-in "{name}-features.bzl" file
+It accepts:
 
-As an example, apply this to terminal/Cargo.toml
+- positional `cargo_toml`: path to an existing `Cargo.toml`
+- positional `output_bzl`: path to the `.bzl` file to create
+- repeated `--dependency-alias DEP=LABEL`: rewrites a `dep:DEP` entry to a
+  specific Bazel label instead of the default `@crates//:DEP`
+- repeated `--dependency-exclusion DEP`: omits a `dep:DEP` entry from generated
+  `*_DEPS` constants entirely
+
+Parsing is implemented with `clap`.
+
+## Traversal Algorithm
+
+For each feature:
+
+1. Keep a visited set so each feature is emitted once.
+2. DFS through same-crate child features before emitting the current feature.
+3. Track:
+   - `child_features`: sorted set of referenced same-crate features
+   - `dependencies`: sorted set of Bazel labels generated from `dep:` entries
+4. Ignore dependency feature activations such as `server_fn/browser`.
+
+Dependency label handling is:
+
+- If a dependency appears in `dependency_exclusion`, do not emit it.
+- Otherwise, if it appears in `dependency_aliases`, emit the aliased Bazel
+  label.
+- Otherwise emit `@crates//:{dependency}`.
+
+## Generated Constants
+
+Each feature emits two constants:
+
+- `{FEATURE_NAME}_DEPS`
+- `{FEATURE_NAME}_FEATURES`
+
+Both names use `feature_name.to_shouty_snake_case()`.
+
+### `*_DEPS`
+
+`*_DEPS` contains the transitive dependency labels pulled by a feature.
+
+Ordering:
+
+- Child feature `*_DEPS` constants come first.
+- The current feature's direct dependency labels come after.
+
+Example:
+
+```bzl
+CLIENT_DEPS = ["@crates//:stylance"]
+TERMINAL_DEPS = CLIENT_DEPS + ["@crates//:scopeguard"]
+```
+
+### `*_FEATURES`
+
+`*_FEATURES` contains the transitive Rust feature names pulled by a feature.
+
+Ordering:
+
+- The current feature name comes first as a one-element list.
+- Child feature `*_FEATURES` constants come after.
+
+Example:
+
+```bzl
+CORRELATION_ID_FEATURES = ["correlation-id"]
+TERMINAL_FEATURES = ["terminal"] + CORRELATION_ID_FEATURES
+CLIENT_FEATURES = ["client"]
+TERMINAL_CLIENT_FEATURES = ["terminal-client"] + CLIENT_FEATURES + TERMINAL_FEATURES
+```
+
+## Bazel Packaging
+
+The Bazel API is defined in `bazel/feature-deps/defs.bzl`.
+
+### `feature_deps_tool()`
+
+Builds the `feature-deps` Rust binary.
+
+### `feature_deps(...)`
+
+Generates a checked-in `{name}-features.bzl` file from a `Cargo.toml`.
+
+Parameters:
+
+- `name`: defaults to the current package basename
+- `path`: defaults to `Cargo.toml`
+- `dependency_aliases`: optional `dict[str, str]` mapping `dep:` entries to
+  Bazel labels
+- `dependency_exclusion`: optional `list[str]` of `dep:` entries to omit from
+  generated `*_DEPS`
+
+Behavior:
+
+1. The custom rule invokes the `feature-deps` binary and writes
+   `generated.{name}-features.bzl`.
+2. The `generate_file` helper copies that generated file into the checked-in
+   `{name}-features.bzl` when run via `bazel run //pkg:{name}_update`.
+
+The checked-in `.bzl` file is still required because Bazel cannot `load()` a
+Starlark file produced by a normal build action in the same loading phase.
+
+## Current Example: `terminal`
+
+`terminal/BUILD.bazel` currently uses:
+
+- generated `*_DEPS` constants to populate `client_deps` and `server_deps`
+- generated `*_FEATURES` constants to populate `client_features` and
+  `server_features`
+
+`terminal` also configures:
+
+- dependency aliases for:
+  - `terrazzo-pty -> //pty`
+  - `trz-gateway-client -> //remote/client`
+  - `trz-gateway-common -> //remote/common`
+- dependency exclusion for:
+  - `trz-gateway-server`
+
+That exclusion exists so `terminal/BUILD.bazel` can choose whether to depend on
+`//remote/server` or `//remote/server:acme` explicitly.
+
+## Validation
+
+Useful validation commands:
+
+- `cargo test -p feature-deps`
+- `cargo +nightly fmt`
+- `bazel run //terminal:terminal_update`
+- `bazel run //bazel:buildifier`
+- `bazel run //bazel:buildifier_check`
+- `bazel test //terminal/...`

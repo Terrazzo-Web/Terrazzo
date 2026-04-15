@@ -20,5 +20,5 @@ runs:
         cargo publish --locked -p trz-gateway-server || true
         cargo publish --locked -p trz-gateway-client || true
         cargo publish --locked -p terrazzo-pty || true
-        cargo publish --locked -p terrazzo-terminal || true
+        cargo publish --locked -p terrazzo-terminal --features prod
       shell: bash

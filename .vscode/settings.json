@@ -43,4 +43,5 @@
     "workbench.editor.revealIfOpen": true,
     "workbench.editor.showTabs": "multiple",
     "workbench.startupEditor": "none",
+    "workbench.tree.indent": 16,
 }

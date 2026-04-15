@@ -310,7 +310,11 @@ def _mirror_sources_impl(ctx):
 
             lines.append('mkdir -p "$(dirname "{}")"'.format(copied.path))
             if copy:
-                lines.append('cp "{}" "{}"'.format(f.path, copied.path))
+                if f.is_directory:
+                    lines.append('mkdir -p "{}"'.format(copied.path))
+                    lines.append('cp -R "$(realpath "{}")"/. "{}"'.format(f.path, copied.path))
+                else:
+                    lines.append('cp "{}" "{}"'.format(f.path, copied.path))
             else:
                 lines.append('ln -s "$(realpath "{}")" "{}"'.format(f.path, copied.path))
             copied_files.append(copied)
@@ -373,7 +377,12 @@ def _link_assets_to_dir_impl(ctx):
         else:
             out = ctx.actions.declare_file(out_path)
         commands.append('mkdir -p "$(dirname "{}")"'.format(out.path))
-        commands.append('ln -s $(realpath "{}") "{}"'.format(src.path, out.path))
+
+        if src.is_directory:
+            commands.append('mkdir -p "{}"'.format(out.path))
+            commands.append('cp -R "$(realpath "{}")"/. "{}"'.format(src.path, out.path))
+        else:
+            commands.append('ln -s $(realpath "{}") "{}"'.format(src.path, out.path))
         outputs.append(out)
 
     ctx.actions.run_shell(

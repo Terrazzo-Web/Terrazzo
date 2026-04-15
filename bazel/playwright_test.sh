@@ -12,6 +12,7 @@ SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
+CARGO_MANIFEST_DIR="$(dirname "$(realpath "${SERVER_BIN}")")/cargo_root/$(basename "${SERVER_BIN}")"
 
 TMPDIR_ROOT="${TMPDIR:-/tmp}"
 TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
@@ -29,7 +30,13 @@ cleanup() {
 
 trap cleanup EXIT
 
-"${SERVER_BIN}" --port 0 --set_current_endpoint "${SERVER_ENDPOINT_FILE}" > "${SERVER_LOG}" 2>&1 &
+CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
+RUST_BACKTRACE=1 \
+"${SERVER_BIN}" \
+    --port 0 \
+    --set_current_endpoint "${SERVER_ENDPOINT_FILE}" \
+  > "${SERVER_LOG}" 2>&1 &
+
 SERVER_PID="$!"
 
 for _ in $(seq 1 5); do

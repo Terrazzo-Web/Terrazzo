@@ -69,7 +69,6 @@ async function reloadUntilPasswordLogin(page) {
 
 test.describe('Password update', () => {
   test.beforeEach(async ({ page }) => {
-    test.skip(process.env.PLAYWRIGHT_USE_TEMP_CONFIG !== '1', 'requires temp-config test mode');
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });

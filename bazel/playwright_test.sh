@@ -19,8 +19,8 @@ TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XX
 SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
 SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-${TEST_TMPDIR%/}/server-endpoint}"
 TEMP_CONFIG_FILE="${TEMP_CONFIG_FILE:-${TEST_TMPDIR%/}/config.toml}"
-PLAYWRIGHT_USE_TEMP_CONFIG="${PLAYWRIGHT_USE_TEMP_CONFIG:-0}"
 SERVER_PID=""
+SERVER_SUPPORTS_CONFIG_FILE=0
 
 SERVER_ARGS=(
   --port 0
@@ -37,12 +37,16 @@ cleanup() {
 
 trap cleanup EXIT
 
-if [[ "${PLAYWRIGHT_USE_TEMP_CONFIG}" == "1" ]]; then
-  cat > "${TEMP_CONFIG_FILE}" <<'EOF'
+if CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" "${SERVER_BIN}" --help 2>/dev/null | grep -Fq -- "--config-file"; then
+  SERVER_SUPPORTS_CONFIG_FILE=1
+fi
+
+if [[ "${SERVER_SUPPORTS_CONFIG_FILE}" == "1" ]]; then
+cat > "${TEMP_CONFIG_FILE}" <<'EOF'
 [server.config_file_poll_strategy]
 fixed = "1s"
 EOF
-  SERVER_ARGS+=(--config-file "${TEMP_CONFIG_FILE}")
+SERVER_ARGS+=(--config-file "${TEMP_CONFIG_FILE}")
 fi
 
 CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
@@ -68,7 +72,6 @@ for _ in $(seq 1 30); do
     export TERRAZZO_SERVER_BIN="${SERVER_BIN}"
     export TERRAZZO_CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}"
     export TERRAZZO_CONFIG_FILE="${TEMP_CONFIG_FILE}"
-    export PLAYWRIGHT_USE_TEMP_CONFIG
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"

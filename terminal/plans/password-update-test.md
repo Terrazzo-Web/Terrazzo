@@ -9,8 +9,8 @@ Add a dedicated end-to-end Playwright test that proves Terrazzo can transition f
   - Keep the current interactive prompt as the default; only switch to stdin when the flag is present.
   - Update `terminal/src/backend/config/password.rs` so password-setting logic can accept either interactive prompt input or a provided string from stdin, then persist the hashed password into the config file exactly as today.
 - [x] Add a Bazel/Playwright harness path for temp-config server startup:
-  - Extend `bazel/playwright_test.sh` so a test target can opt into a temp config file in `TEST_TMPDIR`.
-  - For this test mode, create the config file before server startup and seed it with:
+  - Extend `bazel/playwright_test.sh` so Playwright integration tests use a temp config file in `TEST_TMPDIR` whenever the server supports `--config-file`.
+  - Create the temp config file before server startup and seed it with:
     ```toml
     [server.config_file_poll_strategy]
     fixed = "1s"
@@ -25,15 +25,14 @@ Add a dedicated end-to-end Playwright test that proves Terrazzo can transition f
   - Detect the password input from the login UI, enter the same password, and assert the add-tab button becomes visible again.
 - [x] Add/adjust Bazel test targets:
   - Add a new Playwright target pair for this spec, parallel to the existing debug/release terminal integration targets.
-  - Use the existing `:terminal-server-debug` and `:terminal-server` binaries, but enable the temp-config mode only for this new password-update test target.
+  - Use the existing `:terminal-server-debug` and `:terminal-server` binaries; Playwright integration tests whose servers support `--config-file` inherit the temp-config startup behavior.
 
 ## Public Interfaces
 - New CLI option on `terrazzo-terminal`:
   - `--password-stdin`
   - Valid only with `--action set-password`
   - Reads the password from stdin instead of prompting on the TTY
-- New Playwright wrapper environment contract for opt-in tests:
-  - Temp-config mode flag
+- New Playwright wrapper environment contract:
   - Exported config-file path
   - Exported server binary path and manifest dir for child-process reuse
 

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "bazel/feature-deps",
   "bazel/crate_universe_deps",
   "demo",
   "framework/build",

@@ -1,20 +1,18 @@
 load("@crates//:defs.bzl", "all_crate_deps")
+load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
+load(":feature_deps_labels.bzl", "crate_feature_deps", "dedupe")
 load(":terminal_rules.bzl", "terminal_rules")
+load(":terminal-features.bzl", "CONVERTER_CLIENT", "CONVERTER_SERVER", "TERMINAL_CLIENT", "TERMINAL_SERVER")
 
 package(default_visibility = ["//visibility:public"])
 
-# TODO: derive dependencies required by features from Cargo.toml
 terminal_rules(
-    client_deps = [
+    client_deps = dedupe([
         "//utils/nameth/nameth",
-        "@crates//:stylance",
-        "@crates//:wasm-bindgen",
-        "@crates//:wasm-bindgen-futures",
-        "@crates//:web-sys",
-    ],
+    ] + crate_feature_deps(CONVERTER_CLIENT)),
     client_features = [
         "client",
         "converter-client",
@@ -22,51 +20,13 @@ terminal_rules(
         "remotes-ui",
     ],
     prefix = "converter",
-    server_deps = [
+    server_deps = dedupe([
         ":protos",
         "//remote/client",
         "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-        "@crates//:axum-extra",
-        "@crates//:base64",
-        "@crates//:clap",
-        "@crates//:cms",
-        "@crates//:const_format",
-        "@crates//:futures",
-        "@crates//:hickory-client",
-        "@crates//:humantime",
-        "@crates//:inventory",
-        "@crates//:jsonwebtoken",
-        "@crates//:nix",
-        "@crates//:oid-registry",
-        "@crates//:openssl",
-        "@crates//:pbkdf2",
-        "@crates//:pin-project",
-        "@crates//:prost",
-        "@crates//:prost-types",
-        "@crates//:regex",
-        "@crates//:rpassword",
-        "@crates//:rustls-native-certs",
-        "@crates//:scopeguard",
-        "@crates//:serde_yaml_ng",
-        "@crates//:server_fn",
-        "@crates//:sha2",
-        "@crates//:simple_asn1",
-        "@crates//:tls-parser",
-        "@crates//:tokio",
-        "@crates//:tokio-rustls",
-        "@crates//:toml",
-        "@crates//:tonic",
-        "@crates//:tonic-prost",
-        "@crates//:tower",
-        "@crates//:tower-http",
-        "@crates//:tracing",
-        "@crates//:unescaper",
-        "@crates//:url",
-        "@crates//:uuid",
-        "@crates//:x509-parser",
-    ],
+    ] + crate_feature_deps(CONVERTER_SERVER)),
     server_features = [
         "server",
         "converter-server",
@@ -75,17 +35,9 @@ terminal_rules(
 )
 
 terminal_rules(
-    client_deps = [
-        "@crates//:futures",
-        "@crates//:pin-project",
-        "@crates//:scopeguard",
-        "@crates//:stylance",
-        "@crates//:wasm-bindgen-futures",
-        "@crates//:wasm-bindgen",
-        "@crates//:wasm-streams",
-        "@crates//:web-sys",
+    client_deps = dedupe([
         "//utils/nameth/nameth",
-    ],
+    ] + crate_feature_deps(TERMINAL_CLIENT)),
     client_features = [
         "client",
         "correlation-id",
@@ -93,43 +45,14 @@ terminal_rules(
         "terminal",
     ],
     prefix = "terminal",
-    server_deps = [
+    server_deps = dedupe([
         ":protos",
-        "@crates//:axum-extra",
-        "@crates//:base64",
-        "@crates//:clap",
-        "@crates//:const_format",
-        "@crates//:dashmap",
-        "@crates//:futures",
-        "@crates//:humantime",
-        "@crates//:inventory",
-        "@crates//:jsonwebtoken",
-        "@crates//:nix",
-        "@crates//:openssl",
-        "@crates//:pbkdf2",
-        "@crates//:pin-project",
-        "@crates//:prost-types",
-        "@crates//:prost",
-        "@crates//:rpassword",
-        "@crates//:scopeguard",
-        "@crates//:server_fn",
-        "@crates//:sha2",
-        "@crates//:static_assertions",
-        "@crates//:tokio",
-        "@crates//:toml",
-        "@crates//:tonic-prost",
-        "@crates//:tonic",
-        "@crates//:tower-http",
-        "@crates//:tower",
-        "@crates//:tracing-futures",
-        "@crates//:tracing",
-        "@crates//:uuid",
         "//pty",
         "//remote/client",
         "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-    ],
+    ] + crate_feature_deps(TERMINAL_SERVER)),
     server_features = [
         "correlation-id",
         "server",
@@ -178,3 +101,5 @@ playwright_matrix_test(
     },
     test = "tests/integration-test-terminal.spec.mjs",
 )
+
+feature_deps()

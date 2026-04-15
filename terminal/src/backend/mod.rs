@@ -101,6 +101,10 @@ pub fn run_server() -> Result<(), RunServerError> {
         cli
     };
 
+    if cli.password_stdin && cli.action != Action::SetPassword {
+        return Err(RunServerError::PasswordStdinRequiresSetPassword);
+    }
+
     let config = if let Some(path) = cli.config_file.as_deref() {
         ConfigFile::load(path)?
     } else {
@@ -144,7 +148,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     let config = config.into_dyn(&cli);
     let server_config = config.server.clone();
     if cli.action == Action::SetPassword {
-        return Ok(server_config.set_password()?);
+        return Ok(server_config.set_password(cli.password_stdin)?);
     }
 
     let backend_config = {
@@ -236,6 +240,9 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum RunServerError {
+    #[error("[{n}] --password-stdin requires --action set-password", n = self.name())]
+    PasswordStdinRequiresSetPassword,
+
     #[error("[{n}] {0}", n = self.name())]
     KillServer(#[from] KillServerError),
 

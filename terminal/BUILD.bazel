@@ -1,10 +1,10 @@
 load("@crates//:defs.bzl", "all_crate_deps")
-load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
-load(":terminal_rules.bzl", "terminal_rules")
+load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load(":terminal-features.bzl", "CONVERTER_CLIENT", "CONVERTER_SERVER", "TERMINAL_CLIENT", "TERMINAL_SERVER")
+load(":terminal_rules.bzl", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
 

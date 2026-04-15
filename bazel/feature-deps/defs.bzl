@@ -1,7 +1,7 @@
 """Rules for generating feature dependency constants from Cargo features."""
 
-load("//bazel:generated_file.bzl", "generate_file")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//bazel:generated_file.bzl", "generate_file")
 
 def _feature_deps_impl(ctx):
     output = ctx.actions.declare_file("generated.{}-features.bzl".format(ctx.attr.output_name))

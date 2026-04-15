@@ -3,6 +3,13 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 
+def _dedupe(items):
+    result = []
+    for item in items:
+        if item not in result:
+            result.append(item)
+    return result
+
 def terminal_rules(
         prefix = "",
         client_features = [],
@@ -18,6 +25,11 @@ def terminal_rules(
         server_features: List of Rust crate features enabled for server library targets.
         server_deps: List of additional dependencies for server library targets.
     """
+    client_features = _dedupe(client_features)
+    client_deps = _dedupe(client_deps)
+    server_features = _dedupe(server_features)
+    server_deps = _dedupe(server_deps)
+
     if prefix and not prefix.endswith("-"):
         prefix += "-"
     rust_rules_matrix(

@@ -3,16 +3,15 @@ load("//bazel/feature-deps:defs.bzl", "feature_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
-load(":feature_deps_labels.bzl", "dedupe")
 load(":terminal_rules.bzl", "terminal_rules")
 load(":terminal-features.bzl", "CONVERTER_CLIENT", "CONVERTER_SERVER", "TERMINAL_CLIENT", "TERMINAL_SERVER")
 
 package(default_visibility = ["//visibility:public"])
 
 terminal_rules(
-    client_deps = dedupe([
+    client_deps = [
         "//utils/nameth/nameth",
-    ] + CONVERTER_CLIENT),
+    ] + CONVERTER_CLIENT,
     client_features = [
         "client",
         "converter-client",
@@ -20,13 +19,13 @@ terminal_rules(
         "remotes-ui",
     ],
     prefix = "converter",
-    server_deps = dedupe([
+    server_deps = [
         ":protos",
         "//remote/client",
         "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-    ] + CONVERTER_SERVER),
+    ] + CONVERTER_SERVER,
     server_features = [
         "server",
         "converter-server",
@@ -35,9 +34,9 @@ terminal_rules(
 )
 
 terminal_rules(
-    client_deps = dedupe([
+    client_deps = [
         "//utils/nameth/nameth",
-    ] + TERMINAL_CLIENT),
+    ] + TERMINAL_CLIENT,
     client_features = [
         "client",
         "correlation-id",
@@ -45,14 +44,14 @@ terminal_rules(
         "terminal",
     ],
     prefix = "terminal",
-    server_deps = dedupe([
+    server_deps = [
         ":protos",
         "//pty",
         "//remote/client",
         "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-    ] + TERMINAL_SERVER),
+    ] + TERMINAL_SERVER,
     server_features = [
         "correlation-id",
         "server",

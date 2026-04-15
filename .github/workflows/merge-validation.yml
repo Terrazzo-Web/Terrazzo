@@ -25,6 +25,8 @@ jobs:
         run: cargo build --bins --features=server,server-all,max_level_debug,debug,diagnostics
       - name: Build release
         run: cargo build --bins --features=server,server-all,max_level_info --release
+      - name: Unit tests
+        run: RUSTFLAGS="-A unused-crate-dependencies" cargo test --workspace --all-features
 
       - name: Run integration test against debug
         run: ./demo/scripts/integration-test.sh target/debug/demo-server

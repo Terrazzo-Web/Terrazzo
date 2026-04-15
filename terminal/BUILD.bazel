@@ -3,7 +3,13 @@ load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 load("//bazel/feature-deps:defs.bzl", "feature_deps")
-load(":terminal-features.bzl", "CONVERTER_CLIENT", "CONVERTER_SERVER", "TERMINAL_CLIENT", "TERMINAL_SERVER")
+load(
+    ":terminal-features.bzl",
+    "CONVERTER_CLIENT_DEPS",
+    "CONVERTER_SERVER_DEPS",
+    "TERMINAL_CLIENT_DEPS",
+    "TERMINAL_SERVER_DEPS",
+)
 load(":terminal_rules.bzl", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
@@ -11,7 +17,7 @@ package(default_visibility = ["//visibility:public"])
 terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
-    ] + CONVERTER_CLIENT,
+    ] + CONVERTER_CLIENT_DEPS,
     client_features = [
         "client",
         "converter-client",
@@ -23,7 +29,7 @@ terminal_rules(
         ":protos",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-    ] + CONVERTER_SERVER,
+    ] + CONVERTER_SERVER_DEPS,
     server_features = [
         "server",
         "converter-server",
@@ -34,7 +40,7 @@ terminal_rules(
 terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
-    ] + TERMINAL_CLIENT,
+    ] + TERMINAL_CLIENT_DEPS,
     client_features = [
         "client",
         "correlation-id",
@@ -46,7 +52,7 @@ terminal_rules(
         ":protos",
         "//remote/server:acme",
         "//utils/nameth/nameth",
-    ] + TERMINAL_SERVER,
+    ] + TERMINAL_SERVER_DEPS,
     server_features = [
         "correlation-id",
         "server",

@@ -1,40 +1,40 @@
 """Generated feature dependency constants."""
 
-BAZEL = []
-CLIENT = [
+BAZEL_DEPS = []
+CLIENT_DEPS = [
     "@crates//:stylance",
     "@crates//:wasm-bindgen",
     "@crates//:wasm-bindgen-futures",
 ]
-CONVERTER = []
-REMOTES_UI = []
-CONVERTER_CLIENT = CLIENT + CONVERTER + REMOTES_UI + ["@crates//:web-sys"]
-LOGS_PANEL = []
-LOGS_PANEL_CLIENT = CLIENT + LOGS_PANEL + ["@crates//:futures"]
-PORT_FORWARD = []
-PORT_FORWARD_CLIENT = CLIENT + PORT_FORWARD + REMOTES_UI + [
+CONVERTER_DEPS = []
+REMOTES_UI_DEPS = []
+CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + ["@crates//:web-sys"]
+LOGS_PANEL_DEPS = []
+LOGS_PANEL_CLIENT_DEPS = CLIENT_DEPS + LOGS_PANEL_DEPS + ["@crates//:futures"]
+PORT_FORWARD_DEPS = []
+PORT_FORWARD_CLIENT_DEPS = CLIENT_DEPS + PORT_FORWARD_DEPS + REMOTES_UI_DEPS + [
     "@crates//:bitflags",
     "@crates//:scopeguard",
     "@crates//:web-sys",
 ]
-CORRELATION_ID = []
-TERMINAL = CORRELATION_ID
-TERMINAL_CLIENT = CLIENT + TERMINAL + [
+CORRELATION_ID_DEPS = []
+TERMINAL_DEPS = CORRELATION_ID_DEPS
+TERMINAL_CLIENT_DEPS = CLIENT_DEPS + TERMINAL_DEPS + [
     "@crates//:futures",
     "@crates//:pin-project",
     "@crates//:scopeguard",
     "@crates//:wasm-streams",
     "@crates//:web-sys",
 ]
-TEXT_EDITOR = []
-TEXT_EDITOR_CLIENT = CLIENT + REMOTES_UI + TEXT_EDITOR + [
+TEXT_EDITOR_DEPS = []
+TEXT_EDITOR_CLIENT_DEPS = CLIENT_DEPS + REMOTES_UI_DEPS + TEXT_EDITOR_DEPS + [
     "@crates//:futures",
     "@crates//:scopeguard",
     "@crates//:serde-wasm-bindgen",
 ]
-CLIENT_ALL = CONVERTER_CLIENT + LOGS_PANEL_CLIENT + PORT_FORWARD_CLIENT + TERMINAL_CLIENT + TEXT_EDITOR_CLIENT
-CONCISE_TRACES = []
-SERVER = [
+CLIENT_ALL_DEPS = CONVERTER_CLIENT_DEPS + LOGS_PANEL_CLIENT_DEPS + PORT_FORWARD_CLIENT_DEPS + TERMINAL_CLIENT_DEPS + TEXT_EDITOR_CLIENT_DEPS
+CONCISE_TRACES_DEPS = []
+SERVER_DEPS = [
     "//remote/client",
     "//remote/common",
     "@crates//:axum-extra",
@@ -63,7 +63,7 @@ SERVER = [
     "@crates//:tracing",
     "@crates//:uuid",
 ]
-CONVERTER_SERVER = CONVERTER + SERVER + [
+CONVERTER_SERVER_DEPS = CONVERTER_DEPS + SERVER_DEPS + [
     "@crates//:cms",
     "@crates//:hickory-client",
     "@crates//:oid-registry",
@@ -77,25 +77,25 @@ CONVERTER_SERVER = CONVERTER + SERVER + [
     "@crates//:url",
     "@crates//:x509-parser",
 ]
-DEBUG = []
-DIAGNOSTICS = []
-LOGS_PANEL_SERVER = LOGS_PANEL + SERVER + ["@crates//:tracing-subscriber"]
-MAX_LEVEL_DEBUG = []
-MAX_LEVEL_INFO = CONCISE_TRACES
-NO_WASM_BUILD = []
-PORT_FORWARD_SERVER = PORT_FORWARD + SERVER
-TERMINAL_SERVER = SERVER + TERMINAL + [
+DEBUG_DEPS = []
+DIAGNOSTICS_DEPS = []
+LOGS_PANEL_SERVER_DEPS = LOGS_PANEL_DEPS + SERVER_DEPS + ["@crates//:tracing-subscriber"]
+MAX_LEVEL_DEBUG_DEPS = []
+MAX_LEVEL_INFO_DEPS = CONCISE_TRACES_DEPS
+NO_WASM_BUILD_DEPS = []
+PORT_FORWARD_SERVER_DEPS = PORT_FORWARD_DEPS + SERVER_DEPS
+TERMINAL_SERVER_DEPS = SERVER_DEPS + TERMINAL_DEPS + [
     "//pty",
     "@crates//:dashmap",
     "@crates//:pin-project",
     "@crates//:static_assertions",
     "@crates//:tracing-futures",
 ]
-TEXT_EDITOR_SERVER = SERVER + TEXT_EDITOR + [
+TEXT_EDITOR_SERVER_DEPS = SERVER_DEPS + TEXT_EDITOR_DEPS + [
     "@crates//:libc",
     "@crates//:notify",
     "@crates//:tokio-stream",
 ]
-SERVER_ALL = CONVERTER_SERVER + LOGS_PANEL_SERVER + PORT_FORWARD_SERVER + TERMINAL_SERVER + TEXT_EDITOR_SERVER
-PROD = MAX_LEVEL_INFO + SERVER_ALL
-RUSTDOC = []
+SERVER_ALL_DEPS = CONVERTER_SERVER_DEPS + LOGS_PANEL_SERVER_DEPS + PORT_FORWARD_SERVER_DEPS + TERMINAL_SERVER_DEPS + TEXT_EDITOR_SERVER_DEPS
+PROD_DEPS = MAX_LEVEL_INFO_DEPS + SERVER_ALL_DEPS
+RUSTDOC_DEPS = []

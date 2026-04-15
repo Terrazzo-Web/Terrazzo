@@ -1,4 +1,6 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -147,7 +149,7 @@ fn emit_feature(
     let expression = render_expression(&child_features, &dependencies);
     output.push_str(&format!(
         "{} = {}\n",
-        feature_name.to_shouty_snake_case(),
+        feature_constant_name(feature_name),
         expression
     ));
     emitted.insert(feature_name.to_owned());
@@ -158,7 +160,7 @@ fn emit_feature(
 fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<String>) -> String {
     let mut parts = child_features
         .iter()
-        .map(|feature| feature.to_shouty_snake_case())
+        .map(|feature| feature_constant_name(feature))
         .collect::<Vec<_>>();
 
     if !dependencies.is_empty() || parts.is_empty() {
@@ -173,6 +175,10 @@ fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<
     parts.join(" + ")
 }
 
+fn feature_constant_name(feature_name: &str) -> String {
+    format!("{}_DEPS", feature_name.to_shouty_snake_case())
+}
+
 fn format_dependency_label(
     dependency: &str,
     dependency_aliases: &HashMap<String, String>,
@@ -185,9 +191,11 @@ fn format_dependency_label(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
+    use std::collections::HashSet;
 
-    use super::{parse_features, render_bzl};
+    use super::parse_features;
+    use super::render_bzl;
 
     #[test]
     fn generates_dependencies_after_children() {
@@ -207,8 +215,8 @@ terminal = ["client", "dep:scopeguard", "web-sys/Window"]
             "\
 \"\"\"Generated feature dependency constants.\"\"\"\n\
 \n\
-CLIENT = [\"@crates//:stylance\"]\n\
-TERMINAL = CLIENT + [\"@crates//:scopeguard\"]\n"
+CLIENT_DEPS = [\"@crates//:stylance\"]\n\
+TERMINAL_DEPS = CLIENT_DEPS + [\"@crates//:scopeguard\"]\n"
         );
     }
 
@@ -226,7 +234,7 @@ debug = []
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nDEBUG = []\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nDEBUG_DEPS = []\n"
         );
     }
 
@@ -260,7 +268,7 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER = []\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = []\n"
         );
     }
 
@@ -285,7 +293,7 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER = [\"//pty\",\n\"//remote/client\"]\n"
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = [\"//pty\",\n\"//remote/client\"]\n"
         );
     }
 }

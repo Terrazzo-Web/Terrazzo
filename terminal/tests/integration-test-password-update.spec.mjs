@@ -6,7 +6,6 @@ const SECOND = 1000;
 const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 const SERVER_BIN = process.env.TERRAZZO_SERVER_BIN;
 const CONFIG_FILE = process.env.TERRAZZO_CONFIG_FILE;
-const CARGO_MANIFEST_DIR = process.env.TERRAZZO_CARGO_MANIFEST_DIR;
 
 function getAddTabButton(page) {
   return page.locator('div[class*="add-tab-icon-"] img');
@@ -27,7 +26,6 @@ async function setPassword(password) {
       {
         env: {
           ...process.env,
-          CARGO_MANIFEST_DIR,
           RUST_BACKTRACE: '1',
         },
         stdio: ['pipe', 'pipe', 'pipe'],

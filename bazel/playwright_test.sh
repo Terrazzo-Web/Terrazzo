@@ -70,7 +70,6 @@ for _ in $(seq 1 30); do
     export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
     export PATH="$(dirname "${NODE_BIN}"):${PATH:-}"
     export TERRAZZO_SERVER_BIN="${SERVER_BIN}"
-    export TERRAZZO_CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}"
     export TERRAZZO_CONFIG_FILE="${TEMP_CONFIG_FILE}"
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"

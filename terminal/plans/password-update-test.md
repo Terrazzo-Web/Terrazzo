@@ -4,7 +4,7 @@
 Add a dedicated end-to-end Playwright test that proves Terrazzo can transition from “no password required” to “password required” without restarting the test harness manually. The test will start the existing terminal server through Bazel with a temp config file, update that config by calling the terminal CLI during the test, reload the browser, and verify that login is now required and succeeds with the new password.
 
 ## Key Changes
-- Add a new terminal CLI automation path:
+- [x] Add a new terminal CLI automation path:
   - Extend `terminal/src/backend/cli.rs` with `--password-stdin` for `--action set-password`.
   - Keep the current interactive prompt as the default; only switch to stdin when the flag is present.
   - Update `terminal/src/backend/config/password.rs` so password-setting logic can accept either interactive prompt input or a provided string from stdin, then persist the hashed password into the config file exactly as today.

@@ -1,3 +1,5 @@
+use std::io::Read as _;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use pbkdf2::hmac::Hmac;
@@ -10,8 +12,16 @@ use super::server::DynamicServerConfig;
 use crate::backend::config::types::Password;
 
 impl DynamicServerConfig {
-    pub fn set_password(&self) -> Result<(), SetPasswordError> {
-        let password = rpassword::prompt_password("Password: ")?;
+    pub fn set_password(&self, password_stdin: bool) -> Result<(), SetPasswordError> {
+        let password = if password_stdin {
+            read_password_from_stdin()?
+        } else {
+            rpassword::prompt_password("Password: ")?
+        };
+        self.set_password_value(&password)
+    }
+
+    fn set_password_value(&self, password: &str) -> Result<(), SetPasswordError> {
         let () = self.try_set(|server| {
             let password = server.hash_password(&password)?;
             Ok::<_, SetPasswordError>(
@@ -25,6 +35,16 @@ impl DynamicServerConfig {
         debug_assert!(matches!(self.get().verify_password(&password), Ok(())));
         Ok(())
     }
+}
+
+fn read_password_from_stdin() -> Result<String, SetPasswordError> {
+    let mut password = String::new();
+    std::io::stdin().read_to_string(&mut password)?;
+    Ok(normalize_password_input(&password).to_owned())
+}
+
+fn normalize_password_input(password: &str) -> &str {
+    password.trim_end_matches(['\r', '\n'])
 }
 
 impl ServerConfig {
@@ -94,6 +114,7 @@ pub enum VerifyPasswordError {
 mod tests {
     use crate::backend::config::ServerConfig;
     use crate::backend::config::password::VerifyPasswordError;
+    use crate::backend::config::password::normalize_password_input;
 
     #[test]
     fn test_password() {
@@ -108,5 +129,12 @@ mod tests {
             config_file.verify_password("pa$$word2"),
             Err(VerifyPasswordError::InvalidPassword)
         ));
+    }
+
+    #[test]
+    fn normalize_password_input_trims_newlines_only() {
+        assert_eq!(normalize_password_input("pa$$word\n"), "pa$$word");
+        assert_eq!(normalize_password_input("pa$$word\r\n"), "pa$$word");
+        assert_eq!(normalize_password_input(" pa$$word \n"), " pa$$word ");
     }
 }

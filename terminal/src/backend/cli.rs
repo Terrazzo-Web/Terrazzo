@@ -8,6 +8,10 @@ pub struct Cli {
     #[arg(long, short, value_enum, default_value_t = Action::Run)]
     pub action: Action,
 
+    /// Read the password for `set-password` from stdin instead of prompting.
+    #[arg(long)]
+    pub password_stdin: bool,
+
     /// The TCP host to listen to.
     #[arg(long)]
     pub host: Option<String>,

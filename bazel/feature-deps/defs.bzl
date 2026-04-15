@@ -5,16 +5,19 @@ load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 def _feature_deps_impl(ctx):
     output = ctx.actions.declare_file("generated.{}-features.bzl".format(ctx.attr.output_name))
+    arguments = [
+        ctx.file.path.path,
+        output.path,
+    ]
+    for dep in ctx.attr.exclude_deps:
+        arguments.extend(["--exclude-dep", dep])
 
     ctx.actions.run(
         executable = ctx.executable.tool,
         inputs = [ctx.file.path],
         outputs = [output],
         tools = [ctx.executable.tool],
-        arguments = [
-            ctx.file.path.path,
-            output.path,
-        ],
+        arguments = arguments,
         mnemonic = "FeatureDeps",
         progress_message = "Generating {}".format(output.short_path),
     )
@@ -31,6 +34,7 @@ _feature_deps = rule(
             allow_single_file = True,
             mandatory = True,
         ),
+        "exclude_deps": attr.string_list(),
         "tool": attr.label(
             cfg = "exec",
             default = "//bazel/feature-deps:feature-deps",
@@ -52,7 +56,7 @@ def feature_deps_tool():
         ],
     )
 
-def feature_deps(name = None, path = None):
+def feature_deps(name = None, path = None, exclude_deps = []):
     if name == None:
         package_name = native.package_name()
         if package_name:
@@ -69,6 +73,7 @@ def feature_deps(name = None, path = None):
     _feature_deps(
         name = name,
         output_name = name,
+        exclude_deps = exclude_deps,
         path = path,
     )
 

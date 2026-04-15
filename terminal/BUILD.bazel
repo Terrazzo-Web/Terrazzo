@@ -102,4 +102,11 @@ playwright_matrix_test(
     test = "tests/integration-test-terminal.spec.mjs",
 )
 
-feature_deps()
+feature_deps(
+    exclude_deps = [
+        "terrazzo-pty",
+        "trz-gateway-client",
+        "trz-gateway-common",
+        "trz-gateway-server",
+    ],
+)

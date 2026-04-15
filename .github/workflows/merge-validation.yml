@@ -36,7 +36,7 @@ jobs:
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message : "chore: apply Cargo-generated updates"
+          commit_message: "chore: apply Cargo-generated updates"
 
   bazel-build:
     runs-on: ubuntu-latest

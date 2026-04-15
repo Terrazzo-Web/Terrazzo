@@ -49,6 +49,17 @@ Add a dedicated end-to-end Playwright test that proves Terrazzo can transition f
   - page reload eventually shows password login instead of immediate access; because the config file is polled once per second, the transition may take at least 1 second after the password update
   - correct password restores access
 - Add one small Rust unit test around the non-interactive password input path if the implementation extracts a helper for “set password from provided string”; otherwise rely on the Playwright test as the primary coverage.
+- Validate all changes in this order:
+  - `cargo +nightly fmt`
+  - `bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run`
+  - `bazel run //bazel:buildifier`
+  - `bazel test //...`
+
+## Commit Workflow
+- Commit changes with:
+  - `git commit -am "<invent a good commit message>"`
+- Push changes with:
+  - `git push`
 
 ## Assumptions
 - We will not automate the existing hidden prompt via PTY; the plan intentionally adds `--password-stdin` because it is simpler and more reliable under Bazel.

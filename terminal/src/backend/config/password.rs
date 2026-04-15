@@ -18,12 +18,12 @@ impl DynamicServerConfig {
         } else {
             rpassword::prompt_password("Password: ")?
         };
-        self.set_password_value(&password)
+        self.set_password_value(password.as_str())
     }
 
     fn set_password_value(&self, password: &str) -> Result<(), SetPasswordError> {
         let () = self.try_set(|server| {
-            let password = server.hash_password(&password)?;
+            let password = server.hash_password(password)?;
             Ok::<_, SetPasswordError>(
                 ServerConfig {
                     password: Some(password),
@@ -32,7 +32,7 @@ impl DynamicServerConfig {
                 .into(),
             )
         })?;
-        debug_assert!(matches!(self.get().verify_password(&password), Ok(())));
+        debug_assert!(matches!(self.get().verify_password(password), Ok(())));
         Ok(())
     }
 }

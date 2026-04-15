@@ -53,7 +53,7 @@ RUST_BACKTRACE=1 \
 
 SERVER_PID="$!"
 
-for _ in $(seq 1 5); do
+for _ in $(seq 1 30); do
   if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
     SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
     SERVER_URL="http://${SERVER_ENDPOINT}"

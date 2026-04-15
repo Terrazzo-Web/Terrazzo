@@ -1,7 +1,7 @@
 common --enable_platform_specific_config
 common --disk_cache=~/.bazel/cache/disk
 common --repository_cache=~/.bazel/cache/repository
-common --experimental_disk_cache_gc_max_size=20G
+common --experimental_disk_cache_gc_max_size=15G
 
 build --@rules_rust//rust/settings:toolchain_linker_preference=cc
 build:linux --linkopt=-fuse-ld=bfd

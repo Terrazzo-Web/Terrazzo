@@ -57,6 +57,13 @@ def feature_deps_tool():
     )
 
 def feature_deps(name = None, path = None, exclude_deps = []):
+    """Generates a checked-in `{name}-features.bzl` file from a Cargo.toml file.
+
+    Args:
+      name: Optional output basename. Defaults to the current package basename.
+      path: Optional label for the Cargo.toml file. Defaults to `Cargo.toml`.
+      exclude_deps: Optional list of `dep:` entries to omit from generated constants.
+    """
     if name == None:
         package_name = native.package_name()
         if package_name:

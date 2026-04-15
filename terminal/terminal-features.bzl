@@ -35,6 +35,8 @@ TEXT_EDITOR_CLIENT = CLIENT + REMOTES_UI + TEXT_EDITOR + [
 CLIENT_ALL = CONVERTER_CLIENT + LOGS_PANEL_CLIENT + PORT_FORWARD_CLIENT + TERMINAL_CLIENT + TEXT_EDITOR_CLIENT
 CONCISE_TRACES = []
 SERVER = [
+    "//remote/client",
+    "//remote/common",
     "@crates//:axum-extra",
     "@crates//:base64",
     "@crates//:clap",
@@ -83,6 +85,7 @@ MAX_LEVEL_INFO = CONCISE_TRACES
 NO_WASM_BUILD = []
 PORT_FORWARD_SERVER = PORT_FORWARD + SERVER
 TERMINAL_SERVER = SERVER + TERMINAL + [
+    "//pty",
     "@crates//:dashmap",
     "@crates//:pin-project",
     "@crates//:static_assertions",

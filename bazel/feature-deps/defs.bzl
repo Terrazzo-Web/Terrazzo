@@ -9,8 +9,10 @@ def _feature_deps_impl(ctx):
         ctx.file.path.path,
         output.path,
     ]
-    for dep in ctx.attr.exclude_deps:
-        arguments.extend(["--exclude-dep", dep])
+    for dependency, label in sorted(ctx.attr.dependency_aliases.items()):
+        arguments.extend(["--dependency-alias", "{}={}".format(dependency, label)])
+    for dep in ctx.attr.dependency_exclusion:
+        arguments.extend(["--dependency-exclusion", dep])
 
     ctx.actions.run(
         executable = ctx.executable.tool,
@@ -34,7 +36,8 @@ _feature_deps = rule(
             allow_single_file = True,
             mandatory = True,
         ),
-        "exclude_deps": attr.string_list(),
+        "dependency_aliases": attr.string_dict(),
+        "dependency_exclusion": attr.string_list(),
         "tool": attr.label(
             cfg = "exec",
             default = "//bazel/feature-deps:feature-deps",
@@ -56,13 +59,14 @@ def feature_deps_tool():
         ],
     )
 
-def feature_deps(name = None, path = None, exclude_deps = []):
+def feature_deps(name = None, path = None, dependency_aliases = {}, dependency_exclusion = []):
     """Generates a checked-in `{name}-features.bzl` file from a Cargo.toml file.
 
     Args:
       name: Optional output basename. Defaults to the current package basename.
       path: Optional label for the Cargo.toml file. Defaults to `Cargo.toml`.
-      exclude_deps: Optional list of `dep:` entries to omit from generated constants.
+      dependency_aliases: Optional mapping of `dep:` entries to Bazel labels.
+      dependency_exclusion: Optional list of `dep:` entries to omit from generated constants.
     """
     if name == None:
         package_name = native.package_name()
@@ -80,7 +84,8 @@ def feature_deps(name = None, path = None, exclude_deps = []):
     _feature_deps(
         name = name,
         output_name = name,
-        exclude_deps = exclude_deps,
+        dependency_aliases = dependency_aliases,
+        dependency_exclusion = dependency_exclusion,
         path = path,
     )
 

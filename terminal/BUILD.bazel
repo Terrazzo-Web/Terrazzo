@@ -21,8 +21,6 @@ terminal_rules(
     prefix = "converter",
     server_deps = [
         ":protos",
-        "//remote/client",
-        "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + CONVERTER_SERVER,
@@ -46,9 +44,6 @@ terminal_rules(
     prefix = "terminal",
     server_deps = [
         ":protos",
-        "//pty",
-        "//remote/client",
-        "//remote/common",
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + TERMINAL_SERVER,
@@ -102,10 +97,10 @@ playwright_matrix_test(
 )
 
 feature_deps(
-    exclude_deps = [
-        "terrazzo-pty",
-        "trz-gateway-client",
-        "trz-gateway-common",
-        "trz-gateway-server",
-    ],
+    dependency_aliases = {
+        "terrazzo-pty": "//pty",
+        "trz-gateway-client": "//remote/client",
+        "trz-gateway-common": "//remote/common",
+    },
+    dependency_exclusion = ["trz-gateway-server"],
 )

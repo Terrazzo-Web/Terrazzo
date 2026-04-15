@@ -10,8 +10,10 @@ use toml::Table;
 struct Args {
     cargo_toml: PathBuf,
     output_bzl: PathBuf,
-    #[arg(long = "exclude-dep")]
-    exclude_deps: Vec<String>,
+    #[arg(long = "dependency-alias")]
+    dependency_aliases: Vec<String>,
+    #[arg(long = "dependency-exclusion")]
+    dependency_exclusion: Vec<String>,
 }
 
 fn main() -> Result<(), String> {
@@ -19,11 +21,33 @@ fn main() -> Result<(), String> {
     let manifest = fs::read_to_string(&args.cargo_toml)
         .map_err(|error| format!("failed to read {}: {error}", args.cargo_toml.display()))?;
     let features = parse_features(&manifest)?;
-    let excluded_deps = args.exclude_deps.into_iter().collect::<HashSet<_>>();
-    let output = render_bzl(&features, &excluded_deps)?;
+    let dependency_aliases = parse_dependency_aliases(args.dependency_aliases)?;
+    let dependency_exclusion = args
+        .dependency_exclusion
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let output = render_bzl(&features, &dependency_aliases, &dependency_exclusion)?;
     fs::write(&args.output_bzl, output)
         .map_err(|error| format!("failed to write {}: {error}", args.output_bzl.display()))?;
     Ok(())
+}
+
+fn parse_dependency_aliases(raw_aliases: Vec<String>) -> Result<HashMap<String, String>, String> {
+    let mut dependency_aliases = HashMap::new();
+    for raw_alias in raw_aliases {
+        let Some((dependency, label)) = raw_alias.split_once('=') else {
+            return Err(format!(
+                "invalid dependency alias {raw_alias:?}, expected DEPENDENCY=LABEL"
+            ));
+        };
+        if dependency.is_empty() || label.is_empty() {
+            return Err(format!(
+                "invalid dependency alias {raw_alias:?}, expected DEPENDENCY=LABEL"
+            ));
+        }
+        dependency_aliases.insert(dependency.to_owned(), label.to_owned());
+    }
+    Ok(dependency_aliases)
 }
 
 fn parse_features(manifest: &str) -> Result<HashMap<String, Vec<String>>, String> {
@@ -56,7 +80,8 @@ fn parse_features(manifest: &str) -> Result<HashMap<String, Vec<String>>, String
 
 fn render_bzl(
     features: &HashMap<String, Vec<String>>,
-    excluded_deps: &HashSet<String>,
+    dependency_aliases: &HashMap<String, String>,
+    dependency_exclusion: &HashSet<String>,
 ) -> Result<String, String> {
     let mut output = String::from("\"\"\"Generated feature dependency constants.\"\"\"\n\n");
     let mut emitted = HashSet::new();
@@ -69,7 +94,8 @@ fn render_bzl(
             &mut output,
             &mut emitted,
             features,
-            excluded_deps,
+            dependency_aliases,
+            dependency_exclusion,
             &feature_name,
         )?;
     }
@@ -81,7 +107,8 @@ fn emit_feature(
     output: &mut String,
     emitted: &mut HashSet<String>,
     features: &HashMap<String, Vec<String>>,
-    excluded_deps: &HashSet<String>,
+    dependency_aliases: &HashMap<String, String>,
+    dependency_exclusion: &HashSet<String>,
     feature_name: &str,
 ) -> Result<(), String> {
     if emitted.contains(feature_name) {
@@ -97,8 +124,8 @@ fn emit_feature(
 
     for entry in entries {
         if let Some(dependency) = entry.strip_prefix("dep:") {
-            if !excluded_deps.contains(dependency) {
-                dependencies.insert(dependency.to_owned());
+            if !dependency_exclusion.contains(dependency) {
+                dependencies.insert(format_dependency_label(dependency, dependency_aliases));
             }
             continue;
         }
@@ -106,7 +133,14 @@ fn emit_feature(
             continue;
         }
 
-        emit_feature(output, emitted, features, excluded_deps, entry)?;
+        emit_feature(
+            output,
+            emitted,
+            features,
+            dependency_aliases,
+            dependency_exclusion,
+            entry,
+        )?;
         child_features.insert(entry.clone());
     }
 
@@ -130,7 +164,7 @@ fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<
     if !dependencies.is_empty() || parts.is_empty() {
         let deps = dependencies
             .iter()
-            .map(|dependency| format!("{:?}", format!("@crates//:{dependency}")))
+            .map(|dependency| format!("{dependency:?}"))
             .collect::<Vec<_>>()
             .join(",\n");
         parts.push(format!("[{deps}]"));
@@ -139,9 +173,19 @@ fn render_expression(child_features: &BTreeSet<String>, dependencies: &BTreeSet<
     parts.join(" + ")
 }
 
+fn format_dependency_label(
+    dependency: &str,
+    dependency_aliases: &HashMap<String, String>,
+) -> String {
+    dependency_aliases
+        .get(dependency)
+        .cloned()
+        .unwrap_or_else(|| format!("@crates//:{dependency}"))
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use super::{parse_features, render_bzl};
 
@@ -156,7 +200,7 @@ terminal = ["client", "dep:scopeguard", "web-sys/Window"]
         )
         .unwrap();
 
-        let output = render_bzl(&features, &HashSet::new()).unwrap();
+        let output = render_bzl(&features, &HashMap::new(), &HashSet::new()).unwrap();
 
         assert_eq!(
             output,
@@ -178,7 +222,7 @@ debug = []
         )
         .unwrap();
 
-        let output = render_bzl(&features, &HashSet::new()).unwrap();
+        let output = render_bzl(&features, &HashMap::new(), &HashSet::new()).unwrap();
 
         assert_eq!(
             output,
@@ -196,7 +240,7 @@ terminal = ["missing"]
         )
         .unwrap();
 
-        let error = render_bzl(&features, &HashSet::new()).unwrap_err();
+        let error = render_bzl(&features, &HashMap::new(), &HashSet::new()).unwrap_err();
 
         assert_eq!(error, "feature \"missing\" is not defined");
     }
@@ -212,11 +256,36 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
         .unwrap();
 
         let excluded = HashSet::from(["terrazzo-pty".to_owned(), "trz-gateway-client".to_owned()]);
-        let output = render_bzl(&features, &excluded).unwrap();
+        let output = render_bzl(&features, &HashMap::new(), &excluded).unwrap();
 
         assert_eq!(
             output,
             "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER = []\n"
+        );
+    }
+
+    #[test]
+    fn applies_dependency_aliases() {
+        let features = parse_features(
+            r#"
+[features]
+server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
+"#,
+        )
+        .unwrap();
+
+        let dependency_aliases = HashMap::from([
+            ("terrazzo-pty".to_owned(), "//pty".to_owned()),
+            (
+                "trz-gateway-client".to_owned(),
+                "//remote/client".to_owned(),
+            ),
+        ]);
+        let output = render_bzl(&features, &dependency_aliases, &HashSet::new()).unwrap();
+
+        assert_eq!(
+            output,
+            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER = [\"//pty\",\n\"//remote/client\"]\n"
         );
     }
 }

@@ -87,7 +87,7 @@ test.describe('Terminal', () => {
     await expect(page.locator('li[class*="selected-"] .xterm')).toHaveCount(1);
 
     await activeTerminal.click();
-    await page.keyboard.type('echo $((191*7))');
+    await page.keyboard.type('echo $((191*7*2))');
     await page.keyboard.press('Enter');
     await expect(activeTerminal).toContainText('2674');
     await expect(activeTerminal).not.toContainText('1337');

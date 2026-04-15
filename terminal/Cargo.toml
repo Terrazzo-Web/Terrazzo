@@ -137,6 +137,7 @@ server = [
   "dep:inventory",
   "dep:jsonwebtoken",
   "dep:nix",
+  "dep:notify",
   "dep:openssl",
   "dep:pbkdf2",
   "dep:pin-project",

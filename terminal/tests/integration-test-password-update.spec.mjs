@@ -61,7 +61,7 @@ async function reloadUntilPasswordLogin(page) {
 
   await expect(
     passwordInput,
-    'password login should appear after the config poll applies the updated password',
+    'password login should appear after live config reload applies the updated password',
   ).toBeVisible({ timeout: SECOND });
 }
 

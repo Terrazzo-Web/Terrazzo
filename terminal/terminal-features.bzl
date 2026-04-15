@@ -62,6 +62,7 @@ SERVER_DEPS = [
     "@crates//:inventory",
     "@crates//:jsonwebtoken",
     "@crates//:nix",
+    "@crates//:notify",
     "@crates//:openssl",
     "@crates//:pbkdf2",
     "@crates//:pin-project",

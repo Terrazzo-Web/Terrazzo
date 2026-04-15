@@ -30,8 +30,11 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     pub token_lifetime: T::Duration,
     pub token_refresh: T::Duration,
 
+    /// Whether to watch the config file for live updates.
+    pub config_file_watcher: T::MaybeBool,
+
     /// Polling strategy for the config file
-    pub config_file_poll_strategy: T::RetryStrategy,
+    pub config_file_poll_strategy: T::MaybeRetryStrategy,
 
     /// Certificates renewal strategy
     pub certificate_renewal_threshold: T::Duration,

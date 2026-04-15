@@ -34,8 +34,9 @@ runs:
           ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-          target/
           ~/.cache/ms-playwright/
+          target/
+          terminal/target
         key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock') }}
 
     - name: Restore cache for Rust compilation
@@ -51,8 +52,9 @@ runs:
           ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-          target/
           ~/.cache/ms-playwright/
+          target/
+          terminal/target
         key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock') }}
         restore-keys: |
           ${{ runner.os }}-${{ github.job }}-

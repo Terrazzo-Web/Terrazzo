@@ -102,6 +102,7 @@ pub fn cargo_check(
     .in_current_span()
 }
 
+#[cfg(not(feature = "bazel"))]
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -111,7 +112,7 @@ mod tests {
     use super::super::synthetic::SyntheticDiagnosticCode;
     use super::super::synthetic::SyntheticDiagnosticSpan;
 
-    const RUST_LANG_CHECKS: &'static str = "src/text_editor/rust_lang/tests/rust_lang_checks";
+    const RUST_LANG_CHECKS: &str = "src/text_editor/rust_lang/tests/rust_lang_checks";
 
     #[tokio::test]
     async fn some_unused_method() {

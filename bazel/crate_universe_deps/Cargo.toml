@@ -82,6 +82,8 @@ web-sys = { workspace = true, features = [
   "Element",
   "FocusEvent",
   "Headers",
+  "HtmlDivElement",
+  "HtmlOptionElement",
   "HtmlSelectElement",
   "HtmlTextAreaElement",
   "InputEvent",

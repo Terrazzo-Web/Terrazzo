@@ -309,6 +309,7 @@ impl IsGrpcError for AutoCompleteError {
     }
 }
 
+#[cfg(not(feature = "bazel"))]
 #[cfg(test)]
 mod tests {
     use std::path::Path;

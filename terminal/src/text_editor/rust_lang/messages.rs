@@ -166,7 +166,7 @@ mod tests {
         assert!(matches!(message.reason, Cow::Borrowed(_)));
     }
 
-    const COMPILER_MESSAGE: &'static str = r#"
+    const COMPILER_MESSAGE: &str = r#"
 {
   "reason": "compiler-message",
   "package_id": "path+file:///home/user/Documents/Terminal/terminal#terrazzo-terminal@0.1.15",

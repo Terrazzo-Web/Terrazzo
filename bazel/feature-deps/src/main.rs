@@ -11,14 +11,16 @@ mod dependency_aliases;
 mod error;
 
 use args::Args;
+use error::FeatureDepsError;
 
 fn main() -> Result<(), FeatureDepsError> {
     let args = Args::parse();
-    let manifest =
-        std::fs::read_to_string(&args.cargo_toml).map_err(FeatureDepsError::ManifestNotFound {
+    let manifest = std::fs::read_to_string(&args.cargo_toml).map_err(|error| {
+        FeatureDepsError::ManifestNotFound {
             path: args.cargo_toml.clone(),
             error,
-        })?;
+        }
+    })?;
     let features = parse_features(&manifest)?;
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args

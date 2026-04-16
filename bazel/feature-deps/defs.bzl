@@ -55,6 +55,7 @@ def feature_deps_tool():
         deps = [
             "@crates//:clap",
             "@crates//:heck",
+            "@crates//:thiserror",
             "@crates//:toml",
         ],
     )

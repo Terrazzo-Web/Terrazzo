@@ -61,13 +61,13 @@ terminal = ["client", "dep:scopeguard", "web-sys/Window"]
 
         assert_eq!(
             output,
-            "\
-\"\"\"Generated feature dependency constants.\"\"\"\n\
-\n\
-CLIENT_DEPS = [\"@crates//:stylance\"]\n\
-CLIENT_FEATURES = [\"client\"]\n\
-TERMINAL_DEPS = CLIENT_DEPS + [\"@crates//:scopeguard\"]\n\
-TERMINAL_FEATURES = [\"terminal\"] + CLIENT_FEATURES\n"
+            r#""""Generated feature dependency constants."""
+
+CLIENT_DEPS = ["@crates//:stylance"]
+CLIENT_FEATURES = ["client"]
+TERMINAL_DEPS = CLIENT_DEPS + ["@crates//:scopeguard"]
+TERMINAL_FEATURES = CLIENT_FEATURES + ["terminal"]
+"#
         );
     }
 
@@ -87,7 +87,11 @@ debug = []
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nDEBUG_DEPS = []\nDEBUG_FEATURES = [\"debug\"]\n"
+            r#""""Generated feature dependency constants."""
+
+DEBUG_DEPS = []
+DEBUG_FEATURES = ["debug"]
+"#
         );
     }
 
@@ -125,7 +129,11 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = []\nSERVER_FEATURES = [\"server\"]\n"
+            r#""""Generated feature dependency constants."""
+
+SERVER_DEPS = []
+SERVER_FEATURES = ["server"]
+"#
         );
     }
 
@@ -152,7 +160,12 @@ server = ["dep:terrazzo-pty", "dep:trz-gateway-client"]
 
         assert_eq!(
             output,
-            "\"\"\"Generated feature dependency constants.\"\"\"\n\nSERVER_DEPS = [\"//pty\",\n\"//remote/client\"]\nSERVER_FEATURES = [\"server\"]\n"
+            r#""""Generated feature dependency constants."""
+
+SERVER_DEPS = ["//pty",
+"//remote/client"]
+SERVER_FEATURES = ["server"]
+"#
         );
     }
 }

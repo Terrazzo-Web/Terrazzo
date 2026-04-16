@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use heck::ToShoutySnakeCase;
+use heck::ToShoutySnakeCase as _;
 
 pub struct Manager {
     features: HashMap<String, Vec<String>>,
@@ -27,7 +27,11 @@ impl Manager {
     ///
     /// Features are emitted once, sorted by name for stable output.
     pub fn render_bzl(&self) -> Result<String, String> {
-        let mut output = String::from("\"\"\"Generated feature dependency constants.\"\"\"\n\n");
+        let mut output = String::from(
+            r#""""Generated feature dependency constants."""
+
+"#,
+        );
         let mut emitted = HashSet::new();
 
         let mut feature_names = self.features.keys().cloned().collect::<Vec<_>>();
@@ -77,12 +81,11 @@ impl Manager {
             child_features.insert(entry.clone());
         }
 
-        let deps_expression = render_expression(&child_features, &dependencies, "DEPS", false);
+        let deps_expression = render_expression(&child_features, &dependencies, "DEPS");
         let features_expression = render_expression(
             &child_features,
             &BTreeSet::from([feature_name.to_owned()]),
             "FEATURES",
-            true,
         );
         output.push_str(&format!(
             "{} = {}\n",
@@ -111,7 +114,6 @@ fn render_expression(
     child_features: &BTreeSet<String>,
     values: &BTreeSet<String>,
     suffix: &str,
-    values_first: bool,
 ) -> String {
     let child_parts = child_features
         .iter()
@@ -125,13 +127,8 @@ fn render_expression(
             .map(|value| format!("{value:?}"))
             .collect::<Vec<_>>()
             .join(",\n");
-        if values_first {
-            parts.push(format!("[{values}]"));
-        }
         parts.extend(child_parts.iter().cloned());
-        if !values_first {
-            parts.push(format!("[{values}]"));
-        }
+        parts.push(format!("[{values}]"));
     } else {
         parts.extend(child_parts);
     }

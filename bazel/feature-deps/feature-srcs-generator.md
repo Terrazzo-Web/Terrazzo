@@ -57,7 +57,7 @@ Inclusion rules for a submodule:
 - if the `mod` statement is annotated with `#[cfg(feature = "$feature")]`, include it
 - if the target file starts with `#![cfg(feature = "$feature")]`, include it
 - if the guard clearly targets a different feature, exclude it
-- if there is no relevant guard, include it
+- if there is no `cfg` guard at all on the submodule declaration or submodule file, propagate the parent's `included` value
 - if the predicate is composite, for example `#[cfg(any(feature = "$feature", unix))]`, be conservative and include it unless it is clearly impossible for the current feature
 
 That conservative rule is important because the generator is producing a safe superset for Bazel source declaration. False positives are usually acceptable; false negatives are more dangerous because they can make the generated Bazel target incomplete.
@@ -109,24 +109,18 @@ In this example:
 The generated constants would therefore look like:
 
 ```starlark
-CLIENT_SRCS = [
+DEFAULT_SRCS = [
     "lib.rs",
+]
+
+CLIENT_SRCS = DEFAULT_SRCS + [
     "client.rs",
     "client/api.rs",
 ]
 
 SERVER_SRCS = [
-    "lib.rs",
     "server.rs",
     "server/http.rs",
-]
-```
-
-If `default` enables neither feature, then:
-
-```starlark
-DEFAULT_SRCS = [
-    "lib.rs",
 ]
 ```
 

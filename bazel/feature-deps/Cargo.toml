@@ -10,14 +10,10 @@ description = "Generates Bazel feature dependency constants from Cargo features.
 [dependencies]
 clap = { workspace = true }
 heck = { workspace = true }
-syn = { workspace = true, features = ["full", "parsing"] }
 toml = { workspace = true }
 
 [features]
 bazel = []
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

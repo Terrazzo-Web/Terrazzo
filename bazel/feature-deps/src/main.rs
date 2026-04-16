@@ -8,13 +8,17 @@ use toml::Table;
 
 mod args;
 mod dependency_aliases;
+mod error;
 
 use args::Args;
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), FeatureDepsError> {
     let args = Args::parse();
-    let manifest = std::fs::read_to_string(&args.cargo_toml)
-        .map_err(|error| format!("failed to read {}: {error}", args.cargo_toml.display()))?;
+    let manifest =
+        std::fs::read_to_string(&args.cargo_toml).map_err(FeatureDepsError::ManifestNotFound {
+            path: args.cargo_toml.clone(),
+            error,
+        })?;
     let features = parse_features(&manifest)?;
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args

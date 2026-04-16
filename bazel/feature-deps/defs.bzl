@@ -16,7 +16,7 @@ def _feature_deps_impl(ctx):
 
     ctx.actions.run(
         executable = ctx.executable.tool,
-        inputs = [ctx.file.path],
+        inputs = [ctx.file.path] + ctx.files.srcs,
         outputs = [output],
         tools = [ctx.executable.tool],
         arguments = arguments,
@@ -35,6 +35,9 @@ _feature_deps = rule(
         "path": attr.label(
             allow_single_file = True,
             mandatory = True,
+        ),
+        "srcs": attr.label_list(
+            allow_files = True,
         ),
         "dependency_aliases": attr.string_dict(),
         "dependency_exclusion": attr.string_list(),
@@ -55,6 +58,7 @@ def feature_deps_tool():
         deps = [
             "@crates//:clap",
             "@crates//:heck",
+            "@crates//:syn",
             "@crates//:toml",
         ],
     )
@@ -87,6 +91,7 @@ def feature_deps(name = None, path = None, dependency_aliases = {}, dependency_e
         dependency_aliases = dependency_aliases,
         dependency_exclusion = dependency_exclusion,
         path = path,
+        srcs = native.glob(["src/**/*.rs"]),
     )
 
     generate_file(

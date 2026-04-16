@@ -12,6 +12,9 @@ pub enum FeatureDepsError {
         error: std::io::Error,
     },
 
+    #[error("[{n}] Failed to parse Cargo.toml: {0}", n = self.name())]
+    ManifestMalformed(std::io::Error),
+
     #[error("[{n}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL", n = self.name())]
     DependencyAliasInvalid(String),
 

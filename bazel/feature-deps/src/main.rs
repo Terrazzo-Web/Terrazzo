@@ -7,7 +7,6 @@ use heck::ToShoutySnakeCase;
 use toml::Table;
 
 mod args;
-mod dependency_aliases;
 mod error;
 
 use args::Args;
@@ -21,7 +20,7 @@ fn main() -> Result<(), FeatureDepsError> {
             error,
         }
     })?;
-    let features = parse_features(&manifest)?;
+    let features = args.parse_features()?;
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args
         .dependency_exclusion
@@ -31,37 +30,6 @@ fn main() -> Result<(), FeatureDepsError> {
     std::fs::write(&args.output_bzl, output)
         .map_err(|error| format!("failed to write {}: {error}", args.output_bzl.display()))?;
     Ok(())
-}
-
-/// Extracts the `[features]` table from a Cargo manifest and normalizes it into owned strings.
-///
-/// Returns an empty map when the manifest has no `[features]` section.
-fn parse_features(manifest: &str) -> Result<HashMap<String, Vec<String>>, String> {
-    let value: Table = manifest
-        .parse()
-        .map_err(|error| format!("failed to parse Cargo.toml: {error}"))?;
-    let Some(features) = value.get("features") else {
-        return Ok(HashMap::new());
-    };
-    let Some(table) = features.as_table() else {
-        return Err("[features] must be a TOML table".to_owned());
-    };
-
-    let mut result = HashMap::new();
-    for (name, value) in table {
-        let Some(items) = value.as_array() else {
-            return Err(format!("feature {name:?} must be an array"));
-        };
-        let mut entries = Vec::with_capacity(items.len());
-        for item in items {
-            let Some(item) = item.as_str() else {
-                return Err(format!("feature {name:?} must only contain strings"));
-            };
-            entries.push(item.to_owned());
-        }
-        result.insert(name.clone(), entries);
-    }
-    Ok(result)
 }
 
 /// Renders the complete `.bzl` output for all features in dependency order.

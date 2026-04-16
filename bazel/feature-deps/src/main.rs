@@ -168,7 +168,6 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
-    use super::parse_features;
     use super::render_bzl;
 
     #[test]

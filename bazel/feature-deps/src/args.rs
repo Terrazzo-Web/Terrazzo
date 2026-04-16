@@ -109,7 +109,7 @@ impl Args {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 #[error("[{FEATURE_ALIASES_ERROR}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL")]
-pub struct FeatureAliasesError(String);
+pub struct FeatureAliasesError(pub String);
 
 impl Args {
     pub fn dependency_exclusion(&self) -> HashSet<String> {

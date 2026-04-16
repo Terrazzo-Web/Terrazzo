@@ -15,6 +15,17 @@ function getPasswordInput(page) {
   return page.locator('input[type="password"]');
 }
 
+function formatChildOutput(stdout, stderr) {
+  const sections = [];
+  if (stdout) {
+    sections.push(`stdout:\n${stdout}`);
+  }
+  if (stderr) {
+    sections.push(`stderr:\n${stderr}`);
+  }
+  return sections.length > 0 ? `\n${sections.join('\n')}` : '';
+}
+
 async function setPassword(password) {
   expect(SERVER_BIN, 'TERRAZZO_SERVER_BIN must be set').toBeTruthy();
   expect(CONFIG_FILE, 'TERRAZZO_CONFIG_FILE must be set').toBeTruthy();
@@ -32,16 +43,29 @@ async function setPassword(password) {
       },
     );
 
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
     let stderr = '';
     child.stderr.on('data', (chunk) => {
       stderr += chunk.toString();
     });
-    child.on('error', reject);
+    child.on('error', (error) => {
+      reject(
+        new Error(`set-password failed to start: ${error}${formatChildOutput(stdout, stderr)}`),
+      );
+    });
     child.on('exit', (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`set-password exited with code ${code}: ${stderr}`));
+        reject(
+          new Error(
+            `set-password exited with code ${code}${formatChildOutput(stdout, stderr)}`,
+          ),
+        );
       }
     });
 

@@ -91,7 +91,9 @@ impl Config {
             config,
             dyn_config_file,
         });
-        if let Some(config_file_path) = &config_file_path {
+        if cli.action != crate::backend::cli::Action::SetPassword
+            && let Some(config_file_path) = &config_file_path
+        {
             tokio::spawn(run_config_reload_tasks(
                 config_file_path.to_owned(),
                 cli,

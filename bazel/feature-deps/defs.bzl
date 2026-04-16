@@ -1,6 +1,5 @@
 """Rules for generating feature dependency constants from Cargo features."""
 
-load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//bazel:generated_file.bzl", "generate_file")
 
 def _feature_deps_impl(ctx):
@@ -40,26 +39,11 @@ _feature_deps = rule(
         "dependency_exclusion": attr.string_list(),
         "tool": attr.label(
             cfg = "exec",
-            default = "//bazel/feature-deps:feature-deps",
+            default = "//bazel/feature-deps",
             executable = True,
         ),
     },
 )
-
-def feature_deps_tool():
-    rust_binary(
-        name = "feature-deps",
-        crate_name = "feature_deps",
-        crate_root = "src/main.rs",
-        srcs = native.glob(["src/**/*.rs"]),
-        deps = [
-            "@crates//:clap",
-            "@crates//:heck",
-            "@crates//:thiserror",
-            "@crates//:toml",
-            "//utils/nameth/nameth",
-        ],
-    )
 
 def feature_deps(name = None, path = None, dependency_aliases = {}, dependency_exclusion = []):
     """Generates a checked-in `{name}-features.bzl` file from a Cargo.toml file.

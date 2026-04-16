@@ -1,7 +1,8 @@
 use clap::Parser;
+use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use toml::Table;
 
 use crate::error::FeatureDepsError;
 
@@ -21,44 +22,71 @@ impl Args {
     /// Extracts the `[features]` table from a Cargo manifest and normalizes it into owned strings.
     ///
     /// Returns an empty map when the manifest has no `[features]` section.
-    pub fn parse_features(&self) -> Result<HashMap<String, Vec<String>>, FeatureDepsError> {
-        let manifest = std::fs::read_to_string(&self.cargo_toml).map_err(|error| {
-            FeatureDepsError::ManifestNotFound {
+    pub fn parse_features(&self) -> Result<HashMap<String, Vec<String>>, ParseFeaturesError> {
+        let manifest: toml::Table = std::fs::read_to_string(&self.cargo_toml)
+            .map_err(|error| ParseFeaturesError::ManifestNotFound {
                 path: self.cargo_toml.clone(),
                 error,
-            }
-        })?;
-        let value: Table = manifest
+            })?
             .parse()
-            .map_err(|error| FeatureDepsError::ManifestMalformed { error })?;
-        let Some(features) = value.get("features") else {
+            .map_err(ParseFeaturesError::ManifestMalformed)?;
+        let Some(features) = manifest.get("features") else {
             return Ok(HashMap::new());
         };
-        let Some(table) = features.as_table() else {
-            return Err(FeatureDepsError::FeaturesTableInvalid);
+        let Some(features) = features.as_table() else {
+            return Err(ParseFeaturesError::FeaturesMalformed);
         };
 
         let mut result = HashMap::new();
-        for (name, value) in table {
-            let Some(items) = value.as_array() else {
-                return Err(FeatureDepsError::FeatureEntriesInvalid {
-                    feature_name: name.clone(),
-                });
-            };
-            let mut entries = Vec::with_capacity(items.len());
-            for item in items {
-                let Some(item) = item.as_str() else {
-                    return Err(FeatureDepsError::FeatureEntryInvalid {
-                        feature_name: name.clone(),
-                    });
-                };
-                entries.push(item.to_owned());
-            }
-            result.insert(name.clone(), entries);
+        for (feature_name, value) in features {
+            let entries = value
+                .as_array()
+                .ok_or_else(|| ParseFeaturesError::FeatureMalformed {
+                    feature_name: feature_name.clone(),
+                })?
+                .iter()
+                .map(|item| {
+                    Ok(item
+                        .as_str()
+                        .ok_or_else(|| ParseFeaturesError::FeatureEntryInvalid {
+                            feature_name: feature_name.clone(),
+                            item: item.clone(),
+                        })?
+                        .to_owned())
+                })
+                .collect::<Result<Vec<_>, ParseFeaturesError>>()?;
+            result.insert(feature_name.clone(), entries);
         }
         Ok(result)
     }
+}
 
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum ParseFeaturesError {
+    #[error("[{n}] Failed to read Cargo.toml manifest path={path:?} error={error}", n = self.name())]
+    ManifestNotFound {
+        path: PathBuf,
+        error: std::io::Error,
+    },
+
+    #[error("[{n}] Failed to parse Cargo.toml: {0}", n = self.name())]
+    ManifestMalformed(toml::de::Error),
+
+    #[error("[{n}] '[features]' is not a TOML table", n = self.name())]
+    FeaturesMalformed,
+
+    #[error("[{n}] Feature {feature_name:?} is not a list of strings", n = self.name())]
+    FeatureMalformed { feature_name: String },
+
+    #[error("[{n}] Feature {feature_name:?} is not an array of strings: {item:?}", n = self.name())]
+    FeatureEntryInvalid {
+        feature_name: String,
+        item: toml::Value,
+    },
+}
+
+impl Args {
     /// Parses repeated `DEPENDENCY=LABEL` CLI arguments into a dependency-to-label map.
     ///
     /// Returns an error when any alias is missing the `=` separator or either side is empty.

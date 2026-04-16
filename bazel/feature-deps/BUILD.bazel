@@ -1,5 +1,15 @@
-load(":defs.bzl", "feature_deps_tool")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//visibility:public"])
 
-feature_deps_tool()
+rust_binary(
+    name = "feature-deps",
+    srcs = glob(["src/**/*.rs"]),
+    deps = [
+        "//utils/nameth/nameth",
+        "@crates//:clap",
+        "@crates//:heck",
+        "@crates//:thiserror",
+        "@crates//:toml",
+    ],
+)

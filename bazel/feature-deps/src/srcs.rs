@@ -1,0 +1,192 @@
+use std::path::Path;
+use std::path::PathBuf;
+
+pub fn definitely_excluded_srcs(
+    feature: &str,
+    file_rs: impl AsRef<Path>,
+) -> Result<Vec<PathBuf>, String> {
+    let file_rs = file_rs.as_ref();
+    let content = std::fs::read_to_string(file_rs)
+        .map_err(|error| format!("failed to read {}: {error}", file_rs.display()))?;
+    let parsed = syn::parse_file(&content)
+        .map_err(|error| format!("failed to parse {}: {error}", file_rs.display()))?;
+
+    let mut excluded = Vec::new();
+    for item in parsed.items {
+        let syn::Item::Mod(item_mod) = item else {
+            continue;
+        };
+        if item_mod.content.is_some() {
+            continue;
+        }
+
+        let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string()) else {
+            continue;
+        };
+
+        if mod_is_definitely_excluded(feature, &item_mod.attrs)
+            || file_is_definitely_excluded(feature, &submodule_file)?
+        {
+            excluded.push(submodule_file);
+        }
+    }
+
+    Ok(excluded)
+}
+
+fn mod_is_definitely_excluded(feature: &str, attrs: &[syn::Attribute]) -> bool {
+    attrs.iter()
+        .filter_map(cfg_feature_name)
+        .any(|cfg_feature| cfg_feature != feature)
+}
+
+fn file_is_definitely_excluded(feature: &str, file_rs: &Path) -> Result<bool, String> {
+    let content = std::fs::read_to_string(file_rs)
+        .map_err(|error| format!("failed to read {}: {error}", file_rs.display()))?;
+    let parsed = syn::parse_file(&content)
+        .map_err(|error| format!("failed to parse {}: {error}", file_rs.display()))?;
+    Ok(parsed
+        .attrs
+        .iter()
+        .filter_map(cfg_feature_name)
+        .any(|cfg_feature| cfg_feature != feature))
+}
+
+fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
+    if !attr.path().is_ident("cfg") {
+        return None;
+    }
+
+    let meta = &attr.meta;
+    let syn::Meta::List(meta_list) = meta else {
+        return None;
+    };
+
+    let nested = meta_list.parse_args_with(
+        syn::punctuated::Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated,
+    );
+    let Ok(nested) = nested else {
+        return None;
+    };
+    if nested.len() != 1 {
+        return None;
+    }
+
+    let item = nested.first()?;
+    if !item.path.is_ident("feature") {
+        return None;
+    }
+
+    let syn::Expr::Lit(syn::ExprLit {
+        lit: syn::Lit::Str(value),
+        ..
+    }) = &item.value
+    else {
+        return None;
+    };
+
+    Some(value.value())
+}
+
+fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<PathBuf> {
+    let parent_dir = if parent_file
+        .file_stem()
+        .is_some_and(|stem| stem == "mod" || stem == "lib" || stem == "main")
+    {
+        parent_file.parent()?.to_path_buf()
+    } else {
+        parent_file.parent()?.join(parent_file.file_stem()?)
+    };
+
+    let candidate_rs = parent_dir.join(format!("{module_name}.rs"));
+    if candidate_rs.exists() {
+        return Some(candidate_rs);
+    }
+
+    let candidate_mod_rs = parent_dir.join(module_name).join("mod.rs");
+    if candidate_mod_rs.exists() {
+        return Some(candidate_mod_rs);
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::definitely_excluded_srcs;
+
+    #[test]
+    fn excludes_submodule_when_mod_stmt_targets_other_feature() {
+        let dir = tempdir().unwrap();
+        let lib_rs = dir.path().join("lib.rs");
+        let server_rs = dir.path().join("server.rs");
+        fs::write(
+            &lib_rs,
+            r#"
+#[cfg(feature = "server")]
+mod server;
+"#,
+        )
+        .unwrap();
+        fs::write(&server_rs, "pub fn handler() {}").unwrap();
+
+        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+
+        assert_eq!(excluded, vec![server_rs]);
+    }
+
+    #[test]
+    fn excludes_submodule_when_child_file_targets_other_feature() {
+        let dir = tempdir().unwrap();
+        let lib_rs = dir.path().join("lib.rs");
+        let server_rs = dir.path().join("server.rs");
+        fs::write(
+            &lib_rs,
+            r#"
+mod server;
+"#,
+        )
+        .unwrap();
+        fs::write(
+            &server_rs,
+            r#"
+#![cfg(feature = "server")]
+
+pub fn handler() {}
+"#,
+        )
+        .unwrap();
+
+        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+
+        assert_eq!(excluded, vec![server_rs]);
+    }
+
+    #[test]
+    fn keeps_matching_feature_and_inline_modules_out_of_results() {
+        let dir = tempdir().unwrap();
+        let lib_rs = dir.path().join("lib.rs");
+        let client_rs = dir.path().join("client.rs");
+        fs::write(
+            &lib_rs,
+            r#"
+#[cfg(feature = "client")]
+mod client;
+
+mod inline_only {
+    pub fn helper() {}
+}
+"#,
+        )
+        .unwrap();
+        fs::write(&client_rs, "pub fn handler() {}").unwrap();
+
+        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+
+        assert!(excluded.is_empty());
+    }
+}

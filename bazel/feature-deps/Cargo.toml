@@ -13,6 +13,7 @@ heck = { workspace = true }
 nameth = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
+syn = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

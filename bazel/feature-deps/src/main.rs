@@ -3,6 +3,8 @@ use clap::Parser;
 mod args;
 mod error;
 mod manager;
+#[allow(unused)]
+mod srcs;
 
 use args::Args;
 use error::FeatureDepsError;

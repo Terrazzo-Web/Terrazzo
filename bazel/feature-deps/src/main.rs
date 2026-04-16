@@ -167,9 +167,10 @@ fn format_dependency_label(
 mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::io::Write;
 
     use clap::Parser;
+    use tempfile::NamedTempFile;
 
     use super::render_bzl;
     use crate::args::Args;
@@ -177,17 +178,14 @@ mod tests {
     fn parse_features(
         manifest: &str,
     ) -> Result<HashMap<String, Vec<String>>, crate::args::ParseFeaturesError> {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let cargo_toml = std::env::temp_dir().join(format!("feature-deps-{unique}.toml"));
-        std::fs::write(&cargo_toml, manifest).unwrap();
-
-        let args = Args::parse_from(["feature-deps", cargo_toml.to_str().unwrap(), "out.bzl"]);
-        let result = args.parse_features();
-        let _ = std::fs::remove_file(cargo_toml);
-        result
+        let mut cargo_toml = NamedTempFile::new().unwrap();
+        write!(cargo_toml, "{manifest}").unwrap();
+        Args::parse_from([
+            "feature-deps",
+            cargo_toml.path().to_str().unwrap(),
+            "out.bzl",
+        ])
+        .parse_features()
     }
 
     #[test]

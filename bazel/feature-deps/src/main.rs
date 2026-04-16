@@ -4,7 +4,6 @@ use std::collections::HashSet;
 
 use clap::Parser;
 use heck::ToShoutySnakeCase;
-use toml::Table;
 
 mod args;
 mod error;
@@ -14,12 +13,6 @@ use error::FeatureDepsError;
 
 fn main() -> Result<(), FeatureDepsError> {
     let args = Args::parse();
-    let manifest = std::fs::read_to_string(&args.cargo_toml).map_err(|error| {
-        FeatureDepsError::ManifestNotFound {
-            path: args.cargo_toml.clone(),
-            error,
-        }
-    })?;
     let features = args.parse_features()?;
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args

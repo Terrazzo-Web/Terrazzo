@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-
-use crate::error::FeatureDepsError;
 use clap::Parser;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use toml::Table;
+
+use crate::error::FeatureDepsError;
 
 #[derive(Parser)]
 pub struct Args {
@@ -22,26 +22,35 @@ impl Args {
     ///
     /// Returns an empty map when the manifest has no `[features]` section.
     pub fn parse_features(&self) -> Result<HashMap<String, Vec<String>>, FeatureDepsError> {
-        let value: Table = self
-            .cargo_toml
+        let manifest = std::fs::read_to_string(&self.cargo_toml).map_err(|error| {
+            FeatureDepsError::ManifestNotFound {
+                path: self.cargo_toml.clone(),
+                error,
+            }
+        })?;
+        let value: Table = manifest
             .parse()
-            .map_err(FeatureDepsError::ManifestMalformed)?;
+            .map_err(|error| FeatureDepsError::ManifestMalformed { error })?;
         let Some(features) = value.get("features") else {
             return Ok(HashMap::new());
         };
         let Some(table) = features.as_table() else {
-            return Err("[features] must be a TOML table".to_owned());
+            return Err(FeatureDepsError::FeaturesTableInvalid);
         };
 
         let mut result = HashMap::new();
         for (name, value) in table {
             let Some(items) = value.as_array() else {
-                return Err(format!("feature {name:?} must be an array"));
+                return Err(FeatureDepsError::FeatureEntriesInvalid {
+                    feature_name: name.clone(),
+                });
             };
             let mut entries = Vec::with_capacity(items.len());
             for item in items {
                 let Some(item) = item.as_str() else {
-                    return Err(format!("feature {name:?} must only contain strings"));
+                    return Err(FeatureDepsError::FeatureEntryInvalid {
+                        feature_name: name.clone(),
+                    });
                 };
                 entries.push(item.to_owned());
             }

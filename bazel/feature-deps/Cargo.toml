@@ -10,6 +10,7 @@ description = "Generates Bazel feature dependency constants from Cargo features.
 [dependencies]
 clap = { workspace = true }
 heck = { workspace = true }
+nameth = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
 

@@ -57,6 +57,7 @@ def feature_deps_tool():
             "@crates//:heck",
             "@crates//:thiserror",
             "@crates//:toml",
+            "//utils/nameth/nameth",
         ],
     )
 

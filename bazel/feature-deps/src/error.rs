@@ -39,7 +39,7 @@ mod tests {
         });
         assert_eq!(
             error.to_string(),
-            r#"[PARSE_FEATURES_ERROR] [MANIFEST_NOT_FOUND] Failed to read Cargo.toml manifest path="/definitely/missing/Cargo.toml" error=No such file or directory (os error 2)"#
+            r#"[ParseFeaturesError] [ManifestNotFound] Failed to read Cargo.toml manifest path="/definitely/missing/Cargo.toml" error=No such file or directory (os error 2)"#
         );
     }
 
@@ -48,13 +48,13 @@ mod tests {
         let error = FeatureDepsError::from(FeatureAliasesError("bad".to_owned()));
         assert_eq!(
             error.to_string(),
-            r#"[FEATURE_ALIASES_ERROR] [FEATURE_ALIASES_ERROR] Invalid dependency alias "bad", expected DEPENDENCY=LABEL"#
+            r#"[FeatureAliasesError] [FeatureAliasesError] Invalid dependency alias "bad", expected DEPENDENCY=LABEL"#
         );
     }
 
     #[test]
     fn renders_other_error() {
         let error = FeatureDepsError::from("boom".to_owned());
-        assert_eq!(error.to_string(), "[OTHER] Other: boom");
+        assert_eq!(error.to_string(), "[Other] Other: boom");
     }
 }

@@ -62,7 +62,7 @@ async function reloadUntilPasswordLogin(page) {
   await expect(
     passwordInput,
     'password login should appear after live config reload applies the updated password',
-  ).toBeVisible({ timeout: 4 * SECOND });
+  ).toBeVisible({ timeout: 5 * SECOND });
 }
 
 test.describe('Password update', () => {

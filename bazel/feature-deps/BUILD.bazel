@@ -6,5 +6,5 @@ rust_rules(
     name = "feature-deps",
     package_name = "bazel/feature-deps",
     rule = "binary",
-    deps = [        "//utils/nameth/nameth",    ],
+    deps = ["//utils/nameth/nameth"],
 )

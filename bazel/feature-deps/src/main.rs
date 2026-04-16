@@ -1,57 +1,35 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs;
-use std::path::PathBuf;
 
 use clap::Parser;
 use heck::ToShoutySnakeCase;
 use toml::Table;
 
-#[derive(Parser)]
-struct Args {
-    cargo_toml: PathBuf,
-    output_bzl: PathBuf,
-    #[arg(long = "dependency-alias")]
-    dependency_aliases: Vec<String>,
-    #[arg(long = "dependency-exclusion")]
-    dependency_exclusion: Vec<String>,
-}
+mod args;
+mod dependency_aliases;
+
+use args::Args;
 
 fn main() -> Result<(), String> {
     let args = Args::parse();
-    let manifest = fs::read_to_string(&args.cargo_toml)
+    let manifest = std::fs::read_to_string(&args.cargo_toml)
         .map_err(|error| format!("failed to read {}: {error}", args.cargo_toml.display()))?;
     let features = parse_features(&manifest)?;
-    let dependency_aliases = parse_dependency_aliases(args.dependency_aliases)?;
+    let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args
         .dependency_exclusion
         .into_iter()
         .collect::<HashSet<_>>();
     let output = render_bzl(&features, &dependency_aliases, &dependency_exclusion)?;
-    fs::write(&args.output_bzl, output)
+    std::fs::write(&args.output_bzl, output)
         .map_err(|error| format!("failed to write {}: {error}", args.output_bzl.display()))?;
     Ok(())
 }
 
-fn parse_dependency_aliases(raw_aliases: Vec<String>) -> Result<HashMap<String, String>, String> {
-    let mut dependency_aliases = HashMap::new();
-    for raw_alias in raw_aliases {
-        let Some((dependency, label)) = raw_alias.split_once('=') else {
-            return Err(format!(
-                "invalid dependency alias {raw_alias:?}, expected DEPENDENCY=LABEL"
-            ));
-        };
-        if dependency.is_empty() || label.is_empty() {
-            return Err(format!(
-                "invalid dependency alias {raw_alias:?}, expected DEPENDENCY=LABEL"
-            ));
-        }
-        dependency_aliases.insert(dependency.to_owned(), label.to_owned());
-    }
-    Ok(dependency_aliases)
-}
-
+/// Extracts the `[features]` table from a Cargo manifest and normalizes it into owned strings.
+///
+/// Returns an empty map when the manifest has no `[features]` section.
 fn parse_features(manifest: &str) -> Result<HashMap<String, Vec<String>>, String> {
     let value: Table = manifest
         .parse()
@@ -80,6 +58,9 @@ fn parse_features(manifest: &str) -> Result<HashMap<String, Vec<String>>, String
     Ok(result)
 }
 
+/// Renders the complete `.bzl` output for all features in dependency order.
+///
+/// Features are emitted once, sorted by name for stable output.
 fn render_bzl(
     features: &HashMap<String, Vec<String>>,
     dependency_aliases: &HashMap<String, String>,
@@ -105,6 +86,10 @@ fn render_bzl(
     Ok(output)
 }
 
+/// Emits the `*_DEPS` and `*_FEATURES` constants for one feature and any nested child features.
+///
+/// Dependency entries are converted into Bazel labels, excluded dependencies are skipped, and
+/// slash-qualified feature references are ignored because they refer to other crates.
 fn emit_feature(
     output: &mut String,
     emitted: &mut HashSet<String>,

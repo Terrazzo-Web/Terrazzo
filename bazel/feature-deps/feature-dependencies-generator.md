@@ -1,4 +1,4 @@
-# Feature Dependency Generator
+# Feature Dependencies Generator
 
 ## Purpose
 

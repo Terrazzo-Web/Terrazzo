@@ -133,6 +133,7 @@ pub fn run_server() -> Result<(), RunServerError> {
 
 #[tokio::main]
 async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError> {
+    let cli = Arc::new(cli);
     #[cfg(feature = "logs-panel")]
     {
         crate::logs::init_tracing()?;
@@ -145,7 +146,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
         }
         println!("server_fn paths END");
     }
-    let config = config.into_dyn(&cli);
+    let config = config.into_dyn(cli.clone());
     let server_config = config.server.clone();
     if cli.action == Action::SetPassword {
         return Ok(server_config.set_password(cli.password_stdin)?);
@@ -292,12 +293,12 @@ pub struct EnableTracingError;
 
 #[autoclone]
 async fn run_client_async(
-    cli: Cli,
+    cli: Arc<Cli>,
     config: DiffArc<DynConfig>,
     server: Arc<Server>,
 ) -> Result<ServerHandle<()>, RunClientError> {
     let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Dynamic Client");
-    let auth_code = AuthCode::from(cli.auth_code);
+    let auth_code = AuthCode::from(cli.auth_code.clone());
     let (terminated_all_tx, terminated_all_rx) = oneshot::channel::<()>();
     let terminated_all_tx = Arc::new(terminated_all_tx);
 

@@ -6,7 +6,6 @@ use std::time::Duration;
 use tracing::warn;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
-use trz_gateway_common::retry_strategy::RetryStrategy;
 
 use super::Config;
 use super::ConfigFile;
@@ -50,7 +49,8 @@ impl Config {
                 password: server.password.clone(),
                 token_lifetime: Some(humantime::format_duration(server.token_lifetime).to_string()),
                 token_refresh: Some(humantime::format_duration(server.token_refresh).to_string()),
-                config_file_poll_strategy: Some(server.config_file_poll_strategy.clone()),
+                config_file_watcher: Some(server.config_file_watcher),
+                config_file_poll_strategy: server.config_file_poll_strategy.clone(),
                 certificate_renewal_threshold: Some(
                     humantime::format_duration(server.certificate_renewal_threshold).to_string(),
                 ),
@@ -112,10 +112,8 @@ fn merge_server_config(
             .unwrap_or(DEFAULT_TOKEN_LIFETIME),
         token_refresh: parse_duration(server.token_refresh.as_deref())
             .unwrap_or(DEFAULT_TOKEN_REFRESH),
-        config_file_poll_strategy: server
-            .config_file_poll_strategy
-            .clone()
-            .unwrap_or_else(|| RetryStrategy::fixed(Duration::from_secs(60))),
+        config_file_watcher: server.config_file_watcher.unwrap_or(true),
+        config_file_poll_strategy: server.config_file_poll_strategy.clone(),
         certificate_renewal_threshold: parse_duration(
             server.certificate_renewal_threshold.as_deref(),
         )
@@ -181,6 +179,17 @@ fn collapse_tilde(path: impl AsRef<str>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use trz_gateway_common::dynamic_config::has_diff::DiffArc;
+    use trz_gateway_common::retry_strategy::RetryStrategy;
+
+    use super::Config;
+    use super::ConfigFile;
+    use super::ConfigImpl;
+    use super::ServerConfig;
+    use super::parse_duration;
+    use crate::backend::config::types::RuntimeTypes;
     use crate::backend::home;
 
     #[test]
@@ -203,6 +212,43 @@ mod tests {
         assert_eq!(
             super::collapse_tilde(home().to_owned() + home() + "/home/path"),
             "~".to_owned() + home() + "/home/path"
+        );
+    }
+
+    #[test]
+    fn merge_defaults_to_watcher_enabled_without_polling() {
+        let config = ConfigFile::default().merge(&Default::default());
+
+        assert!(config.server.config_file_watcher);
+        assert_eq!(config.server.config_file_poll_strategy, None);
+    }
+
+    #[test]
+    fn config_file_round_trip_preserves_watcher_and_polling() {
+        let config = Config::from(ConfigImpl {
+            server: DiffArc::from(ServerConfig::<RuntimeTypes> {
+                host: "localhost".into(),
+                port: 3000,
+                set_current_endpoint: None,
+                pidfile: format!("{}/.terrazzo/test.pid", home()),
+                private_root_ca: format!("{}/.terrazzo/root_ca", home()),
+                password: None,
+                token_lifetime: parse_duration(Some("5m")).unwrap(),
+                token_refresh: parse_duration(Some("4m 50s")).unwrap(),
+                config_file_watcher: false,
+                config_file_poll_strategy: Some(RetryStrategy::fixed(Duration::from_secs(60))),
+                certificate_renewal_threshold: parse_duration(Some("30days")).unwrap(),
+            }),
+            mesh: Default::default(),
+            letsencrypt: Default::default(),
+        });
+
+        let round_trip = config.to_config_file().merge(&Default::default());
+
+        assert!(!round_trip.server.config_file_watcher);
+        assert_eq!(
+            round_trip.server.config_file_poll_strategy,
+            Some(RetryStrategy::fixed(Duration::from_secs(60)))
         );
     }
 }

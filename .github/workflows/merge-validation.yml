@@ -59,8 +59,11 @@ jobs:
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
-          bazel test --action_env=PROTOC //...
-          bazel test --action_env=PROTOC -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
+          bazel test --action_env=PROTOC --test_output=errors --verbose_failures //...
+      - name: Bazel test -c opt
+        run: |
+          export PROTOC=$(which protoc)
+          bazel test --action_env=PROTOC --test_output=errors --verbose_failures -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
 
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7

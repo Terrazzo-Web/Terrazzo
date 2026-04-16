@@ -32,9 +32,19 @@ impl ConfigFile {
 
 impl ConfigFile {
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), ConfigFileError> {
+        let path = path.as_ref();
         let json = toml::to_string_pretty(self).map_err(Box::from)?;
-        std::fs::write(path.as_ref(), &json).map_err(|error| ConfigFileError::IO {
-            config_file: path.as_ref().to_owned(),
+        let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+        let temp_path = path.with_file_name(format!(
+            ".{file_name}.{}.tmp",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::write(&temp_path, &json).map_err(|error| ConfigFileError::IO {
+            config_file: temp_path.clone(),
+            error,
+        })?;
+        std::fs::rename(&temp_path, path).map_err(|error| ConfigFileError::IO {
+            config_file: path.to_owned(),
             error,
         })?;
         Ok(())

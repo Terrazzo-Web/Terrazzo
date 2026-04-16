@@ -43,8 +43,11 @@ fi
 
 if [[ "${SERVER_SUPPORTS_CONFIG_FILE}" == "1" ]]; then
 cat > "${TEMP_CONFIG_FILE}" <<'EOF'
+[server]
+config_file_watcher = true
+
 [server.config_file_poll_strategy]
-fixed = "1s"
+fixed = "1h"
 EOF
 SERVER_ARGS+=(--config-file "${TEMP_CONFIG_FILE}")
 fi

@@ -51,8 +51,11 @@ jobs:
       - name: Bazel test
         run: |
           export PROTOC=$(which protoc)
-          bazel test --lockfile_mode=error --action_env=PROTOC //...
-          bazel test --lockfile_mode=error --action_env=PROTOC -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
+          bazel test --lockfile_mode=error --action_env=PROTOC --test_output=errors --verbose_failures //...
+      - name: Bazel test -c opt
+        run: |
+          export PROTOC=$(which protoc)
+          bazel test --lockfile_mode=error --action_env=PROTOC --test_output=errors --verbose_failures -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check
   publish-dry-run:

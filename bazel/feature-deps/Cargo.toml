@@ -1,0 +1,21 @@
+[package]
+name = "feature-deps"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Generates Bazel feature dependency constants from Cargo features."
+
+[dependencies]
+clap = { workspace = true }
+heck = { workspace = true }
+nameth = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[features]
+bazel = []
+
+[lints]
+workspace = true

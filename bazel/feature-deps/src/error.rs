@@ -1,14 +1,17 @@
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
+
+use crate::args::FeatureAliasesError;
+use crate::args::ParseFeaturesError;
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum FeatureDepsError {
     #[error("[{n}] {0}", n = self.name())]
-    ParseFeaturesError(#[from] crate::args::ParseFeaturesError),
+    ParseFeaturesError(#[from] ParseFeaturesError),
 
-    #[error("[{n}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL", n = self.name())]
-    DependencyAliasInvalid(String),
+    #[error("[{n}] {0}", n = self.name())]
+    FeatureAliasesError(#[from] FeatureAliasesError),
 
     #[error("[{n}] Other: {0}", n = self.name())]
     Other(String),

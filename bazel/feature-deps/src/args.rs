@@ -1,8 +1,9 @@
-use clap::Parser;
-use nameth::nameth;
-use nameth::NamedEnumValues as _;
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use clap::Parser;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 
 use crate::error::FeatureDepsError;
 
@@ -38,19 +39,20 @@ impl Args {
         };
 
         let mut result = HashMap::new();
-        for (feature_name, value) in features {
-            let entries = value
-                .as_array()
-                .ok_or_else(|| ParseFeaturesError::FeatureMalformed {
+        for (feature_name, feature_dependencies) in features {
+            let feature_dependencies = feature_dependencies.as_array().ok_or_else(|| {
+                ParseFeaturesError::FeatureMalformed {
                     feature_name: feature_name.clone(),
-                })?
+                }
+            })?;
+            let entries = feature_dependencies
                 .iter()
-                .map(|item| {
-                    Ok(item
+                .map(|dependency| {
+                    Ok(dependency
                         .as_str()
-                        .ok_or_else(|| ParseFeaturesError::FeatureEntryInvalid {
+                        .ok_or_else(|| ParseFeaturesError::FeatureDependencyInvalid {
                             feature_name: feature_name.clone(),
-                            item: item.clone(),
+                            dependency: dependency.clone(),
                         })?
                         .to_owned())
                 })
@@ -80,9 +82,9 @@ pub enum ParseFeaturesError {
     FeatureMalformed { feature_name: String },
 
     #[error("[{n}] Feature {feature_name:?} is not an array of strings: {item:?}", n = self.name())]
-    FeatureEntryInvalid {
+    FeatureDependencyInvalid {
         feature_name: String,
-        item: toml::Value,
+        dependency: toml::Value,
     },
 }
 
@@ -90,21 +92,22 @@ impl Args {
     /// Parses repeated `DEPENDENCY=LABEL` CLI arguments into a dependency-to-label map.
     ///
     /// Returns an error when any alias is missing the `=` separator or either side is empty.
-    pub fn parse_dependency_aliases(&self) -> Result<HashMap<String, String>, FeatureDepsError> {
+    pub fn parse_dependency_aliases(&self) -> Result<HashMap<String, String>, FeatureAliasesError> {
         let mut result = HashMap::new();
         for dependency_alias in &self.dependency_aliases {
-            let Some((dependency, label)) = dependency_alias.split_once('=') else {
-                return Err(FeatureDepsError::DependencyAliasInvalid(
-                    dependency_alias.clone(),
-                ));
-            };
+            let (dependency, label) = dependency_alias
+                .split_once('=')
+                .ok_or_else(|| FeatureAliasesError(dependency_alias.clone()))?;
             if dependency.is_empty() || label.is_empty() {
-                return Err(FeatureDepsError::DependencyAliasInvalid(
-                    dependency_alias.clone(),
-                ));
+                return Err(FeatureAliasesError(dependency_alias.clone()));
             }
             result.insert(dependency.to_owned(), label.to_owned());
         }
         Ok(result)
     }
 }
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+#[error("[{n}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL", n = self.name())]
+pub struct FeatureAliasesError(String);

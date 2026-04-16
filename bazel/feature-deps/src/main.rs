@@ -15,10 +15,7 @@ fn main() -> Result<(), FeatureDepsError> {
     let args = Args::parse();
     let features = args.parse_features()?;
     let dependency_aliases = args.parse_dependency_aliases()?;
-    let dependency_exclusion = args
-        .dependency_exclusion
-        .into_iter()
-        .collect::<HashSet<_>>();
+    let dependency_exclusion = args.dependency_exclusion();
     let output = render_bzl(&features, &dependency_aliases, &dependency_exclusion)?;
     std::fs::write(&args.output_bzl, output)
         .map_err(|error| format!("failed to write {}: {error}", args.output_bzl.display()))?;

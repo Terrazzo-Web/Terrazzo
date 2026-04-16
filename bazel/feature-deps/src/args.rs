@@ -1,11 +1,10 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use clap::Parser;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-
-use crate::error::FeatureDepsError;
 
 #[derive(Parser)]
 pub struct Args {
@@ -13,10 +12,10 @@ pub struct Args {
     pub output_bzl: PathBuf,
 
     #[arg(long = "dependency-alias")]
-    pub dependency_aliases: Vec<String>,
+    dependency_aliases: Vec<String>,
 
     #[arg(long = "dependency-exclusion")]
-    pub dependency_exclusion: Vec<String>,
+    dependency_exclusion: Vec<String>,
 }
 
 impl Args {
@@ -81,7 +80,7 @@ pub enum ParseFeaturesError {
     #[error("[{n}] Feature {feature_name:?} is not a list of strings", n = self.name())]
     FeatureMalformed { feature_name: String },
 
-    #[error("[{n}] Feature {feature_name:?} is not an array of strings: {item:?}", n = self.name())]
+    #[error("[{n}] Feature {feature_name:?} is not an array of strings: {dependency:?}", n = self.name())]
     FeatureDependencyInvalid {
         feature_name: String,
         dependency: toml::Value,
@@ -109,5 +108,11 @@ impl Args {
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-#[error("[{n}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL", n = self.name())]
+#[error("[{FEATURE_ALIASES_ERROR}] Invalid dependency alias {0:?}, expected DEPENDENCY=LABEL")]
 pub struct FeatureAliasesError(String);
+
+impl Args {
+    pub fn dependency_exclusion(&self) -> HashSet<String> {
+        self.dependency_exclusion.iter().cloned().collect()
+    }
+}

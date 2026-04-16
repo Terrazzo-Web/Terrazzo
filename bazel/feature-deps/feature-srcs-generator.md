@@ -2,33 +2,133 @@
 
 ## Purpose
 
-Extend `bazel/feature-deps` to create per-feature constant of the list of files that should be compiled when a feature is active.
-Refer to bazel/feature-deps/feature-dependencies-generator.md for prior art.
+Extend `bazel/feature-deps` to create per-feature constants listing the Rust source files that should be compiled when a feature is active.
+Refer to `bazel/feature-deps/feature-dependencies-generator.md` for prior art.
 
-It will then expose additional `*_SRCS` constants.
+The output should expose additional `*_SRCS` constants in the generated `.bzl` file.
 
-First of all the algorithm should be executed on a feature called "default".
+This solves two related problems:
+
+- make feature-specific Rust file selection explicit in generated Bazel metadata
+- keep the generated source lists aligned with the already-generated feature dependency constants
+- give downstream Bazel rules a stable per-feature file list instead of requiring them to re-derive it
+
+The generator should still run a synthetic pass for a feature named `default`.
 For each feature:
-- If the "default" feature is indeed in the list of features in Cargo.toml, no need to process it again.
-- The algorithm creates a constant in the .bzl file called ${FEATURE}_SRCS
-- First, aggregate the other ${FEATURE}_SRCS constants of referenced features, as previously done for dependencies.e.g. "CONVERTER_CLIENT_SRCS = DEFAULT_SRCS + CLIENT_SRCS + CONVERTER_SRCS + REMOTES_UI_SRCS"
-- Then, start with file lib.rs and aggregate the list of source files as per algorithm explained below
 
-Algorithm aggregate_feature_srcs($feature, $file.rs, $included, $accumulator):
-  - The first call to aggregate_feature_srcs is with ($feature, "lib.rs", false, empty `&mut Vec<String>`), unless feature is "default", then start with $included = true
-  - If $included is `true`, add $file.rs (source path from crate root) to $accumulator
-  - Parse given $file.rs with the syn crate
-  - Look for `mod` statements for non-nested sub-modules (not `mod my_sub_module { ... }` but `mod my_sub_module;`)
-  - Determine if the sub-module is included:
-    - if the sub-module statement is guarded on the feature, meaning annotated with `#[cfg(feature = "$feature")] mod my_module;` or the sub-module file starts with `#![cfg(feature = "$feature")]`, that sub-module source file will be included.
-    - note that the `cfg!` predicate can be composite (like `#[cfg(any(feature = "$feature", ...))]`): in this case, be conservative, include the source file unless it is clearly gated under a different feature `#![cfg(feature = "$other_feature")]`
-    - if the sub-module statement is guarded under a different feature, the file is not included
-    - if the sub-module statement is not guarded, the file is included
-  - process recursively all the sub-modules
-    - if the sub-module is included, call aggregate_feature_srcs($feature, $file.rs, true, $accumulator)
-    - else, call aggregate_feature_srcs($feature, $file.rs, false, $accumulator)
+- if `default` is already present in `Cargo.toml`, do not process it twice
+- generate a constant named `${FEATURE}_SRCS`
+- start by aggregating the `${REFERENCED_FEATURE}_SRCS` constants for features already referenced by that feature, similar to the dependency generator
+- then compute the feature-local Rust sources starting from `lib.rs`
+- finally concatenate the referenced-feature constants with the feature-local list
 
-Finally, concatenate ${FEATURE}_SRCS with the computed list of src files.
+Example shape:
+
+```starlark
+CONVERTER_CLIENT_SRCS = DEFAULT_SRCS + CLIENT_SRCS + CONVERTER_SRCS + REMOTES_UI_SRCS + [
+    "lib.rs",
+    ...
+]
+```
+
+## Improve The Algorithm
+
+Suggested algorithm:
+
+`aggregate_feature_srcs(feature, file_rs, included, accumulator)`
+
+- initial call:
+  - `aggregate_feature_srcs(feature, "lib.rs", false, &mut Vec<String>)`
+  - for the synthetic `default` feature, start with `included = true`
+- if `included` is `true`, add `file_rs` to `accumulator`
+- parse `file_rs` with `syn`
+- inspect only out-of-line top-level module declarations:
+  - include `mod my_sub_module;`
+  - ignore inline modules such as `mod my_sub_module { ... }`
+- resolve the source file for each submodule using Rust module conventions
+- determine whether each submodule is included for the current feature
+- recurse into every discovered submodule:
+  - pass `included = true` when the submodule is included for the current feature
+  - pass `included = false` otherwise
+
+Inclusion rules for a submodule:
+
+- if the parent path is already excluded, keep traversing conservatively but do not add files unless the submodule is clearly feature-enabled
+- if the `mod` statement is annotated with `#[cfg(feature = "$feature")]`, include it
+- if the target file starts with `#![cfg(feature = "$feature")]`, include it
+- if the guard clearly targets a different feature, exclude it
+- if there is no relevant guard, include it
+- if the predicate is composite, for example `#[cfg(any(feature = "$feature", unix))]`, be conservative and include it unless it is clearly impossible for the current feature
+
+That conservative rule is important because the generator is producing a safe superset for Bazel source declaration. False positives are usually acceptable; false negatives are more dangerous because they can make the generated Bazel target incomplete.
+
+## Simple Example
+
+Assume a crate with two features, `client` and `server`, and these files:
+
+- `lib.rs`
+- `client.rs`
+- `server.rs`
+- `client/api.rs`
+- `server/http.rs`
+
+Example module declarations:
+
+`lib.rs`
+
+```rust
+#[cfg(feature = "client")]
+mod client;
+
+#[cfg(feature = "server")]
+mod server;
+```
+
+`client.rs`
+
+```rust
+mod api;
+```
+
+`server.rs`
+
+```rust
+#![cfg(feature = "server")]
+
+mod http;
+```
+
+In this example:
+
+- `lib.rs` always exists and is the traversal root
+- `client.rs` is only included when `client` is active because its `mod` statement in `lib.rs` is feature-gated
+- `server.rs` is only included when `server` is active because both the `mod` statement and the file-level inner attribute gate it
+- `client/api.rs` is included whenever `client.rs` is included because its module declaration is unconditional
+- `server/http.rs` is included whenever `server.rs` is included because its module declaration is unconditional
+
+The generated constants would therefore look like:
+
+```starlark
+CLIENT_SRCS = [
+    "lib.rs",
+    "client.rs",
+    "client/api.rs",
+]
+
+SERVER_SRCS = [
+    "lib.rs",
+    "server.rs",
+    "server/http.rs",
+]
+```
+
+If `default` enables neither feature, then:
+
+```starlark
+DEFAULT_SRCS = [
+    "lib.rs",
+]
+```
 
 ## Validation
 

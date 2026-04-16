@@ -3,6 +3,7 @@ use nameth::nameth;
 
 use crate::args::FeatureAliasesError;
 use crate::args::ParseFeaturesError;
+use crate::manager::RenderBzlError;
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -12,6 +13,9 @@ pub enum FeatureDepsError {
 
     #[error("[{n}] {0}", n = self.name())]
     FeatureAliasesError(#[from] FeatureAliasesError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    RenderBzlError(#[from] RenderBzlError),
 
     #[error("[{n}] Other: {0}", n = self.name())]
     Other(String),
@@ -30,6 +34,7 @@ mod tests {
     use super::FeatureDepsError;
     use crate::args::FeatureAliasesError;
     use crate::args::ParseFeaturesError;
+    use crate::manager::RenderBzlError;
 
     #[test]
     fn renders_parse_features_error() {
@@ -49,6 +54,17 @@ mod tests {
         assert_eq!(
             error.to_string(),
             r#"[FeatureAliasesError] [FeatureAliasesError] Invalid dependency alias "bad", expected DEPENDENCY=LABEL"#
+        );
+    }
+
+    #[test]
+    fn renders_render_bzl_error() {
+        let error = FeatureDepsError::from(RenderBzlError::FeatureNotFound {
+            feature_name: "missing".to_owned(),
+        });
+        assert_eq!(
+            error.to_string(),
+            r#"[RenderBzlError] [FeatureNotFound] feature "missing" is not defined"#
         );
     }
 

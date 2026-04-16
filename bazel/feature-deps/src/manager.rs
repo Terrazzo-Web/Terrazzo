@@ -3,11 +3,20 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use heck::ToShoutySnakeCase as _;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 
 pub struct Manager {
     features: HashMap<String, Vec<String>>,
     dependency_aliases: HashMap<String, String>,
     dependency_exclusion: HashSet<String>,
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum RenderBzlError {
+    #[error("[{n}] feature {feature_name:?} is not defined", n = self.name())]
+    FeatureNotFound { feature_name: String },
 }
 
 impl Manager {
@@ -26,7 +35,7 @@ impl Manager {
     /// Renders the complete `.bzl` output for all features in dependency order.
     ///
     /// Features are emitted once, sorted by name for stable output.
-    pub fn render_bzl(&self) -> Result<String, String> {
+    pub fn render_bzl(&self) -> Result<String, RenderBzlError> {
         let mut output = String::from(
             r#""""Generated feature dependency constants."""
 
@@ -53,7 +62,7 @@ impl Manager {
         output: &mut String,
         emitted: &mut HashSet<String>,
         feature_name: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderBzlError> {
         if emitted.contains(feature_name) {
             return Ok(());
         }
@@ -61,7 +70,9 @@ impl Manager {
         let entries = self
             .features
             .get(feature_name)
-            .ok_or_else(|| format!("feature {feature_name:?} is not defined"))?;
+            .ok_or_else(|| RenderBzlError::FeatureNotFound {
+                feature_name: feature_name.to_owned(),
+            })?;
 
         let mut child_features = BTreeSet::new();
         let mut dependencies = BTreeSet::new();

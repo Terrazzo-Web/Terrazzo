@@ -30,6 +30,7 @@ mod tests {
 
     use crate::args::Args;
     use crate::manager::Manager;
+    use crate::manager::RenderBzlError;
 
     fn parse_features(
         manifest: &str,
@@ -109,7 +110,12 @@ terminal = ["missing"]
             .render_bzl()
             .unwrap_err();
 
-        assert_eq!(error, "feature \"missing\" is not defined");
+        assert_eq!(
+            error,
+            RenderBzlError::FeatureNotFound {
+                feature_name: "missing".to_owned(),
+            }
+        );
     }
 
     #[test]

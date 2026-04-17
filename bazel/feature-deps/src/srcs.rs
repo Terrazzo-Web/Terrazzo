@@ -1,69 +1,121 @@
+use std::collections::HashMap;
+use std::collections::hash_map;
 use std::path::Path;
-use std::path::PathBuf;
+use std::rc::Rc;
 
-pub fn definitely_excluded_srcs(
-    feature: &str,
-    file_rs: impl AsRef<Path>,
-) -> Result<Vec<PathBuf>, String> {
-    let file_rs = file_rs.as_ref();
-    let mut excluded = Vec::new();
-    collect_definitely_excluded_srcs(feature, file_rs, false, &mut excluded)?;
-    Ok(excluded)
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
+use syn::punctuated::Punctuated;
+
+#[derive(Default)]
+pub struct SrcsManager {
+    parsed_files: HashMap<Rc<Path>, Rc<syn::File>>,
 }
 
-fn collect_definitely_excluded_srcs(
-    feature: &str,
-    file_rs: &Path,
-    parent_excluded: bool,
-    excluded: &mut Vec<PathBuf>,
-) -> Result<(), String> {
-    let parsed = parse_rs_file(file_rs)?;
-    for item in parsed.items {
-        let syn::Item::Mod(item_mod) = item else {
-            continue;
-        };
-        if item_mod.content.is_some() {
-            continue;
-        }
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum CollectSrcsError {
+    #[error("[{n}] Failed to read {file_rs:?}: {error}", n = self.name())]
+    RustSrcReadError {
+        file_rs: Rc<Path>,
+        error: std::io::Error,
+    },
 
-        let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string())
-        else {
-            continue;
-        };
+    #[error("[{n}] Failed to parse {file_rs:?}: {error}", n = self.name())]
+    RustSrcParseError {
+        file_rs: Rc<Path>,
+        error: syn::Error,
+    },
+}
 
-        let submodule_excluded = parent_excluded
-            || mod_is_definitely_excluded(feature, &item_mod.attrs)
-            || file_is_definitely_excluded(feature, &submodule_file)?;
-        if submodule_excluded {
-            excluded.push(submodule_file.clone());
-        }
-        collect_definitely_excluded_srcs(feature, &submodule_file, submodule_excluded, excluded)?;
+impl SrcsManager {
+    #[allow(unused)]
+    pub fn collect_negative_srcs(
+        &mut self,
+        feature: &str,
+        file_rs: Rc<Path>,
+    ) -> Result<Vec<Rc<Path>>, CollectSrcsError> {
+        let mut accu = vec![];
+        self.collect_negative_srcs_rec(feature, file_rs, false, &mut accu)?;
+        Ok(accu)
     }
 
-    Ok(())
-}
+    fn collect_negative_srcs_rec(
+        &mut self,
+        feature: &str,
+        file_rs: Rc<Path>,
+        parent: bool,
+        accu: &mut Vec<Rc<Path>>,
+    ) -> Result<(), CollectSrcsError> {
+        let parsed = self.parse_rs_file(&file_rs)?;
+        for item in &parsed.items {
+            let syn::Item::Mod(item_mod) = item else {
+                continue;
+            };
+            if item_mod.content.is_some() {
+                continue;
+            }
 
-fn mod_is_definitely_excluded(feature: &str, attrs: &[syn::Attribute]) -> bool {
-    attrs
-        .iter()
-        .filter_map(cfg_feature_name)
-        .any(|cfg_feature| cfg_feature != feature)
-}
+            let Some(submodule_file) =
+                resolve_submodule_file(&file_rs, &item_mod.ident.to_string())
+            else {
+                continue;
+            };
 
-fn file_is_definitely_excluded(feature: &str, file_rs: &Path) -> Result<bool, String> {
-    let parsed = parse_rs_file(file_rs)?;
-    Ok(parsed
-        .attrs
-        .iter()
-        .filter_map(cfg_feature_name)
-        .any(|cfg_feature| cfg_feature != feature))
-}
+            let submodule_matches = parent
+                || self.mod_matches(feature, &item_mod.attrs)
+                || self.file_matches(feature, &submodule_file)?;
+            if submodule_matches {
+                accu.push(submodule_file.clone());
+            }
 
-fn parse_rs_file(file_rs: &Path) -> Result<syn::File, String> {
-    let content = std::fs::read_to_string(file_rs)
-        .map_err(|error| format!("failed to read {}: {error}", file_rs.display()))?;
-    syn::parse_file(&content)
-        .map_err(|error| format!("failed to parse {}: {error}", file_rs.display()))
+            self.collect_negative_srcs_rec(feature, submodule_file, submodule_matches, accu)?;
+        }
+
+        Ok(())
+    }
+
+    fn parse_rs_file(&mut self, file_rs: &Rc<Path>) -> Result<Rc<syn::File>, CollectSrcsError> {
+        return match self.parsed_files.entry(file_rs.clone()) {
+            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
+            hash_map::Entry::Vacant(entry) => Ok(entry.insert(handle_cache_miss(file_rs)?).clone()),
+        };
+
+        fn handle_cache_miss(file_rs: &Rc<Path>) -> Result<Rc<syn::File>, CollectSrcsError> {
+            let content = std::fs::read_to_string(file_rs).map_err(move |error| {
+                CollectSrcsError::RustSrcReadError {
+                    file_rs: file_rs.clone(),
+                    error,
+                }
+            })?;
+            syn::parse_file(&content)
+                .map_err(move |error| CollectSrcsError::RustSrcParseError {
+                    file_rs: file_rs.clone(),
+                    error,
+                })
+                .map(Rc::from)
+        }
+    }
+
+    fn mod_matches(&self, feature: &str, attrs: &[syn::Attribute]) -> bool {
+        attrs
+            .iter()
+            .filter_map(cfg_feature_name)
+            .any(|cfg_feature| cfg_feature != feature)
+    }
+
+    fn file_matches(
+        &mut self,
+        feature: &str,
+        file_rs: &Rc<Path>,
+    ) -> Result<bool, CollectSrcsError> {
+        let parsed = self.parse_rs_file(file_rs)?;
+        Ok(parsed
+            .attrs
+            .iter()
+            .filter_map(cfg_feature_name)
+            .any(|cfg_feature| cfg_feature != feature))
+    }
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
@@ -76,9 +128,8 @@ fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
         return None;
     };
 
-    let nested = meta_list.parse_args_with(
-        syn::punctuated::Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated,
-    );
+    let nested = meta_list
+        .parse_args_with(Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated);
     let Ok(nested) = nested else {
         return None;
     };
@@ -102,7 +153,7 @@ fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
     Some(value.value())
 }
 
-fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<PathBuf> {
+fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<Rc<Path>> {
     let parent_dir = if parent_file
         .file_stem()
         .is_some_and(|stem| stem == "mod" || stem == "lib" || stem == "main")
@@ -114,12 +165,12 @@ fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<PathB
 
     let candidate_rs = parent_dir.join(format!("{module_name}.rs"));
     if candidate_rs.exists() {
-        return Some(candidate_rs);
+        return Some(candidate_rs.into());
     }
 
     let candidate_mod_rs = parent_dir.join(module_name).join("mod.rs");
     if candidate_mod_rs.exists() {
-        return Some(candidate_mod_rs);
+        return Some(candidate_mod_rs.into());
     }
 
     None
@@ -127,18 +178,17 @@ fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<PathB
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
 
     use tempfile::tempdir;
 
-    use super::definitely_excluded_srcs;
+    use super::SrcsManager;
 
     #[test]
     fn excludes_submodule_when_mod_stmt_targets_other_feature() {
         let dir = tempdir().unwrap();
         let lib_rs = dir.path().join("lib.rs");
         let server_rs = dir.path().join("server.rs");
-        fs::write(
+        std::fs::write(
             &lib_rs,
             r#"
 #[cfg(feature = "server")]
@@ -146,11 +196,14 @@ mod server;
 "#,
         )
         .unwrap();
-        fs::write(&server_rs, "pub fn handler() {}").unwrap();
+        std::fs::write(&server_rs, "pub fn handler() {}").unwrap();
 
-        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+        let mut manager = SrcsManager::default();
+        let excluded = manager
+            .collect_negative_srcs("client", lib_rs.into())
+            .unwrap();
 
-        assert_eq!(excluded, vec![server_rs]);
+        assert_eq!(excluded, vec![server_rs.into()]);
     }
 
     #[test]
@@ -158,14 +211,14 @@ mod server;
         let dir = tempdir().unwrap();
         let lib_rs = dir.path().join("lib.rs");
         let server_rs = dir.path().join("server.rs");
-        fs::write(
+        std::fs::write(
             &lib_rs,
             r#"
 mod server;
 "#,
         )
         .unwrap();
-        fs::write(
+        std::fs::write(
             &server_rs,
             r#"
 #![cfg(feature = "server")]
@@ -175,9 +228,12 @@ pub fn handler() {}
         )
         .unwrap();
 
-        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+        let mut manager = SrcsManager::default();
+        let excluded = manager
+            .collect_negative_srcs("client", lib_rs.into())
+            .unwrap();
 
-        assert_eq!(excluded, vec![server_rs]);
+        assert_eq!(excluded, vec![server_rs.into()]);
     }
 
     #[test]
@@ -187,8 +243,8 @@ pub fn handler() {}
         let server_rs = dir.path().join("server.rs");
         let nested_dir = dir.path().join("server");
         let http_rs = nested_dir.join("http.rs");
-        fs::create_dir(&nested_dir).unwrap();
-        fs::write(
+        std::fs::create_dir(&nested_dir).unwrap();
+        std::fs::write(
             &lib_rs,
             r#"
 #[cfg(feature = "server")]
@@ -196,18 +252,21 @@ mod server;
 "#,
         )
         .unwrap();
-        fs::write(
+        std::fs::write(
             &server_rs,
             r#"
 mod http;
 "#,
         )
         .unwrap();
-        fs::write(&http_rs, "pub fn route() {}").unwrap();
+        std::fs::write(&http_rs, "pub fn route() {}").unwrap();
 
-        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+        let mut manager = SrcsManager::default();
+        let excluded = manager
+            .collect_negative_srcs("client", lib_rs.into())
+            .unwrap();
 
-        assert_eq!(excluded, vec![server_rs, http_rs]);
+        assert_eq!(excluded, vec![server_rs.into(), http_rs.into()]);
     }
 
     #[test]
@@ -215,7 +274,7 @@ mod http;
         let dir = tempdir().unwrap();
         let lib_rs = dir.path().join("lib.rs");
         let client_rs = dir.path().join("client.rs");
-        fs::write(
+        std::fs::write(
             &lib_rs,
             r#"
 #[cfg(feature = "client")]
@@ -227,9 +286,12 @@ mod inline_only {
 "#,
         )
         .unwrap();
-        fs::write(&client_rs, "pub fn handler() {}").unwrap();
+        std::fs::write(&client_rs, "pub fn handler() {}").unwrap();
 
-        let excluded = definitely_excluded_srcs("client", &lib_rs).unwrap();
+        let mut manager = SrcsManager::default();
+        let excluded = manager
+            .collect_negative_srcs("client", lib_rs.into())
+            .unwrap();
 
         assert!(excluded.is_empty());
     }

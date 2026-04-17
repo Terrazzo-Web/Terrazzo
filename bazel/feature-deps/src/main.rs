@@ -3,7 +3,6 @@ use clap::Parser;
 mod args;
 mod error;
 mod manager;
-#[allow(unused)]
 mod srcs;
 
 use args::Args;
@@ -112,12 +111,10 @@ terminal = ["missing"]
             .render_bzl()
             .unwrap_err();
 
-        assert_eq!(
+        assert!(matches!(
             error,
-            RenderBzlError::FeatureNotFound {
-                feature_name: "missing".to_owned(),
-            }
-        );
+            RenderBzlError::FeatureNotFound { feature_name } if feature_name == "missing"
+        ));
     }
 
     #[test]

@@ -64,7 +64,7 @@ mod tests {
         });
         assert_eq!(
             error.to_string(),
-            r#"[RenderBzlError] [FeatureNotFound] feature "missing" is not defined"#
+            r#"[RenderBzlError] [FeatureNotFound] Feature "missing" is not defined"#
         );
     }
 

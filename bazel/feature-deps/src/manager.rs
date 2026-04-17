@@ -13,9 +13,9 @@ pub struct Manager {
 }
 
 #[nameth]
-#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug)]
 pub enum RenderBzlError {
-    #[error("[{n}] feature {feature_name:?} is not defined", n = self.name())]
+    #[error("[{n}] Feature {feature_name:?} is not defined", n = self.name())]
     FeatureNotFound { feature_name: String },
 }
 

@@ -26,7 +26,8 @@ fn collect_definitely_excluded_srcs(
             continue;
         }
 
-        let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string()) else {
+        let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string())
+        else {
             continue;
         };
 
@@ -43,7 +44,8 @@ fn collect_definitely_excluded_srcs(
 }
 
 fn mod_is_definitely_excluded(feature: &str, attrs: &[syn::Attribute]) -> bool {
-    attrs.iter()
+    attrs
+        .iter()
         .filter_map(cfg_feature_name)
         .any(|cfg_feature| cfg_feature != feature)
 }
@@ -60,7 +62,8 @@ fn file_is_definitely_excluded(feature: &str, file_rs: &Path) -> Result<bool, St
 fn parse_rs_file(file_rs: &Path) -> Result<syn::File, String> {
     let content = std::fs::read_to_string(file_rs)
         .map_err(|error| format!("failed to read {}: {error}", file_rs.display()))?;
-    syn::parse_file(&content).map_err(|error| format!("failed to parse {}: {error}", file_rs.display()))
+    syn::parse_file(&content)
+        .map_err(|error| format!("failed to parse {}: {error}", file_rs.display()))
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {

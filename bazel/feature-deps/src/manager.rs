@@ -67,12 +67,12 @@ impl Manager {
             return Ok(());
         }
 
-        let entries = self
-            .features
-            .get(feature_name)
-            .ok_or_else(|| RenderBzlError::FeatureNotFound {
-                feature_name: feature_name.to_owned(),
-            })?;
+        let entries =
+            self.features
+                .get(feature_name)
+                .ok_or_else(|| RenderBzlError::FeatureNotFound {
+                    feature_name: feature_name.to_owned(),
+                })?;
 
         let mut child_features = BTreeSet::new();
         let mut dependencies = BTreeSet::new();
@@ -130,7 +130,7 @@ fn render_expression(
         .iter()
         .map(|feature| feature_constant_name(feature, suffix))
         .collect::<Vec<_>>();
-    let mut parts = Vec::new();
+    let mut parts = vec![];
 
     if !values.is_empty() || child_parts.is_empty() {
         let values = values

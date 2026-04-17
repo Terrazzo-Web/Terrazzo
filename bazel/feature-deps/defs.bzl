@@ -94,7 +94,21 @@ def feature_deps(name = None, manifest = None, root_rs = "src/lib.rs", dependenc
         ignore_whitespace = True,
     )
 
-def base_compute_srcs(features, all_features, excluded_srcs_map):
+def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
+    """Computes the Rust source files to include for a base feature set.
+
+    Args:
+        features: Enabled feature names for the current target.
+        all_srcs: All candidate source files for the target.
+        all_features: Every known feature name in the manifest.
+        excluded_file_id_map: Mapping of feature name to source files excluded
+            when that feature is disabled.
+
+    Returns:
+        A list of source files from `src/**/*.rs` after excluding files shared by
+        all disabled features. If every feature is enabled, returns all matching
+        Rust source files.
+    """
     features_set = {}
     for feature in features:
         features_set[feature] = True
@@ -110,22 +124,32 @@ def base_compute_srcs(features, all_features, excluded_srcs_map):
     if seed_feature == None:
         return native.glob(["src/**/*.rs"])
 
-    excluded_files = {}
-    for src in excluded_srcs_map[seed_feature]:
-        excluded_files[src] = True
+    excluded_file_ids = {}
+    for file_id in excluded_file_id_map[seed_feature]:
+        excluded_file_ids[file_id] = True
 
     for feature in all_features:
         if feature in features_set:
             continue
         if feature == seed_feature:
             continue
-        if not excluded_files:
+        if not excluded_file_ids:
             break
 
-        next_excluded_files = {}
-        for src in excluded_srcs_map[feature]:
-            if src in excluded_files:
-                next_excluded_files[src] = True
-        excluded_files = next_excluded_files
+        next_excluded_file_ids = {}
+        for src in excluded_file_id_map[feature]:
+            if src in excluded_file_ids:
+                next_excluded_file_ids[src] = True
+        excluded_file_ids = next_excluded_file_ids
 
-    return native.glob(["src/**/*.rs"], exclude = excluded_files.keys())
+    all_srcs_map = {}
+    i = 0
+    for src in all_srcs:
+        all_srcs_map[i] = src
+        i += 1
+
+    excluded_files = []
+    for file_id in excluded_file_ids.keys():
+        excluded_files.push(all_srcs_map[file_id])
+
+    return native.glob(["src/**/*.rs"], exclude = excluded_files)

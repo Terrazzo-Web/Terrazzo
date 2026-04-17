@@ -67,10 +67,11 @@ impl Manager {
                 srcs_manager.emit_excluded_srcs(output, feature_name, root_rs.clone())?;
             }
             output.push_str("}\n");
+            srcs_manager.emit_all_srcs(output);
             output.push_str(
                 r#"
 def compute_srcs(features):
-    return base_compute_srcs(features, _ALL_FEATURES, _EXCLUSION_MAP)
+    return base_compute_srcs(features, _ALL_SRCS, _ALL_FEATURES, _EXCLUSION_MAP)
             "#,
             );
         }

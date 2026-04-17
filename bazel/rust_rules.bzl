@@ -33,6 +33,7 @@ def rust_rules_matrix(overrides = {}, **kwargs):
 def rust_rules(
         name,
         package_name = None,
+        rust_srcs = None,
         deps = [],
         deps_proc_macro = [],
         deps_dev = [],
@@ -51,6 +52,7 @@ def rust_rules(
     Args:
       name: Name of the Bazel target
       package_name: Name of the Rust package in the crate universe
+      rust_srcs: Rust source files. Defaults to all "src/**/*.rs" Rust files.
       deps: Additional dependencies
       deps_proc_macro: Additional macro dependencies
       deps_dev: Additional dependencies for tests
@@ -73,6 +75,7 @@ def rust_rules(
     _rust_rules_impl(
         name,
         package_name,
+        rust_srcs,
         deps,
         deps_proc_macro,
         deps_dev,
@@ -91,6 +94,7 @@ def rust_rules(
 def _rust_rules_impl(
         name = "!!",
         package_name = "!!",
+        rust_srcs = ["!!"],
         deps = "!!",
         deps_proc_macro = "!!",
         deps_dev = "!!",
@@ -110,7 +114,8 @@ def _rust_rules_impl(
     if crate_features_dev == None:
         crate_features_dev = crate_features
 
-    rust_srcs = native.glob(["src/**/*.rs"])
+    if rust_srcs == None:
+        rust_srcs = native.glob(["src/**/*.rs"])
 
     asset_copy_targets = ["Cargo.toml"] + rust_srcs
     asset_link_targets = []

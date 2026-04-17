@@ -2,6 +2,7 @@
 
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load(":terminal-features.bzl", "compute_srcs")
 
 def _dedupe(items):
     result = []
@@ -41,6 +42,7 @@ def terminal_rules(
                 "copy": True,
             },
         ],
+        rust_srcs = compute_srcs(client_features),
         crate_features = client_features,
         overrides = {
             prefix + "client-lib": {
@@ -109,6 +111,7 @@ def terminal_rules(
 
     rust_rules_matrix(
         package_name = "terminal",
+        rust_srcs = compute_srcs(server_features),
         assets = server_assets_common,
         crate_features = server_features,
         overrides = {
@@ -129,6 +132,7 @@ def terminal_rules(
 
     rust_rules_matrix(
         package_name = "terminal",
+        rust_srcs = ["src/server.rs"],
         all_crate_deps = None,
         crate_features = ["server"],
         crate_name = "terminal_server",

@@ -128,4 +128,4 @@ def base_compute_srcs(features, all_features, excluded_srcs_map):
                 next_excluded_files[src] = True
         excluded_files = next_excluded_files
 
-    return native.glob(["src/**/*.rs"], excluded = excluded_files.keys())
+    return native.glob(["src/**/*.rs"], exclude = excluded_files.keys())

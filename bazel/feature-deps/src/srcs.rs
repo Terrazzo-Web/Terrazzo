@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::hash_map;
 use std::path::Path;
@@ -29,18 +30,25 @@ pub enum CollectSrcsError {
 }
 
 impl SrcsManager {
-    #[allow(unused)]
-    pub fn collect_negative_srcs(
+    pub fn emit_excluded_srcs(
         &mut self,
+        output: &mut String,
         feature: &str,
         file_rs: Rc<Path>,
-    ) -> Result<Vec<Rc<Path>>, CollectSrcsError> {
+    ) -> Result<(), CollectSrcsError> {
         let mut accu = vec![];
-        self.collect_negative_srcs_rec(feature, file_rs, false, &mut accu)?;
-        Ok(accu)
+        self.collect_excluded_srcs(feature, file_rs, false, &mut accu)?;
+        let accu = accu
+            .iter()
+            .map(|s| format!("{s:?}"))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        output.push_str(&format!("  {:?}: [{}],\n", feature, accu.join(",")));
+        Ok(())
     }
 
-    fn collect_negative_srcs_rec(
+    fn collect_excluded_srcs(
         &mut self,
         feature: &str,
         file_rs: Rc<Path>,
@@ -69,7 +77,7 @@ impl SrcsManager {
                 accu.push(submodule_file.clone());
             }
 
-            self.collect_negative_srcs_rec(feature, submodule_file, submodule_matches, accu)?;
+            self.collect_excluded_srcs(feature, submodule_file, submodule_matches, accu)?;
         }
 
         Ok(())
@@ -200,7 +208,7 @@ mod server;
 
         let mut manager = SrcsManager::default();
         let excluded = manager
-            .collect_negative_srcs("client", lib_rs.into())
+            .collect_excluded_srcs("client", lib_rs.into())
             .unwrap();
 
         assert_eq!(excluded, vec![server_rs.into()]);
@@ -230,7 +238,7 @@ pub fn handler() {}
 
         let mut manager = SrcsManager::default();
         let excluded = manager
-            .collect_negative_srcs("client", lib_rs.into())
+            .collect_excluded_srcs("client", lib_rs.into())
             .unwrap();
 
         assert_eq!(excluded, vec![server_rs.into()]);
@@ -263,7 +271,7 @@ mod http;
 
         let mut manager = SrcsManager::default();
         let excluded = manager
-            .collect_negative_srcs("client", lib_rs.into())
+            .collect_excluded_srcs("client", lib_rs.into())
             .unwrap();
 
         assert_eq!(excluded, vec![server_rs.into(), http_rs.into()]);
@@ -290,7 +298,7 @@ mod inline_only {
 
         let mut manager = SrcsManager::default();
         let excluded = manager
-            .collect_negative_srcs("client", lib_rs.into())
+            .collect_excluded_srcs("client", lib_rs.into())
             .unwrap();
 
         assert!(excluded.is_empty());

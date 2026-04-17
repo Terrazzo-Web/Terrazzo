@@ -1,10 +1,15 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::path::Path;
+use std::rc::Rc;
 
 use heck::ToShoutySnakeCase as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+
+use crate::srcs::CollectSrcsError;
+use crate::srcs::SrcsManager;
 
 pub struct Manager {
     features: HashMap<String, Vec<String>>,
@@ -17,6 +22,9 @@ pub struct Manager {
 pub enum RenderBzlError {
     #[error("[{n}] Feature {feature_name:?} is not defined", n = self.name())]
     FeatureNotFound { feature_name: String },
+
+    #[error("[{n}] {0}", n = self.name())]
+    CollectSrcsError(#[from] CollectSrcsError),
 }
 
 impl Manager {
@@ -35,21 +43,37 @@ impl Manager {
     /// Renders the complete `.bzl` output for all features in dependency order.
     ///
     /// Features are emitted once, sorted by name for stable output.
-    pub fn render_bzl(&self) -> Result<String, RenderBzlError> {
-        let mut output = String::from(
-            r#""""Generated feature dependency constants."""
+    pub fn render_bzl(&self, root_rs: Rc<Path>) -> Result<String, RenderBzlError> {
+        let mut output = String::from(r#""""Generated feature dependency constants.""""#);
+        output.push_str("\n");
+        output.push_str("\n");
+        output.push_str(r#"load("//bazel/feature-deps:defs.bzl", "base_compute_srcs")"#);
+        output.push_str("\n");
+        {
+            let output = &mut output;
 
-"#,
-        );
-        let mut emitted = HashSet::new();
+            let mut feature_names = self.features.keys().cloned().collect::<Vec<_>>();
+            feature_names.sort();
 
-        let mut feature_names = self.features.keys().cloned().collect::<Vec<_>>();
-        feature_names.sort();
+            self.emit_all_features(output, &feature_names);
+            let mut emitted = HashSet::new();
+            for feature_name in &feature_names {
+                self.emit_feature(output, &mut emitted, feature_name)?;
+            }
 
-        for feature_name in feature_names {
-            self.emit_feature(&mut output, &mut emitted, &feature_name)?;
+            let mut srcs_manager = SrcsManager::default();
+            output.push_str("_EXCLUSION_MAP = {");
+            for feature_name in &feature_names {
+                srcs_manager.emit_excluded_srcs(output, feature_name, root_rs.clone())?;
+            }
+            output.push_str("}\n");
+            output.push_str(
+                r#"
+def compute_srcs(features):
+    return base_compute_srcs(features, _ALL_FEATURES, _EXCLUSION_MAP)
+            "#,
+            );
         }
-
         Ok(output)
     }
 
@@ -118,6 +142,17 @@ impl Manager {
             .get(dependency)
             .cloned()
             .unwrap_or_else(|| format!("@crates//:{dependency}"))
+    }
+
+    fn emit_all_features(&self, output: &mut String, feature_names: &[String]) {
+        output.push_str(&format!(
+            "_ALL_FEATURES = [{}]\n",
+            feature_names
+                .iter()
+                .map(|s| format!("{s:?}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
 }
 

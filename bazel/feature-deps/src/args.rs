@@ -8,7 +8,8 @@ use nameth::nameth;
 
 #[derive(Parser)]
 pub struct Args {
-    pub cargo_toml: PathBuf,
+    pub manifest: PathBuf,
+    pub root_rs: PathBuf,
     pub output_bzl: PathBuf,
 
     #[arg(long = "dependency-alias")]
@@ -23,9 +24,9 @@ impl Args {
     ///
     /// Returns an empty map when the manifest has no `[features]` section.
     pub fn parse_features(&self) -> Result<HashMap<String, Vec<String>>, ParseFeaturesError> {
-        let manifest: toml::Table = std::fs::read_to_string(&self.cargo_toml)
+        let manifest: toml::Table = std::fs::read_to_string(&self.manifest)
             .map_err(|error| ParseFeaturesError::ManifestNotFound {
-                path: self.cargo_toml.clone(),
+                path: self.manifest.clone(),
                 error,
             })?
             .parse()

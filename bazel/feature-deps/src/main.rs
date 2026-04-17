@@ -14,7 +14,8 @@ fn main() -> Result<(), FeatureDepsError> {
     let features = args.parse_features()?;
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args.dependency_exclusion();
-    let output = Manager::new(features, dependency_aliases, dependency_exclusion).render_bzl()?;
+    let output = Manager::new(features, dependency_aliases, dependency_exclusion)
+        .render_bzl(args.root_rs.into())?;
     std::fs::write(&args.output_bzl, output)
         .map_err(|error| format!("failed to write {}: {error}", args.output_bzl.display()))?;
     Ok(())

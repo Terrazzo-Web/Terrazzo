@@ -150,6 +150,6 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
 
     excluded_files = []
     for file_id in excluded_file_ids.keys():
-        excluded_files.push(all_srcs_map[file_id])
+        excluded_files.append(all_srcs_map[file_id])
 
     return native.glob(["src/**/*.rs"], exclude = excluded_files)

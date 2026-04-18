@@ -4,7 +4,7 @@ load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:stylance_rules.bzl", "stylance_rule")
 load("//bazel/feature_deps:feature_deps_rules.bzl", "feature_deps")
 load(
-    ":terminal-features.bzl",
+    ":terminal_features.bzl",
     "CLIENT_ALL_DEPS",
     "CLIENT_ALL_FEATURES",
     "CONVERTER_CLIENT_DEPS",

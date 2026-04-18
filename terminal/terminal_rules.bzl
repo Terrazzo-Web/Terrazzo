@@ -2,7 +2,7 @@
 
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load(":terminal-features.bzl", "compute_srcs")
+load(":terminal_features.bzl", "compute_srcs")
 
 def _dedupe(items):
     result = []

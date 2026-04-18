@@ -14,7 +14,7 @@ The generated `.bzl` file serves two purposes:
    pulled in by a feature.
 
 This is currently used by `terminal/Cargo.toml` and
-`terminal/terminal-features.bzl`.
+`terminal/terminal_features.bzl`.
 
 ## Cargo.toml Semantics
 

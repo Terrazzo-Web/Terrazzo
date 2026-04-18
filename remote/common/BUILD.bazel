@@ -18,8 +18,5 @@ cargo_build_script(
     name = "protos",
     srcs = ["build.rs"],
     data = glob(["src/**/*.proto"]),
-    deps = all_crate_deps(
-        package_name = package_name(),
-        build = True,
-    ),
+    deps = all_crate_deps(build = True),
 )

@@ -69,10 +69,7 @@ cargo_build_script(
     name = "protos",
     srcs = ["build/protos.rs"],
     data = glob(["src/**/*.proto"]),
-    deps = all_crate_deps(
-        package_name = package_name(),
-        build = True,
-    ),
+    deps = all_crate_deps(build = True),
 )
 
 stylance_rule(

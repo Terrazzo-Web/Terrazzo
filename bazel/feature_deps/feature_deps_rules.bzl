@@ -120,7 +120,7 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
     prev = set()
     for entry in excluded_file_id_map:
         file_ids = set(prev)
-        for delta_file_id in entry["delta"]:
+        for delta_file_id in _delta_decode(entry["delta"]):
             if delta_file_id > 0:
                 file_ids.add(delta_file_id)
             else:
@@ -147,5 +147,14 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
     for file_id in excluded_file_ids:
         excluded_files.append(all_srcs_map[file_id - 1])
 
-    # print("\n\nFor %s\nExclude %s" % (features, str(excluded_files)))
+    print("\n\nFor %s\nExclude %s" % (features, str(excluded_files)))
     return native.glob(["src/**/*.rs"], exclude = excluded_files)
+
+def _delta_decode(delta):
+    result = []
+    for i in range(0, len(delta), 2):
+        start = delta[i]
+        count = delta[i + 1]
+        for j in range(start, start + count):
+            result.append(j)
+    return result

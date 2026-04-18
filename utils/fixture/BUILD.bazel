@@ -4,6 +4,5 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "fixture",
-    package_name = "utils/fixture",
     crate_name = "terrazzo_fixture",
 )

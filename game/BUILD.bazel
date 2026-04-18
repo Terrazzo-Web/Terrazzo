@@ -5,7 +5,6 @@ load("//bazel:stylance_rules.bzl", "stylance_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "game",
     assets = [
         {
             "targets": glob(["src/**/*.scss"]),
@@ -62,7 +61,6 @@ stylance_rule(
 )
 
 rust_rules_matrix(
-    package_name = "game",
     assets = [
         "assets/bootstrap.js",
         "assets/images/favicon.ico",
@@ -101,7 +99,6 @@ rust_rules_matrix(
 )
 
 rust_rules_matrix(
-    package_name = "game",
     crate_features = ["server"],
     crate_name = "game_server",
     crate_root = "src/server.rs",

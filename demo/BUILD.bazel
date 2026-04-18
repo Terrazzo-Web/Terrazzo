@@ -6,7 +6,6 @@ load("//bazel:stylance_rules.bzl", "stylance_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "demo",
     assets = [
         {
             "targets": glob(["src/**/*.scss"]),
@@ -68,7 +67,6 @@ stylance_rule(
 )
 
 rust_rules_matrix(
-    package_name = "demo",
     assets = [
         [
             "assets/index.html",
@@ -109,7 +107,6 @@ rust_rules_matrix(
 )
 
 rust_rules_matrix(
-    package_name = "demo",
     crate_features = ["server"],
     crate_name = "demo_server",
     crate_root = "src/server.rs",

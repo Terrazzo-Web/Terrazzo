@@ -34,7 +34,6 @@ def terminal_rules(
     if prefix and not prefix.endswith("-"):
         prefix += "-"
     rust_rules_matrix(
-        package_name = "terminal",
         assets = [
             native.glob(["src/**/*.js"]),
             {
@@ -110,7 +109,6 @@ def terminal_rules(
     }]
 
     rust_rules_matrix(
-        package_name = "terminal",
         rust_srcs = compute_srcs(server_features),
         assets = server_assets_common,
         crate_features = server_features,
@@ -131,7 +129,6 @@ def terminal_rules(
     )
 
     rust_rules_matrix(
-        package_name = "terminal",
         rust_srcs = ["src/server.rs"],
         all_crate_deps = None,
         crate_features = ["server"],

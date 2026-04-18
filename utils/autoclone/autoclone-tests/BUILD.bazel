@@ -4,6 +4,5 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "autoclone-tests",
-    package_name = "utils/autoclone/autoclone-tests",
     deps_dev_proc_macro = ["//utils/autoclone/autoclone"],
 )

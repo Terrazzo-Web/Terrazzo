@@ -3,7 +3,6 @@ load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "remote/server",
     assets = ["README.md"],
     crate_name = "trz_gateway_server",
     deps_dev = ["//utils/fixture"],

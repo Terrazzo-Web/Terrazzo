@@ -52,10 +52,10 @@ impl Manager {
     /// Features are emitted once, sorted by name for stable output.
     pub fn render_bzl(&self) -> Result<String, RenderBzlError> {
         let mut output = String::from(r#""""Generated feature dependency constants.""""#);
-        output.push_str("\n");
-        output.push_str("\n");
+        output.push('\n');
+        output.push('\n');
         output.push_str(r#"load("//bazel/feature-deps:defs.bzl", "base_compute_srcs")"#);
-        output.push_str("\n");
+        output.push('\n');
         {
             let output = &mut output;
 

@@ -49,7 +49,7 @@ impl<'a> SrcsManager<'a> {
 
     pub fn emit_all_excluded_srcs(&mut self, output: &mut String) -> Result<(), CollectSrcsError> {
         output.push_str("_EXCLUSION_MAP = {");
-        while self.unprocessed_features.is_empty() {
+        while !self.unprocessed_features.is_empty() {
             let mut min_accu: Option<(Vec<i32>, HashSet<usize>, &str)> = None;
             for feature in &self.unprocessed_features {
                 let (excluded_srcs, delta) = self.find_excluded_srcs(feature)?;
@@ -132,9 +132,22 @@ impl<'a> SrcsManager<'a> {
                 continue;
             };
 
-            let submodule_matches = parent
-                || self.mod_matches(feature, &item_mod.attrs)
-                || self.file_matches(feature, &submodule_file)?;
+            // no cfg! --> same as parent
+            // cfg with same feature --> excluded when feature disabled
+            // cfg with different feature --> included when feature disabled regardless of parent
+            let submodule_matches = match (
+                self.mod_matches(feature, &item_mod.attrs),
+                self.file_matches(feature, &submodule_file)?,
+            ) {
+                (None, None) => None,
+                (Some(x), None) => Some(x),
+                (None, Some(y)) => Some(y),
+                (Some(x), Some(y)) => Some(x || y),
+            };
+            let submodule_matches = match submodule_matches {
+                Some(x) => x,
+                None => parent,
+            };
             if submodule_matches {
                 excluded_srcs_accu.push(self.parse_rs_file(&submodule_file)?.idx);
             }
@@ -177,20 +190,41 @@ impl<'a> SrcsManager<'a> {
         }
     }
 
-    fn mod_matches(&self, feature: &str, attrs: &[syn::Attribute]) -> bool {
+    fn mod_matches(&self, feature: &str, attrs: &[syn::Attribute]) -> Option<bool> {
         attrs
             .iter()
             .filter_map(cfg_feature_name)
-            .any(|cfg_feature| cfg_feature != feature)
+            .fold(None, |accu, cfg_feature| {
+                // TODO: factor this function, which is also used by file_matches below
+                if accu == Some(true) {
+                    Some(true)
+                } else if cfg_feature == feature {
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            })
     }
 
-    fn file_matches(&self, feature: &str, file_rs: &Rc<Path>) -> Result<bool, CollectSrcsError> {
+    fn file_matches(
+        &self,
+        feature: &str,
+        file_rs: &Rc<Path>,
+    ) -> Result<Option<bool>, CollectSrcsError> {
         let parsed = self.parse_rs_file(file_rs)?;
         let attrs = &parsed.content.attrs;
         Ok(attrs
             .iter()
             .filter_map(cfg_feature_name)
-            .any(|cfg_feature| cfg_feature != feature))
+            .fold(None, |accu, cfg_feature| {
+                if accu == Some(true) {
+                    Some(true)
+                } else if cfg_feature == feature {
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }))
     }
 
     pub fn emit_all_srcs(&self, output: &mut String) {

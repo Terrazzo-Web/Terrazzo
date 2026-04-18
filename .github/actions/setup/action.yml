@@ -69,7 +69,7 @@ runs:
 
     - name: Install stylance
       shell: bash
-      run: cargo --locked install stylance-cli --version 0.7.4
+      run: cargo --locked install stylance-cli --version 0.8.0
 
     - name: Install Protoc
       uses: arduino/setup-protoc@v3

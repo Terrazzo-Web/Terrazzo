@@ -10,10 +10,11 @@ use nameth::nameth;
 use syn::punctuated::Punctuated;
 
 pub struct SrcsManager<'a> {
+    package_name: &'a Path,
+    root_rs: Rc<Path>,
     parsed_files: RefCell<HashMap<Rc<Path>, Rc<FileIdx>>>,
     prev_excluded_srcs: HashSet<usize>,
-    unprocessed_features: HashSet<&'a str>,
-    root_rs: Rc<Path>,
+    unprocessed_features: Vec<&'a str>,
 }
 
 struct FileIdx {
@@ -38,12 +39,17 @@ pub enum CollectSrcsError {
 }
 
 impl<'a> SrcsManager<'a> {
-    pub fn new(unprocessed_features: &'a [String], root_rs: Rc<Path>) -> Self {
+    pub fn new(
+        package_name: &'a Path,
+        root_rs: Rc<Path>,
+        unprocessed_features: &'a [String],
+    ) -> Self {
         Self {
+            package_name,
+            root_rs,
             parsed_files: Default::default(),
             prev_excluded_srcs: Default::default(),
             unprocessed_features: unprocessed_features.iter().map(|s| s.as_str()).collect(),
-            root_rs,
         }
     }
 
@@ -64,7 +70,7 @@ impl<'a> SrcsManager<'a> {
             }
             let (min_delta, min_excluded_srcs, min_feature) = min_accu.unwrap();
             self.emit_excluded_srcs(output, min_feature, min_delta)?;
-            self.unprocessed_features.remove(min_feature);
+            self.unprocessed_features.retain(|f| *f != min_feature);
             self.prev_excluded_srcs = min_excluded_srcs;
         }
         output.push_str("]\n");
@@ -199,7 +205,7 @@ impl<'a> SrcsManager<'a> {
         let parsed_files = self.parsed_files.borrow();
         let mut all_files = parsed_files
             .iter()
-            .map(|(path, file)| (file.idx, path))
+            .map(|(path, file)| (file.idx, path.strip_prefix(self.package_name).unwrap()))
             .collect::<Vec<_>>();
         all_files.sort_by_key(|e| e.0);
         let all_files = all_files

@@ -5,9 +5,10 @@ load("//bazel:generated_file.bzl", "generate_file")
 def _feature_deps_impl(ctx):
     output = ctx.actions.declare_file("generated.{}-features.bzl".format(ctx.attr.output_name))
     arguments = [
+        output.path,
+        ctx.attr.package_name,
         ctx.file.manifest.path,
         ctx.file.root_rs.path,
-        output.path,
     ]
     for dependency, label in sorted(ctx.attr.dependency_aliases.items()):
         arguments.extend(["--dependency-alias", "{}={}".format(dependency, label)])
@@ -32,6 +33,7 @@ _feature_deps = rule(
         "output_name": attr.string(
             mandatory = True,
         ),
+        "package_name": attr.string(),
         "manifest": attr.label(
             allow_single_file = True,
             mandatory = True,
@@ -54,7 +56,12 @@ _feature_deps = rule(
     },
 )
 
-def feature_deps(name = None, manifest = None, root_rs = "src/lib.rs", dependency_aliases = {}, dependency_exclusion = []):
+def feature_deps(
+        name = None,
+        manifest = "Cargo.toml",
+        root_rs = "src/lib.rs",
+        dependency_aliases = {},
+        dependency_exclusion = []):
     """Generates a checked-in `{name}-features.bzl` file from a Cargo.toml file.
 
     Args:
@@ -64,8 +71,8 @@ def feature_deps(name = None, manifest = None, root_rs = "src/lib.rs", dependenc
       dependency_aliases: Optional mapping of `dep:` entries to Bazel labels.
       dependency_exclusion: Optional list of `dep:` entries to omit from generated constants.
     """
+    package_name = native.package_name()
     if name == None:
-        package_name = native.package_name()
         if package_name:
             name = package_name.rsplit("/", 1)[-1]
         else:
@@ -74,12 +81,10 @@ def feature_deps(name = None, manifest = None, root_rs = "src/lib.rs", dependenc
     if "/" in name:
         fail("feature_deps name must not contain '/', got {}".format(name))
 
-    if manifest == None:
-        manifest = "Cargo.toml"
-
     _feature_deps(
         name = name,
         output_name = name,
+        package_name = package_name,
         manifest = manifest,
         root_rs = root_rs,
         all_rs = native.glob(["src/**/*.rs"]),
@@ -135,7 +140,7 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
     all_srcs_map = {}
     i = 0
     for src in all_srcs:
-        all_srcs_map[i] = src[len(native.package_name()) + 1:]
+        all_srcs_map[i] = src
         i += 1
 
     excluded_files = []

@@ -8,9 +8,10 @@ use nameth::nameth;
 
 #[derive(Parser)]
 pub struct Args {
+    pub output_bzl: PathBuf,
+    pub package_name: PathBuf,
     pub manifest: PathBuf,
     pub root_rs: PathBuf,
-    pub output_bzl: PathBuf,
 
     #[arg(long = "dependency-alias")]
     dependency_aliases: Vec<String>,

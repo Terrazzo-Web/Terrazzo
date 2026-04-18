@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use heck::ToShoutySnakeCase as _;
@@ -12,6 +13,8 @@ use crate::srcs::CollectSrcsError;
 use crate::srcs::SrcsManager;
 
 pub struct Manager {
+    package_name: PathBuf,
+    root_rs: Rc<Path>,
     features: HashMap<String, Vec<String>>,
     dependency_aliases: HashMap<String, String>,
     dependency_exclusion: HashSet<String>,
@@ -29,11 +32,15 @@ pub enum RenderBzlError {
 
 impl Manager {
     pub fn new(
+        package_name: PathBuf,
+        root_rs: Rc<Path>,
         features: HashMap<String, Vec<String>>,
         dependency_aliases: HashMap<String, String>,
         dependency_exclusion: HashSet<String>,
     ) -> Self {
         Self {
+            package_name,
+            root_rs,
             features,
             dependency_aliases,
             dependency_exclusion,
@@ -43,7 +50,7 @@ impl Manager {
     /// Renders the complete `.bzl` output for all features in dependency order.
     ///
     /// Features are emitted once, sorted by name for stable output.
-    pub fn render_bzl(&self, root_rs: Rc<Path>) -> Result<String, RenderBzlError> {
+    pub fn render_bzl(&self) -> Result<String, RenderBzlError> {
         let mut output = String::from(r#""""Generated feature dependency constants.""""#);
         output.push_str("\n");
         output.push_str("\n");
@@ -61,7 +68,8 @@ impl Manager {
                 self.emit_feature(output, &mut emitted, feature_name)?;
             }
 
-            let mut srcs_manager = SrcsManager::new(&feature_names, root_rs);
+            let mut srcs_manager =
+                SrcsManager::new(&self.package_name, self.root_rs.clone(), &feature_names);
             srcs_manager.emit_all_excluded_srcs(output)?;
             srcs_manager.emit_all_srcs(output);
             output.push_str(

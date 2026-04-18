@@ -242,39 +242,6 @@ fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
     result
 }
 
-#[cfg(test)]
-mod tests {
-    use super::delta_encode;
-
-    #[test]
-    fn delta_encode_empty() {
-        assert_eq!(delta_encode(vec![]), vec![]);
-    }
-
-    #[test]
-    fn delta_encode_single() {
-        assert_eq!(delta_encode(vec![17]), vec![17, 1]);
-    }
-
-    #[test]
-    fn delta_encode_1_1() {
-        assert_eq!(delta_encode(vec![8, 10]), vec![8, 1, 10, 1]);
-    }
-
-    #[test]
-    fn delta_encode_2() {
-        assert_eq!(delta_encode(vec![8, 9]), vec![8, 2]);
-    }
-
-    #[test]
-    fn delta_encode_test() {
-        assert_eq!(
-            delta_encode(vec![8, 9, 10, 15, 17, 19]),
-            vec![8, 3, 15, 1, 17, 1, 19, 1]
-        );
-    }
-}
-
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
     if !attr.path().is_ident("cfg") {
         return None;
@@ -331,4 +298,37 @@ fn resolve_submodule_file(parent_file: &Path, module_name: &str) -> Option<Rc<Pa
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::delta_encode;
+
+    #[test]
+    fn delta_encode_empty() {
+        assert_eq!(delta_encode(vec![]), vec![]);
+    }
+
+    #[test]
+    fn delta_encode_single() {
+        assert_eq!(delta_encode(vec![17]), vec![17, 1]);
+    }
+
+    #[test]
+    fn delta_encode_1_1() {
+        assert_eq!(delta_encode(vec![8, 10]), vec![8, 1, 10, 1]);
+    }
+
+    #[test]
+    fn delta_encode_2() {
+        assert_eq!(delta_encode(vec![8, 9]), vec![8, 2]);
+    }
+
+    #[test]
+    fn delta_encode_test() {
+        assert_eq!(
+            delta_encode(vec![8, 9, 10, 15, 17, 19]),
+            vec![8, 3, 15, 1, 17, 1, 19, 1]
+        );
+    }
 }

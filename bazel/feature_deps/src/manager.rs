@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use heck::ToShoutySnakeCase as _;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
 
 use crate::srcs::CollectSrcsError;
 use crate::srcs::SrcsManager;

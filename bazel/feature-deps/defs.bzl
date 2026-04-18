@@ -124,6 +124,20 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
     if seed_feature == None:
         return native.glob(["src/**/*.rs"])
 
+    excluded_file_id_map2 = {}
+    prev = set([i + 1 for i in range(0, len(all_srcs))])
+
+    for entry in excluded_file_id_map:
+        file_ids = set(prev)
+        for delta_file_id in entry["delta"]:
+            if delta_file_id > 0:
+                file_ids.add(delta_file_id)
+            else:
+                file_ids.remove(-delta_file_id)
+        excluded_file_id_map2[entry["feature"]] = list(file_ids)
+        prev = file_ids
+    excluded_file_id_map = excluded_file_id_map2
+
     excluded_file_ids = {}
     for file_id in excluded_file_id_map[seed_feature]:
         excluded_file_ids[file_id] = True
@@ -145,12 +159,12 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
     all_srcs_map = {}
     i = 0
     for src in all_srcs:
-        all_srcs_map[i] = src
+        all_srcs_map[i] = src[len(native.package_name()) + 1:]
         i += 1
 
     excluded_files = []
     for file_id in excluded_file_ids.keys():
-        excluded_files.append(all_srcs_map[file_id])
+        excluded_files.append(all_srcs_map[file_id - 1])
 
-    # print("For " + str(features) + " excluded " + str(excluded_files))
+    print("For %s exclude %s" % (features, str(excluded_files)))
     return native.glob(["src/**/*.rs"], exclude = excluded_files)

@@ -48,7 +48,7 @@ impl<'a> SrcsManager<'a> {
     }
 
     pub fn emit_all_excluded_srcs(&mut self, output: &mut String) -> Result<(), CollectSrcsError> {
-        output.push_str("_EXCLUSION_MAP = {");
+        output.push_str("_EXCLUSION_MAP = [");
         while !self.unprocessed_features.is_empty() {
             let mut min_accu: Option<(Vec<i32>, HashSet<usize>, &str)> = None;
             for feature in &self.unprocessed_features {
@@ -67,7 +67,7 @@ impl<'a> SrcsManager<'a> {
             self.unprocessed_features.remove(min_feature);
             self.prev_excluded_srcs = min_excluded_srcs;
         }
-        output.push_str("}\n");
+        output.push_str("]\n");
         Ok(())
     }
 
@@ -82,7 +82,11 @@ impl<'a> SrcsManager<'a> {
             .into_iter()
             .map(|idx| idx.to_string())
             .collect::<Vec<_>>();
-        output.push_str(&format!("  {:?}: [{}],\n", feature, delta.join(",")));
+        output.push_str(&format!(
+            "  {{ \"feature\":{:?}, \"delta\":[{}] }},\n",
+            feature,
+            delta.join(",")
+        ));
         Ok(())
     }
 
@@ -145,7 +149,7 @@ impl<'a> SrcsManager<'a> {
                 (Some(x), Some(y)) => Some(x || y),
             };
             let submodule_matches = match submodule_matches {
-                Some(x) => x,
+                Some(x) => x || parent,
                 None => parent,
             };
             if submodule_matches {
@@ -165,7 +169,7 @@ impl<'a> SrcsManager<'a> {
 
     fn parse_rs_file(&self, file_rs: &Rc<Path>) -> Result<Rc<FileIdx>, CollectSrcsError> {
         let mut parsed_files = self.parsed_files.borrow_mut();
-        let next_idx = parsed_files.len();
+        let next_idx = parsed_files.len() + 1;
         return match parsed_files.entry(file_rs.clone()) {
             hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
             hash_map::Entry::Vacant(entry) => Ok(entry

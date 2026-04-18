@@ -137,8 +137,7 @@ impl<'a> SrcsManager<'a> {
                 continue;
             }
 
-            let Some(submodule_file) =
-                resolve_submodule_file(file_rs, &item_mod.ident.to_string())
+            let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string())
             else {
                 continue;
             };
@@ -223,15 +222,22 @@ fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
             seq_len += 1;
             continue;
         }
-        result.push(i - seq_len + 1);
-        result.push(seq_len);
-
+        encode_seq(&mut result, i, seq_len);
         seq_len = 1;
     }
 
-    result.push(*delta.last().unwrap() - seq_len + 1);
-    result.push(seq_len);
-    result
+    encode_seq(&mut result, *delta.last().unwrap(), seq_len);
+    return result;
+
+    fn encode_seq(result: &mut Vec<i32>, i: i32, count: i32) {
+        let start = i - count + 1;
+        if count == 1 {
+            result.push(start * 2 + 1);
+        } else {
+            result.push(start * 2);
+            result.push(count);
+        }
+    }
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {

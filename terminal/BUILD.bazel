@@ -24,6 +24,15 @@ load(":terminal_rules.bzl", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
 
+feature_deps(
+    dependency_aliases = {
+        "terrazzo-pty": "//pty",
+        "trz-gateway-client": "//remote/client",
+        "trz-gateway-common": "//remote/common",
+    },
+    dependency_exclusion = ["trz-gateway-server"],
+)
+
 terminal_rules(
     client_deps = [
         "//utils/nameth/nameth",
@@ -114,13 +123,4 @@ playwright_matrix_test(
         },
     },
     test = "tests/integration-test-password-update.spec.mjs",
-)
-
-feature_deps(
-    dependency_aliases = {
-        "terrazzo-pty": "//pty",
-        "trz-gateway-client": "//remote/client",
-        "trz-gateway-common": "//remote/common",
-    },
-    dependency_exclusion = ["trz-gateway-server"],
 )

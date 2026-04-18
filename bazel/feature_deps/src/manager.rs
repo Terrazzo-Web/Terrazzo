@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use heck::ToShoutySnakeCase as _;
-use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use nameth::NamedEnumValues as _;
 
 use crate::srcs::CollectSrcsError;
 use crate::srcs::SrcsManager;
@@ -54,7 +54,9 @@ impl Manager {
         let mut output = String::from(r#""""Generated feature dependency constants.""""#);
         output.push('\n');
         output.push('\n');
-        output.push_str(r#"load("//bazel/feature-deps:defs.bzl", "base_compute_srcs")"#);
+        output.push_str(
+            r#"load("//bazel/feature_deps:feature_deps_rules.bzl", "base_compute_srcs")"#,
+        );
         output.push('\n');
         {
             let output = &mut output;

@@ -109,7 +109,7 @@ def _rust_rules_impl(
         all_crate_deps = "!!",
         **kwargs):
     if package_name == None:
-        package_name = name
+        package_name = native.package_name()
 
     if crate_features_dev == None:
         crate_features_dev = crate_features

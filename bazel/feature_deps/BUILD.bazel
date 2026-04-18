@@ -3,8 +3,7 @@ load("//bazel:rust_rules.bzl", "rust_rules")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules(
-    name = "feature-deps",
-    package_name = "bazel/feature-deps",
+    name = "feature_deps",
     rule = "binary",
     deps = ["//utils/nameth/nameth"],
 )

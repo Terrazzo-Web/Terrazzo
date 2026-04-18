@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`bazel/feature-deps` contains a small Rust command-line tool plus Bazel rules that
+`bazel/feature_deps` contains a small Rust command-line tool plus Bazel rules that
 generate checked-in `.bzl` files from a crate's `[features]` section in
 `Cargo.toml`.
 
@@ -107,7 +107,7 @@ TERMINAL_CLIENT_FEATURES = ["terminal-client"] + CLIENT_FEATURES + TERMINAL_FEAT
 
 ## Bazel Packaging
 
-The Bazel API is defined in `bazel/feature-deps/defs.bzl`.
+The Bazel API is defined in `bazel/feature_deps/defs.bzl`.
 
 ### `feature_deps_tool()`
 

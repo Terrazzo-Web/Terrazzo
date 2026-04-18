@@ -3,7 +3,7 @@
 load("//bazel:generated_file.bzl", "generate_file")
 
 def _feature_deps_impl(ctx):
-    output = ctx.actions.declare_file("generated.{}-features.bzl".format(ctx.attr.output_name))
+    output = ctx.actions.declare_file("generated.{}_features.bzl".format(ctx.attr.output_name))
     arguments = [
         output.path,
         ctx.attr.package_name,
@@ -50,7 +50,7 @@ _feature_deps = rule(
         "dependency_exclusion": attr.string_list(),
         "tool": attr.label(
             cfg = "exec",
-            default = "//bazel/feature-deps",
+            default = "//bazel/feature_deps",
             executable = True,
         ),
     },
@@ -95,7 +95,7 @@ def feature_deps(
     generate_file(
         name = name + "_update",
         src = ":" + name,
-        dest = name + "-features.bzl",
+        dest = name + "_features.bzl",
         ignore_whitespace = True,
     )
 

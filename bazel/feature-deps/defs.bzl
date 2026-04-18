@@ -109,20 +109,7 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
         all disabled features. If every feature is enabled, returns all matching
         Rust source files.
     """
-    features_set = {}
-    for feature in features:
-        features_set[feature] = True
-
-    seed_feature = None
-    for feature in all_features:
-        if feature in features_set:
-            continue
-
-        seed_feature = feature
-        break
-
-    if seed_feature == None:
-        return native.glob(["src/**/*.rs"])
+    features = set(features)
 
     excluded_file_id_map2 = {}
     prev = set()
@@ -137,23 +124,13 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
         prev = file_ids
     excluded_file_id_map = excluded_file_id_map2
 
-    excluded_file_ids = {}
-    for file_id in excluded_file_id_map[seed_feature]:
-        excluded_file_ids[file_id] = True
-
+    excluded_file_ids = set()
     for feature in all_features:
-        if feature in features_set:
+        if feature in features:
             continue
-        if feature == seed_feature:
-            continue
-        if not excluded_file_ids:
-            break
 
-        next_excluded_file_ids = {}
-        for src in excluded_file_id_map[feature]:
-            if src in excluded_file_ids:
-                next_excluded_file_ids[src] = True
-        excluded_file_ids = next_excluded_file_ids
+        for file_id in excluded_file_id_map[feature]:
+            excluded_file_ids.add(file_id)
 
     all_srcs_map = {}
     i = 0
@@ -162,7 +139,7 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
         i += 1
 
     excluded_files = []
-    for file_id in excluded_file_ids.keys():
+    for file_id in excluded_file_ids:
         excluded_files.append(all_srcs_map[file_id - 1])
 
     print("\n\nFor %s\nExclude %s" % (features, str(excluded_files)))

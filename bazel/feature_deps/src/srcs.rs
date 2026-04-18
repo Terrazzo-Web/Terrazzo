@@ -116,7 +116,7 @@ impl<'a> SrcsManager<'a> {
             .map(|idx| idx as i32)
             .chain(del.map(|idx| -(idx as i32)))
             .collect::<Vec<_>>();
-        Ok((excluded_srcs, delta))
+        Ok((excluded_srcs, delta_encode(delta)))
     }
 
     fn collect_excluded_srcs(
@@ -214,6 +214,38 @@ impl<'a> SrcsManager<'a> {
             .collect::<Vec<_>>();
         output.push_str(&format!("_ALL_SRCS = [{}]\n", all_files.join(",")));
     }
+}
+
+// TODO: add tests for this function
+fn delta_encode(delta: Vec<i32>) -> Vec<i32> {
+    if delta.is_empty() {
+        return vec![];
+    }
+    let mut result = vec![];
+    let mut dprev = 0;
+    let mut dprev_count = 0;
+
+    result.push(delta[0]);
+
+    for ij in delta.windows(2) {
+        let i = ij[0];
+        let j = ij[1];
+        let d = j - i;
+        if d == dprev {
+            dprev_count += 1;
+            continue;
+        }
+        result.push(dprev);
+        result.push(dprev_count);
+
+        dprev = d;
+        dprev_count = 1;
+    }
+
+    result.push(dprev);
+    result.push(dprev_count);
+
+    result
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {

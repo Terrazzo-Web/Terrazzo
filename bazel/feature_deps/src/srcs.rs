@@ -102,7 +102,7 @@ impl<'a> SrcsManager<'a> {
         feature: &str,
     ) -> Result<(HashSet<usize>, Vec<i32>), CollectSrcsError> {
         let mut excluded_srcs = vec![];
-        self.collect_excluded_srcs(feature, &self.root_rs, false, &mut excluded_srcs)?;
+        self.collect_excluded_srcs(feature, self.root_rs, false, &mut excluded_srcs)?;
         let excluded_srcs = excluded_srcs.iter().cloned().collect::<HashSet<_>>();
         let add = excluded_srcs
             .iter()
@@ -127,7 +127,7 @@ impl<'a> SrcsManager<'a> {
         parent: bool,
         excluded_srcs_accu: &mut Vec<usize>,
     ) -> Result<(), CollectSrcsError> {
-        let parsed = self.get_rs_file(&file_rs)?;
+        let parsed = self.get_rs_file(file_rs)?;
         let parsed = &parsed.content;
         for item in &parsed.items {
             let syn::Item::Mod(item_mod) = item else {
@@ -138,7 +138,7 @@ impl<'a> SrcsManager<'a> {
             }
 
             let Some(submodule_file) =
-                resolve_submodule_file(&file_rs, &item_mod.ident.to_string())
+                resolve_submodule_file(file_rs, &item_mod.ident.to_string())
             else {
                 continue;
             };

@@ -17,7 +17,7 @@ fn main() -> Result<(), FeatureDepsError> {
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args.dependency_exclusion();
     let output = Manager::new(
-        args.root_rs.into(),
+        args.root_rs,
         args.all_srcs.split(',').map(PathBuf::from).collect(),
         features,
         dependency_aliases,

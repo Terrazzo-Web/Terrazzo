@@ -61,12 +61,8 @@ impl Manager {
                 self.emit_feature(output, &mut emitted, feature_name)?;
             }
 
-            let mut srcs_manager = SrcsManager::default();
-            output.push_str("_EXCLUSION_MAP = {");
-            for feature_name in &feature_names {
-                srcs_manager.emit_excluded_srcs(output, feature_name, root_rs.clone())?;
-            }
-            output.push_str("}\n");
+            let mut srcs_manager = SrcsManager::new(&feature_names, root_rs);
+            srcs_manager.emit_all_excluded_srcs(output)?;
             srcs_manager.emit_all_srcs(output);
             output.push_str(
                 r#"

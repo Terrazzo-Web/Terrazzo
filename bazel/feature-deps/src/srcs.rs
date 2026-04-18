@@ -1,5 +1,6 @@
-use std::collections::BTreeSet;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::hash_map;
 use std::path::Path;
 use std::rc::Rc;
@@ -8,9 +9,11 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use syn::punctuated::Punctuated;
 
-#[derive(Default)]
-pub struct SrcsManager {
-    parsed_files: HashMap<Rc<Path>, Rc<FileIdx>>,
+pub struct SrcsManager<'a> {
+    parsed_files: RefCell<HashMap<Rc<Path>, Rc<FileIdx>>>,
+    prev_excluded_srcs: HashSet<usize>,
+    unprocessed_features: HashSet<&'a str>,
+    root_rs: Rc<Path>,
 }
 
 struct FileIdx {
@@ -34,31 +37,84 @@ pub enum CollectSrcsError {
     },
 }
 
-impl SrcsManager {
-    pub fn emit_excluded_srcs(
-        &mut self,
-        output: &mut String,
-        feature: &str,
-        file_rs: Rc<Path>,
-    ) -> Result<(), CollectSrcsError> {
-        let mut accu = vec![];
-        self.collect_excluded_srcs(feature, file_rs, false, &mut accu)?;
-        let accu = accu
-            .iter()
-            .map(|idx| idx.to_string())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        output.push_str(&format!("  {:?}: [{}],\n", feature, accu.join(",")));
+impl<'a> SrcsManager<'a> {
+    pub fn new(unprocessed_features: &'a [String], root_rs: Rc<Path>) -> Self {
+        Self {
+            parsed_files: Default::default(),
+            prev_excluded_srcs: Default::default(),
+            unprocessed_features: unprocessed_features.iter().map(|s| s.as_str()).collect(),
+            root_rs,
+        }
+    }
+
+    pub fn emit_all_excluded_srcs(&mut self, output: &mut String) -> Result<(), CollectSrcsError> {
+        output.push_str("_EXCLUSION_MAP = {");
+        while self.unprocessed_features.is_empty() {
+            let mut min_accu: Option<(Vec<i32>, HashSet<usize>, &str)> = None;
+            for feature in &self.unprocessed_features {
+                let (excluded_srcs, delta) = self.find_excluded_srcs(feature)?;
+                match &mut min_accu {
+                    Some(min_delta) => {
+                        if delta.len() < min_delta.0.len() {
+                            *min_delta = (delta, excluded_srcs, feature)
+                        }
+                    }
+                    None => min_accu = Some((delta, excluded_srcs, feature)),
+                }
+            }
+            let (min_delta, min_excluded_srcs, min_feature) = min_accu.unwrap();
+            self.emit_excluded_srcs(output, min_feature, min_delta)?;
+            self.unprocessed_features.remove(min_feature);
+            self.prev_excluded_srcs = min_excluded_srcs;
+        }
+        output.push_str("}\n");
         Ok(())
     }
 
+    fn emit_excluded_srcs(
+        &self,
+        output: &mut String,
+        feature: &str,
+        mut delta: Vec<i32>,
+    ) -> Result<(), CollectSrcsError> {
+        delta.sort();
+        let delta = delta
+            .into_iter()
+            .map(|idx| idx.to_string())
+            .collect::<Vec<_>>();
+        output.push_str(&format!("  {:?}: [{}],\n", feature, delta.join(",")));
+        Ok(())
+    }
+
+    fn find_excluded_srcs(
+        &self,
+        feature: &str,
+    ) -> Result<(HashSet<usize>, Vec<i32>), CollectSrcsError> {
+        let mut excluded_srcs = vec![];
+        self.collect_excluded_srcs(feature, self.root_rs.clone(), false, &mut excluded_srcs)?;
+        let excluded_srcs = excluded_srcs.iter().cloned().collect::<HashSet<_>>();
+        let add = excluded_srcs
+            .iter()
+            .filter(|idx| !self.prev_excluded_srcs.contains(idx))
+            .cloned();
+        let del = self
+            .prev_excluded_srcs
+            .iter()
+            .filter(|idx| !excluded_srcs.contains(idx))
+            .cloned();
+        let delta = add
+            .map(|idx| idx as i32)
+            .chain(del.map(|idx| -(idx as i32)))
+            .collect::<Vec<_>>();
+        Ok((excluded_srcs, delta))
+    }
+
     fn collect_excluded_srcs(
-        &mut self,
+        &self,
         feature: &str,
         file_rs: Rc<Path>,
         parent: bool,
-        accu: &mut Vec<usize>,
+        excluded_srcs_accu: &mut Vec<usize>,
     ) -> Result<(), CollectSrcsError> {
         let parsed = self.parse_rs_file(&file_rs)?;
         let parsed = &parsed.content;
@@ -80,18 +136,24 @@ impl SrcsManager {
                 || self.mod_matches(feature, &item_mod.attrs)
                 || self.file_matches(feature, &submodule_file)?;
             if submodule_matches {
-                accu.push(self.parse_rs_file(&submodule_file)?.idx);
+                excluded_srcs_accu.push(self.parse_rs_file(&submodule_file)?.idx);
             }
 
-            self.collect_excluded_srcs(feature, submodule_file, submodule_matches, accu)?;
+            self.collect_excluded_srcs(
+                feature,
+                submodule_file,
+                submodule_matches,
+                excluded_srcs_accu,
+            )?;
         }
 
         Ok(())
     }
 
-    fn parse_rs_file(&mut self, file_rs: &Rc<Path>) -> Result<Rc<FileIdx>, CollectSrcsError> {
-        let next_idx = self.parsed_files.len();
-        return match self.parsed_files.entry(file_rs.clone()) {
+    fn parse_rs_file(&self, file_rs: &Rc<Path>) -> Result<Rc<FileIdx>, CollectSrcsError> {
+        let mut parsed_files = self.parsed_files.borrow_mut();
+        let next_idx = parsed_files.len();
+        return match parsed_files.entry(file_rs.clone()) {
             hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
             hash_map::Entry::Vacant(entry) => Ok(entry
                 .insert(Rc::new(FileIdx {
@@ -122,11 +184,7 @@ impl SrcsManager {
             .any(|cfg_feature| cfg_feature != feature)
     }
 
-    fn file_matches(
-        &mut self,
-        feature: &str,
-        file_rs: &Rc<Path>,
-    ) -> Result<bool, CollectSrcsError> {
+    fn file_matches(&self, feature: &str, file_rs: &Rc<Path>) -> Result<bool, CollectSrcsError> {
         let parsed = self.parse_rs_file(file_rs)?;
         let attrs = &parsed.content.attrs;
         Ok(attrs
@@ -136,8 +194,8 @@ impl SrcsManager {
     }
 
     pub fn emit_all_srcs(&self, output: &mut String) {
-        let mut all_files = self
-            .parsed_files
+        let parsed_files = self.parsed_files.borrow();
+        let mut all_files = parsed_files
             .iter()
             .map(|(path, file)| (file.idx, path))
             .collect::<Vec<_>>();

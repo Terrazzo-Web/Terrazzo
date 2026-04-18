@@ -9,6 +9,7 @@ def _feature_deps_impl(ctx):
         ctx.attr.package_name,
         ctx.file.manifest.path,
         ctx.file.root_rs.path,
+        ",".join([rs_file.path for rs_file in ctx.files.all_rs]),
     ]
     for dependency, label in sorted(ctx.attr.dependency_aliases.items()):
         arguments.extend(["--dependency-alias", "{}={}".format(dependency, label)])

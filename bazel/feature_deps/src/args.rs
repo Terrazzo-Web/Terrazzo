@@ -12,6 +12,7 @@ pub struct Args {
     pub package_name: PathBuf,
     pub manifest: PathBuf,
     pub root_rs: PathBuf,
+    pub all_rs: String,
 
     #[arg(long = "dependency-alias")]
     dependency_aliases: Vec<String>,

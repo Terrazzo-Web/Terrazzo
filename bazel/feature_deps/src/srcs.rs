@@ -217,7 +217,6 @@ impl<'a> SrcsManager<'a> {
 
 fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
     delta.sort();
-    println!("DATA = {delta:?}");
     if delta.is_empty() {
         return vec![];
     }
@@ -240,7 +239,6 @@ fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
 
     result.push(*delta.last().unwrap() - seq_len + 1);
     result.push(seq_len);
-    println!("result = {result:?}");
     result
 }
 

@@ -81,9 +81,8 @@ impl<'a> SrcsManager<'a> {
         &self,
         output: &mut String,
         feature: &str,
-        mut delta: Vec<i32>,
+        delta: Vec<i32>,
     ) -> Result<(), CollectSrcsError> {
-        delta.sort();
         let delta = delta
             .into_iter()
             .map(|idx| idx.to_string())
@@ -216,36 +215,66 @@ impl<'a> SrcsManager<'a> {
     }
 }
 
-// TODO: add tests for this function
-fn delta_encode(delta: Vec<i32>) -> Vec<i32> {
+fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
+    delta.sort();
+    println!("DATA = {delta:?}");
     if delta.is_empty() {
         return vec![];
     }
     let mut result = vec![];
-    let mut dprev = 0;
-    let mut dprev_count = 0;
 
-    result.push(delta[0]);
-
+    let mut seq_len = 1;
     for ij in delta.windows(2) {
         let i = ij[0];
         let j = ij[1];
-        let d = j - i;
-        if d == dprev {
-            dprev_count += 1;
+        let diff = j - i;
+        if diff == 1 {
+            seq_len += 1;
             continue;
         }
-        result.push(dprev);
-        result.push(dprev_count);
+        result.push(i - seq_len + 1);
+        result.push(seq_len);
 
-        dprev = d;
-        dprev_count = 1;
+        seq_len = 1;
     }
 
-    result.push(dprev);
-    result.push(dprev_count);
-
+    result.push(*delta.last().unwrap() - seq_len + 1);
+    result.push(seq_len);
+    println!("result = {result:?}");
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::delta_encode;
+
+    #[test]
+    fn delta_encode_empty() {
+        assert_eq!(delta_encode(vec![]), vec![]);
+    }
+
+    #[test]
+    fn delta_encode_single() {
+        assert_eq!(delta_encode(vec![17]), vec![17, 1]);
+    }
+
+    #[test]
+    fn delta_encode_1_1() {
+        assert_eq!(delta_encode(vec![8, 10]), vec![8, 1, 10, 1]);
+    }
+
+    #[test]
+    fn delta_encode_2() {
+        assert_eq!(delta_encode(vec![8, 9]), vec![8, 2]);
+    }
+
+    #[test]
+    fn delta_encode_test() {
+        assert_eq!(
+            delta_encode(vec![8, 9, 10, 15, 17, 19]),
+            vec![8, 3, 15, 1, 17, 1, 19, 1]
+        );
+    }
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {

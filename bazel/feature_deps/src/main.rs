@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 
 mod args;
@@ -15,8 +17,8 @@ fn main() -> Result<(), FeatureDepsError> {
     let dependency_aliases = args.parse_dependency_aliases()?;
     let dependency_exclusion = args.dependency_exclusion();
     let output = Manager::new(
-        args.package_name,
         args.root_rs.into(),
+        args.all_srcs.split(',').map(PathBuf::from).collect(),
         features,
         dependency_aliases,
         dependency_exclusion,

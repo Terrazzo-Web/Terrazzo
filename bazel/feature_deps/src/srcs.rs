@@ -1,8 +1,7 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::hash_map;
 use std::path::Path;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use nameth::NamedEnumValues as _;
@@ -10,9 +9,9 @@ use nameth::nameth;
 use syn::punctuated::Punctuated;
 
 pub struct SrcsManager<'a> {
-    package_name: &'a Path,
-    root_rs: Rc<Path>,
-    parsed_files: RefCell<HashMap<Rc<Path>, Rc<FileIdx>>>,
+    root_rs: &'a Path,
+    all_srcs: Vec<PathBuf>,
+    parsed_files: HashMap<PathBuf, FileIdx>,
     prev_excluded_srcs: HashSet<usize>,
     unprocessed_features: Vec<&'a str>,
 }
@@ -27,33 +26,36 @@ struct FileIdx {
 pub enum CollectSrcsError {
     #[error("[{n}] Failed to read {file_rs:?}: {error}", n = self.name())]
     RustSrcReadError {
-        file_rs: Rc<Path>,
+        file_rs: PathBuf,
         error: std::io::Error,
     },
 
     #[error("[{n}] Failed to parse {file_rs:?}: {error}", n = self.name())]
-    RustSrcParseError {
-        file_rs: Rc<Path>,
-        error: syn::Error,
-    },
+    RustSrcParseError { file_rs: PathBuf, error: syn::Error },
+
+    #[error("[{n}] File not found: {0:?}", n = self.name())]
+    RustSrcNotFound(PathBuf),
 }
 
 impl<'a> SrcsManager<'a> {
     pub fn new(
-        package_name: &'a Path,
-        root_rs: Rc<Path>,
+        root_rs: &'a Path,
+        all_srcs: Vec<PathBuf>,
         unprocessed_features: &'a [String],
     ) -> Self {
         Self {
-            package_name,
             root_rs,
+            all_srcs,
             parsed_files: Default::default(),
             prev_excluded_srcs: Default::default(),
             unprocessed_features: unprocessed_features.iter().map(|s| s.as_str()).collect(),
         }
     }
 
-    pub fn emit_all_excluded_srcs(&mut self, output: &mut String) -> Result<(), CollectSrcsError> {
+    pub fn emit_all_excluded_srcs(mut self, output: &mut String) -> Result<(), CollectSrcsError> {
+        for file_rs in std::mem::take(&mut self.all_srcs) {
+            self.add_rs_file(&file_rs)?;
+        }
         output.push_str("_EXCLUSION_MAP = [");
         while !self.unprocessed_features.is_empty() {
             let mut min_accu: Option<(Vec<i32>, HashSet<usize>, &str)> = None;
@@ -100,7 +102,7 @@ impl<'a> SrcsManager<'a> {
         feature: &str,
     ) -> Result<(HashSet<usize>, Vec<i32>), CollectSrcsError> {
         let mut excluded_srcs = vec![];
-        self.collect_excluded_srcs(feature, self.root_rs.clone(), false, &mut excluded_srcs)?;
+        self.collect_excluded_srcs(feature, &self.root_rs, false, &mut excluded_srcs)?;
         let excluded_srcs = excluded_srcs.iter().cloned().collect::<HashSet<_>>();
         let add = excluded_srcs
             .iter()
@@ -121,11 +123,11 @@ impl<'a> SrcsManager<'a> {
     fn collect_excluded_srcs(
         &self,
         feature: &str,
-        file_rs: Rc<Path>,
+        file_rs: &Path,
         parent: bool,
         excluded_srcs_accu: &mut Vec<usize>,
     ) -> Result<(), CollectSrcsError> {
-        let parsed = self.parse_rs_file(&file_rs)?;
+        let parsed = self.get_rs_file(&file_rs)?;
         let parsed = &parsed.content;
         for item in &parsed.items {
             let syn::Item::Mod(item_mod) = item else {
@@ -143,12 +145,12 @@ impl<'a> SrcsManager<'a> {
 
             let submodule_matches = parent || self.mod_matches(feature, &item_mod.attrs);
             if submodule_matches {
-                excluded_srcs_accu.push(self.parse_rs_file(&submodule_file)?.idx);
+                excluded_srcs_accu.push(self.get_rs_file(&submodule_file)?.idx);
             }
 
             self.collect_excluded_srcs(
                 feature,
-                submodule_file.clone(),
+                &submodule_file,
                 submodule_matches || self.file_matches(feature, &submodule_file)?,
                 excluded_srcs_accu,
             )?;
@@ -157,28 +159,32 @@ impl<'a> SrcsManager<'a> {
         Ok(())
     }
 
-    fn parse_rs_file(&self, file_rs: &Rc<Path>) -> Result<Rc<FileIdx>, CollectSrcsError> {
-        let mut parsed_files = self.parsed_files.borrow_mut();
-        let next_idx = parsed_files.len() + 1;
-        return match parsed_files.entry(file_rs.clone()) {
-            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
-            hash_map::Entry::Vacant(entry) => Ok(entry
-                .insert(Rc::new(FileIdx {
-                    idx: next_idx,
-                    content: handle_cache_miss(file_rs)?,
-                }))
-                .clone()),
-        };
+    fn get_rs_file(&self, file_rs: &Path) -> Result<&FileIdx, CollectSrcsError> {
+        self.parsed_files
+            .get(file_rs)
+            .ok_or_else(|| CollectSrcsError::RustSrcNotFound(file_rs.into()))
+    }
 
-        fn handle_cache_miss(file_rs: &Rc<Path>) -> Result<syn::File, CollectSrcsError> {
+    fn add_rs_file(&mut self, file_rs: &Path) -> Result<(), CollectSrcsError> {
+        self.parsed_files.insert(
+            file_rs.into(),
+            FileIdx {
+                idx: self.parsed_files.len() + 1,
+                content: load(file_rs)?,
+            },
+        );
+
+        return Ok(());
+
+        fn load(file_rs: &Path) -> Result<syn::File, CollectSrcsError> {
             let content = std::fs::read_to_string(file_rs).map_err(move |error| {
                 CollectSrcsError::RustSrcReadError {
-                    file_rs: file_rs.clone(),
+                    file_rs: file_rs.into(),
                     error,
                 }
             })?;
             syn::parse_file(&content).map_err(move |error| CollectSrcsError::RustSrcParseError {
-                file_rs: file_rs.clone(),
+                file_rs: file_rs.into(),
                 error,
             })
         }
@@ -192,26 +198,12 @@ impl<'a> SrcsManager<'a> {
     }
 
     fn file_matches(&self, feature: &str, file_rs: &Rc<Path>) -> Result<bool, CollectSrcsError> {
-        let parsed = self.parse_rs_file(file_rs)?;
+        let parsed = self.get_rs_file(file_rs)?;
         let attrs = &parsed.content.attrs;
         Ok(attrs
             .iter()
             .filter_map(cfg_feature_name)
             .any(|cfg_feature| cfg_feature == feature))
-    }
-
-    pub fn emit_all_srcs(&self, output: &mut String) {
-        let parsed_files = self.parsed_files.borrow();
-        let mut all_files = parsed_files
-            .iter()
-            .map(|(path, file)| (file.idx, path.strip_prefix(self.package_name).unwrap()))
-            .collect::<Vec<_>>();
-        all_files.sort_by_key(|e| e.0);
-        let all_files = all_files
-            .iter()
-            .map(|(_, path)| format!("{path:?}"))
-            .collect::<Vec<_>>();
-        output.push_str(&format!("_ALL_SRCS = [{}]\n", all_files.join(",")));
     }
 }
 

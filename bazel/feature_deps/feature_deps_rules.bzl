@@ -6,10 +6,9 @@ def _feature_deps_impl(ctx):
     output = ctx.actions.declare_file("generated.{}_features.bzl".format(ctx.attr.output_name))
     arguments = [
         output.path,
-        ctx.attr.package_name,
         ctx.file.manifest.path,
         ctx.file.root_rs.path,
-        ",".join([rs_file.path for rs_file in ctx.files.all_rs]),
+        ",".join([rs_file.path for rs_file in ctx.files.all_srcs]),
     ]
     for dependency, label in sorted(ctx.attr.dependency_aliases.items()):
         arguments.extend(["--dependency-alias", "{}={}".format(dependency, label)])
@@ -18,7 +17,7 @@ def _feature_deps_impl(ctx):
 
     ctx.actions.run(
         executable = ctx.executable.tool,
-        inputs = [ctx.file.manifest] + ctx.files.all_rs,
+        inputs = [ctx.file.manifest] + ctx.files.all_srcs,
         outputs = [output],
         tools = [ctx.executable.tool],
         arguments = arguments,
@@ -34,7 +33,6 @@ _feature_deps = rule(
         "output_name": attr.string(
             mandatory = True,
         ),
-        "package_name": attr.string(),
         "manifest": attr.label(
             allow_single_file = True,
             mandatory = True,
@@ -43,7 +41,7 @@ _feature_deps = rule(
             allow_single_file = True,
             mandatory = True,
         ),
-        "all_rs": attr.label_list(
+        "all_srcs": attr.label_list(
             allow_files = True,
             mandatory = True,
         ),
@@ -72,8 +70,8 @@ def feature_deps(
       dependency_aliases: Optional mapping of `dep:` entries to Bazel labels.
       dependency_exclusion: Optional list of `dep:` entries to omit from generated constants.
     """
-    package_name = native.package_name()
     if name == None:
+        package_name = native.package_name()
         if package_name:
             name = package_name.rsplit("/", 1)[-1]
         else:
@@ -85,10 +83,9 @@ def feature_deps(
     _feature_deps(
         name = name,
         output_name = name,
-        package_name = package_name,
         manifest = manifest,
         root_rs = root_rs,
-        all_rs = native.glob(["src/**/*.rs"]),
+        all_srcs = native.glob(["src/**/*.rs"]),
         dependency_aliases = dependency_aliases,
         dependency_exclusion = dependency_exclusion,
     )
@@ -100,7 +97,7 @@ def feature_deps(
         ignore_whitespace = True,
     )
 
-def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
+def base_compute_srcs(features, all_features, excluded_file_id_map, all_srcs = []):
     """Computes the Rust source files to include for a base feature set.
 
     Args:
@@ -115,6 +112,7 @@ def base_compute_srcs(features, all_srcs, all_features, excluded_file_id_map):
         all disabled features. If every feature is enabled, returns all matching
         Rust source files.
     """
+    all_srcs = native.glob(["src/**/*.rs"])
     features = set(features)
 
     excluded_file_id_map2 = {}

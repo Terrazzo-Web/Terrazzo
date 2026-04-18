@@ -1,5 +1,0 @@
-load(":defs.bzl", "feature_deps_tool")
-
-package(default_visibility = ["//visibility:public"])
-
-feature_deps_tool()

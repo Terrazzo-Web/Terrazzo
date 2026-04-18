@@ -4,7 +4,6 @@ load("//bazel:stylance_rules.bzl", "stylance_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "framework/terrazzo",
     assets = [
         "README.md",
         {
@@ -46,7 +45,6 @@ rust_rules_matrix(
 )
 
 rust_rules_matrix(
-    package_name = "framework/terrazzo",
     assets = [
         "README.md",
         {

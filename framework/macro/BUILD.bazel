@@ -6,7 +6,6 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "client",
-    package_name = "framework/macro",
     all_crate_deps = all_crate_deps_client,
     assets = ["README.md"],
     crate_features = ["client"],
@@ -16,7 +15,6 @@ rust_rules(
 
 rust_rules(
     name = "server",
-    package_name = "framework/macro",
     all_crate_deps = all_crate_deps_server,
     assets = ["README.md"],
     crate_features = ["server"],

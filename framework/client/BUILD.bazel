@@ -3,7 +3,6 @@ load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "framework/client",
     assets = ["README.md"],
     crate_name = "terrazzo_client",
     deps_dev_proc_macro = ["//framework/macro:client"],

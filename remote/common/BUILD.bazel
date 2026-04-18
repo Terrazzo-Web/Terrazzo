@@ -6,7 +6,6 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "common",
-    package_name = "remote/common",
     assets = ["README.md"],
     crate_name = "trz_gateway_common",
     deps = [
@@ -19,8 +18,5 @@ cargo_build_script(
     name = "protos",
     srcs = ["build.rs"],
     data = glob(["src/**/*.proto"]),
-    deps = all_crate_deps(
-        package_name = "remote/common",
-        build = True,
-    ),
+    deps = all_crate_deps(build = True),
 )

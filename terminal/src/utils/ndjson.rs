@@ -1,4 +1,4 @@
-#![cfg(feature = "converter")]
+#![cfg(any(feature = "converter", feature = "logs-panel"))]
 
 use std::marker::PhantomData;
 

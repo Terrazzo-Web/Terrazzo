@@ -1,8 +1,10 @@
+#![cfg(feature = "converter")]
+
 use std::marker::PhantomData;
 
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 
+#[cfg(any(feature = "server", test))]
 pub fn serialize_line<T: Serialize>(value: &T) -> Result<String, serde_json::Error> {
     serde_json::to_string(value).map(|json| json + "\n")
 }
@@ -22,8 +24,8 @@ impl<T> Default for NdjsonBuffer<T> {
     }
 }
 
-impl<T: DeserializeOwned> NdjsonBuffer<T> {
-    #[allow(dead_code)]
+#[cfg(any(feature = "client", test))]
+impl<T: serde::de::DeserializeOwned> NdjsonBuffer<T> {
     pub fn push_chunk(&mut self, chunk: &str) -> Vec<Result<T, serde_json::Error>> {
         self.pending.push_str(chunk);
 

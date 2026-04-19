@@ -82,7 +82,6 @@ mod tests {
     use std::sync::Arc;
 
     use futures::StreamExt as _;
-    use futures::channel::mpsc;
     use tonic::Status;
 
     use super::super::api::Conversions;

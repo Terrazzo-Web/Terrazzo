@@ -96,10 +96,12 @@ def terminal_rules(
     server_assets_release = [{
         "targets": [":" + prefix + "client"],
         "prefix": "target/assets/wasm",
+        "copy": True,
     }]
     server_assets_debug = [{
         "targets": [":" + prefix + "client-debug"],
         "prefix": "target/assets/wasm",
+        "copy": True,
     }]
 
     rust_rules_matrix(

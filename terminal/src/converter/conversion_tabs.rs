@@ -26,7 +26,7 @@ use super::api::Conversions;
 use crate::assets::icons;
 use crate::converter::api::Language;
 
-stylance::import_style!(style, "conversion_tabs.scss");
+stylance::import_crate_style!(style, "src/converter/conversion_tabs.scss");
 
 impl TabsDescriptor for Conversions {
     type State = ConversionsState;

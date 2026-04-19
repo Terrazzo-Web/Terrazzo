@@ -44,6 +44,8 @@ test.describe('Terminal', () => {
   test('opens a new terminal tab and runs a command', async ({ page }) => {
     const addTabButton = getAddTabButton(page);
     await addTabButton.waitFor({ timeout: 30 * SECOND });
+    await expect(addTabButton).toHaveCSS('height', '15px');
+    await expect(addTabButton).toHaveCSS('filter', 'invert(1)');
     await addTabButton.click();
 
     const tabs = getTabs(page);

@@ -3,6 +3,11 @@ use prost_types as _;
 
 #[allow(dead_code)]
 pub mod terrazzo {
+    #[cfg(feature = "converter")]
+    pub mod converter {
+        include!(concat!(env!("OUT_DIR"), "/terrazzo.converter.rs"));
+    }
+
     #[cfg(feature = "logs-panel")]
     pub mod logs {
         include!(concat!(env!("OUT_DIR"), "/terrazzo.logs.rs"));

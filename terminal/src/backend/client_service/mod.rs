@@ -3,6 +3,7 @@ use std::sync::Arc;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::Server;
 
+pub mod converter_service;
 pub mod convert;
 pub mod grpc_error;
 pub mod logs_service;

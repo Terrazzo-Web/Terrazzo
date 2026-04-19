@@ -4,14 +4,11 @@ use std::sync::Arc;
 
 use futures::StreamExt as _;
 use futures::channel::mpsc;
-use nameth::nameth;
 use server_fn::BoxedStream;
 use server_fn::ServerFnError;
 use terrazzo::declare_trait_aliias;
-use tonic::Status;
 
 use super::api::Conversion;
-use super::api::Conversions;
 use crate::converter::api::Language;
 
 mod asn1;
@@ -24,19 +21,6 @@ mod timestamps;
 mod tls_info;
 mod unescaped;
 mod x509;
-
-#[nameth]
-#[allow(dead_code)]
-pub async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
-    let mut stream = stream_conversions(input);
-    let mut conversions = vec![];
-    while let Some(next) = stream.next().await {
-        conversions.push(next.map_err(|error| Status::internal(error.to_string()))?);
-    }
-    Ok(Conversions {
-        conversions: conversions.into(),
-    })
-}
 
 pub fn stream_conversions(input: Arc<str>) -> BoxedStream<Conversion, ServerFnError> {
     let (tx, rx) = mpsc::unbounded();
@@ -95,6 +79,14 @@ declare_trait_aliias!(AddConversionFn, FnMut(Language, String));
 #[cfg(test)]
 mod tests {
 
+    use std::sync::Arc;
+
+    use futures::StreamExt as _;
+    use futures::channel::mpsc;
+    use tonic::Status;
+
+    use super::super::api::Conversions;
+
     pub trait GetConversionForTest {
         async fn get_conversion(&self, language: &str) -> String;
         async fn get_languages(&self) -> Vec<String>;
@@ -102,9 +94,7 @@ mod tests {
 
     impl GetConversionForTest for &str {
         async fn get_conversion(&self, language: &str) -> String {
-            let conversions = super::get_conversions(self.to_string().into())
-                .await
-                .unwrap();
+            let conversions = get_conversions(self.to_string().into()).await.unwrap();
             let matches = conversions
                 .conversions
                 .iter()
@@ -118,9 +108,7 @@ mod tests {
         }
 
         async fn get_languages(&self) -> Vec<String> {
-            let conversions = super::get_conversions(self.to_string().into())
-                .await
-                .unwrap();
+            let conversions = get_conversions(self.to_string().into()).await.unwrap();
             let mut languages = conversions
                 .conversions
                 .iter()
@@ -129,5 +117,16 @@ mod tests {
             languages.sort();
             return languages;
         }
+    }
+
+    async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
+        let mut stream = super::stream_conversions(input);
+        let mut conversions = vec![];
+        while let Some(next) = stream.next().await {
+            conversions.push(next.map_err(|error| Status::internal(error.to_string()))?);
+        }
+        Ok(Conversions {
+            conversions: conversions.into(),
+        })
     }
 }

@@ -93,8 +93,8 @@ mod imp {
     use std::sync::Arc;
 
     use futures::Stream;
-    use futures::future;
     use futures::TryStreamExt as _;
+    use futures::future;
     use server_fn::BoxedStream;
     use server_fn::ServerFnError;
     use server_fn::codec::TextStream;

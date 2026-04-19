@@ -181,13 +181,10 @@ fn spawn_conversions_request(
         conversions_mut.force(Conversions::default());
         let stream = super::api::get_conversions(remote, content).await;
         match stream {
-            Ok(stream) => consume_conversions_stream(
-                stream,
-                conversions_mut,
-                active_request_id,
-                request_id,
-            )
-            .await,
+            Ok(stream) => {
+                consume_conversions_stream(stream, conversions_mut, active_request_id, request_id)
+                    .await
+            }
             Err(error) => {
                 warn!("Failed to get conversions: {error}");
                 conversions_mut.force(Conversions::default())

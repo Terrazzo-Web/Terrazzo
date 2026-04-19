@@ -222,6 +222,7 @@ converter = []
 converter-client = [
   "client",
   "converter",
+  "dep:futures",
   "dep:web-sys",
   "remotes-ui",
   "web-sys/Clipboard",

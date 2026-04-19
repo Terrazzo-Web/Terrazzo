@@ -13,9 +13,9 @@ use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::debug;
 use self::diagnostics::warn;
-use super::ndjson::NdjsonBuffer;
 use crate::frontend::remotes::Remote;
 use crate::logs::event::LogEvent;
+use crate::utils::ndjson::NdjsonBuffer;
 
 const MAX_LOGS: usize = if cfg!(debug_assertions) { 25 } else { 1000 };
 
@@ -69,7 +69,7 @@ async fn consume_stream(
 ) {
     debug!("Start");
     defer!(debug!("End"));
-    let mut parser = NdjsonBuffer::default();
+    let mut parser = NdjsonBuffer::<LogEvent>::default();
     let mut stream = stream.into_inner();
     while let Some(chunk) = stream.next().await {
         match chunk {

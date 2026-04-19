@@ -5,6 +5,7 @@ pub fn main() {
         .bytes(".terrazzo.portforward.PortForwardDataResponse.data")
         .compile_protos(
             &[
+                "src/backend/protos/converter.proto",
                 "src/backend/protos/logs.proto",
                 "src/backend/protos/notify.proto",
                 "src/backend/protos/portforward.proto",

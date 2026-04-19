@@ -127,7 +127,7 @@ server_fn_macro = { version = "0.8.3" }
 sha2 = { version = "0.10.9" }
 simple_asn1 = { version = "0.6.4" }
 static_assertions = { version = "1.1.0" }
-stylance = { version = "0.8.0" }
+stylance = { version = "0.7.4" }
 syn = { version = "2.0.117" }
 tantivy = { version = "0.26.0" }
 tempfile = { version = "3.27.0" }

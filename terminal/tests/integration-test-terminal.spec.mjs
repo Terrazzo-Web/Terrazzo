@@ -30,6 +30,11 @@ function getCloseIcons(tabs) {
   return tabs.locator('img[class*="close-icon-"]');
 }
 
+async function closeTab(tab) {
+  await tab.hover();
+  await tab.locator('img[class*="close-icon-"]').click();
+}
+
 test.describe('Terminal', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(5 * SECOND);
@@ -58,7 +63,7 @@ test.describe('Terminal', () => {
     await page.keyboard.press('Enter');
     await expect(activeTerminal).toContainText('1337');
 
-    await getCloseIcons(tabs).click({ force: true });
+    await closeTab(tabs);
     await expect(tabs).toHaveCount(0);
   });
 
@@ -96,9 +101,9 @@ test.describe('Terminal', () => {
 
     const closeIcons = getCloseIcons(tabs);
     await expect(closeIcons).toHaveCount(2);
-    await closeIcons.nth(0).click({ force: true });
+    await closeTab(tabs.nth(0));
     await expect(tabs).toHaveCount(1);
-    await closeIcons.nth(0).click({ force: true });
+    await closeTab(tabs.nth(0));
     await expect(tabs).toHaveCount(0);
   });
 });

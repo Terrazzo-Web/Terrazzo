@@ -137,8 +137,7 @@ impl<'a> SrcsManager<'a> {
                 continue;
             }
 
-            let Some(submodule_file) =
-                resolve_submodule_file(file_rs, &item_mod.ident.to_string())
+            let Some(submodule_file) = resolve_submodule_file(file_rs, &item_mod.ident.to_string())
             else {
                 continue;
             };
@@ -223,15 +222,22 @@ fn delta_encode(mut delta: Vec<i32>) -> Vec<i32> {
             seq_len += 1;
             continue;
         }
-        result.push(i - seq_len + 1);
-        result.push(seq_len);
-
+        encode_seq(&mut result, i, seq_len);
         seq_len = 1;
     }
 
-    result.push(*delta.last().unwrap() - seq_len + 1);
-    result.push(seq_len);
-    result
+    encode_seq(&mut result, *delta.last().unwrap(), seq_len);
+    return result;
+
+    fn encode_seq(result: &mut Vec<i32>, i: i32, count: i32) {
+        let start = i - count + 1;
+        if count == 1 {
+            result.push(start * 2 + 1);
+        } else {
+            result.push(start * 2);
+            result.push(count);
+        }
+    }
 }
 
 fn cfg_feature_name(attr: &syn::Attribute) -> Option<String> {
@@ -303,24 +309,24 @@ mod tests {
 
     #[test]
     fn delta_encode_single() {
-        assert_eq!(delta_encode(vec![17]), vec![17, 1]);
+        assert_eq!(delta_encode(vec![17]), vec![35]);
     }
 
     #[test]
     fn delta_encode_1_1() {
-        assert_eq!(delta_encode(vec![8, 10]), vec![8, 1, 10, 1]);
+        assert_eq!(delta_encode(vec![8, 10]), vec![17, 21]);
     }
 
     #[test]
     fn delta_encode_2() {
-        assert_eq!(delta_encode(vec![8, 9]), vec![8, 2]);
+        assert_eq!(delta_encode(vec![8, 9]), vec![16, 2]);
     }
 
     #[test]
     fn delta_encode_test() {
         assert_eq!(
             delta_encode(vec![8, 9, 10, 15, 17, 19]),
-            vec![8, 3, 15, 1, 17, 1, 19, 1]
+            vec![16, 3, 31, 35, 39]
         );
     }
 }

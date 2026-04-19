@@ -36,7 +36,7 @@ def terminal_rules(
     rust_rules_matrix(
         assets = [
             native.glob(["src/**/*.js"]),
-            # native.glob(["src/**/*.scss"]),
+            native.glob(["src/**/*.scss"]),
         ],
         rust_srcs = compute_srcs(client_features),
         crate_features = client_features,

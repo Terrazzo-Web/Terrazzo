@@ -8,7 +8,6 @@ rust_rules_matrix(
         "README.md",
         {
             "targets": glob(["src/**/*.scss"]),
-            "copy": True,
         },
     ],
     crate_features = ["client"],
@@ -50,7 +49,6 @@ rust_rules_matrix(
         {
             "targets": ":common_scss",
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

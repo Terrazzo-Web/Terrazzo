@@ -29,6 +29,7 @@ mod imp {
     use crate::backend::protos::terrazzo::logs::LogsRequest;
     use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;
     use crate::logs::event::LogEvent;
+    use crate::utils::ndjson::serialize_line;
 
     pub(super) async fn stream_impl(
         remote: Option<ClientAddress>,
@@ -46,8 +47,8 @@ mod imp {
     }
 
     fn serialize_log_event(event: &LogEvent) -> String {
-        serde_json::to_string(event).unwrap_or_else(|error| {
-            serde_json::to_string(&LogEvent {
+        serialize_line(event).unwrap_or_else(|error| {
+            serialize_line(&LogEvent {
                 id: event.id,
                 level: event.level,
                 message: format!("Failed to serialize log event: {error}"),
@@ -55,7 +56,7 @@ mod imp {
                 file: None,
             })
             .expect("serialize fallback log event")
-        }) + "\n"
+        })
     }
 }
 

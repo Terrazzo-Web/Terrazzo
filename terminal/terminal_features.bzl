@@ -15,7 +15,10 @@ CONVERTER_DEPS = []
 CONVERTER_FEATURES = ["converter"]
 REMOTES_UI_DEPS = []
 REMOTES_UI_FEATURES = ["remotes-ui"]
-CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + ["@crates//:web-sys"]
+CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + [
+    "@crates//:futures",
+    "@crates//:web-sys",
+]
 CONVERTER_CLIENT_FEATURES = CLIENT_FEATURES + CONVERTER_FEATURES + REMOTES_UI_FEATURES + ["converter-client"]
 LOGS_PANEL_DEPS = []
 LOGS_PANEL_FEATURES = ["logs-panel"]
@@ -157,13 +160,13 @@ _EXCLUSION_MAP = [
     {"feature": "terminal-server", "delta": []},
     {"feature": "text-editor-client", "delta": []},
     {"feature": "text-editor-server", "delta": []},
-    {"feature": "converter", "delta": [240, 2, 246, 15]},
-    {"feature": "logs-panel", "delta": [-274, 15, -242, 2, 110, 3, 118, 3, 298, 5, 310, 5]},
-    {"feature": "port-forward", "delta": [-318, 5, -306, 5, -122, 3, -114, 3, 148, 4, 158, 2, 320, 3, 328, 4]},
-    {"feature": "text-editor", "delta": [-334, 4, -324, 3, -160, 2, -154, 4, 126, 4, 136, 6, 290, 3, 376, 16, 410, 15, 444, 10]},
-    {"feature": "client", "delta": [-462, 10, -438, 15, -406, 16, -146, 6, -132, 4, 3, 6, 17, 276, 2, 282, 4, 299, 302, 2, 360, 2, 366, 4]},
-    {"feature": "terminal", "delta": [-304, 2, -297, -294, 7, -278, 2, -11, -8, 2, -1, 58, 13, 182, 5, 194, 6, 336, 3, 344, 4]},
-    {"feature": "server", "delta": [-372, 4, -362, 2, -38, 13, -9, 46, 4, 57, 94, 44, 193, 206, 11, 230, 5, 248, 13, 323]},
+    {"feature": "converter", "delta": [108, 3, 116, 3, 254, 2, 260, 15]},
+    {"feature": "logs-panel", "delta": [-288, 15, -256, 2, -120, 3, -112, 3, 124, 3, 132, 3, 312, 4, 322, 5]},
+    {"feature": "port-forward", "delta": [-330, 5, -318, 4, -136, 3, -128, 3, 162, 4, 172, 2, 332, 3, 340, 4]},
+    {"feature": "text-editor", "delta": [-346, 4, -336, 3, -174, 2, -168, 4, 140, 4, 150, 6, 304, 3, 388, 16, 422, 15, 456, 10]},
+    {"feature": "client", "delta": [-474, 10, -450, 15, -418, 16, -160, 6, -146, 4, 3, 6, 17, 290, 2, 296, 4, 313, 317, 372, 2, 378, 4]},
+    {"feature": "terminal", "delta": [-315, -311, -308, 7, -292, 2, -11, -8, 2, -1, 58, 13, 196, 5, 208, 6, 348, 3, 356, 4]},
+    {"feature": "server", "delta": [-384, 4, -374, 2, -38, 13, -9, 46, 4, 57, 94, 51, 207, 220, 11, 244, 5, 262, 13, 335]},
 ]
 
 def compute_srcs(features):

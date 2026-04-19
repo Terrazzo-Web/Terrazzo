@@ -116,6 +116,11 @@ impl TunnelConfig for AgentTunnelConfig {
             let server = server
                 .add_service(SharedServiceServer::new(client_service.clone()))
                 .add_service(RemoteFnServiceServer::new(client_service.clone()));
+            #[cfg(feature = "converter")]
+            let server = {
+                use crate::backend::protos::terrazzo::converter::converter_service_server::ConverterServiceServer;
+                server.add_service(ConverterServiceServer::new(client_service.clone()))
+            };
             #[cfg(feature = "terminal")]
             let server = {
                 use crate::backend::protos::terrazzo::terminal::terminal_service_server::TerminalServiceServer;

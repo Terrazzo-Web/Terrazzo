@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package terrazzo.converter;
+
+import "shared.proto";
+
+service ConverterService {
+  rpc StreamConversions(ConversionsRequest) returns (stream ConversionResponse);
+}
+
+message ConversionsRequest {
+  terrazzo.shared.ClientAddress address = 1;
+  string input = 2;
+}
+
+message ConversionResponse {
+  string language = 1;
+  string content = 2;
+}

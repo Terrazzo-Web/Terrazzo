@@ -97,6 +97,7 @@ test.describe('demo counter', () => {
     await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo_bg.wasm', /^application\/wasm\b/i);
   });
 
+  // TODO: add a test that asserts the class of the node #attributes. validate wtih //demo:integration-test-debug
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {
     const attributes = page.locator('#attributes');
     const flavorSelect = attributes.getByRole('combobox');

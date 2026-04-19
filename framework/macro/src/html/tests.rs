@@ -278,6 +278,74 @@ fn sample() -> XElement {
 }
 
 #[test]
+fn attribute_with_attr() -> syn::Result<()> {
+    let sample = quote! {
+        fn sample() -> XElement {
+            div(
+                key = "root",
+                "Root text",
+                #[cfg(feature = "prod")]
+                class = "base",
+                #[cfg(feature = "prod")]
+                style = format!("width: {}%", 100),
+            )
+        }
+    };
+    let expected = r#"
+fn sample() -> XElement {
+    {
+        let mut gen_attributes = vec![];
+        #[cfg(feature = "prod")]
+        gen_attributes
+            .push(XAttribute {
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "class".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
+                    index: 0usize,
+                    sub_index: 0usize,
+                },
+                value: "base".into(),
+            });
+        #[cfg(feature = "prod")]
+        gen_attributes
+            .push(XAttribute {
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: "style".into(),
+                        kind: XAttributeKind::Attribute,
+                    },
+                    index: 1usize,
+                    sub_index: 0usize,
+                },
+                value: format!("width: {}%", 100).into(),
+            });
+        let mut gen_children = vec![];
+        gen_children.push(XNode::from(XText(format!("Root text").into())));
+        XElement {
+            tag_name: Some("div".into()),
+            key: XKey::Named("root".into()),
+            value: XElementValue::Static {
+                attributes: gen_attributes,
+                children: gen_children,
+                events: vec![],
+            },
+            before_render: None,
+            after_render: None,
+        }
+    }
+}"#;
+    let actual = html(quote! {}, sample)?;
+    let actual = item_to_string(&syn::parse2(actual)?);
+    if expected.trim() != actual.trim() {
+        println!("{}", actual);
+        panic!();
+    }
+    Ok(())
+}
+
+#[test]
 fn optional_attribute() -> syn::Result<()> {
     let sample = quote! {
         fn sample() -> XElement {

@@ -36,6 +36,10 @@ pub fn attributes_demo() -> XElement {
         id = "attributes",
         h1("Attributes"),
         select.show(),
+        #[cfg(feature = "bazel")]
+        class = "bazel",
+        #[cfg(not(feature = "bazel"))]
+        class = "not bazel",
         span(
             button(
                 click = move |_ev: MouseEvent| {

@@ -2,10 +2,8 @@
 
 use std::marker::PhantomData;
 
-use serde::Serialize;
-
 #[cfg(any(feature = "server", test))]
-pub fn serialize_line<T: Serialize>(value: &T) -> Result<String, serde_json::Error> {
+pub fn serialize_line<T: serde::Serialize>(value: &T) -> Result<String, serde_json::Error> {
     serde_json::to_string(value).map(|json| json + "\n")
 }
 

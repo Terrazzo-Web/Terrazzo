@@ -6,6 +6,7 @@ use trz_gateway_common::id::ClientName;
 use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_server::TestTunnelServiceServer;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
+use trz_gateway_server::server::gateway_config::GatewayConfig;
 
 use super::calculator;
 use super::test_client_config::TestClientConfig;
@@ -15,13 +16,13 @@ use crate::client::service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
 #[derive(Debug)]
-pub struct TestTunnelConfig {
-    client_config: TestClientConfig,
+pub struct TestTunnelConfig<G> {
+    client_config: TestClientConfig<G>,
     client_certificate: CachedCertificate,
 }
 
-impl TestTunnelConfig {
-    pub fn new(client_config: TestClientConfig, client_certificate: CachedCertificate) -> Self {
+impl<G> TestTunnelConfig<G> {
+    pub fn new(client_config: TestClientConfig<G>, client_certificate: CachedCertificate) -> Self {
         Self {
             client_config,
             client_certificate,
@@ -29,7 +30,7 @@ impl TestTunnelConfig {
     }
 }
 
-impl ClientConfig for TestTunnelConfig {
+impl<G: GatewayConfig> ClientConfig for TestTunnelConfig<G> {
     fn base_url(&self) -> impl std::fmt::Display {
         self.client_config.base_url()
     }
@@ -38,13 +39,13 @@ impl ClientConfig for TestTunnelConfig {
         self.client_config.client_name()
     }
 
-    type GatewayPki = <TestClientConfig as ClientConfig>::GatewayPki;
+    type GatewayPki = <TestClientConfig<G> as ClientConfig>::GatewayPki;
     fn gateway_pki(&self) -> Self::GatewayPki {
         self.client_config.gateway_pki()
     }
 }
 
-impl TunnelConfig for TestTunnelConfig {
+impl<G: GatewayConfig> TunnelConfig for TestTunnelConfig<G> {
     type ClientCertificate = CachedCertificate;
     fn client_certificate(&self) -> Self::ClientCertificate {
         self.client_certificate.clone()

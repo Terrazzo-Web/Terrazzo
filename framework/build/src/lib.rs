@@ -76,29 +76,25 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
     // for (key, value) in wasm_pack.get_envs() {
     //     println! { "cargo::warning={key} = {value}", key = key.to_string_lossy(), value = value.unwrap().to_string_lossy() };
     // }
+    let () = wasm_pack
+        .status()
+        .map_err(|_| BuildErrorInner::WasmPackError)?
+        .success()
+        .then_some(())
+        .ok_or(BuildErrorInner::WasmPackError)?;
+
     // .../server/assets/wasm
     let assets_dir = server_dir.join("assets");
     let assets_wasm_dir = assets_dir.join("wasm");
-    let wasm_pack_success = wasm_pack
-        .status()
-        .map_err(|_| BuildErrorInner::WasmPackError)?
-        .success();
 
-    if wasm_pack_success {
-        // rm -rf .../server/assets/wasm
-        rm(&assets_wasm_dir, BuildErrorInner::RmServerAssetsWasmError)?;
+    // rm -rf .../server/assets/wasm
+    rm(&assets_wasm_dir, BuildErrorInner::RmServerAssetsWasmError)?;
 
-        mv(
-            &client_pkg_dir,
-            &assets_wasm_dir,
-            BuildErrorInner::MvWasmError,
-        )?;
-    } else {
-        println!(
-            "cargo::warning=Failed to build the WASM bundle with wasm-pack; reusing or creating placeholder assets"
-        );
-        ensure_fallback_wasm_assets(&assets_wasm_dir)?;
-    }
+    mv(
+        &client_pkg_dir,
+        &assets_wasm_dir,
+        BuildErrorInner::MvWasmError,
+    )?;
 
     let cargo_manifest_dir =
         PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
@@ -117,34 +113,6 @@ pub fn build(options: BuildOptions) -> Result<(), BuildError> {
         BuildErrorInner::CpTargetAssetsError,
     )?;
 
-    Ok(())
-}
-
-fn ensure_fallback_wasm_assets(assets_wasm_dir: &Path) -> Result<(), BuildError> {
-    std::fs::create_dir_all(assets_wasm_dir).map_err(|_| BuildErrorInner::MkdirFallbackWasmDir)?;
-
-    let package_name = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| "app".to_owned())
-        .replace('-', "_");
-    let js_path = assets_wasm_dir.join(format!("{package_name}.js"));
-    let wasm_path = assets_wasm_dir.join(format!("{package_name}_bg.wasm"));
-    let snippets_dir = assets_wasm_dir.join("snippets");
-
-    if !js_path.exists() {
-        std::fs::write(
-            &js_path,
-            format!(
-                "throw new Error(\"The WASM client bundle for '{package_name}' was not built during cargo build. Install wasm-pack tooling or use the Bazel build.\");\n"
-            ),
-        )
-        .map_err(|_| BuildErrorInner::WriteFallbackWasmAsset)?;
-    }
-
-    if !wasm_path.exists() {
-        std::fs::write(&wasm_path, []).map_err(|_| BuildErrorInner::WriteFallbackWasmAsset)?;
-    }
-
-    std::fs::create_dir_all(snippets_dir).map_err(|_| BuildErrorInner::MkdirFallbackWasmDir)?;
     Ok(())
 }
 
@@ -220,12 +188,6 @@ enum BuildErrorInner {
 
     #[error("[{n}] Failed to copy to the target assets folder", n = self.name())]
     CpTargetAssetsError,
-
-    #[error("[{n}] Failed to create the fallback WASM assets folder", n = self.name())]
-    MkdirFallbackWasmDir,
-
-    #[error("[{n}] Failed to write fallback WASM assets", n = self.name())]
-    WriteFallbackWasmAsset,
 }
 
 /// Invokes [stylance](https://crates.io/crates/stylance-cli) at compile time.

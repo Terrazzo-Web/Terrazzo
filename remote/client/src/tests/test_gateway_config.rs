@@ -1,10 +1,8 @@
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use openssl::asn1::Asn1Time;
-use tempfile::NamedTempFile;
 use tempfile::TempDir;
 use terrazzo_fixture::Fixture;
 use tracing::debug;
@@ -32,7 +30,7 @@ const ROOT_CA_FILENAME: CertificateInfo<&str> = CertificateInfo {
 
 #[derive(Debug)]
 pub struct TestGatewayConfig {
-    endpoint_file: NamedTempFile,
+    port: u16,
     root_ca: Arc<PemCertificate>,
     tls_config: <Self as GatewayConfig>::TlsConfig,
 }
@@ -43,27 +41,10 @@ impl TestGatewayConfig {
         let root_ca = make_root_ca().expect("test_root_ca()");
         let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
-            endpoint_file: NamedTempFile::new_in(use_temp_dir().path())
-                .expect("NamedTempFile::new_in()"),
+            port: portpicker::pick_unused_port().expect("pick_unused_port()"),
             root_ca,
             tls_config,
         })
-    }
-
-    pub async fn wait_for_base_url(&self) -> String {
-        for _ in 0..300 {
-            if let Ok(endpoint) = std::fs::read_to_string(self.endpoint_file.path()) {
-                if let Ok(endpoint) = endpoint.trim().parse::<std::net::SocketAddrV4>() {
-                    return format!("https://localhost:{}", endpoint.port());
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-
-        panic!(
-            "Timed out waiting for server endpoint in {}",
-            self.endpoint_file.path().display()
-        );
     }
 }
 
@@ -73,15 +54,11 @@ impl GatewayConfig for TestGatewayConfig {
     }
 
     fn host(&self) -> String {
-        std::net::Ipv4Addr::LOCALHOST.to_string()
+        "localhost".into()
     }
 
     fn port(&self) -> u16 {
-        0
-    }
-
-    fn set_current_endpoint(&self) -> Option<String> {
-        Some(self.endpoint_file.path().display().to_string())
+        self.port
     }
 
     type RootCaConfig = Arc<PemCertificate>;
@@ -106,7 +83,7 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     let temp_dir = TEMP_DIR.get();
 
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
-    let _lock = MUTEX.lock().unwrap_or_else(|error| error.into_inner());
+    let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
         CertitficateName {
             common_name: Some("Test Root CA"),

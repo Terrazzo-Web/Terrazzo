@@ -28,7 +28,7 @@ impl<T> Fixture<T> {
     }
 
     pub fn lock(&self) -> impl Drop {
-        self.lock.lock().unwrap_or_else(|error| error.into_inner())
+        self.lock.lock().unwrap()
     }
 }
 
@@ -46,10 +46,7 @@ impl<T> FixtureState<T> {
     }
 
     fn get_or_init(&self) -> Arc<T> {
-        let mut current = self
-            .current
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut current = self.current.lock().expect("FixtureState::current::lock");
         if let Some(value) = current.upgrade() {
             return value;
         }
@@ -61,7 +58,7 @@ impl<T> FixtureState<T> {
     fn get(&self) -> Arc<T> {
         self.current
             .lock()
-            .unwrap_or_else(|error| error.into_inner())
+            .expect("FixtureState::current::lock")
             .upgrade()
             .expect("FixtureState::get")
     }

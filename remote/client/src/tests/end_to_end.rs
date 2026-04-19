@@ -55,8 +55,7 @@ impl<'t> EndToEnd<'t> {
         info!("Started the server");
 
         let client_name = ClientName::from("EndToEndClient");
-        let base_url = gateway_config.wait_for_base_url().await;
-        let client_config = TestClientConfig::new(gateway_config.clone(), base_url, client_name);
+        let client_config = TestClientConfig::new(gateway_config.clone(), client_name.clone());
 
         let auth_code = AuthCode::current().to_string();
         let client_certificate = load_client_certificate(
@@ -116,10 +115,10 @@ pub enum EndToEndError {
     SetupServer(GatewayError<Arc<TestGatewayConfig>>),
 
     #[error("[{n}] {0}", n = self.name())]
-    LoadClientCertificate(LoadClientCertificateError<TestClientConfig>),
+    LoadClientCertificate(LoadClientCertificateError<TestClientConfig<Arc<TestGatewayConfig>>>),
 
     #[error("[{n}] {0}", n = self.name())]
-    NewClient(NewClientError<TestTunnelConfig>),
+    NewClient(NewClientError<TestTunnelConfig<Arc<TestGatewayConfig>>>),
 
     #[error("[{n}] {0}", n = self.name())]
     RunClientError(ConnectError),

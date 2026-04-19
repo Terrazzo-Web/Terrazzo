@@ -55,7 +55,6 @@ impl XElement {
         &mut self,
         name: &syn::Ident,
         value: &syn::Expr,
-
         attrs: &[syn::Attribute],
     ) {
         if process_event(name, value).is_some() {
@@ -74,7 +73,9 @@ impl XElement {
                     XAttributeKind::Attribute,
                     move |this| {
                         let generated = this.to_tokens(quote! { value.into() });
+                        let attrs = this.attrs();
                         quote! {
+                            #attrs
                             if let Some(value) = #value {
                                 gen_attributes.push(#generated);
                             }
@@ -103,7 +104,9 @@ impl XElement {
             XAttributeKind::Style,
             move |this| {
                 let generated = this.to_tokens(value);
+                let attrs = this.attrs();
                 quote! {
+                    #attrs
                     gen_attributes.push(#generated);
                 }
             },
@@ -143,7 +146,9 @@ impl XElement {
                     kind,
                     move |this| {
                         let generated = this.to_tokens(value);
+                        let attrs = this.attrs();
                         quote! {
+                            #attrs
                             gen_attributes.push(#generated);
                         }
                     },

@@ -153,9 +153,19 @@ def base_compute_srcs(features, all_features, excluded_file_id_map, all_srcs = [
 
 def _delta_decode(delta):
     result = []
-    for i in range(0, len(delta), 2):
+    i = 0
+    for _ in range(0, len(delta)):
         start = delta[i]
-        count = delta[i + 1]
-        for j in range(start, start + count):
-            result.append(j)
+        if start % 2 == 1:
+            start = (start - 1) // 2
+            result.append(start)
+            i += 1
+        else:
+            start = start // 2
+            count = delta[i + 1]
+            for j in range(start, start + count):
+                result.append(j)
+            i += 2
+        if i >= len(delta):
+            break
     return result

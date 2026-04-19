@@ -3,13 +3,9 @@
 def stylance_rule(name, output):
     native.genrule(
         name = name,
-        srcs = ["Cargo.toml"] + native.glob(
-            [
-                "src/**/*.css",
-                "src/**/*.scss",
-            ],
-            allow_empty = True,
-        ),
+        srcs = ["Cargo.toml"] +
+               native.glob(["src/**/*.css"], allow_empty = True) +
+               native.glob(["src/**/*.scss"]),
         outs = [output],
         # Note: stylance integrates poorly with Bazel.
         # - realpath resolves to the actual path in the source code.

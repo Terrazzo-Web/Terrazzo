@@ -309,24 +309,24 @@ mod tests {
 
     #[test]
     fn delta_encode_single() {
-        assert_eq!(delta_encode(vec![17]), vec![17, 1]);
+        assert_eq!(delta_encode(vec![17]), vec![35]);
     }
 
     #[test]
     fn delta_encode_1_1() {
-        assert_eq!(delta_encode(vec![8, 10]), vec![8, 1, 10, 1]);
+        assert_eq!(delta_encode(vec![8, 10]), vec![17, 21]);
     }
 
     #[test]
     fn delta_encode_2() {
-        assert_eq!(delta_encode(vec![8, 9]), vec![8, 2]);
+        assert_eq!(delta_encode(vec![8, 9]), vec![16, 2]);
     }
 
     #[test]
     fn delta_encode_test() {
         assert_eq!(
             delta_encode(vec![8, 9, 10, 15, 17, 19]),
-            vec![8, 3, 15, 1, 17, 1, 19, 1]
+            vec![16, 3, 31, 35, 39]
         );
     }
 }

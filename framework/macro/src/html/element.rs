@@ -17,7 +17,12 @@ pub struct XElement {
 }
 
 impl XElement {
-    pub fn process_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
+    pub fn process_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         if let Some(event) = process_event(name, value) {
             self.events.push(event);
             return;
@@ -34,16 +39,24 @@ impl XElement {
                     XAttributeKind::Attribute,
                     move |this| {
                         let generated = this.to_tokens(value);
+                        let attrs = this.attrs();
                         quote! {
+                            #attrs
                             gen_attributes.push(#generated);
                         }
                     },
+                    attrs,
                 ));
             }
         }
     }
 
-    pub fn process_optional_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
+    pub fn process_optional_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         if process_event(name, value).is_some() {
             self.events.push(quote! { compile_error!() });
             return;
@@ -60,18 +73,26 @@ impl XElement {
                     XAttributeKind::Attribute,
                     move |this| {
                         let generated = this.to_tokens(quote! { value.into() });
+                        let attrs = this.attrs();
                         quote! {
+                            #attrs
                             if let Some(value) = #value {
                                 gen_attributes.push(#generated);
                             }
                         }
                     },
+                    attrs,
                 ));
             }
         }
     }
 
-    pub fn process_style_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
+    pub fn process_style_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         if let Some(event) = process_event(name, value) {
             self.events.push(event);
             return;
@@ -83,10 +104,13 @@ impl XElement {
             XAttributeKind::Style,
             move |this| {
                 let generated = this.to_tokens(value);
+                let attrs = this.attrs();
                 quote! {
+                    #attrs
                     gen_attributes.push(#generated);
                 }
             },
+            attrs,
         ));
     }
 
@@ -95,6 +119,7 @@ impl XElement {
         name: &syn::Ident,
         value: &syn::Expr,
         is_style_attribute: bool,
+        attrs: &[syn::Attribute],
     ) {
         if process_event(name, value).is_some() {
             self.events.push(quote! { compile_error!() });
@@ -116,13 +141,19 @@ impl XElement {
                         (#value).into(),
                     )
                 };
-                self.attributes
-                    .push(XAttribute::new_dynamic(&name, kind, move |this| {
+                self.attributes.push(XAttribute::new_dynamic(
+                    &name,
+                    kind,
+                    move |this| {
                         let generated = this.to_tokens(value);
+                        let attrs = this.attrs();
                         quote! {
+                            #attrs
                             gen_attributes.push(#generated);
                         }
-                    }));
+                    },
+                    attrs,
+                ));
             }
         }
     }

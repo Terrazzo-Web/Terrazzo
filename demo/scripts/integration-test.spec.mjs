@@ -97,6 +97,10 @@ test.describe('demo counter', () => {
     await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo_bg.wasm', /^application\/wasm\b/i);
   });
 
+  test('attributes node keeps the bazel class in integration tests', async ({ page }) => {
+    await expect(page.locator('#attributes')).toHaveClass(process.env.BAZEL === '1' ? 'bazel' : 'not bazel');
+  });
+
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {
     const attributes = page.locator('#attributes');
     const flavorSelect = attributes.getByRole('combobox');

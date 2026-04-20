@@ -9,6 +9,7 @@ pub struct XAttribute {
     generator: Option<Box<dyn FnOnce(Self) -> proc_macro2::TokenStream>>,
     index: usize,
     sub_index: usize,
+    attrs: Vec<syn::Attribute>,
 }
 
 impl XAttribute {
@@ -16,6 +17,7 @@ impl XAttribute {
         name: &str,
         kind: XAttributeKind,
         generator: impl FnOnce(Self) -> proc_macro2::TokenStream + 'static,
+        attrs: &[syn::Attribute],
     ) -> Self {
         Self {
             name: name.to_owned(),
@@ -24,6 +26,7 @@ impl XAttribute {
             generator: Some(Box::new(generator)),
             index: usize::MAX,
             sub_index: usize::MAX,
+            attrs: attrs.to_vec(),
         }
     }
 
@@ -31,6 +34,7 @@ impl XAttribute {
         name: &str,
         kind: XAttributeKind,
         generator: impl FnOnce(Self) -> proc_macro2::TokenStream + 'static,
+        attrs: &[syn::Attribute],
     ) -> Self {
         Self {
             name: name.to_owned(),
@@ -39,6 +43,7 @@ impl XAttribute {
             generator: Some(Box::new(generator)),
             index: usize::MAX,
             sub_index: usize::MAX,
+            attrs: attrs.to_vec(),
         }
     }
 
@@ -79,6 +84,7 @@ impl XAttribute {
             generator: _,
             index,
             sub_index,
+            attrs: _,
         } = self;
         let kind = kind.to_tokens();
         quote! {
@@ -94,6 +100,11 @@ impl XAttribute {
                 value: #runtime_value,
             }
         }
+    }
+
+    pub fn attrs(&self) -> proc_macro2::TokenStream {
+        let attrs = &self.attrs;
+        quote! { #(#attrs)* }
     }
 }
 

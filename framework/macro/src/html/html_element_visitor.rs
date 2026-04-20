@@ -1,3 +1,4 @@
+use deluxe::HasAttributes;
 use quote::quote;
 use syn::visit_mut::VisitMut;
 
@@ -93,7 +94,11 @@ impl HtmlElementVisitor {
                 syn::Expr::Assign(syn::ExprAssign { left, right, .. })
                     if get_attribute_name(left).is_some() =>
                 {
-                    element.process_attribute(get_attribute_name(left).unwrap(), right);
+                    element.process_attribute(
+                        get_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Optional attribute
@@ -103,14 +108,22 @@ impl HtmlElementVisitor {
                     right,
                     ..
                 }) if get_attribute_name(left).is_some() => {
-                    element.process_optional_attribute(get_attribute_name(left).unwrap(), right);
+                    element.process_optional_attribute(
+                        get_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Style attribute
                 syn::Expr::Assign(syn::ExprAssign { left, right, .. })
                     if get_style_attribute_name(left).is_some() =>
                 {
-                    element.process_style_attribute(get_style_attribute_name(left).unwrap(), right);
+                    element.process_style_attribute(
+                        get_style_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Dynamic attribute
@@ -124,6 +137,7 @@ impl HtmlElementVisitor {
                         get_attribute_name(left).unwrap(),
                         right,
                         false,
+                        left.attrs(),
                     );
                 }
                 syn::Expr::Binary(syn::ExprBinary {
@@ -136,6 +150,7 @@ impl HtmlElementVisitor {
                         get_style_attribute_name(left).unwrap(),
                         right,
                         true,
+                        left.attrs(),
                     );
                 }
 

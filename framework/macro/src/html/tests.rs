@@ -458,6 +458,8 @@ fn style_attribute() -> syn::Result<()> {
                 class = "base",
                 #[cfg(style)]
                 style::width = format!("{}%", 100),
+                #[cfg(optional style)]
+                style::height |= Some(format!("{}px", 250)),
             )
         }
     };
@@ -477,6 +479,21 @@ fn sample() -> XElement {
                 },
                 value: "base".into(),
             });
+        #[cfg(optional style)]
+        if let Some(value) = Some(format!("{}px", 250)) {
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "height".into(),
+                            kind: XAttributeKind::Style,
+                        },
+                        index: 1usize,
+                        sub_index: 0usize,
+                    },
+                    value: value.into(),
+                });
+        }
         #[cfg(style)]
         gen_attributes
             .push(XAttribute {
@@ -485,7 +502,7 @@ fn sample() -> XElement {
                         name: "width".into(),
                         kind: XAttributeKind::Style,
                     },
-                    index: 1usize,
+                    index: 2usize,
                     sub_index: 0usize,
                 },
                 value: format!("{}%", 100).into(),

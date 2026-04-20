@@ -126,6 +126,20 @@ impl HtmlElementVisitor {
                     );
                 }
 
+                // Optional style attribute
+                syn::Expr::Binary(syn::ExprBinary {
+                    left,
+                    op: syn::BinOp::BitOrAssign { .. },
+                    right,
+                    ..
+                }) if get_style_attribute_name(left).is_some() => {
+                    element.process_optional_style_attribute(
+                        get_style_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
+                }
+
                 // Dynamic attribute
                 syn::Expr::Binary(syn::ExprBinary {
                     left,

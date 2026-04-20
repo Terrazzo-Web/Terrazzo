@@ -89,10 +89,6 @@ impl XElement {
         value: &syn::Expr,
         attrs: &[syn::Attribute],
     ) {
-        if let Some(event) = process_event(name, value) {
-            self.events.push(event);
-            return;
-        };
         let name = ident_to_kebab_case(name);
         let value = quote! { #value.into() };
         self.attributes.push(XAttribute::new_static(
@@ -102,6 +98,29 @@ impl XElement {
                 let generated = this.to_tokens(value);
                 quote! {
                     gen_attributes.push(#generated);
+                }
+            },
+            attrs,
+        ));
+    }
+
+    pub fn process_optional_style_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
+        let name = ident_to_kebab_case(name);
+        let value = quote! { #value };
+        self.attributes.push(XAttribute::new_static(
+            &name,
+            XAttributeKind::Style,
+            move |this| {
+                let generated = this.to_tokens(quote! { value.into() });
+                quote! {
+                    if let Some(value) = #value {
+                        gen_attributes.push(#generated);
+                    }
                 }
             },
             attrs,

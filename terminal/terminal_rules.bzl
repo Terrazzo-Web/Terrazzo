@@ -34,10 +34,13 @@ def terminal_rules(
     if prefix and not prefix.endswith("-"):
         prefix += "-"
     rust_rules_matrix(
-        assets = [{
-            "targets": native.glob(["src/**/*.js"]) + native.glob(["src/**/*.scss"]),
-            "copy": True,
-        }],
+        assets = [
+            native.glob(["src/**/*.js"]),
+            {
+                "targets": native.glob(["src/**/*.scss"]),
+                "copy": True,
+            },
+        ],
         rust_srcs = compute_srcs(client_features),
         crate_features = client_features,
         overrides = {

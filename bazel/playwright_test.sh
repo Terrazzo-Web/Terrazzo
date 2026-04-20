@@ -78,7 +78,7 @@ for _ in $(seq 1 30); do
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    BASE_URL="${SERVER_URL}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
+    BAZEL=1 BASE_URL="${SERVER_URL}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
       || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi

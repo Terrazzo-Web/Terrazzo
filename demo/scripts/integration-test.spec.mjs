@@ -97,6 +97,38 @@ test.describe('demo counter', () => {
     await expectStaticAssetLoads(request, '/static/wasm/terrazzo_demo_bg.wasm', /^application\/wasm\b/i);
   });
 
+  test('attributes node keeps the bazel class in integration tests', async ({ page }) => {
+    const isBazel = process.env.BAZEL === '1';
+    const expectedAttributeValue = isBazel ? 'bazel' : 'not bazel';
+    const expectedFontFamily = isBazel ? '"Arial serif"' : '"Helvetica sans-serif"';
+
+    await expect(page.locator('#attributes')).toHaveClass(expectedAttributeValue);
+
+    const conditionalAttributes = page.locator('#conditional-attributes');
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-attribute',
+      isBazel ? 'START bazel END' : 'START not bazel END');
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-optional-attribute',
+      expectedAttributeValue,
+    );
+    await expect(conditionalAttributes).toHaveCSS('font-family', expectedFontFamily);
+
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-mutable-attribute',
+      'before',
+    );
+    await conditionalAttributes.evaluate((element) => {
+      element.style.visibility = 'visible';
+      element.style.display = 'block';
+    });
+    await conditionalAttributes.click();
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-mutable-attribute',
+      expectedAttributeValue,
+    );
+  });
+
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {
     const attributes = page.locator('#attributes');
     const flavorSelect = attributes.getByRole('combobox');

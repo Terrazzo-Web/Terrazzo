@@ -1,3 +1,4 @@
+use deluxe::HasAttributes;
 use quote::quote;
 use syn::visit_mut::VisitMut;
 
@@ -93,7 +94,11 @@ impl HtmlElementVisitor {
                 syn::Expr::Assign(syn::ExprAssign { left, right, .. })
                     if get_attribute_name(left).is_some() =>
                 {
-                    element.process_attribute(get_attribute_name(left).unwrap(), right);
+                    element.process_attribute(
+                        get_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Optional attribute
@@ -103,14 +108,36 @@ impl HtmlElementVisitor {
                     right,
                     ..
                 }) if get_attribute_name(left).is_some() => {
-                    element.process_optional_attribute(get_attribute_name(left).unwrap(), right);
+                    element.process_optional_attribute(
+                        get_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Style attribute
                 syn::Expr::Assign(syn::ExprAssign { left, right, .. })
                     if get_style_attribute_name(left).is_some() =>
                 {
-                    element.process_style_attribute(get_style_attribute_name(left).unwrap(), right);
+                    element.process_style_attribute(
+                        get_style_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
+                }
+
+                // Optional style attribute
+                syn::Expr::Binary(syn::ExprBinary {
+                    left,
+                    op: syn::BinOp::BitOrAssign { .. },
+                    right,
+                    ..
+                }) if get_style_attribute_name(left).is_some() => {
+                    element.process_optional_style_attribute(
+                        get_style_attribute_name(left).unwrap(),
+                        right,
+                        left.attrs(),
+                    );
                 }
 
                 // Dynamic attribute
@@ -124,6 +151,7 @@ impl HtmlElementVisitor {
                         get_attribute_name(left).unwrap(),
                         right,
                         false,
+                        left.attrs(),
                     );
                 }
                 syn::Expr::Binary(syn::ExprBinary {
@@ -136,6 +164,7 @@ impl HtmlElementVisitor {
                         get_style_attribute_name(left).unwrap(),
                         right,
                         true,
+                        left.attrs(),
                     );
                 }
 
@@ -183,17 +212,56 @@ impl HtmlElementVisitor {
                     let mut attributes = attributes;
                     XAttribute::sort_attributes(&mut attributes);
                     attributes
+                };
+                let attribute_index = if attributes
+                    .iter()
+                    .any(|attribute| attribute.post_increment_index)
+                {
+                    quote! { let mut attribute_index = 0; }
+                } else {
+                    quote! { const attribute_index: usize = 0; }
+                };
+                let attribute_sub_index = if attributes.iter().any(|attribute| {
+                    attribute.pre_reset_sub_index || attribute.post_increment_sub_index
+                }) {
+                    quote! { let mut attribute_sub_index = 0; }
+                } else {
+                    quote! { const attribute_sub_index: usize = 0; }
+                };
+                let attributes = {
+                    attributes
                         .into_iter()
                         .map(XAttribute::generate)
                         .collect::<Vec<_>>()
                 };
-                let gen_attributes = quote! {
-                    let mut gen_attributes = vec![];
-                    #(#attributes)*
+                let init_attribute_indices = if attributes.is_empty() {
+                    quote! {}
+                } else {
+                    quote! {
+                        #attribute_index
+                        #attribute_sub_index
+                    }
                 };
-                let gen_children = quote! {
-                    let mut gen_children = vec![];
-                    #(#children)*
+                let gen_attributes = if attributes.is_empty() {
+                    quote! {
+                        let gen_attributes = vec![];
+                    }
+                } else {
+                    quote! {
+                        let mut gen_attributes = vec![];
+                        {
+                            #init_attribute_indices
+                            #(#attributes)*
+                        }
+                    }
+                };
+                let gen_children = if children.is_empty() {
+                    quote! { let gen_children = vec![]; }
+                } else {
+                    quote! {
+                        let mut gen_children = vec![];
+                        #(#children)*
+                    }
                 };
                 let value = quote! {
                     XElementValue::Static {

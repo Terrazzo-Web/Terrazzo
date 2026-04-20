@@ -31,11 +31,23 @@ pub fn attributes_demo() -> XElement {
         ],
         None,
     );
+
+    let mutable_attribute = XSignal::new("mutable", "before");
+
+    #[template(wrap = true)]
+    fn get_mutable_attribute(#[signal] mutable_attribute: &'static str) -> XAttributeValue {
+        mutable_attribute
+    }
+
     tag(
         key = "attributes",
         id = "attributes",
         h1("Attributes"),
         select.show(),
+        #[cfg(feature = "bazel")]
+        class = "bazel",
+        #[cfg(not(feature = "bazel"))]
+        class = "not bazel",
         span(
             button(
                 click = move |_ev: MouseEvent| {
@@ -74,6 +86,45 @@ pub fn attributes_demo() -> XElement {
         result(select.selected.clone(), bold, underline, italic),
         before_render = |_: &Element| info!("Before render"),
         after_render = |_: &Element| info!("After render"),
+        div(
+            id = "conditional-attributes",
+            style::visibility = "hidden",
+            style::display = "none",
+            // attribute
+            data_attribute = "START",
+            #[cfg(feature = "bazel")]
+            data_attribute = "bazel",
+            #[cfg(not(feature = "bazel"))]
+            data_attribute = "not bazel",
+            data_attribute = "END",
+            // optional attribute
+            #[cfg(feature = "bazel")]
+            data_optional_attribute |= Some("bazel"),
+            #[cfg(not(feature = "bazel"))]
+            data_optional_attribute |= Some("not bazel"),
+            // style
+            #[cfg(feature = "bazel")]
+            style::font_family = "Arial",
+            #[cfg(not(feature = "bazel"))]
+            style::font_family = "Helvetica",
+            // optional style
+            #[cfg(feature = "bazel")]
+            style::font_family |= Some("serif"),
+            #[cfg(not(feature = "bazel"))]
+            style::font_family |= Some("sans-serif"),
+            #[cfg(feature = "bazel")]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("bazel");
+            },
+            #[cfg(not(feature = "bazel"))]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("not bazel");
+            },
+            data_mutable_attribute %= get_mutable_attribute(mutable_attribute.clone()),
+            "Conditional attributes",
+        ),
     )
 }
 

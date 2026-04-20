@@ -34,7 +34,7 @@ def terminal_rules(
     if prefix and not prefix.endswith("-"):
         prefix += "-"
     rust_rules_matrix(
-       assets = [
+        assets = [
             native.glob(["src/**/*.js"]),
             {
                 "targets": native.glob(["src/**/*.scss"]),

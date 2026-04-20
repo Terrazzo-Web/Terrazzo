@@ -83,10 +83,12 @@ pub fn attributes_demo() -> XElement {
             style::visibility = "hidden",
             style::display = "none",
             // attribute
+            data_attribute = "START",
             #[cfg(feature = "bazel")]
             data_attribute = "bazel",
             #[cfg(not(feature = "bazel"))]
             data_attribute = "not bazel",
+            data_attribute = "END",
             // optional attribute
             #[cfg(feature = "bazel")]
             data_optional_attribute |= Some("bazel"),

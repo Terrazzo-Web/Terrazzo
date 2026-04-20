@@ -105,7 +105,9 @@ test.describe('demo counter', () => {
     await expect(page.locator('#attributes')).toHaveClass(expectedAttributeValue);
 
     const conditionalAttributes = page.locator('#conditional-attributes');
-    await expect(conditionalAttributes).toHaveAttribute('data-attribute', expectedAttributeValue);
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-attribute',
+      isBazel ? 'START bazel END' : 'START not bazel END');
     await expect(conditionalAttributes).toHaveAttribute(
       'data-optional-attribute',
       expectedAttributeValue,

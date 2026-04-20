@@ -212,13 +212,39 @@ impl HtmlElementVisitor {
                     let mut attributes = attributes;
                     XAttribute::sort_attributes(&mut attributes);
                     attributes
+                };
+                let attribute_index = attributes
+                    .iter()
+                    .any(|attribute| attribute.post_increment_index)
+                    .then(|| quote! { let mut attribute_index = 0; })
+                    .unwrap_or_else(|| quote! { const attribute_index: usize = 0; });
+                let attribute_sub_index = attributes
+                    .iter()
+                    .any(|attribute| {
+                        attribute.pre_reset_sub_index || attribute.post_increment_sub_index
+                    })
+                    .then(|| quote! { let mut attribute_sub_index = 0; })
+                    .unwrap_or_else(|| quote! { const attribute_sub_index: usize = 0; });
+                let attributes = {
+                    attributes
                         .into_iter()
                         .map(XAttribute::generate)
                         .collect::<Vec<_>>()
                 };
+                let init_attribute_indices = if attributes.is_empty() {
+                    quote! {}
+                } else {
+                    quote! {
+                        #attribute_index
+                        #attribute_sub_index
+                    }
+                };
                 let gen_attributes = quote! {
                     let mut gen_attributes = vec![];
-                    #(#attributes)*
+                    {
+                        #init_attribute_indices
+                        #(#attributes)*
+                    }
                 };
                 let gen_children = quote! {
                     let mut gen_children = vec![];

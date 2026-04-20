@@ -229,6 +229,8 @@ fn attribute() -> syn::Result<()> {
 fn sample() -> XElement {
     {
         let mut gen_attributes = vec![];
+        let mut attribute_index = 0;
+        const attribute_sub_index: usize = 0;
         gen_attributes
             .push(XAttribute {
                 id: XAttributeId {
@@ -236,8 +238,12 @@ fn sample() -> XElement {
                         name: "class".into(),
                         kind: XAttributeKind::Attribute,
                     },
-                    index: 0usize,
-                    sub_index: 0usize,
+                    index: {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    sub_index: attribute_sub_index,
                 },
                 value: "base".into(),
             });
@@ -248,8 +254,8 @@ fn sample() -> XElement {
                         name: "style".into(),
                         kind: XAttributeKind::Attribute,
                     },
-                    index: 1usize,
-                    sub_index: 0usize,
+                    index: attribute_index,
+                    sub_index: attribute_sub_index,
                 },
                 value: format!("width: {}%", 100).into(),
             });
@@ -296,6 +302,8 @@ fn attribute_with_attr() -> syn::Result<()> {
 fn sample() -> XElement {
     {
         let mut gen_attributes = vec![];
+        let mut attribute_index = 0;
+        const attribute_sub_index: usize = 0;
         #[cfg(feature = "prod")] #[cfg(not(test))]
         gen_attributes
             .push(XAttribute {
@@ -304,8 +312,12 @@ fn sample() -> XElement {
                         name: "class".into(),
                         kind: XAttributeKind::Attribute,
                     },
-                    index: 0usize,
-                    sub_index: 0usize,
+                    index: {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    sub_index: attribute_sub_index,
                 },
                 value: "base".into(),
             });
@@ -317,8 +329,8 @@ fn sample() -> XElement {
                         name: "style".into(),
                         kind: XAttributeKind::Attribute,
                     },
-                    index: 1usize,
-                    sub_index: 0usize,
+                    index: attribute_index,
+                    sub_index: attribute_sub_index,
                 },
                 value: format!("width: {}%", 100).into(),
             });

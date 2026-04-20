@@ -7,8 +7,9 @@ pub struct XAttribute {
     is_dynamic: bool,
     kind: XAttributeKind,
     generator: Option<Box<dyn FnOnce(Self) -> proc_macro2::TokenStream>>,
-    index: usize,
-    sub_index: usize,
+    pub post_increment_index: bool,
+    pub post_increment_sub_index: bool,
+    pub pre_reset_sub_index: bool,
     attrs: Vec<syn::Attribute>,
 }
 
@@ -24,8 +25,9 @@ impl XAttribute {
             is_dynamic: false,
             kind,
             generator: Some(Box::new(generator)),
-            index: usize::MAX,
-            sub_index: usize::MAX,
+            post_increment_index: false,
+            post_increment_sub_index: false,
+            pre_reset_sub_index: false,
             attrs: attrs.to_vec(),
         }
     }
@@ -41,8 +43,9 @@ impl XAttribute {
             is_dynamic: true,
             kind,
             generator: Some(Box::new(generator)),
-            index: usize::MAX,
-            sub_index: usize::MAX,
+            post_increment_index: false,
+            post_increment_sub_index: false,
+            pre_reset_sub_index: false,
             attrs: attrs.to_vec(),
         }
     }
@@ -60,14 +63,21 @@ impl XAttribute {
                 attribute.kind,
             )
         });
+        let attributes_len = attributes.len();
+        let mut prev_group_is_composite = false;
         for (index, chunk) in attributes
             .chunk_by_mut(|a, b| (&a.name, a.kind) == (&b.name, b.kind))
             .enumerate()
         {
+            let chunk_len = chunk.len();
+            assert!(chunk_len != 0, "Empty attribute group");
             for (sub_index, attribute) in chunk.iter_mut().enumerate() {
-                attribute.index = index;
-                attribute.sub_index = sub_index;
+                attribute.post_increment_index =
+                    index != attributes_len - 1 && sub_index == chunk_len - 1;
+                attribute.post_increment_sub_index = sub_index != chunk_len - 1;
+                attribute.pre_reset_sub_index = sub_index == 0 && prev_group_is_composite
             }
+            prev_group_is_composite = chunk_len != 1;
         }
     }
 
@@ -87,11 +97,51 @@ impl XAttribute {
             is_dynamic: _,
             kind,
             generator: _,
-            index,
-            sub_index,
+            post_increment_index,
+            post_increment_sub_index,
+            pre_reset_sub_index,
             attrs: _,
         } = self;
         let kind = kind.to_tokens();
+        let index = if *post_increment_index {
+            quote! {
+                {
+                    let i = attribute_index;
+                    attribute_index += 1;
+                    i
+                }
+            }
+        } else {
+            quote! { attribute_index }
+        };
+        let sub_index = match (post_increment_sub_index, pre_reset_sub_index) {
+            (true, true) => quote! {
+                {
+                    // post_increment_sub_index, pre_reset_sub_index
+                    attribute_sub_index = 1;
+                    0
+                }
+            },
+            (true, false) => quote! {
+                {
+                    // post_increment_sub_index
+                    let i = attribute_sub_index;
+                    attribute_sub_index += 1;
+                    i
+                }
+            },
+            (false, true) => quote! {
+                {
+                    // pre_reset_sub_index
+                    attribute_sub_index = 0;
+                    0
+                }
+            },
+            (false, false) => quote! {
+                // None of post_increment_sub_index, pre_reset_sub_index
+                attribute_sub_index
+            },
+        };
         quote! {
             XAttribute {
                 id: XAttributeId {

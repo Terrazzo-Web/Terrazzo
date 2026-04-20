@@ -9,7 +9,7 @@ use crate::item_to_string;
 fn simple_node() -> syn::Result<()> {
     let sample = quote! {
         fn sample() -> XElement {
-            div(key = "root", "Root text")
+            div(key = "root", "Root text", #[cfg(test)] "Only in test")
         }
     };
     let expected = r#"
@@ -18,6 +18,8 @@ fn sample() -> XElement {
         let gen_attributes = vec![];
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
+        #[cfg(test)]
+        gen_children.push(XNode::from(XText(format!("Only in test").into())));
         XElement {
             tag_name: Some("div".into()),
             key: XKey::Named("root".into()),
@@ -109,6 +111,9 @@ fn children() -> syn::Result<()> {
             return html::div(
                 key = "root",
                 "Root text",
+                #[cfg(prod)]
+                children..,
+                #[cfg(non-prod)]
                 children..,
             );
         }
@@ -152,7 +157,8 @@ fn sample() -> XElement {
         let gen_attributes = vec![];
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
-        gen_children.extend(children.into_iter().map(XNode::from));
+        #[cfg(prod)] gen_children.extend(children.into_iter().map(XNode::from));
+        #[cfg(non-prod)] gen_children.extend(children.into_iter().map(XNode::from));
         XElement {
             tag_name: Some("div".into()),
             key: XKey::Named("root".into()),

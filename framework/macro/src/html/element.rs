@@ -1,3 +1,4 @@
+use deluxe::HasAttributes;
 use quote::quote;
 
 use super::attribute::XAttribute;
@@ -186,6 +187,7 @@ impl XElement {
         html_element_visitor: &mut HtmlElementVisitor,
         child: &syn::Expr,
     ) {
+        let attrs = child.attrs();
         let child = match child {
             syn::Expr::Call(expr_call)
                 if html_element_visitor.get_tag_name(&expr_call.func).is_some() =>
@@ -214,12 +216,16 @@ impl XElement {
             child => quote! { XNode::from(#child) },
         };
         self.children.push(quote! {
+            #(#attrs)*
             gen_children.push(#child);
         });
     }
 
     pub fn process_children(&mut self, children: &syn::Expr) {
+        let mut children = children.clone();
+        let attrs = std::mem::take(children.attrs_mut().unwrap());
         self.children.push(quote! {
+            #(#attrs)*
             gen_children.extend(#children.into_iter().map(XNode::from));
         });
     }

@@ -118,8 +118,11 @@ test.describe('demo counter', () => {
       'data-mutable-attribute',
       'before',
     );
-    // TODO: set conditionalAttributes to visible, then click on it
-    await conditionalAttributes.click({ force: true });
+    await conditionalAttributes.evaluate((element) => {
+      element.style.visibility = 'visible';
+      element.style.display = 'block';
+    });
+    await conditionalAttributes.click();
     await expect(conditionalAttributes).toHaveAttribute(
       'data-mutable-attribute',
       expectedAttributeValue,

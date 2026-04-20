@@ -123,6 +123,7 @@ pub fn attributes_demo() -> XElement {
                 mutable_attribute.set("not bazel");
             },
             data_mutable_attribute %= get_mutable_attribute(mutable_attribute.clone()),
+            "Conditional attributes",
         ),
     )
 }

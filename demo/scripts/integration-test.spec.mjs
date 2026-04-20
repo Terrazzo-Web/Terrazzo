@@ -99,6 +99,7 @@ test.describe('demo counter', () => {
 
   test('attributes node keeps the bazel class in integration tests', async ({ page }) => {
     await expect(page.locator('#attributes')).toHaveClass(process.env.BAZEL === '1' ? 'bazel' : 'not bazel');
+    // TODO: assert the contents of 1. the attribute "data-attribute" 2. the attribute "data-optional-attribute" 3. the font-family style of node #conditional-attributes
   });
 
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {

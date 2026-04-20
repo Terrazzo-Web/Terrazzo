@@ -78,6 +78,31 @@ pub fn attributes_demo() -> XElement {
         result(select.selected.clone(), bold, underline, italic),
         before_render = |_: &Element| info!("Before render"),
         after_render = |_: &Element| info!("After render"),
+        div(
+            id = "conditional-attributes",
+            style::visibility = "hidden",
+            style::display = "none",
+            // attribute
+            #[cfg(feature = "bazel")]
+            data_attribute = "bazel",
+            #[cfg(not(feature = "bazel"))]
+            data_attribute = "not bazel",
+            // optional attribute
+            #[cfg(feature = "bazel")]
+            data_optional_attribute |= Some("bazel"),
+            #[cfg(not(feature = "bazel"))]
+            data_optional_attribute |= Some("not bazel"),
+            // style
+            #[cfg(feature = "bazel")]
+            style::font_family = "Arial",
+            #[cfg(not(feature = "bazel"))]
+            style::font_family = "Helvetica",
+            // optional style
+            #[cfg(feature = "bazel")]
+            style::font_family |= Some("serif"),
+            #[cfg(not(feature = "bazel"))]
+            style::font_family |= Some("sans-serif"),
+        ),
     )
 }
 

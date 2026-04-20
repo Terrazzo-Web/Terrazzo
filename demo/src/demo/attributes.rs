@@ -35,7 +35,7 @@ pub fn attributes_demo() -> XElement {
     let mutable_attribute = XSignal::new("mutable", "before");
 
     #[template(wrap = true)]
-    pub fn get_mutable_attribute(#[signal] mutable_attribute: &'static str) -> XAttributeValue {
+    fn get_mutable_attribute(#[signal] mutable_attribute: &'static str) -> XAttributeValue {
         mutable_attribute
     }
 

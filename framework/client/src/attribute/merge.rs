@@ -70,18 +70,15 @@ fn merge_static_atttribute(
     new_value: Option<&XString>,
     old_value: Option<XAttributeValue>,
 ) {
-    self::diagnostics::info!(
-        "merge_static_atttribute attribute_id:{attribute_id:?} new={new_value:?}"
-    );
     if let Some((XAttributeValue::Static(old_attribute_value), new_value)) =
         old_value.as_ref().zip(new_value)
         && new_value == old_attribute_value
     {
-        self::diagnostics::info!("Attribute '{attribute_id}' is still '{new_value}'");
+        trace!("Attribute '{attribute_id}' is still '{new_value}'");
         backend.set(attribute_id, AttributeValueDiff::Same(new_value.to_owned()));
     } else {
         drop(old_value);
-        self::diagnostics::info!("Attribute '{attribute_id}' is set to '{new_value:?}'");
+        trace!("Attribute '{attribute_id}' is set to '{new_value:?}'");
         backend.set(
             attribute_id,
             if let Some(new_value) = new_value {

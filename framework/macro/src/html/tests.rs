@@ -60,8 +60,7 @@ fn sample() -> XElement {
         gen_children
             .push(
                 XNode::from({
-                    let mut gen_attributes = vec![];
-                    {}
+                    let gen_attributes = vec![];
                     let mut gen_children = vec![];
                     gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
                     gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
@@ -787,8 +786,7 @@ fn sample() -> XElement {
         gen_children
             .push(
                 XNode::from({
-                    let mut gen_attributes = vec![];
-                    {}
+                    let gen_attributes = vec![];
                     let mut gen_children = vec![];
                     gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
                     XElement {
@@ -807,8 +805,7 @@ fn sample() -> XElement {
         gen_children
             .push(
                 XNode::from({
-                    let mut gen_attributes = vec![];
-                    {}
+                    let gen_attributes = vec![];
                     let mut gen_children = vec![];
                     gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
                     XElement {
@@ -958,8 +955,7 @@ fn sample() -> XElement {
         gen_children
             .push(
                 XNode::from({
-                    let mut gen_attributes = vec![];
-                    {}
+                    let gen_attributes = vec![];
                     let mut gen_children = vec![];
                     gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
                     gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
@@ -1022,8 +1018,7 @@ fn sample() -> XElement {
         gen_children
             .push(
                 XNode::from({
-                    let mut gen_attributes = vec![];
-                    {}
+                    let gen_attributes = vec![];
                     let mut gen_children = vec![];
                     gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
                     gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));

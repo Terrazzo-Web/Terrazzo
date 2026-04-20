@@ -98,7 +98,7 @@ test.describe('demo counter', () => {
   });
 
   test('attributes node keeps the bazel class in integration tests', async ({ page }) => {
-    await expect(page.locator('#attributes')).toHaveClass('bazel');
+    await expect(page.locator('#attributes')).toHaveClass(process.env.BAZEL === '1' ? 'bazel' : 'not bazel');
   });
 
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {

@@ -100,7 +100,7 @@ test.describe('demo counter', () => {
   test('attributes node keeps the bazel class in integration tests', async ({ page }) => {
     const isBazel = process.env.BAZEL === '1';
     const expectedAttributeValue = isBazel ? 'bazel' : 'not bazel';
-    const expectedFontFamily = isBazel ? 'Arial serif' : 'Helvetica sans-serif';
+    const expectedFontFamily = isBazel ? '"Arial serif"' : '"Helvetica sans-serif"';
 
     await expect(page.locator('#attributes')).toHaveClass(expectedAttributeValue);
 

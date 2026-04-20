@@ -72,8 +72,13 @@ impl XAttribute {
     }
 
     pub fn generate(mut self) -> proc_macro2::TokenStream {
+        let attrs = std::mem::take(&mut self.attrs);
         let generator = self.generator.take().expect("generator");
-        generator(self)
+        let code = generator(self);
+        quote! {
+            #(#attrs)*
+            #code
+        }
     }
 
     pub fn to_tokens(&self, runtime_value: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
@@ -100,11 +105,6 @@ impl XAttribute {
                 value: #runtime_value,
             }
         }
-    }
-
-    pub fn attrs(&self) -> proc_macro2::TokenStream {
-        let attrs = &self.attrs;
-        quote! { #(#attrs)* }
     }
 }
 

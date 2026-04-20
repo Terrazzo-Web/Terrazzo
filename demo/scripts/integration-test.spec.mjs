@@ -113,6 +113,17 @@ test.describe('demo counter', () => {
       expectedAttributeValue,
     );
     await expect(conditionalAttributes).toHaveCSS('font-family', expectedFontFamily);
+
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-mutable-attribute',
+      'before',
+    );
+    // TODO: set conditionalAttributes to visible, then click on it
+    await conditionalAttributes.click({ force: true });
+    await expect(conditionalAttributes).toHaveAttribute(
+      'data-mutable-attribute',
+      expectedAttributeValue,
+    );
   });
 
   test('attributes dropdown keeps bold styling in sync with selected flavor', async ({ page }) => {

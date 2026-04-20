@@ -31,6 +31,14 @@ pub fn attributes_demo() -> XElement {
         ],
         None,
     );
+
+    let mutable_attribute = XSignal::new("mutable", "before");
+
+    #[template(wrap = true)]
+    pub fn get_mutable_attribute(#[signal] mutable_attribute: &'static str) -> XAttributeValue {
+        mutable_attribute
+    }
+
     tag(
         key = "attributes",
         id = "attributes",
@@ -104,6 +112,17 @@ pub fn attributes_demo() -> XElement {
             style::font_family |= Some("serif"),
             #[cfg(not(feature = "bazel"))]
             style::font_family |= Some("sans-serif"),
+            #[cfg(feature = "bazel")]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("bazel");
+            },
+            #[cfg(not(feature = "bazel"))]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("not bazel");
+            },
+            data_mutable_attribute %= get_mutable_attribute(mutable_attribute.clone()),
         ),
     )
 }

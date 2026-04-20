@@ -25,7 +25,10 @@ impl XElement {
         attrs: &[syn::Attribute],
     ) {
         if let Some(event) = process_event(name, value) {
-            self.events.push(event);
+            self.events.push(quote! {
+                #(#attrs)*
+                #event
+            });
             return;
         };
         let name = ident_to_kebab_case(name);

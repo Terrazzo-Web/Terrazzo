@@ -213,18 +213,21 @@ impl HtmlElementVisitor {
                     XAttribute::sort_attributes(&mut attributes);
                     attributes
                 };
-                let attribute_index = attributes
+                let attribute_index = if attributes
                     .iter()
                     .any(|attribute| attribute.post_increment_index)
-                    .then(|| quote! { let mut attribute_index = 0; })
-                    .unwrap_or_else(|| quote! { const attribute_index: usize = 0; });
-                let attribute_sub_index = attributes
-                    .iter()
-                    .any(|attribute| {
-                        attribute.pre_reset_sub_index || attribute.post_increment_sub_index
-                    })
-                    .then(|| quote! { let mut attribute_sub_index = 0; })
-                    .unwrap_or_else(|| quote! { const attribute_sub_index: usize = 0; });
+                {
+                    quote! { let mut attribute_index = 0; }
+                } else {
+                    quote! { const attribute_index: usize = 0; }
+                };
+                let attribute_sub_index = if attributes.iter().any(|attribute| {
+                    attribute.pre_reset_sub_index || attribute.post_increment_sub_index
+                }) {
+                    quote! { let mut attribute_sub_index = 0; }
+                } else {
+                    quote! { const attribute_sub_index: usize = 0; }
+                };
                 let attributes = {
                     attributes
                         .into_iter()
@@ -239,11 +242,17 @@ impl HtmlElementVisitor {
                         #attribute_sub_index
                     }
                 };
-                let gen_attributes = quote! {
-                    let mut gen_attributes = vec![];
-                    {
-                        #init_attribute_indices
-                        #(#attributes)*
+                let gen_attributes = if attributes.is_empty() {
+                    quote! {
+                        let gen_attributes = vec![];
+                    }
+                } else {
+                    quote! {
+                        let mut gen_attributes = vec![];
+                        {
+                            #init_attribute_indices
+                            #(#attributes)*
+                        }
                     }
                 };
                 let gen_children = quote! {

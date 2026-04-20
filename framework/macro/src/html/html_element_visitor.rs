@@ -255,9 +255,13 @@ impl HtmlElementVisitor {
                         }
                     }
                 };
-                let gen_children = quote! {
-                    let mut gen_children = vec![];
-                    #(#children)*
+                let gen_children = if children.is_empty() {
+                    quote! { let gen_children = vec![]; }
+                } else {
+                    quote! {
+                        let mut gen_children = vec![];
+                        #(#children)*
+                    }
                 };
                 let value = quote! {
                     XElementValue::Static {

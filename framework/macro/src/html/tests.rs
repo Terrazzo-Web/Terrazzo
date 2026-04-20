@@ -222,6 +222,10 @@ fn attribute() -> syn::Result<()> {
                 "Root text",
                 class = "base",
                 style = format!("width: {}%", 100),
+                div(
+                    class = "child",
+                    style = format!("width: {}%", 50),
+                ),
             )
         }
     };
@@ -263,6 +267,56 @@ fn sample() -> XElement {
         }
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
+        gen_children
+            .push(
+                XNode::from({
+                    let mut gen_attributes = vec![];
+                    {
+                        let mut attribute_index = 0;
+                        const attribute_sub_index: usize = 0;
+                        gen_attributes
+                            .push(XAttribute {
+                                id: XAttributeId {
+                                    name: XAttributeName {
+                                        name: "class".into(),
+                                        kind: XAttributeKind::Attribute,
+                                    },
+                                    index: {
+                                        let i = attribute_index;
+                                        attribute_index += 1;
+                                        i
+                                    },
+                                    sub_index: attribute_sub_index,
+                                },
+                                value: "child".into(),
+                            });
+                        gen_attributes
+                            .push(XAttribute {
+                                id: XAttributeId {
+                                    name: XAttributeName {
+                                        name: "style".into(),
+                                        kind: XAttributeKind::Attribute,
+                                    },
+                                    index: attribute_index,
+                                    sub_index: attribute_sub_index,
+                                },
+                                value: format!("width: {}%", 50).into(),
+                            });
+                    }
+                    let gen_children = vec![];
+                    XElement {
+                        tag_name: Some("div".into()),
+                        key: XKey::default(),
+                        value: XElementValue::Static {
+                            attributes: gen_attributes,
+                            children: gen_children,
+                            events: vec![],
+                        },
+                        before_render: None,
+                        after_render: None,
+                    }
+                }),
+            );
         XElement {
             tag_name: Some("div".into()),
             key: XKey::Named("root".into()),

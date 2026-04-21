@@ -42,9 +42,6 @@ fn run(cli: Cli) -> Result<(), CssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
     let files = get_hashed_css(&config)?;
 
-    #[cfg(test)]
-    dbg!(&config);
-
     let mut output_file = String::new();
     let mut first = true;
     for (path, content) in files {
@@ -131,7 +128,6 @@ div>.HnhCUtD9>.HnhCZxyk {
     }
 
     fn copy_dir_contents(source: &Path, destination: &Path) {
-        dbg!(source);
         for entry in std::fs::read_dir(source).unwrap_or_else(|error| {
             panic!(
                 "Failed to read {source:?} from {:?}: {error}",

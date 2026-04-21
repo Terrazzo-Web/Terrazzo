@@ -4194,7 +4194,7 @@ dependencies = [
  "nameth",
  "siphasher",
  "thiserror 2.0.18",
- "winnow 0.7.15",
+ "winnow 1.0.1",
 ]
 
 [[package]]

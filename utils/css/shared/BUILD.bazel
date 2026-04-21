@@ -4,4 +4,5 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "terrazzo-css-shared",
+    deps = ["//utils/nameth/nameth"],
 )

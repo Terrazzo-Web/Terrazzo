@@ -1,5 +1,6 @@
 mod parse;
 
+pub mod config;
 pub mod hasher;
 
 use std::borrow::Cow;

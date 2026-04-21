@@ -1,6 +1,9 @@
 mod parse;
 
+pub mod hasher;
+
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -34,6 +37,21 @@ pub fn rewrite_classes(
     Ok(new_file)
 }
 
+pub fn list_classes(css_file: &str) -> Result<impl Iterator<Item = &str>, CssError> {
+    let fragments =
+        parse::parse_css(css_file).map_err(|error| CssError::ParseError(error.to_string()))?;
+    let mut seen = HashSet::with_capacity(fragments.len());
+    Ok(fragments.into_iter().filter_map(move |fragment| {
+        if let CssFragment::Class(class) = fragment
+            && seen.insert(class)
+        {
+            Some(class)
+        } else {
+            None
+        }
+    }))
+}
+
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum CssError {
@@ -44,9 +62,7 @@ pub enum CssError {
 #[cfg(test)]
 mod tests {
 
-    #[test]
-    fn rewrite_classes() {
-        let scss = r#"
+    const TEST_CASE: &str = r#"
 @charset "utf-8";
 
 // Line comment
@@ -141,7 +157,9 @@ $some-scss-variable: 10px; // Scss variable declarations in top scope.
 //eof
 "#;
 
-        let actual = super::rewrite_classes(scss, |c| format!("{c}-REWRITE")).unwrap();
+    #[test]
+    fn rewrite_classes() {
+        let actual = super::rewrite_classes(TEST_CASE, |c| format!("{c}-REWRITE")).unwrap();
         let expected = r#"
 @charset "utf-8";
 
@@ -237,5 +255,25 @@ $some-scss-variable: 10px; // Scss variable declarations in top scope.
 //eof
 "#;
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn list_classes() {
+        assert_eq!(
+            vec![
+                "style1",
+                "style2",
+                "style-with-dashes",
+                "style3",
+                "style4",
+                "nested-style",
+                "style5",
+                "style6",
+                "style7",
+                "style8",
+                "style9"
+            ],
+            super::list_classes(TEST_CASE).unwrap().collect::<Vec<_>>()
+        )
     }
 }

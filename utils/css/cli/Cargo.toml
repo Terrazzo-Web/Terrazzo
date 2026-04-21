@@ -1,36 +1,21 @@
 [package]
-name = "stylance-cli"
-edition = "2021"
-authors.workspace = true
-version.workspace = true
-license.workspace = true
-repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
-readme = "README.md"
-description = "Cli tool for bundling stylance scoped CSS files."
-
-[features]
-default = ["binary"]
-binary = ["clap", "notify", "tokio", "tokio-stream"]
-
-[dependencies]
-walkdir = "2.4.0"
-stylance-core = { workspace = true }
-anyhow = "1.0.79"
-
-clap = { version = "4.4.12", features = ["derive", "cargo"], optional = true }
-notify = { version = "8.2.0", optional = true }
-tokio = { version = "1.52.1", features = [
-	"macros",
-	"rt",
-	"sync",
-	"time",
-], optional = true }
-tokio-stream = { version = "0.1.18", optional = true }
+name = "terrazzo-css-cli"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "CLI tool for bundling CSS files."
 
 [[bin]]
-name = "stylance"
-path = "./src/main.rs"
-doc = false
-required-features = ["binary"]
+name = "terrazzo-css-cli"
+
+[dependencies]
+clap ={ workspace = true }
+nameth ={ workspace = true }
+terrazzo-css-shared = { workspace = true }
+thiserror = { workspace = true }
+walkdir = { workspace = true }
+
+[lints]
+workspace = true

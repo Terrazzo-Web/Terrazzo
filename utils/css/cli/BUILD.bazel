@@ -1,0 +1,14 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "cli",
+    crate_name = "terrazzo_css_cli",
+    crate_root = "src/main.rs",
+    rule = "binary",
+    deps = [
+        "//utils/css/shared",
+        "//utils/nameth/nameth",
+    ],
+)

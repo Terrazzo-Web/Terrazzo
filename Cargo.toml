@@ -64,7 +64,7 @@ trz-gateway-client = { version = "0.2.0", path = "remote/client" }
 trz-gateway-common = { version = "0.2.0", path = "remote/common" }
 trz-gateway-server = { version = "0.2.0", path = "remote/server" }
 terrazzo-pty = { version = "0.2.0", path = "pty" }
-terrazzo-css-shared= { version = "0.2.0", path = "utils/css/shared" }
+terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }

@@ -11,7 +11,9 @@ use winnow::combinator::preceded;
 use winnow::combinator::repeat;
 use winnow::combinator::terminated;
 use winnow::error::ContextError;
+use winnow::error::ErrMode;
 use winnow::error::ParseError;
+use winnow::error::ParserError;
 use winnow::stream::AsChar;
 use winnow::stream::ContainsToken;
 use winnow::stream::Range;
@@ -43,10 +45,13 @@ pub fn parse_css(input: &str) -> Result<Vec<CssFragment<'_>>, ParseError<&str, C
     style_rule_block_contents.parse(input)
 }
 
-fn recognize_repeat<'s, O>(
+fn recognize_repeat<'s, O, E>(
     range: impl Into<Range>,
-    f: impl Parser<&'s str, O, ContextError>,
-) -> impl Parser<&'s str, &'s str, ContextError> {
+    f: impl Parser<&'s str, O, E>,
+) -> impl Parser<&'s str, &'s str, E>
+where
+    E: ParserError<&'s str>,
+{
     repeat(range, f).fold(|| (), |_, _| ()).take()
 }
 
@@ -133,7 +138,7 @@ fn string<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
 fn stuff_till<'s>(
     range: impl Into<Range>,
     list: impl ContainsToken<char>,
-) -> impl Parser<&'s str, &'s str, ContextError> {
+) -> impl Parser<&'s str, &'s str, ErrMode<ContextError>> {
     recognize_repeat(
         range,
         alt((

@@ -23,7 +23,7 @@ scopeguard = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 stylance = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
-terrazzo-css-macro={ workspace = true, optional = true }
+terrazzo-css-macro = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tower-http = { workspace = true, optional = true, features = [

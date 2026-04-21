@@ -37,7 +37,7 @@ runs:
           ~/.cache/ms-playwright/
           target/
           terminal/target
-        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ github.job }}-2-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
 
     - name: Restore cache for Rust compilation
       if: ${{ inputs.cache-level == 'lenient' }}
@@ -55,9 +55,9 @@ runs:
           ~/.cache/ms-playwright/
           target/
           terminal/target
-        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ github.job }}-2-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
-          ${{ runner.os }}-${{ github.job }}-
+          ${{ runner.os }}-${{ github.job }}-2-
 
     - name: Add wasm32 compilation target
       shell: bash

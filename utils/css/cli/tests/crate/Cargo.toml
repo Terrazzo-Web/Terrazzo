@@ -1,0 +1,22 @@
+[package]
+name = "terrazzo-cli-test-crate"
+description = "A dummy crate to test Terrazzo CSS CLI."
+
+[lib]
+
+[dependencies]
+dashmap = { workspace = true }
+futures = { workspace = true }
+
+[features]
+default = ["client","server"]
+client = []
+server = []
+
+[package.metadata.css]
+output_file = "target/css/terrazzo-terminal.scss"
+folders = ["src/"]
+extensions = [".scss", ".css"]
+
+[lints]
+workspace = true

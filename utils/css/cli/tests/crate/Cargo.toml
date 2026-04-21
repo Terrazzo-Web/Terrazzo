@@ -9,7 +9,7 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 
 [features]
-default = ["client","server"]
+default = ["client", "server"]
 client = []
 server = []
 

@@ -42,6 +42,9 @@ fn run(cli: Cli) -> Result<(), CssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
     let files = get_hashed_css(&config)?;
 
+    #[cfg(debug_assertions)]
+    println!("Config: {config:?}");
+
     let mut output_file = String::new();
     let mut first = true;
     for (path, content) in files {

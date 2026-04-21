@@ -39,6 +39,7 @@ def rust_rules(
         deps_dev = [],
         deps_dev_proc_macro = [],
         data = [],
+        data_dev = None,
         rule = "library",
         crate_features = [],
         crate_features_dev = None,
@@ -58,6 +59,7 @@ def rust_rules(
       deps_dev: Additional dependencies for tests
       deps_dev_proc_macro: Additional macro dependencies for tests
       data: Data deps
+      data_dev: Data deps for tests
       rule: one of the https://bazelbuild.github.io/rules_rust/rust.html#rules
       crate_features: List of features enabled
       crate_features_dev: List of features enabled for tests
@@ -116,6 +118,9 @@ def _rust_rules_impl(
 
     if rust_srcs == None:
         rust_srcs = native.glob(["src/**/*.rs"])
+
+    if deps_dev == None:
+        deps_dev = data
 
     asset_copy_targets = ["Cargo.toml"] + rust_srcs
     asset_link_targets = []
@@ -239,7 +244,7 @@ def _rust_rules_impl(
                 package_name = package_name,
                 proc_macro_dev = True,
             ) if all_crate_deps else [],
-            data = data,
+            data = deps_dev,
             crate_features = crate_features_dev + ["bazel"],
         )
 

@@ -8,6 +8,7 @@ license = { workspace = true }
 description = "Internal crate used by terrazzo-css"
 
 [dependencies]
+nameth = { workspace = true }
+siphasher = { workspace = true }
 thiserror = { workspace = true }
 winnow = { workspace = true }
-siphasher = { workspace = true }

@@ -43,7 +43,7 @@ pub fn parse_css(input: &str) -> Result<Vec<CssFragment<'_>>, ParseError<&str, C
     style_rule_block_contents.parse(input)
 }
 
-pub fn recognize_repeat<'s, O>(
+fn recognize_repeat<'s, O>(
     range: impl Into<Range>,
     f: impl Parser<&'s str, O, ContextError>,
 ) -> impl Parser<&'s str, &'s str, ContextError> {
@@ -130,7 +130,7 @@ fn string<'s>(input: &mut &'s str) -> PResult<&'s str> {
 
 /// Behaves like take_till except it finds and parses strings and
 /// comments (allowing those to contain the end condition characters).
-pub fn stuff_till<'s>(
+fn stuff_till<'s>(
     range: impl Into<Range>,
     list: impl ContainsToken<char>,
 ) -> impl Parser<&'s str, &'s str, ContextError> {
@@ -236,12 +236,6 @@ fn at_rule<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
             Ok(vec![])
         }
     }
-    // if identifier == "media" {
-    //     cut_err(terminated(style_rule_block_contents, '}')).parse_next(input)
-    // } else {
-    //     cut_err(terminated(unknown_block_contents, '}')).parse_next(input)?;
-    //     Ok(vec![])
-    // }
 }
 
 fn unknown_block_contents<'s>(input: &mut &'s str) -> PResult<&'s str> {

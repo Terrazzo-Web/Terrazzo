@@ -4247,6 +4247,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "terrazzo-css-cli"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "nameth",
+ "tempfile",
+ "terrazzo-css-shared",
+ "thiserror 2.0.18",
+ "walkdir",
+]
+
+[[package]]
 name = "terrazzo-css-macro"
 version = "0.2.0"
 dependencies = [
@@ -4264,8 +4276,10 @@ name = "terrazzo-css-shared"
 version = "0.2.0"
 dependencies = [
  "nameth",
+ "serde",
  "siphasher",
  "thiserror 2.0.18",
+ "toml 1.1.2+spec-1.1.0",
  "winnow 1.0.2",
 ]
 

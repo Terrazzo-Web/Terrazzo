@@ -15,6 +15,7 @@ members = [
   "terminal",
   "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
+  "utils/css/cli",
   "utils/css/macro",
   "utils/css/shared",
   "utils/fixture",
@@ -58,13 +59,14 @@ nameth-macro = { version = "0.2.0", path = "utils/nameth/nameth-macro" }
 terrazzo = { version = "0.2.0", path = "framework/terrazzo", default-features = false }
 terrazzo-build = { version = "0.2.0", path = "framework/build" }
 terrazzo-client = { version = "0.2.0", path = "framework/client" }
+terrazzo-css-cli = { version = "0.2.0", path = "utils/css/cli" }
+terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 terrazzo-fixture = { version = "0.2.0", path = "utils/fixture" }
 terrazzo-macro = { version = "0.2.0", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.0", path = "pty" }
 trz-gateway-client = { version = "0.2.0", path = "remote/client" }
 trz-gateway-common = { version = "0.2.0", path = "remote/common" }
 trz-gateway-server = { version = "0.2.0", path = "remote/server" }
-terrazzo-pty = { version = "0.2.0", path = "pty" }
-terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
@@ -129,6 +131,7 @@ server_fn = { version = "=0.8.3", features = ["browser"] }
 server_fn_macro = { version = "0.8.3" }
 sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
+siphasher = { version = "1.0.2" }
 static_assertions = { version = "1.1.0" }
 stylance = { version = "0.7.4" }
 syn = { version = "2.0.117" }
@@ -153,9 +156,9 @@ tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 unescaper = { version = "0.1.8" }
-siphasher = { version = "1.0.2" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.1", features = ["v4", "fast-rng"] }
+walkdir = { version = "2.4.0" }
 wasm-bindgen = { version = "=0.2.105" }
 wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }

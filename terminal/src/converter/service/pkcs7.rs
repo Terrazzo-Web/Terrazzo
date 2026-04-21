@@ -420,7 +420,6 @@ mod tests {
     #[tokio::test]
     async fn pkcs7() {
         let conversion = PKCS7.get_conversion("PKCS #7").await;
-        dbg!(&conversion);
         assert!(conversion.contains("Terrazzo Terminal Intermediate CA"));
         assert!(conversion.contains("localhost"));
         assert!(conversion.contains("2025-07-03 17:57:35.0"));

@@ -10,6 +10,9 @@ use terrazzo_css_shared::hasher::ClassNameHasher;
 use terrazzo_css_shared::rewrite_classes;
 use walkdir::WalkDir;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
 struct Cli {
@@ -35,12 +38,22 @@ enum CssCliError {
 }
 
 fn main() -> Result<(), CssCliError> {
-    let cli = Cli::parse();
+    run(Cli::parse())
+}
+
+fn run(cli: Cli) -> Result<(), CssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
     let files = get_hashed_css(&config)?;
 
     let mut output_file = String::new();
+    let mut first = true;
     for (path, content) in files {
+        if first {
+            first = false;
+        } else {
+            output_file.push('\n');
+        }
+        #[cfg(debug_assertions)]
         output_file.push_str(&format!("/* {} */\n", path.to_string_lossy()));
         output_file.push_str(content.trim());
         output_file.push('\n');

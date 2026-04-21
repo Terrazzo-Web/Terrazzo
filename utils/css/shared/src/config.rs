@@ -30,12 +30,22 @@ impl Config {
             .map_err(|error| ConfigError::LoadManifestError(manifest_path, error))?;
         let cargo_toml: CargoToml =
             toml::from_str(&cargo_toml_contents).map_err(ConfigError::ParseManifestError)?;
-        Ok(cargo_toml.metadata.css)
+        let mut config = cargo_toml.package.metadata.css;
+        for folder in &mut config.folders {
+            *folder = manifest_dir.join(&folder);
+        }
+        config.output_file = manifest_dir.join(&config.output_file);
+        Ok(config)
     }
 }
 
 #[derive(Deserialize)]
 struct CargoToml {
+    package: CargoPackage,
+}
+
+#[derive(Deserialize)]
+struct CargoPackage {
     metadata: CargoMetadata,
 }
 

@@ -2,8 +2,6 @@ use std::io::Read as _;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use pbkdf2::hmac::Hmac;
-use pbkdf2::hmac::digest::InvalidLength;
 use sha2::Sha256;
 
 use super::ServerConfig;
@@ -52,12 +50,7 @@ impl ServerConfig {
         let mut hash = [0u8; 20];
         let salt = uuid::Uuid::new_v4();
         let iterations = 60_000;
-        let () = pbkdf2::pbkdf2::<Hmac<Sha256>>(
-            password.as_bytes(),
-            salt.as_bytes(),
-            iterations,
-            &mut hash,
-        )?;
+        pbkdf2::pbkdf2_hmac::<Sha256>(password.as_bytes(), salt.as_bytes(), iterations, &mut hash);
         Ok(Password {
             hash: hash.to_vec(),
             iterations,
@@ -70,12 +63,12 @@ impl ServerConfig {
             return Err(VerifyPasswordError::PasswordNotDefined);
         };
         let mut hash = [0u8; 20];
-        let () = pbkdf2::pbkdf2::<Hmac<Sha256>>(
+        pbkdf2::pbkdf2_hmac::<Sha256>(
             password.as_bytes(),
             &password_hash.salt,
             password_hash.iterations,
             &mut hash,
-        )?;
+        );
         if hash.as_slice() == password_hash.hash.as_slice() {
             Ok(())
         } else {
@@ -92,9 +85,6 @@ pub enum SetPasswordError {
 
     #[error("[{n}] Failed to save config file with password: {0}", n = self.name())]
     Save(#[from] ConfigFileError),
-
-    #[error("[{n}] {0}", n = self.name())]
-    Pbkdf2(#[from] InvalidLength),
 }
 
 #[nameth]
@@ -105,9 +95,6 @@ pub enum VerifyPasswordError {
 
     #[error("[{n}] The password doesn't match", n = self.name())]
     InvalidPassword,
-
-    #[error("[{n}] {0}", n = self.name())]
-    Pbkdf2(#[from] InvalidLength),
 }
 
 #[cfg(test)]

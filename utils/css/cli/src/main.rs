@@ -50,8 +50,9 @@ fn run(cli: Cli) -> Result<(), CssCliError> {
         } else {
             output_file.push('\n');
         }
-        #[cfg(debug_assertions)]
-        output_file.push_str(&format!("/* {} */\n", path.to_string_lossy()));
+        if cfg!(debug_assertions) {
+            output_file.push_str(&format!("/* {} */\n", path.to_string_lossy()));
+        }
         output_file.push_str(content.trim());
         output_file.push('\n');
     }

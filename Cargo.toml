@@ -15,6 +15,7 @@ members = [
   "terminal",
   "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
+  "utils/css/macro",
   "utils/css/shared",
   "utils/fixture",
   "utils/nameth/nameth-macro",
@@ -63,6 +64,7 @@ trz-gateway-client = { version = "0.2.0", path = "remote/client" }
 trz-gateway-common = { version = "0.2.0", path = "remote/common" }
 trz-gateway-server = { version = "0.2.0", path = "remote/server" }
 terrazzo-pty = { version = "0.2.0", path = "pty" }
+terrazzo-css-shared= { version = "0.2.0", path = "utils/css/shared" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
@@ -96,7 +98,7 @@ mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.2" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.78" }
+openssl = { version = "0.10.75" }
 pbkdf2 = { version = "0.12.2" }
 pem = { version = "3.0.6" }
 pin-project = { version = "1.1.11" }

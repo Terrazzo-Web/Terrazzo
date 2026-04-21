@@ -12,3 +12,6 @@ nameth = { workspace = true }
 siphasher = { workspace = true }
 thiserror = { workspace = true }
 winnow = { workspace = true }
+
+[lints]
+workspace = true

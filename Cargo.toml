@@ -15,6 +15,7 @@ members = [
   "terminal",
   "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
+  "utils/css/shared",
   "utils/fixture",
   "utils/nameth/nameth-macro",
   "utils/nameth/nameth-tests",
@@ -86,8 +87,8 @@ humantime = { version = "2.3.0" }
 hyper = { version = "1.9.0" }
 hyper-util = { version = "0.1.20" }
 include_directory = { version = "0.1.1" }
-inventory = { version = "0.3.24" }
 instant-acme = { version = "0.8.5" }
+inventory = { version = "0.3.24" }
 jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.185" }
 mime = { version = "0.3.17" }
@@ -119,9 +120,9 @@ rustls-native-certs = { version = "0.8.3" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149" }
-serde-wasm-bindgen = { version = "0.6.0" }
-serde_yaml_ng = { version = "0.10.0" }
 serde_urlencoded = { version = "0.7.1" }
+serde_yaml_ng = { version = "0.10.0" }
+serde-wasm-bindgen = { version = "0.6.0" }
 server_fn = { version = "=0.8.3", features = ["browser"] }
 server_fn_macro = { version = "0.8.3" }
 sha2 = { version = "0.10.9" }
@@ -143,13 +144,14 @@ tonic = { version = "0.14.5" }
 tonic-prost = { version = "0.14.5" }
 tonic-prost-build = { version = "0.14.5" }
 tower = { version = "0.5.3" }
-tower-layer = { version = "0.3.3" }
 tower-http = { version = "0.6.8" }
+tower-layer = { version = "0.3.3" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 unescaper = { version = "0.1.8" }
+siphasher = { version = "1.0.2" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.1", features = ["v4", "fast-rng"] }
 wasm-bindgen = { version = "=0.2.105" }
@@ -157,6 +159,7 @@ wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }
 wasm-streams = { version = "=0.4.2" }
 web-sys = { version = "=0.3.82" }
+winnow = { version = "1.0.1" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

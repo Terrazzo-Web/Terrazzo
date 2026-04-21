@@ -4188,6 +4188,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "terrazzo-css-shared"
+version = "0.2.0"
+dependencies = [
+ "nameth",
+ "siphasher",
+ "thiserror 2.0.18",
+ "winnow 1.0.1",
+]
+
+[[package]]
 name = "terrazzo-demo"
 version = "0.2.0"
 dependencies = [

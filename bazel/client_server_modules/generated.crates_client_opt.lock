@@ -4193,6 +4193,7 @@ version = "0.2.0"
 dependencies = [
  "clap",
  "nameth",
+ "tempfile",
  "terrazzo-css-shared",
  "thiserror 2.0.18",
  "walkdir",

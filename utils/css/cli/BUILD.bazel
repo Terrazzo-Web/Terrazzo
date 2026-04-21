@@ -6,7 +6,7 @@ rust_rules(
     name = "cli",
     crate_name = "terrazzo_css_cli",
     crate_root = "src/main.rs",
-    deps_dev = glob(["tests/**"]),
+    data_dev = glob(["tests/**"]),
     rule = "binary",
     deps = [
         "//utils/css/shared",

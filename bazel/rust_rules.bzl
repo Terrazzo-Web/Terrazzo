@@ -83,6 +83,7 @@ def rust_rules(
         deps_dev,
         deps_dev_proc_macro,
         data,
+        data_dev,
         rule,
         crate_features,
         crate_features_dev,
@@ -102,6 +103,7 @@ def _rust_rules_impl(
         deps_dev = "!!",
         deps_dev_proc_macro = "!!",
         data = "!!",
+        data_dev = "!!",
         rule = "!!",
         crate_features = "!!",
         crate_features_dev = "!!",
@@ -119,8 +121,8 @@ def _rust_rules_impl(
     if rust_srcs == None:
         rust_srcs = native.glob(["src/**/*.rs"])
 
-    if deps_dev == None:
-        deps_dev = data
+    if data_dev == None:
+        data_dev = data
 
     asset_copy_targets = ["Cargo.toml"] + rust_srcs
     asset_link_targets = []
@@ -235,7 +237,7 @@ def _rust_rules_impl(
         rust_test(
             name = name + "-test",
             crate = ":" + name,
-            lint_config = ":" + name + "-lints",
+            crate_features = crate_features_dev + ["bazel"],
             deps = deps_dev + all_crate_deps(
                 package_name = package_name,
                 normal_dev = True,
@@ -244,8 +246,8 @@ def _rust_rules_impl(
                 package_name = package_name,
                 proc_macro_dev = True,
             ) if all_crate_deps else [],
-            data = deps_dev,
-            crate_features = crate_features_dev + ["bazel"],
+            data = data_dev,
+            lint_config = ":" + name + "-lints",
         )
 
         rustfmt_test(

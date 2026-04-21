@@ -211,14 +211,14 @@ def _rust_rules_impl(
         name = name,
         srcs = [":" + mirror + "-rs"],
         lint_config = ":" + name + "-lints",
-        deps = deps + all_crate_deps(
+        deps = deps + (all_crate_deps(
             package_name = package_name,
             normal = True,
-        ) if all_crate_deps else [],
-        proc_macro_deps = deps_proc_macro + all_crate_deps(
+        ) if all_crate_deps else []),
+        proc_macro_deps = deps_proc_macro + (all_crate_deps(
             package_name = package_name,
             proc_macro = True,
-        ) if all_crate_deps else [],
+        ) if all_crate_deps else []),
         compile_data = [
             ":" + mirror + "-data",
             ":" + mirror + "-manifest",
@@ -239,14 +239,14 @@ def _rust_rules_impl(
             name = name + "-test",
             crate = ":" + name,
             crate_features = crate_features_dev + ["bazel"],
-            deps = deps_dev + all_crate_deps(
+            deps = deps_dev + (all_crate_deps(
                 package_name = package_name,
                 normal_dev = True,
-            ) if all_crate_deps else [],
-            proc_macro_deps = deps_dev_proc_macro + all_crate_deps(
+            ) if all_crate_deps else []),
+            proc_macro_deps = deps_dev_proc_macro + (all_crate_deps(
                 package_name = package_name,
                 proc_macro_dev = True,
-            ) if all_crate_deps else [],
+            ) if all_crate_deps else []),
             data = data_dev,
             lint_config = ":" + name + "-lints",
         )

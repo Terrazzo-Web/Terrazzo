@@ -31,7 +31,7 @@ use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::utils::ndjson::NdjsonBuffer;
 
-stylance::import_crate_style!(pub(super) style, "src/converter/converter.scss");
+stylance::import_style!(pub(super) style, "converter.scss");
 
 /// The UI for the converter app.
 #[html]

@@ -20,7 +20,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 
-stylance::import_crate_style!(style, "src/logs/client/panel.scss");
+stylance::import_style!(style, "panel.scss");
 
 #[html]
 #[template(tag = div)]

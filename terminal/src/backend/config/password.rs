@@ -3,8 +3,8 @@ use std::io::Read as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use pbkdf2::hmac::Hmac;
-use pbkdf2::hmac::digest::InvalidLength;
 use sha2::Sha256;
+use sha2::digest::InvalidLength;
 
 use super::ServerConfig;
 use super::io::ConfigFileError;

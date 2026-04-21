@@ -1,6 +1,6 @@
 // Copied from https://github.com/basro/stylance-rs/blob/3581ad2d00f19892addc0a733e609d48f9c980f3/internal/stylance-core/src/parse.rs
 
-use winnow::PResult;
+use winnow::ModalResult;
 use winnow::Parser;
 use winnow::combinator::alt;
 use winnow::combinator::cut_err;
@@ -47,10 +47,10 @@ fn recognize_repeat<'s, O>(
     range: impl Into<Range>,
     f: impl Parser<&'s str, O, ContextError>,
 ) -> impl Parser<&'s str, &'s str, ContextError> {
-    repeat(range, f).fold(|| (), |_, _| ()).recognize()
+    repeat(range, f).fold(|| (), |_, _| ()).take()
 }
 
-fn ws<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn ws<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     recognize_repeat(
         0..,
         alt((
@@ -62,42 +62,42 @@ fn ws<'s>(input: &mut &'s str) -> PResult<&'s str> {
     .parse_next(input)
 }
 
-fn line_comment<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn line_comment<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     ("//", take_while(0.., |c| c != '\n'))
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
-fn block_comment<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn block_comment<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     ("/*", cut_err(terminated(take_until(0.., "*/"), "*/")))
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
 // matches a sass interpolation of the form #{...}
-fn sass_interpolation<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn sass_interpolation<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     (
         "#{",
         cut_err(terminated(take_till(1.., ('{', '}', '\n')), '}')),
     )
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
-fn identifier<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn identifier<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     (
         one_of(('_', '-', AsChar::is_alpha)),
         take_while(0.., ('_', '-', AsChar::is_alphanum)),
     )
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
-fn class<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn class<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     preceded('.', identifier).parse_next(input)
 }
 
-fn global<'s>(input: &mut &'s str) -> PResult<Global<'s>> {
+fn global<'s>(input: &mut &'s str) -> ModalResult<Global<'s>> {
     let (inner, outer) = preceded(
         ":global(",
         cut_err(terminated(
@@ -105,26 +105,26 @@ fn global<'s>(input: &mut &'s str) -> PResult<Global<'s>> {
             ')',
         )),
     )
-    .with_recognized() // outer
+    .with_taken() // outer
     .parse_next(input)?;
     Ok(Global { inner, outer })
 }
 
-fn string_dq<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn string_dq<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     let str_char = alt((none_of(['"']).void(), literal("\\\"").void()));
     let str_chars = recognize_repeat(0.., str_char);
 
     preceded('"', cut_err(terminated(str_chars, '"'))).parse_next(input)
 }
 
-fn string_sq<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn string_sq<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     let str_char = alt((none_of(['\'']).void(), literal("\\'").void()));
     let str_chars = recognize_repeat(0.., str_char);
 
     preceded('\'', cut_err(terminated(str_chars, '\''))).parse_next(input)
 }
 
-fn string<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn string<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     alt((string_dq, string_sq)).parse_next(input)
 }
 
@@ -148,7 +148,7 @@ fn stuff_till<'s>(
     )
 }
 
-fn selector<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn selector<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     repeat(
         1..,
         alt((
@@ -167,7 +167,7 @@ fn selector<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
     .parse_next(input)
 }
 
-fn declaration<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn declaration<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     (
         (opt('$'), identifier),
         ws,
@@ -177,11 +177,11 @@ fn declaration<'s>(input: &mut &'s str) -> PResult<&'s str> {
             alt((';', peek('}'))), // semicolon is optional if it's the last element in a rule block
         ),
     )
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
-fn style_rule_block_statement<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn style_rule_block_statement<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     let content = alt((
         declaration.map(|_| Vec::new()), //
         at_rule,
@@ -190,7 +190,7 @@ fn style_rule_block_statement<'s>(input: &mut &'s str) -> PResult<Vec<CssFragmen
     delimited(ws, content, ws).parse_next(input)
 }
 
-fn style_rule_block_contents<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn style_rule_block_contents<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     repeat(0.., style_rule_block_statement)
         .fold(Vec::new, |mut acc, mut item| {
             acc.append(&mut item);
@@ -199,7 +199,7 @@ fn style_rule_block_contents<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment
         .parse_next(input)
 }
 
-fn style_rule_block<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn style_rule_block<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     preceded(
         '{',
         cut_err(terminated(style_rule_block_contents, (ws, '}'))),
@@ -207,13 +207,13 @@ fn style_rule_block<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
     .parse_next(input)
 }
 
-fn style_rule<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn style_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     let (mut classes, mut nested_classes) = (selector, style_rule_block).parse_next(input)?;
     classes.append(&mut nested_classes);
     Ok(classes)
 }
 
-fn at_rule<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
+fn at_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
     let (identifier, char) = preceded(
         '@',
         cut_err((
@@ -238,7 +238,7 @@ fn at_rule<'s>(input: &mut &'s str) -> PResult<Vec<CssFragment<'s>>> {
     }
 }
 
-fn unknown_block_contents<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn unknown_block_contents<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
     recognize_repeat(
         0..,
         alt((
@@ -277,7 +277,7 @@ mod tests {
 
         let mut input = "{";
 
-        let r = selector.recognize().parse_next(&mut input);
+        let r = selector.take().parse_next(&mut input);
         assert!(r.is_err());
     }
 

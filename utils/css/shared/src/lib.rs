@@ -45,7 +45,7 @@ pub enum CssError {
 mod tests {
 
     #[test]
-    fn load_and_modify_css() {
+    fn rewrite_classes() {
         let scss = r#"
 @charset "utf-8";
 

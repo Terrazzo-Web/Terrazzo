@@ -19,7 +19,7 @@ use tracing::info;
 use crate::api;
 use crate::assets;
 
-const PORT: u16 = if cfg!(debug_assertions) { 3001 } else { 3000 };
+const PORT: u16 = if cfg!(debug_assertions) { 3000 } else { 3001 };
 
 #[derive(clap::Parser)]
 struct Args {

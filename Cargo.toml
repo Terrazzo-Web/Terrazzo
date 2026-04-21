@@ -60,6 +60,7 @@ terrazzo = { version = "0.2.0", path = "framework/terrazzo", default-features = 
 terrazzo-build = { version = "0.2.0", path = "framework/build" }
 terrazzo-client = { version = "0.2.0", path = "framework/client" }
 terrazzo-css-cli = { version = "0.2.0", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.0", path = "utils/css/macro" }
 terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 terrazzo-fixture = { version = "0.2.0", path = "utils/fixture" }
 terrazzo-macro = { version = "0.2.0", path = "framework/macro" }

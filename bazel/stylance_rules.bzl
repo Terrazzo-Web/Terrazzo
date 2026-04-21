@@ -14,6 +14,6 @@ def stylance_rule(name, output):
         # - In practice, this is the same since we include all of them. We
         #   don't have the ability to compile different scss files with
         #   different inputs. We can only compile one scss file per crate.
-        cmd = """$(execpath //bazel:stylance) $$(dirname $$(realpath $(location Cargo.toml))) --output-file $@""",
-        tools = ["//bazel:stylance"],
+        cmd = """$(execpath //utils/css/cli) $$(dirname $$(realpath $(location Cargo.toml))) --output-file $@""",
+        tools = ["//utils/css/cli"],
     )

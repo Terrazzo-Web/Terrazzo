@@ -4294,6 +4294,7 @@ dependencies = [
  "stylance",
  "terrazzo",
  "terrazzo-build",
+ "terrazzo-css-macro",
  "thiserror 2.0.18",
  "tokio",
  "tower-http",

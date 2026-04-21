@@ -273,9 +273,9 @@ logs-panel-client = [
 ]
 logs-panel-server = ["dep:tracing-subscriber", "logs-panel", "server"]
 
-[package.metadata.stylance]
-output_file = "./target/css/terrazzo-terminal.scss"
-folders = ["./src/"]
+[package.metadata.css]
+output_file = "target/css/terrazzo-terminal.scss"
+folders = ["src/"]
 extensions = [".scss", ".css"]
 
 [package.metadata.docs.rs]

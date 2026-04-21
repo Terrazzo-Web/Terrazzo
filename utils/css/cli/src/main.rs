@@ -16,6 +16,10 @@ struct Cli {
     /// The crate root dir, i.e the folder containing the crate's Cargo.toml manifest.
     #[arg(required = true)]
     manifest_dir: PathBuf,
+
+    /// Generate a file with all css modules concatenated
+    #[arg(long)]
+    output_file: Option<PathBuf>,
 }
 
 #[nameth]
@@ -56,8 +60,11 @@ fn run(cli: Cli) -> Result<(), CssCliError> {
         output_file.push_str(content.trim());
         output_file.push('\n');
     }
-    std::fs::write(&config.output_file, output_file)
-        .map_err(|error| CssCliError::WriteFileError(config.output_file, error))
+    std::fs::write(
+        cli.output_file.as_ref().unwrap_or(&config.output_file),
+        output_file,
+    )
+    .map_err(|error| CssCliError::WriteFileError(config.output_file, error))
 }
 
 fn get_hashed_css(config: &Config) -> Result<Vec<(PathBuf, String)>, CssCliError> {
@@ -104,6 +111,7 @@ mod tests {
 
         let cli = super::Cli {
             manifest_dir: temp_dir.to_owned(),
+            output_file: None,
         };
         super::run(cli).unwrap();
         let output =

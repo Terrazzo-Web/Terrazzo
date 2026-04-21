@@ -83,9 +83,9 @@ max_client_level_debug = ["terrazzo-client?/max_level_debug"]
 max_client_level_info = ["terrazzo-client?/max_level_info"]
 debug = ["dep:rsass"]
 
-[package.metadata.stylance]
-output_file = "./target/css/common.scss"
-folders = ["./src/"]
+[package.metadata.css]
+output_file = "target/css/common.scss"
+folders = ["src"]
 extensions = [".scss", ".css"]
 
 [lints]

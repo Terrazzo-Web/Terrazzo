@@ -42,8 +42,8 @@ fn run(cli: Cli) -> Result<(), CssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
     let files = get_hashed_css(&config)?;
 
-    #[cfg(debug_assertions)]
-    println!("Config: {config:?}");
+    #[cfg(test)]
+    dbg!(&config);
 
     let mut output_file = String::new();
     let mut first = true;
@@ -102,6 +102,7 @@ mod tests {
         let temp_dir = temp_dir.path();
         let source_manifest_dir: PathBuf =
             format!("{}/test_data/crate", env!("CARGO_MANIFEST_DIR")).into();
+        dbg!(&source_manifest_dir);
 
         copy_dir_contents(&source_manifest_dir, temp_dir);
 

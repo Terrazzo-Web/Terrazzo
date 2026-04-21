@@ -99,7 +99,7 @@ nix = { version = "0.31.2" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.78" }
-pbkdf2 = { version = "0.13.0" }
+pbkdf2 = { version = "0.12.2" }
 pem = { version = "3.0.6" }
 pin-project = { version = "1.1.11" }
 portpicker = { version = "0.1.1" }
@@ -127,7 +127,7 @@ serde_yaml_ng = { version = "0.10.0" }
 serde-wasm-bindgen = { version = "0.6.0" }
 server_fn = { version = "=0.8.3", features = ["browser"] }
 server_fn_macro = { version = "0.8.3" }
-sha2 = { version = "0.11.0" }
+sha2 = { version = "0.10.9" }
 simple_asn1 = { version = "0.6.4" }
 static_assertions = { version = "1.1.0" }
 stylance = { version = "0.7.4" }

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use nameth::nameth;
 use nameth::NamedEnumValues as _;
+use nameth::nameth;
+use terrazzo_css_shared::CssError;
 use terrazzo_css_shared::config::Config;
 use terrazzo_css_shared::config::ConfigError;
 use terrazzo_css_shared::hasher::ClassNameHasher;
 use terrazzo_css_shared::rewrite_classes;
-use terrazzo_css_shared::CssError;
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -97,7 +97,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_dir = temp_dir.path();
         let source_manifest_dir: PathBuf =
-            format!("{}/tests/crate", env!("CARGO_MANIFEST_DIR")).into();
+            format!("{}/test_data/crate", env!("CARGO_MANIFEST_DIR")).into();
 
         copy_dir_contents(&source_manifest_dir, temp_dir);
 
@@ -127,8 +127,12 @@ div>.HnhCUtD9>.HnhCZxyk {
     }
 
     fn copy_dir_contents(source: &Path, destination: &Path) {
-        dbg!(source);
-        for entry in std::fs::read_dir(source).unwrap() {
+        for entry in std::fs::read_dir(source).unwrap_or_else(|error| {
+            panic!(
+                "Failed to read {source:?} from {:?}: {error}",
+                std::env::current_dir()
+            )
+        }) {
             let entry = entry.unwrap();
             let source_path = entry.path();
             let destination_path = destination.join(entry.file_name());

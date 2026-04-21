@@ -19,7 +19,7 @@ use crate::api::client::terminal_api;
 use crate::frontend::remotes::Remote;
 use crate::terminal_id::TerminalId;
 
-stylance::import_style!(style, "terminal.scss");
+stylance::import_crate_style!(style, "src/terminal/terminal.scss");
 
 mod attach;
 mod javascript;

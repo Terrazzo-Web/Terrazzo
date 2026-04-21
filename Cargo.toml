@@ -15,6 +15,7 @@ members = [
   "terminal",
   "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
+  "utils/css/macro",
   "utils/css/shared",
   "utils/fixture",
   "utils/nameth/nameth-macro",
@@ -63,6 +64,7 @@ trz-gateway-client = { version = "0.2.0", path = "remote/client" }
 trz-gateway-common = { version = "0.2.0", path = "remote/common" }
 trz-gateway-server = { version = "0.2.0", path = "remote/server" }
 terrazzo-pty = { version = "0.2.0", path = "pty" }
+terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
@@ -159,7 +161,7 @@ wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }
 wasm-streams = { version = "=0.4.2" }
 web-sys = { version = "=0.3.82" }
-winnow = { version = "1.0.1" }
+winnow = { version = "1.0.2" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

@@ -39,7 +39,6 @@ fn try_import_style_classes_with_path(
         let class_ident = Ident::new(&class.to_shouty_snake_case(), identifier_span);
         let class_str = hasher.hash(class);
         quote_spanned!(identifier_span =>
-            #[allow(non_upper_case_globals)]
             pub const #class_ident: &str = #class_str;
         )
     });

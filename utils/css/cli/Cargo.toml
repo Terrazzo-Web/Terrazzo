@@ -11,8 +11,8 @@ description = "CLI tool for bundling CSS files."
 name = "terrazzo-css-cli"
 
 [dependencies]
-clap ={ workspace = true }
-nameth ={ workspace = true }
+clap = { workspace = true }
+nameth = { workspace = true }
 terrazzo-css-shared = { workspace = true }
 thiserror = { workspace = true }
 walkdir = { workspace = true }

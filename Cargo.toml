@@ -59,7 +59,7 @@ nameth-macro = { version = "0.2.0", path = "utils/nameth/nameth-macro" }
 terrazzo = { version = "0.2.0", path = "framework/terrazzo", default-features = false }
 terrazzo-build = { version = "0.2.0", path = "framework/build" }
 terrazzo-client = { version = "0.2.0", path = "framework/client" }
-terrazzo-css-cli= { version = "0.2.0", path = "utils/css/cli" }
+terrazzo-css-cli = { version = "0.2.0", path = "utils/css/cli" }
 terrazzo-css-shared = { version = "0.2.0", path = "utils/css/shared" }
 terrazzo-fixture = { version = "0.2.0", path = "utils/fixture" }
 terrazzo-macro = { version = "0.2.0", path = "framework/macro" }
@@ -158,7 +158,7 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.1", features = ["v4", "fast-rng"] }
-walkdir ={ version = "2.4.0"}
+walkdir = { version = "2.4.0" }
 wasm-bindgen = { version = "=0.2.105" }
 wasm-bindgen-futures = { version = "=0.4.55" }
 wasm-bindgen-test = { version = "=0.3.55" }

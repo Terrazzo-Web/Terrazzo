@@ -124,6 +124,8 @@ def _rust_rules_impl(
     if data_dev == None:
         data_dev = data
 
+    # asset_copy_targets = ["Cargo.toml"] + rust_srcs
+    # asset_link_targets = []
     asset_copy_targets = []
     asset_link_targets = ["Cargo.toml"] + rust_srcs
     i = 0
@@ -360,6 +362,7 @@ def _manifest_dir_env_impl(ctx):
     manifest = ctx.file.manifest
     out = ctx.outputs.out
 
+    # command = "printf 'CARGO_MANIFEST_DIR=%s\\n' \"$(realpath \"$(dirname \"{}\")\")\" > \"{}\"".format(
     command = "printf 'CARGO_MANIFEST_DIR=%s\\n' \"$(dirname \"$(realpath \"{}\")\")\" > \"{}\"".format(
         manifest.path,
         out.path,

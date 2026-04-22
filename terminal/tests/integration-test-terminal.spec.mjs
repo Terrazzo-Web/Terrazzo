@@ -11,28 +11,28 @@ async function expectStaticAssetLoads(request, path, contentTypePattern) {
 }
 
 function getAddTabButton(page) {
-  return page.locator('div[class*="add-tab-icon-"] img');
+  return page.locator('div.add-tab-icon img');
 }
 
 function getTabs(page) {
   return page.locator(
-    'div[class*=terminals] div[class*="titles-"] > ul > li[class*="title-"]:has(img[class*="close-icon-"])',
+    'div.terminals div.titles > ul > li.title:has(img[class~="close-icon"])',
   );
 }
 
 function getActiveTerminal(page) {
   return page.locator(
-    'div[class*=terminals] div[class*="items-"] > ul > li[class*="selected-"] .xterm',
+    'div.terminals div.items > ul > li.selected .xterm',
   );
 }
 
 function getCloseIcons(tabs) {
-  return tabs.locator('img[class*="close-icon-"]');
+  return tabs.locator('img.close-icon');
 }
 
 async function closeTab(tab) {
   await tab.hover();
-  await tab.locator('img[class*="close-icon-"]').click();
+  await tab.locator('img.close-icon').click();
 }
 
 test.describe('Terminal', () => {
@@ -80,8 +80,8 @@ test.describe('Terminal', () => {
     const secondTab = tabs.nth(1);
 
     await firstTab.click();
-    await expect(firstTab).toHaveClass(/selected-/);
-    await expect(page.locator('li[class*="selected-"] .xterm')).toHaveCount(1);
+    await expect(firstTab).toHaveClass(/selected/);
+    await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
     const activeTerminal = getActiveTerminal(page);
     await activeTerminal.click();
@@ -90,8 +90,8 @@ test.describe('Terminal', () => {
     await expect(activeTerminal).toContainText('1337');
 
     await secondTab.click();
-    await expect(secondTab).toHaveClass(/selected-/);
-    await expect(page.locator('li[class*="selected-"] .xterm')).toHaveCount(1);
+    await expect(secondTab).toHaveClass(/selected/);
+    await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
     await activeTerminal.click();
     await page.keyboard.type('echo $((191*7*2))');

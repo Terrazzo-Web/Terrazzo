@@ -39,7 +39,7 @@ async function textDecorationHasUnderline(locator) {
 
 async function formatButtonIsActive(button) {
   const className = await button.getAttribute('class');
-  return /(?:^|\s)active-[^\s]+/.test(className ?? '');
+  return (className ?? '').includes('active-button');
 }
 
 async function setFormatButtonActive(button, active) {

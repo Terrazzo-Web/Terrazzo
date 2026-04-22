@@ -31,10 +31,10 @@ impl TextEditorManager {
         let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
 
         return div(
-            class = style::path_selector,
+            class = style::PATH_SELECTOR,
             style::flex_basis %= flex_basis(is_active.clone()),
             img(
-                class = format!("{} {}", style::path_selector_icon, style::search_icon),
+                class = format!("{} {}", style::PATH_SELECTOR_ICON, style::SEARCH_ICON),
                 src = icons::search(),
                 click = move |_| {
                     autoclone!(is_active, input);
@@ -67,12 +67,12 @@ fn search_selector_input(
     let do_search = Ptr::new(do_search(manager.clone(), base, input.clone()));
     let editor_state = manager.editor_state.clone();
     tag(
-        class = style::path_selector_widget,
+        class = style::PATH_SELECTOR_WIDGET,
         key = "search",
         input(
             before_render = input.capture(),
             r#type = "text",
-            class = style::path_selector_field,
+            class = style::PATH_SELECTOR_FIELD,
             keydown = move |event: KeyboardEvent| {
                 autoclone!(editor_state, is_active_mut, input, do_search);
                 if event.key() == "Escape" {

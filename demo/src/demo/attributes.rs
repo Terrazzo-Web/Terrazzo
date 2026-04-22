@@ -8,7 +8,7 @@ use terrazzo::widgets::select;
 use terrazzo::widgets::select::SelectPtr;
 use web_sys::MouseEvent;
 
-stylance::import_crate_style!(style, "src/demo/attributes.scss");
+terrazzo_css_macro::import_style!(style, "attributes.scss");
 
 #[autoclone]
 #[template(tag = div)]
@@ -137,33 +137,33 @@ fn result(
     italic: XSignal<bool>,
 ) -> XElement {
     let value = match flavor {
-        Flavor::Zero => div(class = style::rbox, "Hello, world! - zero"),
+        Flavor::Zero => div(class = style::RBOX, "Hello, world! - zero"),
         Flavor::BoldS_ItalicS_UnderlineS_Class => div(
             style = BOLD,
             style = ITALIC,
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicS_UnderlineS_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style = ITALIC,
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineS_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style %= style_tpl::italic(italic.clone()),
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineD_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style %= style_tpl::italic(italic.clone()),
             style %= style_tpl::underline(underline.clone()),
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldS_ItalicS_UnderlineS_Style => div(
@@ -268,6 +268,6 @@ mod style_tpl {
 
     #[template(wrap = true)]
     pub fn active(#[signal] mut active: bool) -> XAttributeValue {
-        active.then_some(style::active)
+        active.then_some(format!("{} active-button", style::ACTIVE))
     }
 }

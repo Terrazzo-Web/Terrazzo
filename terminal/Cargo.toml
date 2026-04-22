@@ -55,9 +55,9 @@ server_fn = { workspace = true }
 sha2 = { workspace = true, optional = true }
 simple_asn1 = { workspace = true, optional = true }
 static_assertions = { workspace = true, optional = true }
-stylance = { workspace = true, optional = true }
 tantivy = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
+terrazzo-css-macro = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true, optional = true }
@@ -105,6 +105,8 @@ rustdoc = []
 bazel = []
 
 prod = ["max-level-info", "server-all"]
+client-prod = ["max-level-info", "client-all"]
+
 server-all = [
   "converter-server",
   "logs-panel-server",
@@ -121,7 +123,7 @@ client-all = [
 ]
 
 client = [
-  "dep:stylance",
+  "dep:terrazzo-css-macro",
   "dep:wasm-bindgen-futures",
   "dep:wasm-bindgen",
   "server_fn/browser",
@@ -273,9 +275,9 @@ logs-panel-client = [
 ]
 logs-panel-server = ["dep:tracing-subscriber", "logs-panel", "server"]
 
-[package.metadata.stylance]
-output_file = "./target/css/terrazzo-terminal.scss"
-folders = ["./src/"]
+[package.metadata.css]
+output_file = "target/css/terrazzo-terminal.scss"
+folders = ["src/"]
 extensions = [".scss", ".css"]
 
 [package.metadata.docs.rs]

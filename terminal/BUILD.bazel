@@ -1,18 +1,16 @@
 load("@crates//:defs.bzl", "all_crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
+load("//bazel:scss_rules.bzl", "scss_rule")
 load("//bazel/feature_deps:feature_deps_rules.bzl", "feature_deps")
 load(
     ":terminal_features.bzl",
-    "CLIENT_ALL_DEPS",
-    "CLIENT_ALL_FEATURES",
+    "CLIENT_PROD_DEPS",
+    "CLIENT_PROD_FEATURES",
     "CONVERTER_CLIENT_DEPS",
     "CONVERTER_CLIENT_FEATURES",
     "CONVERTER_SERVER_DEPS",
     "CONVERTER_SERVER_FEATURES",
-    "MAX_LEVEL_INFO_DEPS",
-    "MAX_LEVEL_INFO_FEATURES",
     "PROD_DEPS",
     "PROD_FEATURES",
     "TERMINAL_CLIENT_DEPS",
@@ -30,14 +28,15 @@ feature_deps(
         "trz-gateway-client": "//remote/client",
         "trz-gateway-common": "//remote/common",
     },
-    dependency_exclusion = ["trz-gateway-server"],
+    dependency_exclusion = [
+        "terrazzo-css-macro",
+        "trz-gateway-server",
+    ],
 )
 
 terminal_rules(
-    client_deps = [
-        "//utils/nameth/nameth",
-    ] + CLIENT_ALL_DEPS + MAX_LEVEL_INFO_DEPS,
-    client_features = CLIENT_ALL_FEATURES + MAX_LEVEL_INFO_FEATURES,
+    client_deps = ["//utils/nameth/nameth"] + CLIENT_PROD_DEPS,
+    client_features = CLIENT_PROD_FEATURES,
     server_deps = [
         ":protos",
         "//remote/server:acme",
@@ -47,9 +46,7 @@ terminal_rules(
 )
 
 terminal_rules(
-    client_deps = [
-        "//utils/nameth/nameth",
-    ] + CONVERTER_CLIENT_DEPS,
+    client_deps = ["//utils/nameth/nameth"] + CONVERTER_CLIENT_DEPS,
     client_features = CONVERTER_CLIENT_FEATURES,
     prefix = "converter",
     server_deps = [
@@ -61,9 +58,7 @@ terminal_rules(
 )
 
 terminal_rules(
-    client_deps = [
-        "//utils/nameth/nameth",
-    ] + TERMINAL_CLIENT_DEPS,
+    client_deps = ["//utils/nameth/nameth"] + TERMINAL_CLIENT_DEPS,
     client_features = TERMINAL_CLIENT_FEATURES,
     prefix = "terminal",
     server_deps = [
@@ -81,7 +76,7 @@ cargo_build_script(
     deps = all_crate_deps(build = True),
 )
 
-stylance_rule(
+scss_rule(
     name = "terminal_scss",
     output = "target/css/terrazzo-terminal.scss",
 )

@@ -16,7 +16,7 @@ use self::diagnostics::debug;
 use crate::api::client::remotes_api;
 use crate::api::client_address::ClientAddress;
 
-stylance::import_style!(style, "remotes.scss");
+terrazzo_css_macro::import_style!(style, "remotes.scss");
 
 #[derive(Clone)]
 pub struct RemotesState {
@@ -128,7 +128,7 @@ fn show_remotes_dropdown(
                 },
             )
         });
-        return tag(class = style::remotes_list, remote_names..);
+        return tag(class = style::REMOTES_LIST, remote_names..);
     }
     return tag(style::visibility = "hidden", style::display = "none");
 }

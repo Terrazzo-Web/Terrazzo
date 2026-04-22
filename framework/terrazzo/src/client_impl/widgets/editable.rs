@@ -10,7 +10,7 @@ use web_sys::MouseEvent;
 
 use super::more_event::MoreEvent;
 
-stylance::import_style!(style, "editable.scss");
+terrazzo_css_macro::import_style!(style, "editable.scss");
 
 static EDITABLE_ELEMENT: &str = "Editable element";
 
@@ -55,7 +55,7 @@ fn show_editing(#[signal] mut content: XString, editing_mut: MutableSignal<bool>
     let content_mut2 = content_mut.clone();
     input!(
         r#type = "text",
-        class = style::editing,
+        class = style::EDITING,
         click = move |ev: MouseEvent| ev.stop_propagation(),
         value = content,
         change = move |ev| on_change(&ev, &editing_mut, &content_mut),
@@ -82,7 +82,7 @@ where
     PI: IntoIterator<Item = P>,
 {
     span(
-        class = style::printed,
+        class = style::PRINTED,
         click = move |ev: MouseEvent| {
             if editable.get_value_untracked() {
                 ev.stop_propagation();

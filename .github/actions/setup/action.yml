@@ -67,9 +67,9 @@ runs:
       shell: bash
       run: cargo --locked install wasm-pack --version 0.14.0
 
-    - name: Install stylance
+    - name: Install terrazzo-css
       shell: bash
-      run: cargo --locked install stylance-cli --version 0.7.4
+      run: cargo install --path utils/css/cli --locked
 
     - name: Install Protoc
       uses: arduino/setup-protoc@v3

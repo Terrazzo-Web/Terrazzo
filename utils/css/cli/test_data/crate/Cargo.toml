@@ -1,6 +1,6 @@
 [package]
 name = "terrazzo-cli-test-crate"
-description = "A dummy crate to test Terrazzo CSS CLI."
+description = "A dummy crate to test Terrazzo SCSS CLI."
 
 [lib]
 

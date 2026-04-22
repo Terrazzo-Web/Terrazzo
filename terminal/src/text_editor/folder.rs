@@ -22,7 +22,7 @@ use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
 use crate::utils::more_path::MorePath as _;
 
-stylance::import_style!(style, "folder.scss");
+terrazzo_css_macro::import_style!(style, "folder.scss");
 
 #[autoclone]
 #[html]
@@ -89,7 +89,7 @@ pub fn folder(
         ));
     }
     tag(
-        class = style::folder,
+        class = style::FOLDER,
         table(
             thead(tr(
                 th("Name"),

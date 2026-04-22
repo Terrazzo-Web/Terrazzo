@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use terrazzo_css_shared::CssError;
+use terrazzo_css_shared::ScssError;
 use terrazzo_css_shared::config::Config;
 use terrazzo_css_shared::config::ConfigError;
 use terrazzo_css_shared::hasher::ClassNameHasher;
@@ -12,15 +12,19 @@ use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
-struct Cli {
+struct ScssCli {
     /// The crate root dir, i.e the folder containing the crate's Cargo.toml manifest.
     #[arg(required = true)]
     manifest_dir: PathBuf,
+
+    /// Generate a file with all scss modules concatenated
+    #[arg(long)]
+    output_file: Option<PathBuf>,
 }
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-enum CssCliError {
+enum ScssCliError {
     #[error("[{n}] {0}", n = self.name())]
     ConfigError(#[from] ConfigError),
 
@@ -28,40 +32,53 @@ enum CssCliError {
     ReadFileError(PathBuf, std::io::Error),
 
     #[error("[{n}] Failed to parse manifest: {0}", n = self.name())]
-    CssError(#[from] CssError),
+    ScssError(#[from] ScssError),
 
     #[error("[{n}] Failed to read '{0}': {1}", n = self.name())]
     WriteFileError(PathBuf, std::io::Error),
+
+    #[error("[{n}] Failed to resolve the folder of output_file={0}", n = self.name())]
+    GetOutputFileFolder(PathBuf),
+
+    #[error("[{n}] Failed to create the folder of output_file={0}: {1}", n = self.name())]
+    CreateOutputFileFolder(PathBuf, std::io::Error),
 }
 
-fn main() -> Result<(), CssCliError> {
-    run(Cli::parse())
+fn main() -> Result<(), ScssCliError> {
+    run(ScssCli::parse())
 }
 
-fn run(cli: Cli) -> Result<(), CssCliError> {
+fn run(cli: ScssCli) -> Result<(), ScssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
-    let files = get_hashed_css(&config)?;
+    let files = get_hashed_scss(&config)?;
 
-    let mut output_file = String::new();
+    let mut scss_bundle = String::new();
     let mut first = true;
     for (path, content) in files {
         if first {
             first = false;
         } else {
-            output_file.push('\n');
+            scss_bundle.push('\n');
         }
         if cfg!(debug_assertions) {
-            output_file.push_str(&format!("/* {} */\n", path.to_string_lossy()));
+            scss_bundle.push_str(&format!("/* {} */\n", path.to_string_lossy()));
         }
-        output_file.push_str(content.trim());
-        output_file.push('\n');
+        scss_bundle.push_str(content.trim());
+        scss_bundle.push('\n');
     }
-    std::fs::write(&config.output_file, output_file)
-        .map_err(|error| CssCliError::WriteFileError(config.output_file, error))
+    let output_file = cli.output_file.as_ref().unwrap_or(&config.output_file);
+    let () = std::fs::create_dir_all(
+        output_file
+            .parent()
+            .ok_or_else(|| ScssCliError::GetOutputFileFolder(output_file.to_owned()))?,
+    )
+    .map_err(|error| ScssCliError::CreateOutputFileFolder(output_file.to_owned(), error))?;
+    std::fs::write(output_file, scss_bundle)
+        .map_err(|error| ScssCliError::WriteFileError(config.output_file, error))
 }
 
-fn get_hashed_css(config: &Config) -> Result<Vec<(PathBuf, String)>, CssCliError> {
-    let mut hashed_css_files = Vec::new();
+fn get_hashed_scss(config: &Config) -> Result<Vec<(PathBuf, String)>, ScssCliError> {
+    let mut hashed_scss_files = Vec::new();
     for folder in &config.folders {
         for (entry, meta) in WalkDir::new(folder)
             .into_iter()
@@ -72,10 +89,10 @@ fn get_hashed_css(config: &Config) -> Result<Vec<(PathBuf, String)>, CssCliError
                 let path_str = entry.path().to_string_lossy();
                 if config.extensions.iter().any(|ext| path_str.ends_with(ext)) {
                     let file_content = std::fs::read_to_string(entry.path()).map_err(|error| {
-                        CssCliError::ReadFileError(entry.path().to_owned(), error)
+                        ScssCliError::ReadFileError(entry.path().to_owned(), error)
                     })?;
                     let hasher = ClassNameHasher::new(&file_content);
-                    hashed_css_files.push((
+                    hashed_scss_files.push((
                         entry.path().to_owned(),
                         rewrite_classes(&file_content, |class| hasher.hash(class))?,
                     ));
@@ -83,7 +100,8 @@ fn get_hashed_css(config: &Config) -> Result<Vec<(PathBuf, String)>, CssCliError
             }
         }
     }
-    Ok(hashed_css_files)
+    hashed_scss_files.sort_by(|(path1, _), (path2, _)| path1.cmp(path2));
+    Ok(hashed_scss_files)
 }
 
 #[cfg(test)]
@@ -102,22 +120,23 @@ mod tests {
 
         copy_dir_contents(&source_manifest_dir, temp_dir);
 
-        let cli = super::Cli {
+        let cli = super::ScssCli {
             manifest_dir: temp_dir.to_owned(),
+            output_file: None,
         };
         super::run(cli).unwrap();
         let output =
             std::fs::read_to_string(temp_dir.join("target/css/terrazzo-terminal.scss")).unwrap();
         assert_eq!(
             r#"
-/* $TEMP_DIR/src/root.scss */
-div>.1JR7UtD9 {
-    font-family: "root";
-}
-
 /* $TEMP_DIR/src/client/client.scss */
 div>.HnhCUtD9>.HnhCZxyk {
     font-family: "client";
+}
+
+/* $TEMP_DIR/src/root.scss */
+div>.1JR7UtD9 {
+    font-family: "root";
 }
 "#
             .trim(),

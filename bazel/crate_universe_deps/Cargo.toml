@@ -45,7 +45,6 @@ serde-wasm-bindgen = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }
-stylance = { workspace = true }
 tantivy = { workspace = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true }

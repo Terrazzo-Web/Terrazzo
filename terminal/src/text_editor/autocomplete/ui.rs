@@ -66,7 +66,7 @@ pub fn show_autocomplete(
             },
         )
     });
-    tag(class = style::path_selector_autocomplete, items..)
+    tag(class = style::PATH_SELECTOR_AUTOCOMPLETE, items..)
 }
 
 pub fn start_autocomplete(

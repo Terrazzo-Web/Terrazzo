@@ -82,7 +82,7 @@ pub fn editor(
     );
 
     tag(
-        class = style::editor,
+        class = style::EDITOR,
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;

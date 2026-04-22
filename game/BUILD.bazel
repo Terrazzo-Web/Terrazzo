@@ -1,6 +1,6 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
+load("//bazel:scss_rules.bzl", "scss_rule")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,6 +12,7 @@ rust_rules_matrix(
         },
     ],
     crate_features = ["client"],
+    deps_proc_macro = ["//utils/css/macro"],
     overrides = {
         "client-lib": {
             "deps": ["//framework/terrazzo:client"],
@@ -35,7 +36,6 @@ rust_rules_matrix(
         },
     },
     deps = [
-        "@crates//:stylance",
         "@crates//:wasm-bindgen",
         "@crates//:web-sys",
     ],
@@ -55,7 +55,7 @@ rust_wasm_bindgen(
     wasm_file = ":client-shared-lib-debug",
 )
 
-stylance_rule(
+scss_rule(
     name = "game_scss",
     output = "target/css/game.scss",
 )

@@ -18,7 +18,7 @@ use crate::terminal_id::TerminalId;
 mod add_tab;
 mod move_tab;
 
-stylance::import_style!(style, "terminal_tabs.scss");
+terrazzo_css_macro::import_style!(style, "terminal_tabs.scss");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TerminalTabs {
@@ -49,7 +49,7 @@ impl TabsDescriptor for TerminalTabs {
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
         let remotes_state = RemotesState::new();
         [div(
-            class = style::add_tab_icon,
+            class = style::ADD_TAB_ICON,
             key = "add-tab-icon",
             div(
                 class %= add_tab::active(remotes_state.remotes.clone()),

@@ -17,7 +17,7 @@ use crate::frontend::remotes::Remote;
 use crate::state::app;
 use crate::state::app::App;
 
-stylance::import_style!(style, "menu.scss");
+terrazzo_css_macro::import_style!(style, "menu.scss");
 
 pub fn before_menu() -> MutexGuard<'static, Option<Box<dyn FnOnce() + Send>>> {
     static BEFORE_MENU: Mutex<Option<Box<dyn FnOnce() + Send>>> = Mutex::new(None);
@@ -30,11 +30,11 @@ pub fn before_menu() -> MutexGuard<'static, Option<Box<dyn FnOnce() + Send>>> {
 pub fn menu() -> XElement {
     let hide_menu = Duration::from_millis(500).cancellable();
     div(
-        class = style::menu,
+        class = style::MENU,
         div(
-            class = style::menu_inner,
+            class = style::MENU_INNER,
             class = "app-menu-trigger",
-            img(class = style::menu_icon, src = icons::menu()),
+            img(class = style::MENU_ICON, src = icons::menu()),
             mouseover = move |_: MouseEvent| {
                 autoclone!(hide_menu);
                 if let Some(f) = before_menu().take() {
@@ -86,7 +86,7 @@ fn menu_items(#[signal] mut show_menu: bool, hide_menu: Cancellable<Duration>) -
             hide_menu.clone(),
         ));
         tag(
-            class = style::menu_items,
+            class = style::MENU_ITEMS,
             mouseover = move |_: MouseEvent| {
                 autoclone!(hide_menu, show_menu_mut);
                 hide_menu.cancel();
@@ -109,9 +109,9 @@ fn menu_item(
     hide_menu: Cancellable<Duration>,
 ) -> XElement {
     tag(
-        img(class = style::app_icon, src = app.icon()),
+        img(class = style::APP_ICON, src = app.icon()),
         "{app}",
-        class = (selected_app == app).then_some(style::active),
+        class = (selected_app == app).then_some(style::ACTIVE),
         click = move |_| {
             autoclone!(selected_app_mut);
             let batch = Batch::use_batch("select-app");

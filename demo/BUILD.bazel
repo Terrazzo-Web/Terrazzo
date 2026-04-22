@@ -1,7 +1,7 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
+load("//bazel:scss_rules.bzl", "scss_rule")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -61,7 +61,7 @@ rust_wasm_bindgen(
     wasm_file = ":client-shared-lib-debug",
 )
 
-stylance_rule(
+scss_rule(
     name = "demo_scss",
     output = "target/css/demo.scss",
 )

@@ -14,7 +14,7 @@ use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::utils::more_path::MorePath as _;
 
-stylance::import_style!(style, "side.scss");
+terrazzo_css_macro::import_style!(style, "side.scss");
 
 #[html]
 #[template(tag = div, key = "side-view")]
@@ -23,7 +23,7 @@ pub fn show_side_view(
     #[signal] side_view: Arc<SideViewList>,
 ) -> XElement {
     tag(
-        class = style::side,
+        class = style::SIDE,
         show_side_view_list(&manager, "".as_ref(), side_view),
     )
 }
@@ -55,8 +55,8 @@ fn show_side_view_node(
             div(
                 key = "folder",
                 div(
-                    class = style::folder,
-                    img(src = icons::folder(), class = style::icon),
+                    class = style::FOLDER,
+                    img(src = icons::folder(), class = style::ICON),
                     div(
                         class %= selected_item(manager.path.file.clone(), path.clone()),
                         span(
@@ -70,7 +70,7 @@ fn show_side_view_node(
                     close_icon(manager, &path),
                 ),
                 div(
-                    class = style::sub_folder,
+                    class = style::SUB_FOLDER,
                     show_side_view_list(manager, &path, children.clone()),
                 ),
             )
@@ -80,8 +80,8 @@ fn show_side_view_node(
             let file_path_signal = manager.path.file.clone();
             div(
                 key = "file",
-                class = style::file,
-                img(src = icons::file(), class = style::icon),
+                class = style::FILE,
+                img(src = icons::file(), class = style::ICON),
                 div(
                     class %= selected_item(manager.path.file.clone(), path.clone()),
                     span("{name}"),
@@ -100,9 +100,9 @@ fn show_side_view_node(
 fn selected_item(#[signal] file_path: Arc<str>, path: Arc<Path>) -> XAttributeValue {
     let file_path: &Path = (*file_path).as_ref();
     if file_path == path.as_ref() {
-        style::selected_label
+        style::SELECTED_LABEL
     } else {
-        style::label
+        style::LABEL
     }
 }
 
@@ -111,7 +111,7 @@ fn selected_item(#[signal] file_path: Arc<str>, path: Arc<Path>) -> XAttributeVa
 fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
     img(
         src = icons::close_tab(),
-        class = format!("{} {}", style::icon, style::close),
+        class = format!("{} {}", style::ICON, style::CLOSE),
         click = move |_ev| {
             autoclone!(manager, path);
             manager.remove_from_side_view(&path);

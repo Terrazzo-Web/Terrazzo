@@ -31,7 +31,12 @@ use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::utils::ndjson::NdjsonBuffer;
 
-stylance::import_style!(pub(super) style, "converter.scss");
+// terrazzo_css_macro::import_style!(pub(super) style, "converter.scss");
+terrazzo_css_macro::import_style!(style_inner, "converter.scss");
+
+pub(super) mod style {
+    pub use super::style_inner::*;
+}
 
 /// The UI for the converter app.
 #[html]
@@ -41,7 +46,7 @@ pub fn converter(remote: XSignal<Remote>) -> XElement {
     let preferred_language = XSignal::new("preferred-language", None);
     let active_request_id = Arc::new(AtomicU64::new(0));
     div(
-        class = style::outer,
+        class = style::OUTER,
         converter_impl(remote, conversions, preferred_language, active_request_id),
     )
 }
@@ -55,11 +60,11 @@ fn converter_impl(
     active_request_id: Arc<AtomicU64>,
 ) -> XElement {
     div(
-        class = style::inner,
+        class = style::INNER,
         key = "converter",
-        div(class = style::header, menu(), show_remote(remote.clone())),
+        div(class = style::HEADER, menu(), show_remote(remote.clone())),
         div(
-            class = style::body,
+            class = style::BODY,
             show_input(remote, conversions.clone(), active_request_id),
             show_resize_bar(),
             show_conversions(conversions, preferred_language),
@@ -127,17 +132,17 @@ fn show_conversions(
 ) -> XElement {
     let state = ConversionsState::new(&conversions, preferred_language);
     div(
-        class = style::conversions,
+        class = style::CONVERSIONS,
         tabs(
             conversions,
             state,
             Ptr::new(TabsOptions {
-                tabs_class: Some(style::tabs.into()),
-                titles_class: Some(style::titles.into()),
-                title_class: Some(style::title.into()),
-                items_class: Some(style::items.into()),
-                item_class: Some(style::item.into()),
-                selected_class: Some(style::selected.into()),
+                tabs_class: Some(style::TABS.into()),
+                titles_class: Some(style::TITLES.into()),
+                title_class: Some(style::TITLE.into()),
+                items_class: Some(style::ITEMS.into()),
+                item_class: Some(style::ITEM.into()),
+                selected_class: Some(style::SELECTED.into()),
                 ..TabsOptions::default()
             }),
         ),
@@ -253,7 +258,7 @@ async fn consume_conversions_stream(
 #[html]
 fn show_resize_bar() -> XElement {
     div(
-        class = style::resize_bar,
+        class = style::RESIZE_BAR,
         mousedown = RESIZE_MANAGER.mousedown(),
         dblclick = |_| RESIZE_MANAGER.delta.set(None),
         div(div()),

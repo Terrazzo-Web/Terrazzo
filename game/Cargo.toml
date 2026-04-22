@@ -15,8 +15,8 @@ path = "src/server.rs"
 required-features = ["server"]
 
 [dependencies]
-stylance = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
+terrazzo-css-macro = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tower-http = { workspace = true, optional = true, features = [
   "fs",
@@ -36,7 +36,12 @@ terrazzo-build = { workspace = true }
 
 [features]
 default = []
-client = ["dep:stylance", "dep:wasm-bindgen", "dep:web-sys", "terrazzo/client"]
+client = [
+  "dep:terrazzo-css-macro", 
+  "dep:wasm-bindgen", 
+  "dep:web-sys", 
+  "terrazzo/client"
+  ]
 server = [
   "dep:tokio",
   "dep:tower-http",
@@ -59,9 +64,9 @@ concise-traces = ["terrazzo?/concise-traces"]
 debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
 no_wasm_build = []
 
-[package.metadata.stylance]
-output_file = "./target/css/game.scss"
-folders = ["./src/"]
+[package.metadata.css]
+output_file = "target/css/game.scss"
+folders = ["src"]
 extensions = [".scss", ".css"]
 
 [lints]

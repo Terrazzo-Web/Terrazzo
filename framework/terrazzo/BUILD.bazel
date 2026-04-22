@@ -6,7 +6,7 @@ package(default_visibility = ["//visibility:public"])
 rust_rules_matrix(
     assets = [
         "README.md",
-         glob(["src/**/*.scss"]),
+        glob(["src/**/*.scss"]),
     ],
     crate_features = ["client"],
     crate_name = "terrazzo",
@@ -47,6 +47,7 @@ rust_rules_matrix(
         {
             "targets": ":common_scss",
             "prefix": "target/css",
+            "copy": True,
         },
     ],
     crate_features = ["server"],

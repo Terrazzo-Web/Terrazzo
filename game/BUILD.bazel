@@ -65,7 +65,6 @@ rust_rules_matrix(
         {
             "targets": [":game_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

@@ -91,7 +91,6 @@ def terminal_rules(
         {
             "targets": [":terminal_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ]
     server_assets_release = [{

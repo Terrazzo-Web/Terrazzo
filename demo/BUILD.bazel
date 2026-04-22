@@ -71,7 +71,6 @@ rust_rules_matrix(
         {
             "targets": [":demo_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

@@ -29,7 +29,7 @@ feature_deps(
         "trz-gateway-common": "//remote/common",
     },
     dependency_exclusion = [
-        "terrazzo-css-macro",
+        "terrazzo-css",
         "trz-gateway-server",
     ],
 )

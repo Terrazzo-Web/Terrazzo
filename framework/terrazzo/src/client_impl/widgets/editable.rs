@@ -10,7 +10,7 @@ use web_sys::MouseEvent;
 
 use super::more_event::MoreEvent;
 
-terrazzo_css_macro::import_style!(style, "editable.scss");
+terrazzo_css::import_style!(style, "editable.scss");
 
 static EDITABLE_ELEMENT: &str = "Editable element";
 

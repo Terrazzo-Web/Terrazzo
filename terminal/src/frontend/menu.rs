@@ -17,7 +17,7 @@ use crate::frontend::remotes::Remote;
 use crate::state::app;
 use crate::state::app::App;
 
-terrazzo_css_macro::import_style!(style, "menu.scss");
+terrazzo_css::import_style!(style, "menu.scss");
 
 pub fn before_menu() -> MutexGuard<'static, Option<Box<dyn FnOnce() + Send>>> {
     static BEFORE_MENU: Mutex<Option<Box<dyn FnOnce() + Send>>> = Mutex::new(None);

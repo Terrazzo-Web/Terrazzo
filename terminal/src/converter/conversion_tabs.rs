@@ -26,7 +26,7 @@ use super::api::Conversions;
 use crate::assets::icons;
 use crate::converter::api::Language;
 
-terrazzo_css_macro::import_style!(style, "conversion_tabs.scss");
+terrazzo_css::import_style!(style, "conversion_tabs.scss");
 
 impl TabsDescriptor for Conversions {
     type State = ConversionsState;

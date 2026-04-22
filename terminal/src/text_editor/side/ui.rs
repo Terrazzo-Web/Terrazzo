@@ -14,7 +14,7 @@ use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::utils::more_path::MorePath as _;
 
-terrazzo_css_macro::import_style!(style, "side.scss");
+terrazzo_css::import_style!(style, "side.scss");
 
 #[html]
 #[template(tag = div, key = "side-view")]

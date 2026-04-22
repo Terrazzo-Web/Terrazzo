@@ -18,7 +18,7 @@ mod position;
 mod size;
 mod state;
 
-terrazzo_css_macro::import_style!(style, "game.scss");
+terrazzo_css::import_style!(style, "game.scss");
 
 #[autoclone]
 #[template]

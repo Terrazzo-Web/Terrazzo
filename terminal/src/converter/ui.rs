@@ -31,12 +31,7 @@ use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::utils::ndjson::NdjsonBuffer;
 
-// terrazzo_css_macro::import_style!(pub(super) style, "converter.scss");
-terrazzo_css_macro::import_style!(style_inner, "converter.scss");
-
-pub(super) mod style {
-    pub use super::style_inner::*;
-}
+terrazzo_css::import_style!(pub(super) style, "converter.scss");
 
 /// The UI for the converter app.
 #[html]

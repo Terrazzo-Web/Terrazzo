@@ -26,7 +26,7 @@ use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::portforward::schema::PortForwardState;
 
-terrazzo_css_macro::import_style!(style, "port_forward.scss");
+terrazzo_css::import_style!(style, "port_forward.scss");
 pub use style::TAG;
 
 /// The UI for the port forward app.

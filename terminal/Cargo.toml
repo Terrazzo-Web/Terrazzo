@@ -57,7 +57,7 @@ simple_asn1 = { workspace = true, optional = true }
 static_assertions = { workspace = true, optional = true }
 tantivy = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
-terrazzo-css-macro = { workspace = true, optional = true }
+terrazzo-css = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true, optional = true }
@@ -123,7 +123,7 @@ client-all = [
 ]
 
 client = [
-  "dep:terrazzo-css-macro",
+  "dep:terrazzo-css",
   "dep:wasm-bindgen-futures",
   "dep:wasm-bindgen",
   "server_fn/browser",

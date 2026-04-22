@@ -7,7 +7,7 @@ use terrazzo_macro::template;
 use wasm_bindgen::JsCast as _;
 use web_sys::HtmlElement;
 
-terrazzo_css_macro::import_style!(style, "tabs.scss");
+terrazzo_css::import_style!(style, "tabs.scss");
 
 const DRAG_KEY: &str = "id";
 

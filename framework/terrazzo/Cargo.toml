@@ -31,7 +31,7 @@ rsass = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 terrazzo-client = { workspace = true, optional = true }
-terrazzo-css-macro = { workspace = true, optional = true }
+terrazzo-css = { workspace = true, optional = true }
 terrazzo-macro = { workspace = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
@@ -59,7 +59,7 @@ client = [
   "dep:nameth",
   "dep:scopeguard",
   "dep:terrazzo-client",
-  "dep:terrazzo-css-macro",
+  "dep:terrazzo-css",
   "dep:thiserror",
   "dep:wasm-bindgen-futures",
   "dep:wasm-bindgen",

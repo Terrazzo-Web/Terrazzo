@@ -5,7 +5,7 @@ use terrazzo::template;
 use super::cookie::CookiePtr;
 use super::cookie::cookie;
 
-terrazzo_css_macro::import_style!(style, "cookies.scss");
+terrazzo_css::import_style!(style, "cookies.scss");
 
 #[template(tag = div)]
 #[html]

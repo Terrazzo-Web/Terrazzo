@@ -8,7 +8,7 @@ use self::diagnostics::debug;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes::RemotesState;
 
-terrazzo_css_macro::import_style!(style, "remotes_ui.scss");
+terrazzo_css::import_style!(style, "remotes_ui.scss");
 
 #[html]
 #[template(tag = div)]

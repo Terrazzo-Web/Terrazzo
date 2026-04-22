@@ -22,7 +22,7 @@ use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
 use crate::utils::more_path::MorePath as _;
 
-terrazzo_css_macro::import_style!(style, "folder.scss");
+terrazzo_css::import_style!(style, "folder.scss");
 
 #[autoclone]
 #[html]

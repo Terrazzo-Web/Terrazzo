@@ -16,7 +16,6 @@ rust_rules_matrix(
     deps_proc_macro = [
         "//framework/macro:client",
         "//utils/autoclone/autoclone",
-        "//utils/css/macro",
     ],
     overrides = {
         "client": {
@@ -34,6 +33,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:futures",
         "@crates//:scopeguard",

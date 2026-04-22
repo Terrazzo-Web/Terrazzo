@@ -43,7 +43,6 @@ def terminal_rules(
         ],
         rust_srcs = compute_srcs(client_features),
         crate_features = client_features,
-        deps_proc_macro = ["//utils/css/macro"],
         overrides = {
             prefix + "client-lib": {
                 "deps": ["//framework/terrazzo:client"],

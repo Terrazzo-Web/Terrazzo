@@ -13,7 +13,6 @@ rust_rules_matrix(
         },
     ],
     crate_features = ["client"],
-    deps_proc_macro = ["//utils/css/macro"],
     overrides = {
         "client-lib": {
             "deps": ["//framework/terrazzo:client"],
@@ -37,6 +36,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:scopeguard",
         "@crates//:serde_json",

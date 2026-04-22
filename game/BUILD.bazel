@@ -12,7 +12,7 @@ rust_rules_matrix(
         },
     ],
     crate_features = ["client"],
-    deps_proc_macro = ["//utils/css/macro"],
+    deps_proc_macro = [],
     overrides = {
         "client-lib": {
             "deps": ["//framework/terrazzo:client"],
@@ -36,6 +36,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "@crates//:wasm-bindgen",
         "@crates//:web-sys",
     ],

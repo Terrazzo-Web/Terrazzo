@@ -4,5 +4,6 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "css",
+    crate_name = "terrazzo_css",
     deps_proc_macro = ["//utils/css/macro"],
 )

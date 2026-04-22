@@ -10,6 +10,7 @@ pub mod logs_service;
 pub mod notify_service;
 pub mod port_forward_service;
 pub mod remote_fn_service;
+pub mod remote_streaming_fn_service;
 mod routing;
 pub mod shared_service;
 pub mod terminal_service;

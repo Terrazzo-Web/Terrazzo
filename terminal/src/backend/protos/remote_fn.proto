@@ -8,6 +8,10 @@ service RemoteFnService {
   rpc CallServerFn(RemoteFnRequest) returns (ServerFnResponse);
 }
  
+service RemoteStreamingFnService {
+  rpc CallServerFn(RemoteFnRequest) returns (stream ServerFnResponse);
+}
+ 
 message RemoteFnRequest {
   terrazzo.shared.ClientAddress address = 1;
   string server_fn_name = 2;

@@ -124,8 +124,8 @@ def _rust_rules_impl(
     if data_dev == None:
         data_dev = data
 
-    asset_copy_targets = ["Cargo.toml"] + rust_srcs
-    asset_link_targets = []
+    asset_copy_targets = []
+    asset_link_targets = ["Cargo.toml"] + rust_srcs
     i = 0
     for asset in assets:
         if type(asset) == "string":

@@ -5,12 +5,7 @@ load("//bazel:scss_rules.bzl", "scss_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    assets = [
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
-    ],
+    assets =   glob(["src/**/*.scss"]),
     crate_features = ["client"],
     deps_proc_macro = [],
     overrides = {
@@ -70,7 +65,6 @@ rust_rules_matrix(
         {
             "targets": [":game_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

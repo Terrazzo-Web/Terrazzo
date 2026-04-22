@@ -36,10 +36,7 @@ def terminal_rules(
     rust_rules_matrix(
         assets = [
             native.glob(["src/**/*.js"]),
-            {
-                "targets": native.glob(["src/**/*.scss"]),
-                "copy": True,
-            },
+             native.glob(["src/**/*.scss"]),
         ],
         rust_srcs = compute_srcs(client_features),
         crate_features = client_features,
@@ -94,18 +91,17 @@ def terminal_rules(
         {
             "targets": [":terminal_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ]
     server_assets_release = [{
         "targets": [":" + prefix + "client"],
         "prefix": "target/assets/wasm",
-        "copy": True,
+        "copy": True, # Because we need to copy the snippets folder recursively
     }]
     server_assets_debug = [{
         "targets": [":" + prefix + "client-debug"],
         "prefix": "target/assets/wasm",
-        "copy": True,
+        "copy": True, # Because we need to copy the snippets folder recursively
     }]
 
     rust_rules_matrix(

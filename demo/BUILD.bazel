@@ -6,12 +6,7 @@ load("//bazel:scss_rules.bzl", "scss_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    assets = [
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
-    ],
+    assets = glob(["src/**/*.scss"]),
     crate_features = ["client"],
     overrides = {
         "client-lib": {
@@ -76,7 +71,6 @@ rust_rules_matrix(
         {
             "targets": [":demo_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

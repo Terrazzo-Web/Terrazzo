@@ -9,7 +9,7 @@ use tonic::Result;
 use tonic::Status;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::RemoteFnError;
+use super::RemoteFnError;
 
 /// Helper to uplift a remote function into a String -> String server_fn.
 pub const fn uplift<Req, F, Res, E>(

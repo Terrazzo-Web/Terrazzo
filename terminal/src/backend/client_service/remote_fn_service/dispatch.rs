@@ -6,8 +6,8 @@ use tracing::debug;
 use tracing::debug_span;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::RemoteFnError;
-use crate::backend::client_service::remote_fn_service::callback::DistributedFn;
+use super::RemoteFnError;
+use super::callback::DistributedFn;
 use crate::backend::client_service::routing::DistributedCallback as _;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 

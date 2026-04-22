@@ -10,7 +10,7 @@ use nameth::nameth;
 use tonic::Status;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::remote_fn::RegisteredRemoteFn;
+use self::remote_fn::RegisteredRemoteFn;
 use crate::backend::client_service::routing::DistributedCallbackError;
 
 mod callback;

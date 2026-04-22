@@ -2,8 +2,8 @@ use tonic::Result;
 use tonic::Status;
 use tonic::async_trait;
 
+use super::dispatch::remote_fn_dispatch;
 use crate::backend::client_service::ClientServiceImpl;
-use crate::backend::client_service::remote_fn_service::dispatch::remote_fn_dispatch;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 use crate::backend::protos::terrazzo::remotefn::ServerFnResponse;
 use crate::backend::protos::terrazzo::remotefn::remote_fn_service_server::RemoteFnService;

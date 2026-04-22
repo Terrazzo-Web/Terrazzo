@@ -36,6 +36,12 @@ enum ScssCliError {
 
     #[error("[{n}] Failed to read '{0}': {1}", n = self.name())]
     WriteFileError(PathBuf, std::io::Error),
+
+    #[error("[{n}] Failed to resolve the folder of output_file={0}", n = self.name())]
+    GetOutputFileFolder(PathBuf),
+
+    #[error("[{n}] Failed to create the folder of output_file={0}: {1}", n = self.name())]
+    CreateOutputFileFolder(PathBuf, std::io::Error),
 }
 
 fn main() -> Result<(), ScssCliError> {
@@ -46,25 +52,29 @@ fn run(cli: ScssCli) -> Result<(), ScssCliError> {
     let config = Config::load(&cli.manifest_dir)?;
     let files = get_hashed_scss(&config)?;
 
-    let mut output_file = String::new();
+    let mut scss_bundle = String::new();
     let mut first = true;
     for (path, content) in files {
         if first {
             first = false;
         } else {
-            output_file.push('\n');
+            scss_bundle.push('\n');
         }
         if cfg!(debug_assertions) {
-            output_file.push_str(&format!("/* {} */\n", path.to_string_lossy()));
+            scss_bundle.push_str(&format!("/* {} */\n", path.to_string_lossy()));
         }
-        output_file.push_str(content.trim());
-        output_file.push('\n');
+        scss_bundle.push_str(content.trim());
+        scss_bundle.push('\n');
     }
-    std::fs::write(
-        cli.output_file.as_ref().unwrap_or(&config.output_file),
-        output_file,
+    let output_file = cli.output_file.as_ref().unwrap_or(&config.output_file);
+    let () = std::fs::create_dir_all(
+        output_file
+            .parent()
+            .ok_or_else(|| ScssCliError::GetOutputFileFolder(output_file.to_owned()))?,
     )
-    .map_err(|error| ScssCliError::WriteFileError(config.output_file, error))
+    .map_err(|error| ScssCliError::CreateOutputFileFolder(output_file.to_owned(), error))?;
+    std::fs::write(output_file, scss_bundle)
+        .map_err(|error| ScssCliError::WriteFileError(config.output_file, error))
 }
 
 fn get_hashed_scss(config: &Config) -> Result<Vec<(PathBuf, String)>, ScssCliError> {

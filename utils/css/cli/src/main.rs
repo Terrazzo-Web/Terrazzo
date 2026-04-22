@@ -90,6 +90,7 @@ fn get_hashed_scss(config: &Config) -> Result<Vec<(PathBuf, String)>, ScssCliErr
             }
         }
     }
+    hashed_scss_files.sort_by(|(path1, _), (path2, _)| path1.cmp(path2));
     Ok(hashed_scss_files)
 }
 

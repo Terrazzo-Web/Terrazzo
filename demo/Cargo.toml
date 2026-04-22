@@ -22,7 +22,7 @@ nameth = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
-terrazzo-css-macro = { workspace = true, optional = true }
+terrazzo-css = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tower-http = { workspace = true, optional = true, features = [
@@ -55,7 +55,7 @@ client = [
   "dep:nameth",
   "dep:scopeguard",
   "dep:serde_json",
-  "dep:terrazzo-css-macro",
+  "dep:terrazzo-css",
   "dep:thiserror",
   "dep:wasm-bindgen-futures",
   "dep:wasm-bindgen",

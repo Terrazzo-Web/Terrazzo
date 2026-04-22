@@ -18,7 +18,7 @@ use crate::terminal_id::TerminalId;
 mod add_tab;
 mod move_tab;
 
-terrazzo_css_macro::import_style!(style, "terminal_tabs.scss");
+terrazzo_css::import_style!(style, "terminal_tabs.scss");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TerminalTabs {

@@ -24,14 +24,12 @@ package(default_visibility = ["//visibility:public"])
 
 feature_deps(
     dependency_aliases = {
+        "terrazzo-css": "//utils/css/css",
         "terrazzo-pty": "//pty",
         "trz-gateway-client": "//remote/client",
         "trz-gateway-common": "//remote/common",
     },
-    dependency_exclusion = [
-        "terrazzo-css-macro",
-        "trz-gateway-server",
-    ],
+    dependency_exclusion = ["trz-gateway-server"],
 )
 
 terminal_rules(

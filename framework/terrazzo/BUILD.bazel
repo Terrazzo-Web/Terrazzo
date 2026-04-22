@@ -6,17 +6,13 @@ package(default_visibility = ["//visibility:public"])
 rust_rules_matrix(
     assets = [
         "README.md",
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
+        glob(["src/**/*.scss"]),
     ],
     crate_features = ["client"],
     crate_name = "terrazzo",
     deps_proc_macro = [
         "//framework/macro:client",
         "//utils/autoclone/autoclone",
-        "//utils/css/macro",
     ],
     overrides = {
         "client": {
@@ -34,6 +30,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:futures",
         "@crates//:scopeguard",
@@ -50,7 +47,6 @@ rust_rules_matrix(
         {
             "targets": ":common_scss",
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

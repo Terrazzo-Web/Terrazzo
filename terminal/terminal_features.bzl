@@ -6,6 +6,7 @@ _ALL_FEATURES = ["bazel", "client", "client-all", "client-prod", "concise-traces
 BAZEL_DEPS = []
 BAZEL_FEATURES = ["bazel"]
 CLIENT_DEPS = [
+    "//utils/css/css",
     "@crates//:wasm-bindgen",
     "@crates//:wasm-bindgen-futures",
 ]

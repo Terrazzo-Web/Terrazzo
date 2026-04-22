@@ -16,7 +16,7 @@ use self::diagnostics::debug;
 use crate::api::client::remotes_api;
 use crate::api::client_address::ClientAddress;
 
-terrazzo_css_macro::import_style!(style, "remotes.scss");
+terrazzo_css::import_style!(style, "remotes.scss");
 
 #[derive(Clone)]
 pub struct RemotesState {

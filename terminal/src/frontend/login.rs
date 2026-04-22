@@ -18,7 +18,7 @@ use crate::frontend::menu::app;
 use crate::frontend::remotes::Remote;
 use crate::state::app::App;
 
-terrazzo_css_macro::import_style!(style, "login.scss");
+terrazzo_css::import_style!(style, "login.scss");
 
 #[autoclone]
 #[html]

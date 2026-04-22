@@ -16,7 +16,7 @@ use super::position::Position;
 use super::size::Size;
 use super::state::Game;
 
-terrazzo_css_macro::import_style!(style, "cookie.scss");
+terrazzo_css::import_style!(style, "cookie.scss");
 
 #[template(tag = img, key = c.id.to_string())]
 #[html]

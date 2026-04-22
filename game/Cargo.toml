@@ -16,7 +16,7 @@ required-features = ["server"]
 
 [dependencies]
 terrazzo = { workspace = true, optional = true }
-terrazzo-css-macro = { workspace = true, optional = true }
+terrazzo-css = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tower-http = { workspace = true, optional = true, features = [
   "fs",
@@ -37,7 +37,7 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-  "dep:terrazzo-css-macro",
+  "dep:terrazzo-css",
   "dep:wasm-bindgen",
   "dep:web-sys",
   "terrazzo/client",

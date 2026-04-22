@@ -85,5 +85,5 @@ How it works:
 
 - Client feature UIs are usually in each feature's `ui.rs` and are guarded by `#[cfg(feature = "client")]`.
 - Server entry points are often `#[server(...)]` functions near the feature code, with server-only implementation behind `#[cfg(feature = "server")]`.
-- Styling stays next to the feature in `.scss` files and is imported with `stylance::import_style!`.
+- Styling stays next to the feature in `.scss` files and is imported with `terrazzo_css::import_style!`.
 - Signals and templates are the default state-management and rendering pattern; follow existing `XSignal`, `XTemplate`, `#[html]`, and `#[template]` usage before introducing a different approach.

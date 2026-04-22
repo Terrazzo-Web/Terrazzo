@@ -20,7 +20,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 
-terrazzo_css_macro::import_style!(style, "panel.scss");
+terrazzo_css::import_style!(style, "panel.scss");
 
 #[html]
 #[template(tag = div)]

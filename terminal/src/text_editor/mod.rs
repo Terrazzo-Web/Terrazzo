@@ -17,4 +17,4 @@ mod synchronized_state;
 pub mod ui;
 
 #[cfg(feature = "client")]
-terrazzo_css_macro::import_style!(style, "text_editor.scss");
+terrazzo_css::import_style!(style, "text_editor.scss");

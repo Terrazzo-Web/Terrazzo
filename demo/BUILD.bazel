@@ -6,14 +6,8 @@ load("//bazel:scss_rules.bzl", "scss_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    assets = [
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
-    ],
+    assets = glob(["src/**/*.scss"]),
     crate_features = ["client"],
-    deps_proc_macro = ["//utils/css/macro"],
     overrides = {
         "client-lib": {
             "deps": ["//framework/terrazzo:client"],
@@ -37,6 +31,7 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:scopeguard",
         "@crates//:serde_json",
@@ -76,7 +71,6 @@ rust_rules_matrix(
         {
             "targets": [":demo_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],

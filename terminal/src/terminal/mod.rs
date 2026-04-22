@@ -19,7 +19,7 @@ use crate::api::client::terminal_api;
 use crate::frontend::remotes::Remote;
 use crate::terminal_id::TerminalId;
 
-terrazzo_css_macro::import_style!(style, "terminal.scss");
+terrazzo_css::import_style!(style, "terminal.scss");
 
 mod attach;
 mod javascript;

@@ -4,58 +4,61 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::ready;
 
+use futures::Stream;
 use pin_project::pin_project;
 use tonic::Result;
 use tonic::Status;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::RemoteFnError;
+use super::RemoteFnError;
 
 /// Helper to uplift a remote function into a String -> String server_fn.
-pub const fn uplift<Req, F, Res, E>(
+pub const fn uplift<Req, F, S, T, E>(
     function: impl Fn(&Arc<Server>, Req) -> F + 'static,
-) -> impl Fn(&Arc<Server>, &str) -> UpliftFuture<F>
+) -> impl Fn(&Arc<Server>, &str) -> UpliftStream<F>
 where
     Req: for<'de> serde::Deserialize<'de>,
-    F: Future<Output = Result<Res, E>> + 'static,
-    Res: serde::Serialize,
+    F: Future<Output = S> + 'static,
+    S: Stream<Item = Result<T, E>>,
+    T: serde::Serialize,
     Status: From<E>,
 {
     move |server, request| {
         let request = serde_json::from_str::<Req>(request)
             .map_err(|error| RemoteFnError::DeserializeRequest(error, request.into()));
         match request {
-            Ok(request) => UpliftFuture::Future(function(server, request)),
-            Err(error) => UpliftFuture::DeserializeRequest(error),
+            Ok(request) => UpliftStream::Stream(function(server, request)),
+            Err(error) => UpliftStream::DeserializeRequest(error),
         }
     }
 }
 
-#[pin_project(project = UpliftFutureProj)]
-pub enum UpliftFuture<F> {
+#[pin_project(project = UpliftStreamProj)]
+pub enum UpliftStream<S> {
     DeserializeRequest(RemoteFnError),
-    Future(#[pin] F),
+    Stream(#[pin] S),
 }
 
-impl<F, Res, E> Future for UpliftFuture<F>
+impl<S, T, E> Stream for UpliftStream<S>
 where
-    F: Future<Output = Result<Res, E>>,
-    Res: serde::Serialize,
+    S: Stream<Item = Result<T, E>>,
+    T: serde::Serialize,
     Status: From<E>,
 {
-    type Output = Result<String, RemoteFnError>;
+    type Item = Result<String, RemoteFnError>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project() {
-            UpliftFutureProj::DeserializeRequest(error) => {
+            UpliftStreamProj::DeserializeRequest(error) => {
                 let error = std::mem::replace(error, RemoteFnError::RemoteFnsNotSet);
-                Err(error)
+                Some(Err(error))
             }
-            UpliftFutureProj::Future(future) => match ready!(future.poll(cx)) {
-                Ok(response) => {
-                    serde_json::to_string(&response).map_err(RemoteFnError::SerializeResponse)
+            UpliftStreamProj::Stream(stream) => match ready!(stream.poll_next(cx)) {
+                Some(Ok(response)) => {
+                    Some(serde_json::to_string(&response).map_err(RemoteFnError::SerializeResponse))
                 }
-                Err(error) => Err(RemoteFnError::ServerFn(error.into())),
+                Some(Err(error)) => Some(Err(RemoteFnError::ServerFn(error.into()))),
+                None => None,
             },
         }
         .into()

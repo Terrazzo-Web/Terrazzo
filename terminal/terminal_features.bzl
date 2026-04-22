@@ -6,6 +6,7 @@ _ALL_FEATURES = ["bazel", "client", "client-all", "concise-traces", "converter",
 BAZEL_DEPS = []
 BAZEL_FEATURES = ["bazel"]
 CLIENT_DEPS = [
+    "@crates//:terrazzo-css-macro",
     "@crates//:wasm-bindgen",
     "@crates//:wasm-bindgen-futures",
 ]

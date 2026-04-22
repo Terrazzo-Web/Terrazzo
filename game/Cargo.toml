@@ -37,11 +37,11 @@ terrazzo-build = { workspace = true }
 [features]
 default = []
 client = [
-  "dep:terrazzo-css-macro", 
-  "dep:wasm-bindgen", 
-  "dep:web-sys", 
-  "terrazzo/client"
-  ]
+  "dep:terrazzo-css-macro",
+  "dep:wasm-bindgen",
+  "dep:web-sys",
+  "terrazzo/client",
+]
 server = [
   "dep:tokio",
   "dep:tower-http",

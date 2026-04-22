@@ -5,7 +5,7 @@ load("//bazel:scss_rules.bzl", "scss_rule")
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    assets =   glob(["src/**/*.scss"]),
+    assets = glob(["src/**/*.scss"]),
     crate_features = ["client"],
     deps_proc_macro = [],
     overrides = {

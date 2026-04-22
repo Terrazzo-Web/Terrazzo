@@ -36,12 +36,12 @@ pub struct Global<'s> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum CssFragment<'s> {
+pub enum ScssFragment<'s> {
     Class(&'s str),
     Global(Global<'s>),
 }
 
-pub fn parse_css(input: &str) -> Result<Vec<CssFragment<'_>>, ParseError<&str, ContextError>> {
+pub fn parse_scss(input: &str) -> Result<Vec<ScssFragment<'_>>, ParseError<&str, ContextError>> {
     style_rule_block_contents.parse(input)
 }
 
@@ -153,17 +153,17 @@ fn stuff_till<'s>(
     )
 }
 
-fn selector<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn selector<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     repeat(
         1..,
         alt((
-            class.map(|c| Some(CssFragment::Class(c))),
-            global.map(|g| Some(CssFragment::Global(g))),
+            class.map(|c| Some(ScssFragment::Class(c))),
+            global.map(|g| Some(ScssFragment::Global(g))),
             ':'.map(|_| None),
             stuff_till(1.., ('.', ';', '{', '}', ':')).map(|_| None),
         )),
     )
-    .fold(Vec::new, |mut acc: Vec<CssFragment<'s>>, item| {
+    .fold(Vec::new, |mut acc: Vec<ScssFragment<'s>>, item| {
         if let Some(item) = item {
             acc.push(item);
         }
@@ -186,7 +186,7 @@ fn declaration<'s>(input: &mut &'s str) -> ModalResult<&'s str> {
         .parse_next(input)
 }
 
-fn style_rule_block_statement<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn style_rule_block_statement<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     let content = alt((
         declaration.map(|_| Vec::new()), //
         at_rule,
@@ -195,7 +195,7 @@ fn style_rule_block_statement<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFra
     delimited(ws, content, ws).parse_next(input)
 }
 
-fn style_rule_block_contents<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn style_rule_block_contents<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     repeat(0.., style_rule_block_statement)
         .fold(Vec::new, |mut acc, mut item| {
             acc.append(&mut item);
@@ -204,7 +204,7 @@ fn style_rule_block_contents<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFrag
         .parse_next(input)
 }
 
-fn style_rule_block<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn style_rule_block<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     preceded(
         '{',
         cut_err(terminated(style_rule_block_contents, (ws, '}'))),
@@ -212,13 +212,13 @@ fn style_rule_block<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>
     .parse_next(input)
 }
 
-fn style_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn style_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     let (mut classes, mut nested_classes) = (selector, style_rule_block).parse_next(input)?;
     classes.append(&mut nested_classes);
     Ok(classes)
 }
 
-fn at_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<CssFragment<'s>>> {
+fn at_rule<'s>(input: &mut &'s str) -> ModalResult<Vec<ScssFragment<'s>>> {
     let (identifier, char) = preceded(
         '@',
         cut_err((
@@ -274,9 +274,9 @@ mod tests {
         assert_eq!(
             r,
             Ok(vec![
-                CssFragment::Class("foo"),
-                CssFragment::Class("bar"),
-                CssFragment::Class("cry")
+                ScssFragment::Class("foo"),
+                ScssFragment::Class("bar"),
+                ScssFragment::Class("cry")
             ])
         );
 
@@ -322,11 +322,11 @@ mod tests {
         assert_eq!(
             r,
             Ok(vec![
-                CssFragment::Class("foo"),
-                CssFragment::Class("bar"),
-                CssFragment::Class("baz"),
-                CssFragment::Class("moo"),
-                CssFragment::Class("zoo")
+                ScssFragment::Class("foo"),
+                ScssFragment::Class("bar"),
+                ScssFragment::Class("baz"),
+                ScssFragment::Class("moo"),
+                ScssFragment::Class("zoo")
             ])
         );
 
@@ -387,9 +387,9 @@ mod tests {
         assert_eq!(
             r,
             Ok(vec![
-                CssFragment::Class("foo"),
-                CssFragment::Class("bar"),
-                CssFragment::Class("baz")
+                ScssFragment::Class("foo"),
+                ScssFragment::Class("bar"),
+                ScssFragment::Class("baz")
             ])
         );
 
@@ -416,9 +416,9 @@ mod tests {
         assert_eq!(
             r,
             Ok(vec![
-                CssFragment::Class("foo"),
-                CssFragment::Class("bar"),
-                CssFragment::Class("baz")
+                ScssFragment::Class("foo"),
+                ScssFragment::Class("bar"),
+                ScssFragment::Class("baz")
             ])
         );
 
@@ -481,12 +481,12 @@ mod tests {
         assert_eq!(
             r,
             Ok(vec![
-                CssFragment::Class("default_border"),
-                CssFragment::Class("media-foo"),
-                CssFragment::Class("layer-foo"),
-                CssFragment::Class("include-foo"),
-                CssFragment::Class("container"),
-                CssFragment::Class("bar"),
+                ScssFragment::Class("default_border"),
+                ScssFragment::Class("media-foo"),
+                ScssFragment::Class("layer-foo"),
+                ScssFragment::Class("include-foo"),
+                ScssFragment::Class("container"),
+                ScssFragment::Class("bar"),
             ])
         );
 

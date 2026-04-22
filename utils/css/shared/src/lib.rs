@@ -8,24 +8,24 @@ use std::collections::HashSet;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-pub use parse::parse_css;
+pub use parse::parse_scss;
 
-use crate::parse::CssFragment;
 use crate::parse::Global;
+use crate::parse::ScssFragment;
 
 pub fn rewrite_classes(
-    css_file: &str,
+    scss_file: &str,
     rename: impl Fn(&str) -> String,
-) -> Result<String, CssError> {
+) -> Result<String, ScssError> {
     let fragments =
-        parse::parse_css(css_file).map_err(|error| CssError::ParseError(error.to_string()))?;
-    let mut new_file = String::with_capacity(css_file.len() * 2);
-    let mut cursor = css_file;
+        parse::parse_scss(scss_file).map_err(|error| ScssError::ParseError(error.to_string()))?;
+    let mut new_file = String::with_capacity(scss_file.len() * 2);
+    let mut cursor = scss_file;
 
     for fragment in fragments {
         let (span, replace) = match fragment {
-            CssFragment::Class(class) => (class, Cow::Owned(rename(class))),
-            CssFragment::Global(Global { inner, outer }) => (outer, Cow::Borrowed(inner)),
+            ScssFragment::Class(class) => (class, Cow::Owned(rename(class))),
+            ScssFragment::Global(Global { inner, outer }) => (outer, Cow::Borrowed(inner)),
         };
 
         let (before, after) = cursor.split_at(span.as_ptr() as usize - cursor.as_ptr() as usize);
@@ -38,12 +38,12 @@ pub fn rewrite_classes(
     Ok(new_file)
 }
 
-pub fn list_classes(css_file: &str) -> Result<impl Iterator<Item = &str>, CssError> {
+pub fn list_classes(scss_file: &str) -> Result<impl Iterator<Item = &str>, ScssError> {
     let fragments =
-        parse::parse_css(css_file).map_err(|error| CssError::ParseError(error.to_string()))?;
+        parse::parse_scss(scss_file).map_err(|error| ScssError::ParseError(error.to_string()))?;
     let mut seen = HashSet::with_capacity(fragments.len());
     Ok(fragments.into_iter().filter_map(move |fragment| {
-        if let CssFragment::Class(class) = fragment
+        if let ScssFragment::Class(class) = fragment
             && seen.insert(class)
         {
             Some(class)
@@ -55,8 +55,8 @@ pub fn list_classes(css_file: &str) -> Result<impl Iterator<Item = &str>, CssErr
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum CssError {
-    #[error("[{n}] {0}", n = self.name())]
+pub enum ScssError {
+    #[error("[{n}] Failed to parse SCSS: {0}", n = self.name())]
     ParseError(String),
 }
 

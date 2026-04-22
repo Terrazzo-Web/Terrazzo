@@ -6,50 +6,82 @@ use nameth::nameth;
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use proc_macro2::Span;
+use quote::ToTokens;
 use quote::quote;
 use quote::quote_spanned;
 use syn::spanned::Spanned;
-use terrazzo_css_shared::CssError;
+use terrazzo_css_shared::ScssError;
 
 #[proc_macro]
 pub fn import_style(input: TokenStream) -> TokenStream {
-    let local_file = input
-        .clone()
-        .into_iter()
-        .next()
-        .expect("first token")
-        .span()
-        .local_file()
-        .expect("local_file");
+    match try_import_style(input) {
+        Ok(ok) => ok,
+        Err(error) if std::env::var("RUST_ANALYZER_INTERNALS_DO_NOT_USE").is_err() => {
+            error.into_compile_error().into()
+        }
+        Err(_) => TokenStream::new(),
+    }
+}
+
+fn try_import_style(input: TokenStream) -> Result<TokenStream, syn::Error> {
+    let current_file = current_file(&input)?;
     let input = proc_macro2::TokenStream::from(input);
     let input: syn::ExprTuple = syn::parse2(quote! ( (#input) )).unwrap();
 
-    let ident = if let syn::Expr::Path(path) = &input.elems[0]
+    let ident = &input.elems[0];
+    let ident = if let syn::Expr::Path(path) = ident
         && let Some(ident) = path.path.get_ident()
     {
         ident
     } else {
-        let span = input.elems[0].span();
-        return quote_spanned! {span=> compile_error!("Expected a module name") }.into();
+        return Err(syn::Error::new(
+            ident.span(),
+            format!("Expected a module name, got {}", ident.into_token_stream()),
+        ));
     };
 
+    let scss_path = &input.elems[1];
     let syn::Expr::Lit(syn::ExprLit {
-        lit: syn::Lit::Str(file_path),
+        lit: syn::Lit::Str(scss_path),
         ..
-    }) = &input.elems[1]
+    }) = scss_path
     else {
-        let span = input.elems[1].span();
-        return quote_spanned! {span=> compile_error!("Expected a string literal") }.into();
+        return Err(syn::Error::new(
+            scss_path.span(),
+            format!(
+                "Expected a string literal for the SCSS file path, got {}",
+                scss_path.into_token_stream()
+            ),
+        ));
     };
 
-    let identifier_span = file_path.span();
-    let file_path = local_file.parent().unwrap().join(file_path.value());
-    match try_import_style_classes(ident, file_path, identifier_span) {
-        Ok(ts) => ts,
-        Err(err) => syn::Error::new_spanned(&input, err.to_string())
-            .to_compile_error()
-            .into(),
-    }
+    let scss_path_span = scss_path.span();
+    let scss_path = current_file
+        .parent()
+        .ok_or_else(|| {
+            syn::Error::new(
+                scss_path_span,
+                format!("Failed to resolve the parent folder of the current file {current_file:?}"),
+            )
+        })?
+        .join(scss_path.value());
+    try_import_style_classes(ident, scss_path, scss_path_span)
+        .map_err(|error| syn::Error::new_spanned(&input, error.to_string()))
+}
+
+fn current_file(input: &TokenStream) -> Result<PathBuf, syn::Error> {
+    let first_token = input.clone().into_iter().next().ok_or_else(|| {
+        syn::Error::new_spanned(
+            proc_macro2::TokenStream::from(input.clone()),
+            "Failed to get the first token to resolve the current file",
+        )
+    })?;
+    first_token.span().local_file().ok_or_else(|| {
+        syn::Error::new_spanned(
+            proc_macro2::TokenStream::from(input.clone()),
+            "The first token's span did not have a local file",
+        )
+    })
 }
 
 fn try_import_style_classes(
@@ -83,5 +115,5 @@ enum ImportStyleError {
     ReadFileError(PathBuf, std::io::Error),
 
     #[error("[{n}] {0}", n = self.name())]
-    CssError(#[from] CssError),
+    ScssError(#[from] ScssError),
 }

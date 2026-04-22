@@ -2,7 +2,7 @@
 
 load("//bazel/feature_deps:feature_deps_rules.bzl", "base_compute_srcs")
 
-_ALL_FEATURES = ["bazel", "client", "client-all", "concise-traces", "converter", "converter-client", "converter-server", "correlation-id", "debug", "diagnostics", "logs-panel", "logs-panel-client", "logs-panel-server", "max-level-debug", "max-level-info", "no_wasm_build", "port-forward", "port-forward-client", "port-forward-server", "prod", "remotes-ui", "rustdoc", "server", "server-all", "terminal", "terminal-client", "terminal-server", "text-editor", "text-editor-client", "text-editor-server"]
+_ALL_FEATURES = ["bazel", "client", "client-all", "client-prod", "concise-traces", "converter", "converter-client", "converter-server", "correlation-id", "debug", "diagnostics", "logs-panel", "logs-panel-client", "logs-panel-server", "max-level-debug", "max-level-info", "no_wasm_build", "port-forward", "port-forward-client", "port-forward-server", "prod", "remotes-ui", "rustdoc", "server", "server-all", "terminal", "terminal-client", "terminal-server", "text-editor", "text-editor-client", "text-editor-server"]
 BAZEL_DEPS = []
 BAZEL_FEATURES = ["bazel"]
 CLIENT_DEPS = [
@@ -55,6 +55,10 @@ CLIENT_ALL_DEPS = CONVERTER_CLIENT_DEPS + LOGS_PANEL_CLIENT_DEPS + PORT_FORWARD_
 CLIENT_ALL_FEATURES = CONVERTER_CLIENT_FEATURES + LOGS_PANEL_CLIENT_FEATURES + PORT_FORWARD_CLIENT_FEATURES + TERMINAL_CLIENT_FEATURES + TEXT_EDITOR_CLIENT_FEATURES + ["client-all"]
 CONCISE_TRACES_DEPS = []
 CONCISE_TRACES_FEATURES = ["concise-traces"]
+MAX_LEVEL_INFO_DEPS = CONCISE_TRACES_DEPS
+MAX_LEVEL_INFO_FEATURES = CONCISE_TRACES_FEATURES + ["max-level-info"]
+CLIENT_PROD_DEPS = CLIENT_ALL_DEPS + MAX_LEVEL_INFO_DEPS
+CLIENT_PROD_FEATURES = CLIENT_ALL_FEATURES + MAX_LEVEL_INFO_FEATURES + ["client-prod"]
 SERVER_DEPS = [
     "//remote/client",
     "//remote/common",
@@ -109,8 +113,6 @@ LOGS_PANEL_SERVER_DEPS = LOGS_PANEL_DEPS + SERVER_DEPS + ["@crates//:tracing-sub
 LOGS_PANEL_SERVER_FEATURES = LOGS_PANEL_FEATURES + SERVER_FEATURES + ["logs-panel-server"]
 MAX_LEVEL_DEBUG_DEPS = []
 MAX_LEVEL_DEBUG_FEATURES = ["max-level-debug"]
-MAX_LEVEL_INFO_DEPS = CONCISE_TRACES_DEPS
-MAX_LEVEL_INFO_FEATURES = CONCISE_TRACES_FEATURES + ["max-level-info"]
 NO_WASM_BUILD_DEPS = []
 NO_WASM_BUILD_FEATURES = ["no_wasm_build"]
 PORT_FORWARD_SERVER_DEPS = PORT_FORWARD_DEPS + SERVER_DEPS
@@ -138,6 +140,7 @@ RUSTDOC_FEATURES = ["rustdoc"]
 _EXCLUSION_MAP = [
     {"feature": "bazel", "delta": []},
     {"feature": "client-all", "delta": []},
+    {"feature": "client-prod", "delta": []},
     {"feature": "concise-traces", "delta": []},
     {"feature": "converter-client", "delta": []},
     {"feature": "converter-server", "delta": []},

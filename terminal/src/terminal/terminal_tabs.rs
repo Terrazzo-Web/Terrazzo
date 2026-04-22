@@ -50,6 +50,8 @@ impl TabsDescriptor for TerminalTabs {
         let remotes_state = RemotesState::new();
         [div(
             class = style::ADD_TAB_ICON,
+            #[cfg(not(feature = "client-prod"))]
+            class = "add-tab-icon",
             key = "add-tab-icon",
             div(
                 class %= add_tab::active(remotes_state.remotes.clone()),

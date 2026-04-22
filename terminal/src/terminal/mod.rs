@@ -61,21 +61,34 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
         div(
             key = "terminals",
             class = style::TERMINALS,
+            #[cfg(not(feature = "client-prod"))]
+            class = "terminals",
             tabs(
                 terminal_tabs,
                 state,
                 Ptr::new(TabsOptions {
-                    tabs_class: Some(style::TABS.into()),
-                    titles_class: Some(style::TITLES.into()),
-                    title_class: Some(style::TITLE.into()),
-                    items_class: Some(style::ITEMS.into()),
-                    item_class: Some(style::ITEM.into()),
-                    selected_class: Some(style::SELECTED.into()),
+                    tabs_class: Some(get_class_name("tabs", style::TABS).into()),
+                    titles_class: Some(get_class_name("titles", style::TITLES).into()),
+                    title_class: Some(get_class_name("title", style::TITLE).into()),
+                    items_class: Some(get_class_name("items", style::ITEMS).into()),
+                    item_class: Some(get_class_name("item", style::ITEM).into()),
+                    selected_class: Some(get_class_name("selected", style::SELECTED).into()),
                     ..TabsOptions::default()
                 }),
             ),
         ),
     )
+}
+
+fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString> {
+    #[cfg(feature = "client-prod")]
+    {
+        let _ = name;
+        return class;
+    }
+
+    #[cfg(not(feature = "client-prod"))]
+    return format!("{name} {class}");
 }
 
 fn refresh_terminal_tabs(selected_tab: XSignal<TerminalId>, terminal_tabs: XSignal<TerminalTabs>) {

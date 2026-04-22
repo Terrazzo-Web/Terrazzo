@@ -268,6 +268,6 @@ mod style_tpl {
 
     #[template(wrap = true)]
     pub fn active(#[signal] mut active: bool) -> XAttributeValue {
-        active.then_some(style::ACTIVE)
+        active.then_some(format!("{} active-button", style::ACTIVE))
     }
 }

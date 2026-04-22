@@ -155,6 +155,8 @@ impl TabDescriptor for TerminalTab {
         let close_button = img(
             key = "close-icon",
             class = super::style::CLOSE_ICON,
+            #[cfg(not(feature = "client-prod"))]
+            class = "close-icon",
             src = icons::close_tab(),
             click = move |ev: web_sys::MouseEvent| {
                 autoclone!(terminal);

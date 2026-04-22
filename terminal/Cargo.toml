@@ -105,6 +105,8 @@ rustdoc = []
 bazel = []
 
 prod = ["max-level-info", "server-all"]
+client-prod = ["max-level-info", "client-all"]
+
 server-all = [
   "converter-server",
   "logs-panel-server",

@@ -119,14 +119,14 @@ mod tests {
             std::fs::read_to_string(temp_dir.join("target/css/terrazzo-terminal.scss")).unwrap();
         assert_eq!(
             r#"
-/* $TEMP_DIR/src/root.scss */
-div>.1JR7UtD9 {
-    font-family: "root";
-}
-
 /* $TEMP_DIR/src/client/client.scss */
 div>.HnhCUtD9>.HnhCZxyk {
     font-family: "client";
+}
+
+/* $TEMP_DIR/src/root.scss */
+div>.1JR7UtD9 {
+    font-family: "root";
 }
 "#
             .trim(),

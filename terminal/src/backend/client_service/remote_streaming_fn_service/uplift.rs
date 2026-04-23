@@ -13,12 +13,11 @@ use trz_gateway_server::server::Server;
 use super::RemoteFnError;
 
 /// Helper to uplift a remote function into a String -> String server_fn.
-pub const fn uplift<Req, F, S, T, E>(
-    function: impl Fn(&Arc<Server>, Req) -> F + 'static,
-) -> impl Fn(&Arc<Server>, &str) -> UpliftStream<F>
+pub const fn uplift<Req, S, T, E>(
+    function: impl Fn(&Arc<Server>, Req) -> S + 'static,
+) -> impl Fn(&Arc<Server>, &str) -> UpliftStream<S>
 where
     Req: for<'de> serde::Deserialize<'de>,
-    F: Future<Output = S> + 'static,
     S: Stream<Item = Result<T, E>>,
     T: serde::Serialize,
     Status: From<E>,

@@ -116,6 +116,11 @@ impl TunnelConfig for AgentTunnelConfig {
             let server = server
                 .add_service(SharedServiceServer::new(client_service.clone()))
                 .add_service(RemoteFnServiceServer::new(client_service.clone()));
+            #[cfg(feature = "streaming-remote-fn")]
+            let server = {
+                use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_server::RemoteStreamingFnServiceServer;
+                server.add_service(RemoteStreamingFnServiceServer::new(client_service.clone()))
+            };
             #[cfg(feature = "converter")]
             let server = {
                 use crate::backend::protos::terrazzo::converter::converter_service_server::ConverterServiceServer;
@@ -130,11 +135,6 @@ impl TunnelConfig for AgentTunnelConfig {
             let server = {
                 use crate::backend::protos::terrazzo::notify::notify_service_server::NotifyServiceServer;
                 server.add_service(NotifyServiceServer::new(client_service.clone()))
-            };
-            #[cfg(feature = "logs-panel")]
-            let server = {
-                use crate::backend::protos::terrazzo::logs::logs_service_server::LogsServiceServer;
-                server.add_service(LogsServiceServer::new(client_service.clone()))
             };
             #[cfg(feature = "port-forward")]
             let server = {

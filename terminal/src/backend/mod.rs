@@ -65,6 +65,7 @@ use self::tls_config::TlsConfigError;
 use self::tls_config::make_tls_config;
 use crate::assets;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::client_service::remote_streaming_fn_service;
 use crate::backend::config::mesh::DynamicMeshConfig;
 use crate::utils::more_path::MorePath as _;
 
@@ -198,6 +199,8 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     let config = backend_config.config.clone();
     let (server, server_handle, crash) = Server::run(backend_config).await?;
     remote_fn_service::setup(&server);
+    #[cfg(feature = "streaming-remote-fn")]
+    remote_streaming_fn_service::setup(&server);
     let crash = crash
         .then(|crash| {
             let crash = crash

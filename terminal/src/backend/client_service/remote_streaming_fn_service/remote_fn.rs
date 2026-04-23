@@ -2,16 +2,19 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use futures::Stream;
+use futures::StreamExt;
 use scopeguard::defer;
-use tracing::Instrument as _;
 use tracing::debug;
 use tracing::debug_span;
+use tracing_futures::Instrument as _;
 use trz_gateway_server::server::Server;
 
+use super::RemoteFnError;
+use super::dispatch::remote_fn_dispatch;
+use super::remote_fn_server;
+use super::response::local::LocalResponseStream;
 use crate::api::client_address::ClientAddress;
-use crate::backend::client_service::remote_fn_service::RemoteFnError;
-use crate::backend::client_service::remote_fn_service::dispatch::remote_fn_dispatch;
-use crate::backend::client_service::remote_fn_service::remote_fn_server;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 
 /// A struct that holds a remote server function.
@@ -47,7 +50,7 @@ impl RegisteredRemoteFn {
 }
 
 /// Shorthand for the result of remote functions.
-pub type RemoteFnResult = Pin<Box<dyn Future<Output = Result<String, RemoteFnError>> + Send>>;
+pub type RemoteFnResult = Pin<Box<dyn Stream<Item = Result<String, RemoteFnError>> + Send>>;
 
 impl<I, O> RemoteFn<I, O> {
     pub const fn new(delegate: RegisteredRemoteFn) -> Self {
@@ -62,11 +65,11 @@ impl<I, O> RemoteFn<I, O> {
     /// The remote function will be called on the client indicated by `address`.
     ///
     /// Takes care of serializing the request and then deserializing the response.
-    pub fn call(
+    pub async fn call(
         &self,
         address: ClientAddress,
         request: I,
-    ) -> impl Future<Output = Result<O, RemoteFnError>>
+    ) -> Result<impl Stream<Item = Result<O, RemoteFnError>>, RemoteFnError>
     where
         I: serde::Serialize,
         O: for<'de> serde::Deserialize<'de>,
@@ -90,9 +93,18 @@ impl<I, O> RemoteFn<I, O> {
             )
             .await?;
 
-            return serde_json::from_str(&response)
-                .map_err(|error| RemoteFnError::DeserializeResponse(error, response));
+            let response = LocalResponseStream(response);
+            let response = response.map(|item| match item {
+                Ok(item) => match serde_json::from_str(&item) {
+                    Ok(item) => Ok(item),
+                    Err(error) => Err(RemoteFnError::DeserializeResponse(error, item)),
+                },
+                Err(error) => Err(RemoteFnError::ServerFn(error)),
+            });
+
+            return Ok(response);
         }
         .instrument(debug_span!("RemoteFn"))
+        .await
     }
 }

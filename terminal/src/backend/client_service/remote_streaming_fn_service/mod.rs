@@ -1,3 +1,4 @@
+#![cfg(feature = "streaming-remote-fn")]
 //! Forward [server_fn] calls to mesh clients.
 
 use std::collections::HashMap;
@@ -7,16 +8,18 @@ use std::sync::Weak;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use server_fn::ServerFnError;
 use tonic::Status;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::remote_fn::RegisteredRemoteFn;
+use self::remote_fn::RegisteredRemoteFn;
 use crate::backend::client_service::routing::DistributedCallbackError;
 
 mod callback;
 mod dispatch;
 mod grpc;
 pub mod remote_fn;
+mod response;
 pub mod uplift;
 
 /// Records the current [Server] instance.
@@ -63,7 +66,10 @@ pub enum RemoteFnError {
     ServerWasDropped,
 
     #[error("[{n}] {0}", n = self.name())]
-    ServerFn(Status),
+    Status(tonic::Status),
+
+    #[error("[{n}] {0}", n = self.name())]
+    ServerFn(ServerFnError),
 
     #[error("[{n}] Failed to serialize request: {0}", n = self.name())]
     SerializeRequest(serde_json::Error),
@@ -100,7 +106,8 @@ mod remote_fn_errors_to_status {
                 | RemoteFnError::ServerNotSet
                 | RemoteFnError::ServerWasDropped => Status::internal(error.to_string()),
                 RemoteFnError::RemoteFnNotFound { .. } => Status::not_found(error.to_string()),
-                RemoteFnError::ServerFn(error) => error,
+                RemoteFnError::Status(status) => status,
+                RemoteFnError::ServerFn(error) => Status::internal(error.to_string()),
                 RemoteFnError::SerializeRequest { .. }
                 | RemoteFnError::DeserializeRequest { .. }
                 | RemoteFnError::SerializeResponse { .. }
@@ -112,6 +119,7 @@ mod remote_fn_errors_to_status {
     }
 }
 
+#[allow(unused)] // TODO: remove this, this is guarded by a feature
 macro_rules! declare_remote_fn {
     (
         $(#[$meta:meta])*
@@ -122,21 +130,22 @@ macro_rules! declare_remote_fn {
         $implem:expr
     ) => {
         $(#[$meta])*
-        pub static $remote_fn: remote_fn_service::remote_fn::RemoteFn<$input, $output> = {
+        pub static $remote_fn: remote_streaming_fn_service::remote_fn::RemoteFn<$input, $output> = {
             fn callback(
                 server: &std::sync::Arc<trz_gateway_server::server::Server>,
                 arg: &str,
-            ) -> remote_fn_service::remote_fn::RemoteFnResult {
-                let callback = remote_fn_service::uplift::uplift::<$input, _, $output, _>($implem);
+            ) -> remote_streaming_fn_service::remote_fn::RemoteFnResult {
+                let callback = remote_streaming_fn_service::uplift::uplift::<$input, _, $output, _>($implem);
                 Box::pin(callback(server, arg))
             }
 
-            static REMOTE_FN_REGISTRATION: remote_fn_service::remote_fn::RegisteredRemoteFn =
-                remote_fn_service::remote_fn::RegisteredRemoteFn::new($remote_fn_name, callback);
+            static REMOTE_FN_REGISTRATION: remote_streaming_fn_service::remote_fn::RegisteredRemoteFn =
+                remote_streaming_fn_service::remote_fn::RegisteredRemoteFn::new($remote_fn_name, callback);
             inventory::submit! { REMOTE_FN_REGISTRATION };
-            remote_fn_service::remote_fn::RemoteFn::new(REMOTE_FN_REGISTRATION)
+            remote_streaming_fn_service::remote_fn::RemoteFn::new(REMOTE_FN_REGISTRATION)
         };
     };
 }
 
+#[allow(unused)] // TODO: remove this, this is guarded by a feature
 pub(crate) use declare_remote_fn;

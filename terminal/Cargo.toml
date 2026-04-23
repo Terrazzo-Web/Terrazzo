@@ -275,6 +275,10 @@ logs-panel-client = [
 ]
 logs-panel-server = ["dep:tracing-subscriber", "logs-panel", "server"]
 
+streaming-remote-fn = [
+  "dep:tracing-futures",
+]
+
 [package.metadata.css]
 output_file = "target/css/terrazzo-terminal.scss"
 folders = ["src/"]

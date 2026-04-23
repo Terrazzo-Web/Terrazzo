@@ -16,7 +16,7 @@ pub struct CargoCheckRequest {
     pub features: Vec<String>,
 }
 
-remote_fn_service::declare_remote_fn!(
+remote_fn_service::unary::declare_remote_fn!(
     CARGO_CHECK_REMOTE_FN,
     super::CARGO_CHECK,
     CargoCheckRequest,

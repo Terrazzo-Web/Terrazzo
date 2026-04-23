@@ -6,8 +6,9 @@ use tracing::debug;
 use tracing::debug_span;
 use trz_gateway_server::server::Server;
 
-use crate::backend::client_service::remote_fn_service::RemoteFnError;
-use crate::backend::client_service::remote_fn_service::callback::DistributedFn;
+use super::RemoteFnError;
+use super::callback::DistributedFn;
+use super::response::HybridResponseStream;
 use crate::backend::client_service::routing::DistributedCallback as _;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 
@@ -16,7 +17,7 @@ pub fn remote_fn_dispatch(
     server: &Arc<Server>,
     client_address: &[impl AsRef<str>],
     request: RemoteFnRequest,
-) -> impl Future<Output = Result<String, RemoteFnError>> {
+) -> impl Future<Output = Result<HybridResponseStream, RemoteFnError>> {
     async move {
         debug!("Start");
         defer!(debug!("Done"));

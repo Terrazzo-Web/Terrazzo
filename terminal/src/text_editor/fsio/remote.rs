@@ -33,7 +33,7 @@ remote_fn_service::unary::declare_remote_fn!(
     }
 );
 
-unary::declare_remote_fn!(
+remote_fn_service::unary::declare_remote_fn!(
     STORE_FILE_REMOTE_FN,
     super::STORE_FILE_IMPL,
     StoreFileRequest,

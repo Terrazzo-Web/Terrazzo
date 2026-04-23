@@ -121,19 +121,19 @@ macro_rules! declare_remote_fn {
         $implem:expr
     ) => {
         $(#[$meta])*
-        pub static $remote_fn: remote_fn_service::remote_fn::RemoteFn<$input, $output> = {
+        pub static $remote_fn: remote_fn_service::unary::remote_fn::RemoteFn<$input, $output> = {
             fn callback(
                 server: &std::sync::Arc<trz_gateway_server::server::Server>,
                 arg: &str,
-            ) -> remote_fn_service::remote_fn::RemoteFnResult {
-                let callback = remote_fn_service::uplift::uplift::<$input, _, $output, _>($implem);
+            ) -> remote_fn_service::unary::remote_fn::RemoteFnResult {
+                let callback = remote_fn_service::unary::uplift::uplift::<$input, _, $output, _>($implem);
                 Box::pin(callback(server, arg))
             }
 
-            static REMOTE_FN_REGISTRATION: remote_fn_service::remote_fn::RegisteredRemoteFn =
-                remote_fn_service::remote_fn::RegisteredRemoteFn::new($remote_fn_name, callback);
+            static REMOTE_FN_REGISTRATION: remote_fn_service::unary::remote_fn::RegisteredRemoteFn =
+                remote_fn_service::unary::remote_fn::RegisteredRemoteFn::new($remote_fn_name, callback);
             inventory::submit! { REMOTE_FN_REGISTRATION };
-            remote_fn_service::remote_fn::RemoteFn::new(REMOTE_FN_REGISTRATION)
+            remote_fn_service::unary::remote_fn::RemoteFn::new(REMOTE_FN_REGISTRATION)
         };
     };
 }

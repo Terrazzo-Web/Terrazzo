@@ -29,11 +29,11 @@ impl DistributedCallback for DistributedFn {
     ) -> Result<String, RemoteFnError> {
         debug!("Calling local {request:?}");
         let server = server.ok_or(RemoteFnError::ServerNotSet)?;
-        let Some(remote_server_fns) = REMOTE_FNS.get() else {
-            return Err(RemoteFnError::RemoteFnsNotSet);
-        };
-        let Some(remote_server_fn) = remote_server_fns.get(request.server_fn_name.as_str()) else {
-            return Err(RemoteFnError::RemoteFnNotFound(request.server_fn_name));
+        let remote_server_fn = {
+            let remote_server_fns = REMOTE_FNS.get().ok_or(RemoteFnError::RemoteFnsNotSet)?;
+            remote_server_fns
+                .get(request.server_fn_name.as_str())
+                .ok_or_else(|| RemoteFnError::RemoteFnNotFound(request.server_fn_name))?
         };
         let callback = &remote_server_fn.callback;
         return callback(server, &request.json).await;

@@ -25,6 +25,13 @@ impl futures::Stream for RemoteResponseStream {
             HybridResponseStreamProj::Remote(this) => this.poll_next(cx),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.0 {
+            HybridResponseStream::Local(local_stream) => local_stream.size_hint(),
+            HybridResponseStream::Remote(remote_stream) => remote_stream.size_hint(),
+        }
+    }
 }
 
 fn poll_next_remote(

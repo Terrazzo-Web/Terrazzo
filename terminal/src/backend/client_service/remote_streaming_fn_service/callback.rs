@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use futures::TryStreamExt;
+use server_fn::ServerFnError;
+use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -9,41 +12,45 @@ use tracing::debug;
 use trz_gateway_server::server::Server;
 
 use super::REMOTE_FNS;
-use super::RemoteFnError;
+use super::response::HybridResponseStream;
+use crate::backend::client_service::remote_streaming_fn_service::RemoteFnError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
-use crate::backend::protos::terrazzo::remotefn::remote_fn_service_client::RemoteFnServiceClient;
+use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_client::RemoteStreamingFnServiceClient;
 use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;
 
 pub struct DistributedFn;
 
 impl DistributedCallback for DistributedFn {
     type Request = RemoteFnRequest;
-    type Response = String;
+    type Response = HybridResponseStream;
     type LocalError = RemoteFnError;
-    type RemoteError = tonic::Status;
+    type RemoteError = Status;
 
     async fn local(
         server: Option<&Arc<Server>>,
         request: RemoteFnRequest,
-    ) -> Result<String, RemoteFnError> {
+    ) -> Result<HybridResponseStream, RemoteFnError> {
         debug!("Calling local {request:?}");
         let server = server.ok_or(RemoteFnError::ServerNotSet)?;
-        let Some(remote_server_fns) = REMOTE_FNS.get() else {
-            return Err(RemoteFnError::RemoteFnsNotSet);
-        };
-        let Some(remote_server_fn) = remote_server_fns.get(request.server_fn_name.as_str()) else {
-            return Err(RemoteFnError::RemoteFnNotFound(request.server_fn_name));
+        let remote_server_fn = {
+            let remote_server_fns = REMOTE_FNS.get().ok_or(RemoteFnError::RemoteFnsNotSet)?;
+            remote_server_fns
+                .get(request.server_fn_name.as_str())
+                .ok_or_else(|| RemoteFnError::RemoteFnNotFound(request.server_fn_name))?
         };
         let callback = &remote_server_fn.callback;
-        return callback(server, &request.json).await;
+        let local_stream = callback(server, &request.json)
+            .map_err(|error| ServerFnError::from(error))
+            .into();
+        return Ok(HybridResponseStream::Local(local_stream));
     }
 
     async fn remote<T>(
         channel: T,
         client_address: &[impl AsRef<str>],
         mut request: RemoteFnRequest,
-    ) -> Result<String, tonic::Status>
+    ) -> Result<HybridResponseStream, Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -52,10 +59,8 @@ impl DistributedCallback for DistributedFn {
     {
         request.address = Some(ClientAddressProto::of(client_address));
         debug!("Calling remote {request:?}");
-        let result = RemoteFnServiceClient::new(channel)
-            .call_server_fn(request)
-            .await?
-            .into_inner();
-        Ok(result.json)
+        let mut client = RemoteStreamingFnServiceClient::new(channel);
+        let response = client.call_server_fn(request).await?.into_inner();
+        Ok(HybridResponseStream::Remote(Box::new(response)))
     }
 }

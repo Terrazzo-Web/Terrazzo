@@ -27,7 +27,10 @@ impl futures::Stream for LocalResponseStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, None)
+        match &self.0 {
+            HybridResponseStream::Local(local_stream) => local_stream.size_hint(),
+            HybridResponseStream::Remote(remote_stream) => remote_stream.size_hint(),
+        }
     }
 }
 

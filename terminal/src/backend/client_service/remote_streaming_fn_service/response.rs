@@ -18,7 +18,7 @@ impl From<HybridResponseStream> for BoxedStream<String, ServerFnError> {
     fn from(response_stream: HybridResponseStream) -> Self {
         match response_stream {
             HybridResponseStream::Local(local_stream) => local_stream,
-            response_stream => self::local::LocalResponseStream(response_stream).into(),
+            remote_stream => self::local::LocalResponseStream(remote_stream).into(),
         }
     }
 }

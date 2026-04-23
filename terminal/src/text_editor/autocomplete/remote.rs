@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::server_fn::AutocompleteItem;
+use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::path_selector::schema::PathSelector;
 
@@ -26,10 +27,7 @@ remote_fn_service::declare_remote_fn!(
     AutoCompletePathRequest,
     Vec<AutocompleteItem>,
     |_server, arg| {
-        ready(super::service::autocomplete_path(
-            arg.kind,
-            &arg.prefix,
-            &arg.input,
-        ))
+        let result = super::service::autocomplete_path(arg.kind, &arg.prefix, &arg.input);
+        ready(result.map_err(GrpcError::from))
     }
 );

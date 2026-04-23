@@ -2,7 +2,6 @@
 
 use futures::Stream;
 use terrazzo::declare_trait_aliias;
-use tonic::Status;
 
 use crate::backend::protos::terrazzo::portforward::PortForwardDataRequest;
 
@@ -15,4 +14,4 @@ pub mod upload;
 
 declare_trait_aliias!(
     RequestDataStream,
-    Stream<Item = Result<PortForwardDataRequest, Status>> + Unpin + Send + 'static);
+    Stream<Item = Result<PortForwardDataRequest, tonic::Status>> + Unpin + Send + 'static);

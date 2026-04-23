@@ -7,7 +7,6 @@ use std::task::ready;
 use futures::Stream;
 use pin_project::pin_project;
 use tonic::Result;
-use tonic::Status;
 use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
@@ -20,7 +19,7 @@ where
     Req: for<'de> serde::Deserialize<'de>,
     S: Stream<Item = Result<T, E>>,
     T: serde::Serialize,
-    Status: From<E>,
+    tonic::Status: From<E>,
 {
     move |server, request| {
         let request = serde_json::from_str::<Req>(request)
@@ -42,7 +41,7 @@ impl<S, T, E> Stream for UpliftStream<S>
 where
     S: Stream<Item = Result<T, E>>,
     T: serde::Serialize,
-    Status: From<E>,
+    tonic::Status: From<E>,
 {
     type Item = Result<String, RemoteFnError>;
 

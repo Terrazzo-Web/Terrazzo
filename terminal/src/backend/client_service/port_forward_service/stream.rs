@@ -21,7 +21,6 @@ use tokio::io::ReadBuf;
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
@@ -52,7 +51,7 @@ pub(super) async fn stream<F: GetLocalStream>(
     mut upload_stream: impl RequestDataStream,
 ) -> Result<GrpcStream, GrpcStreamError<F::Error>>
 where
-    Status: From<F::Error>,
+    tonic::Status: From<F::Error>,
 {
     debug!("Start");
     defer!(debug!("End"));
@@ -70,7 +69,7 @@ where
 }
 
 fn get_endpoint<L: std::error::Error>(
-    first_message: Result<PortForwardDataRequest, Status>,
+    first_message: Result<PortForwardDataRequest, tonic::Status>,
 ) -> Result<PortForwardEndpoint, GrpcStreamError<L>> {
     let PortForwardDataRequest {
         kind: first_message,
@@ -83,7 +82,7 @@ fn get_endpoint<L: std::error::Error>(
 
 struct GrpcStreamCallback<F: GetLocalStream, S: RequestDataStream>(PhantomData<(F, S)>)
 where
-    Status: From<F::Error>;
+    tonic::Status: From<F::Error>;
 
 #[pin_project(project = GrpcStreamProj)]
 pub enum GrpcStream {
@@ -102,7 +101,7 @@ pub struct LocalGrpcStream {
 pub struct RemoteGrpcStream(#[pin] Box<Streaming<PortForwardDataResponse>>);
 
 impl Stream for GrpcStream {
-    type Item = Result<PortForwardDataResponse, Status>;
+    type Item = Result<PortForwardDataResponse, tonic::Status>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project() {
@@ -110,7 +109,7 @@ impl Stream for GrpcStream {
                 let local = local.project();
                 let mut buf = ReadBuf::new(local.buffer);
                 let () = std::task::ready!(local.tcp_stream.poll_read(cx, &mut buf))
-                    .map_err(|error| Status::aborted(error.to_string()))?;
+                    .map_err(|error| tonic::Status::aborted(error.to_string()))?;
                 let filled = buf.filled();
                 if filled.is_empty() {
                     return Poll::Ready(None);
@@ -126,7 +125,7 @@ impl Stream for GrpcStream {
 
 pub(super) trait GetLocalStream
 where
-    Status: From<Self::Error>,
+    tonic::Status: From<Self::Error>,
 {
     type Error: std::error::Error;
 
@@ -134,7 +133,7 @@ where
     async fn call<S, T>(
         channel: T,
         stream: S,
-    ) -> Result<Streaming<PortForwardDataResponse>, Status>
+    ) -> Result<Streaming<PortForwardDataResponse>, tonic::Status>
     where
         S: Stream<Item = PortForwardDataRequest> + Send + 'static,
         T: GrpcService<BoxBody>,
@@ -145,7 +144,7 @@ where
 
 impl<F: GetLocalStream, S: RequestDataStream> DistributedCallback for GrpcStreamCallback<F, S>
 where
-    Status: From<F::Error>,
+    tonic::Status: From<F::Error>,
 {
     type Request = (PortForwardEndpoint, S);
     type Response = GrpcStream;
@@ -307,16 +306,16 @@ impl futures::AsyncWrite for WriteHalf {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 #[error("[{n}] {0}", n = Self::type_name())]
-pub struct GrpcStreamRemoteError(Status);
+pub struct GrpcStreamRemoteError(tonic::Status);
 
-impl From<GrpcStreamRemoteError> for Status {
+impl From<GrpcStreamRemoteError> for tonic::Status {
     fn from(GrpcStreamRemoteError(status): GrpcStreamRemoteError) -> Self {
         status
     }
 }
 
-impl From<Status> for GrpcStreamRemoteError {
-    fn from(status: Status) -> Self {
+impl From<tonic::Status> for GrpcStreamRemoteError {
+    fn from(status: tonic::Status) -> Self {
         Self(status)
     }
 }
@@ -328,7 +327,7 @@ pub enum GrpcStreamError<L: std::error::Error> {
     EmptyRequest,
 
     #[error("[{n}] Failed request: {0}", n = Self::type_name())]
-    RequestError(Status),
+    RequestError(tonic::Status),
 
     #[error("[{n}] Expected the first message to contain the endpoint", n = Self::type_name())]
     MissingEndpoint,
@@ -337,10 +336,10 @@ pub enum GrpcStreamError<L: std::error::Error> {
     Dispatch(#[from] DistributedCallbackError<L, GrpcStreamRemoteError>),
 }
 
-impl<L> From<GrpcStreamError<L>> for Status
+impl<L> From<GrpcStreamError<L>> for tonic::Status
 where
     L: std::error::Error,
-    Status: From<L>,
+    tonic::Status: From<L>,
 {
     fn from(error: GrpcStreamError<L>) -> Self {
         let code = match error {

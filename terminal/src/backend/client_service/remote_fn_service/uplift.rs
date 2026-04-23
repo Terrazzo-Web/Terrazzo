@@ -6,7 +6,6 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use tonic::Result;
-use tonic::Status;
 use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
@@ -19,7 +18,7 @@ where
     Req: for<'de> serde::Deserialize<'de>,
     F: Future<Output = Result<Res, E>> + 'static,
     Res: serde::Serialize,
-    Status: From<E>,
+    tonic::Status: From<E>,
 {
     move |server, request| {
         let request = serde_json::from_str::<Req>(request)
@@ -41,7 +40,7 @@ impl<F, Res, E> Future for UpliftFuture<F>
 where
     F: Future<Output = Result<Res, E>>,
     Res: serde::Serialize,
-    Status: From<E>,
+    tonic::Status: From<E>,
 {
     type Output = Result<String, RemoteFnError>;
 
@@ -55,7 +54,7 @@ where
                 Ok(response) => {
                     serde_json::to_string(&response).map_err(RemoteFnError::SerializeResponse)
                 }
-                Err(error) => Err(RemoteFnError::ServerFn(error.into())),
+                Err(error) => Err(RemoteFnError::Status(error.into())),
             },
         }
         .into()

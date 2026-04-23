@@ -4,7 +4,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -50,7 +49,7 @@ impl DistributedCallback for AckCallback {
     type Request = AckRequest;
     type Response = ();
     type LocalError = Impossible;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(_: Option<&Arc<Server>>, request: AckRequest) -> Result<(), Impossible> {
         let terminal_id = request.terminal.unwrap_or_default().terminal_id.into();
@@ -62,7 +61,7 @@ impl DistributedCallback for AckCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         mut request: AckRequest,
-    ) -> Result<(), Status>
+    ) -> Result<(), tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -80,7 +79,7 @@ impl DistributedCallback for AckCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum AckError {
     #[error("[{n}] {0}", n = self.name())]
-    AckError(#[from] DistributedCallbackError<Impossible, Status>),
+    AckError(#[from] DistributedCallbackError<Impossible, tonic::Status>),
 }
 
 impl IsHttpError for AckError {
@@ -91,7 +90,7 @@ impl IsHttpError for AckError {
     }
 }
 
-impl From<AckError> for Status {
+impl From<AckError> for tonic::Status {
     fn from(error: AckError) -> Self {
         match error {
             AckError::AckError(error) => error.into(),

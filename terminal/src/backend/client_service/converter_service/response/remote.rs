@@ -5,7 +5,6 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use server_fn::ServerFnError;
-use tonic::Status;
 
 use super::HybridResponseStream;
 use super::HybridResponseStreamProj;
@@ -16,7 +15,7 @@ use crate::converter::api::Conversion;
 pub struct RemoteResponseStream(#[pin] pub HybridResponseStream);
 
 impl futures::Stream for RemoteResponseStream {
-    type Item = Result<ConversionResponseProto, Status>;
+    type Item = Result<ConversionResponseProto, tonic::Status>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project().0.project() {
@@ -30,14 +29,15 @@ impl futures::Stream for RemoteResponseStream {
 
 fn poll_next_remote(
     response: Option<Result<Conversion, ServerFnError>>,
-) -> Option<Result<ConversionResponseProto, Status>> {
+) -> Option<Result<ConversionResponseProto, tonic::Status>> {
     Some(poll_next_remote_some(response?))
 }
 
 fn poll_next_remote_some(
     response: Result<Conversion, ServerFnError>,
-) -> Result<ConversionResponseProto, Status> {
-    let response = response.map_err(|error| Status::internal(format!("Remote error: {error}")))?;
+) -> Result<ConversionResponseProto, tonic::Status> {
+    let response =
+        response.map_err(|error| tonic::Status::internal(format!("Remote error: {error}")))?;
     Ok(ConversionResponseProto {
         language: response.language.name.to_string(),
         content: response.content.clone(),

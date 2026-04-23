@@ -82,7 +82,6 @@ mod tests {
     use std::sync::Arc;
 
     use futures::StreamExt as _;
-    use tonic::Status;
 
     use super::super::api::Conversions;
 
@@ -118,11 +117,11 @@ mod tests {
         }
     }
 
-    async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
+    async fn get_conversions(input: Arc<str>) -> Result<Conversions, tonic::Status> {
         let mut stream = super::stream_conversions(input);
         let mut conversions = vec![];
         while let Some(next) = stream.next().await {
-            conversions.push(next.map_err(|error| Status::internal(error.to_string()))?);
+            conversions.push(next.map_err(|error| tonic::Status::internal(error.to_string()))?);
         }
         Ok(Conversions {
             conversions: conversions.into(),

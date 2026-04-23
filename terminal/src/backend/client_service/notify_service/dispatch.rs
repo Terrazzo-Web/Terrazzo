@@ -9,7 +9,6 @@ use scopeguard::defer;
 use server_fn::BoxedStream;
 use server_fn::ServerFnError;
 use tonic::Code;
-use tonic::Status;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::debug_span;
@@ -91,7 +90,7 @@ pub fn notify_dispatch(request: HybridRequestStream) -> Result<HybridResponseStr
 #[derive(thiserror::Error, Debug)]
 pub enum NotifyError {
     #[error("[{n}] {0}", n = self.name())]
-    Error(DistributedCallbackError<NotifyLocalError, Status>),
+    Error(DistributedCallbackError<NotifyLocalError, tonic::Status>),
 
     #[error("[{n}] {0}", n = self.name())]
     InvalidStart(ServerFnError),
@@ -109,11 +108,11 @@ pub enum NotifyError {
     RemoteFnError(#[from] RemoteFnError),
 }
 
-impl From<NotifyError> for Status {
+impl From<NotifyError> for tonic::Status {
     fn from(mut error: NotifyError) -> Self {
         let code = match &mut error {
             NotifyError::Error(DistributedCallbackError::RemoteError(error)) => {
-                return std::mem::replace(error, Status::ok(""));
+                return std::mem::replace(error, tonic::Status::ok(""));
             }
             NotifyError::Error(DistributedCallbackError::LocalError { .. })
             | NotifyError::Error(DistributedCallbackError::ServerNotSet)
@@ -124,6 +123,6 @@ impl From<NotifyError> for Status {
             | NotifyError::MissingRequestType
             | NotifyError::MissingStart => Code::InvalidArgument,
         };
-        return Status::new(code, error.to_string());
+        return tonic::Status::new(code, error.to_string());
     }
 }

@@ -4,7 +4,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -50,7 +49,7 @@ impl DistributedCallback for ResizeCallback {
     type Request = ResizeRequest;
     type Response = ();
     type LocalError = ResizeErrorImpl;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(_: Option<&Arc<Server>>, request: ResizeRequest) -> Result<(), ResizeErrorImpl> {
         let terminal_id = request.terminal.unwrap_or_default().terminal_id.into();
@@ -62,7 +61,7 @@ impl DistributedCallback for ResizeCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         mut request: ResizeRequest,
-    ) -> Result<(), Status>
+    ) -> Result<(), tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -80,7 +79,7 @@ impl DistributedCallback for ResizeCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum ResizeError {
     #[error("[{n}] {0}", n = self.name())]
-    ResizeError(#[from] DistributedCallbackError<ResizeErrorImpl, Status>),
+    ResizeError(#[from] DistributedCallbackError<ResizeErrorImpl, tonic::Status>),
 }
 
 impl IsHttpError for ResizeError {
@@ -91,7 +90,7 @@ impl IsHttpError for ResizeError {
     }
 }
 
-impl From<ResizeError> for Status {
+impl From<ResizeError> for tonic::Status {
     fn from(error: ResizeError) -> Self {
         match error {
             ResizeError::ResizeError(error) => error.into(),
@@ -99,13 +98,13 @@ impl From<ResizeError> for Status {
     }
 }
 
-impl From<ResizeErrorImpl> for Status {
+impl From<ResizeErrorImpl> for tonic::Status {
     fn from(error: ResizeErrorImpl) -> Self {
         match error {
             error @ ResizeErrorImpl::TerminalNotFound { .. } => {
-                Status::not_found(error.to_string())
+                tonic::Status::not_found(error.to_string())
             }
-            ResizeErrorImpl::Resize(error) => Status::internal(error.to_string()),
+            ResizeErrorImpl::Resize(error) => tonic::Status::internal(error.to_string()),
         }
     }
 }

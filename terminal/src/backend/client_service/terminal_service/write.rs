@@ -3,7 +3,6 @@ use std::sync::Arc;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -83,7 +82,7 @@ impl IsHttpError for WriteError {
     }
 }
 
-impl From<WriteError> for Status {
+impl From<WriteError> for tonic::Status {
     fn from(error: WriteError) -> Self {
         match error {
             WriteError::WriteError(error) => error.into(),
@@ -91,11 +90,13 @@ impl From<WriteError> for Status {
     }
 }
 
-impl From<WriteErrorImpl> for Status {
+impl From<WriteErrorImpl> for tonic::Status {
     fn from(error: WriteErrorImpl) -> Self {
         match error {
-            error @ WriteErrorImpl::TerminalNotFound { .. } => Status::not_found(error.to_string()),
-            WriteErrorImpl::Write(error) => Status::internal(error.to_string()),
+            error @ WriteErrorImpl::TerminalNotFound { .. } => {
+                tonic::Status::not_found(error.to_string())
+            }
+            WriteErrorImpl::Write(error) => tonic::Status::internal(error.to_string()),
         }
     }
 }

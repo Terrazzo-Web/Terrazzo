@@ -7,7 +7,6 @@ use std::sync::Weak;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use tonic::Status;
 use trz_gateway_server::server::Server;
 
 use self::remote_fn::RegisteredRemoteFn;
@@ -63,7 +62,7 @@ pub enum RemoteFnError {
     ServerWasDropped,
 
     #[error("[{n}] {0}", n = self.name())]
-    ServerFn(Status),
+    Status(tonic::Status),
 
     #[error("[{n}] Failed to serialize request: {0}", n = self.name())]
     SerializeRequest(serde_json::Error),
@@ -78,17 +77,15 @@ pub enum RemoteFnError {
     DeserializeResponse(serde_json::Error, String),
 
     #[error("[{n}] {0}", n = self.name())]
-    Distributed(#[from] Box<DistributedCallbackError<RemoteFnError, Status>>),
+    Distributed(Box<DistributedCallbackError<RemoteFnError, tonic::Status>>),
 }
 
 /// Convert Remote Server function errors into gRPC status.
 mod remote_fn_errors_to_status {
-    use tonic::Status;
-
     use super::RemoteFnError;
     use crate::backend::client_service::routing::DistributedCallbackError;
 
-    impl From<RemoteFnError> for Status {
+    impl From<RemoteFnError> for tonic::Status {
         fn from(error: RemoteFnError) -> Self {
             match error {
                 RemoteFnError::Distributed(mut error) => std::mem::replace(
@@ -98,14 +95,16 @@ mod remote_fn_errors_to_status {
                 .into(),
                 RemoteFnError::RemoteFnsNotSet
                 | RemoteFnError::ServerNotSet
-                | RemoteFnError::ServerWasDropped => Status::internal(error.to_string()),
-                RemoteFnError::RemoteFnNotFound { .. } => Status::not_found(error.to_string()),
-                RemoteFnError::ServerFn(error) => error,
+                | RemoteFnError::ServerWasDropped => tonic::Status::internal(error.to_string()),
+                RemoteFnError::RemoteFnNotFound { .. } => {
+                    tonic::Status::not_found(error.to_string())
+                }
+                RemoteFnError::Status(error) => error,
                 RemoteFnError::SerializeRequest { .. }
                 | RemoteFnError::DeserializeRequest { .. }
                 | RemoteFnError::SerializeResponse { .. }
                 | RemoteFnError::DeserializeResponse { .. } => {
-                    Status::invalid_argument(error.to_string())
+                    tonic::Status::invalid_argument(error.to_string())
                 }
             }
         }

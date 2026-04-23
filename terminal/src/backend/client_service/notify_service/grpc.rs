@@ -3,7 +3,6 @@
 use tonic::Request;
 use tonic::Response;
 use tonic::Result;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::async_trait;
 
@@ -20,9 +19,9 @@ impl NotifyService for ClientServiceImpl {
     async fn notify(
         &self,
         request: Request<Streaming<NotifyRequest>>,
-    ) -> Result<Response<Self::NotifyStream>, Status> {
+    ) -> Result<Response<Self::NotifyStream>, tonic::Status> {
         notify_dispatch(request.into_inner().into())
             .map(|response| RemoteResponseStream(response).into())
-            .map_err(Status::from)
+            .map_err(tonic::Status::from)
     }
 }

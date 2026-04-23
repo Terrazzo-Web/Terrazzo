@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use futures::TryStreamExt;
 use server_fn::ServerFnError;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -25,7 +24,7 @@ impl DistributedCallback for DistributedFn {
     type Request = RemoteFnRequest;
     type Response = HybridResponseStream;
     type LocalError = RemoteFnError;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(
         server: Option<&Arc<Server>>,
@@ -41,7 +40,7 @@ impl DistributedCallback for DistributedFn {
         };
         let callback = &remote_server_fn.callback;
         let local_stream = callback(server, &request.json)
-            .map_err(|error| ServerFnError::from(error))
+            .map_err(ServerFnError::from)
             .into();
         return Ok(HybridResponseStream::Local(local_stream));
     }
@@ -50,7 +49,7 @@ impl DistributedCallback for DistributedFn {
         channel: T,
         client_address: &[impl AsRef<str>],
         mut request: RemoteFnRequest,
-    ) -> Result<HybridResponseStream, Status>
+    ) -> Result<HybridResponseStream, tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,

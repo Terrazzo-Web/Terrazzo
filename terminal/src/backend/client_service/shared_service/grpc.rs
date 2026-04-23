@@ -1,6 +1,5 @@
 use tonic::Request;
 use tonic::Response;
-use tonic::Status;
 use tonic::async_trait;
 
 use crate::backend::client_service::ClientServiceImpl;
@@ -14,7 +13,7 @@ impl SharedService for ClientServiceImpl {
     async fn list_remotes(
         &self,
         request: Request<ListRemotesRequest>,
-    ) -> Result<Response<ListRemotesResponse>, Status> {
+    ) -> Result<Response<ListRemotesResponse>, tonic::Status> {
         let mut visited = request.into_inner().visited;
         visited.push(self.client_name.to_string());
         let clients = list_remotes(&self.server, visited).await;

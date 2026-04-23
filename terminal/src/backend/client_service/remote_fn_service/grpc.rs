@@ -1,4 +1,3 @@
-use tonic::Status;
 use tonic::async_trait;
 
 use super::dispatch::remote_fn_dispatch;
@@ -12,7 +11,7 @@ impl RemoteFnService for ClientServiceImpl {
     async fn call_server_fn(
         &self,
         request: tonic::Request<RemoteFnRequest>,
-    ) -> Result<tonic::Response<ServerFnResponse>, Status> {
+    ) -> Result<tonic::Response<ServerFnResponse>, tonic::Status> {
         let mut request = request.into_inner();
         let address = request.address.get_or_insert_default();
         let address = std::mem::take(&mut address.via);

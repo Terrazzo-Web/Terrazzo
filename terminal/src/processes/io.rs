@@ -7,7 +7,6 @@ use std::task::ready;
 use futures::Stream;
 use pin_project::pin_project;
 use terrazzo_pty::lease::LeaseItem;
-use tonic::Status;
 use tonic::Streaming;
 
 use crate::backend::protos::terrazzo::terminal::LeaseItem as LeaseItemProto;
@@ -69,7 +68,7 @@ impl Stream for RemoteReader {
                     kind: Some(lease_item::Kind::Data(data)),
                 })),
 
-                Some(LeaseItem::Error(data)) => Some(Err(Status::aborted(data.to_string()))),
+                Some(LeaseItem::Error(data)) => Some(Err(tonic::Status::aborted(data.to_string()))),
 
                 None => None,
             }),

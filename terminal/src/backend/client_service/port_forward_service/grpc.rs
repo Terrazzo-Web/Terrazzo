@@ -1,6 +1,5 @@
 use tonic::Request;
 use tonic::Response;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::async_trait;
 
@@ -18,7 +17,7 @@ impl PortForwardService for ClientServiceImpl {
     async fn bind(
         &self,
         requests: Request<Streaming<PortForwardEndpoint>>,
-    ) -> Result<Response<BindStream>, Status> {
+    ) -> Result<Response<BindStream>, tonic::Status> {
         let upload_stream = super::bind::dispatch(&self.server, requests.into_inner()).await?;
         Ok(Response::new(upload_stream))
     }
@@ -28,7 +27,7 @@ impl PortForwardService for ClientServiceImpl {
     async fn download(
         &self,
         requests: Request<tonic::Streaming<PortForwardDataRequest>>,
-    ) -> Result<Response<GrpcStream>, Status> {
+    ) -> Result<Response<GrpcStream>, tonic::Status> {
         let download_stream =
             super::download::download(&self.server, requests.into_inner()).await?;
         Ok(Response::new(download_stream))
@@ -39,7 +38,7 @@ impl PortForwardService for ClientServiceImpl {
     async fn upload(
         &self,
         requests: Request<tonic::Streaming<PortForwardDataRequest>>,
-    ) -> Result<Response<GrpcStream>, Status> {
+    ) -> Result<Response<GrpcStream>, tonic::Status> {
         let upload_stream = super::upload::upload(&self.server, requests.into_inner()).await?;
         Ok(Response::new(upload_stream))
     }

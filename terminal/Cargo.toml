@@ -275,8 +275,8 @@ logs-panel-client = [
   "web-sys/HtmlDivElement",
 ]
 logs-panel-server = [
-    "dep:tracing-subscriber", 
-  "logs-panel", 
+  "dep:tracing-subscriber",
+  "logs-panel",
   "server",
   "streaming-remote-fn",
 ]

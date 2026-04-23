@@ -26,7 +26,7 @@ mod imp {
     use tracing::info;
 
     use crate::api::client_address::ClientAddress;
-    use crate::backend::client_service::remote_streaming_fn_service;
+    use crate::backend::client_service::remote_fn_service;
     use crate::logs::event::LogEvent;
     use crate::logs::state::LogState;
     use crate::utils::ndjson::serialize_line;
@@ -40,12 +40,12 @@ mod imp {
         Ok(TextStream::new(stream.map_err(|error| error.into())))
     }
 
-    remote_streaming_fn_service::declare_remote_fn!(
+    remote_fn_service::streaming::declare_remote_fn!(
         STREAM_LOGS_FN,
         STREAM_LOGS,
         (),
         LogEvent,
-        |_server, ()| local_logs_stream().map(Ok::<LogEvent, tonic::Status>)
+        |_server, ()| { local_logs_stream().map(Ok::<LogEvent, tonic::Status>) }
     );
 
     fn local_logs_stream() -> impl Stream<Item = LogEvent> {

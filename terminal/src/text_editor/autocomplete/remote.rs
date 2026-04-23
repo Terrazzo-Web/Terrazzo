@@ -21,7 +21,7 @@ pub struct AutoCompletePathRequest {
     pub input: String,
 }
 
-remote_fn_service::declare_remote_fn!(
+remote_fn_service::unary::declare_remote_fn!(
     AUTOCOMPLETE_PATH_REMOTE_FN,
     super::server_fn::AUTOCOMPLETE_PATH,
     AutoCompletePathRequest,

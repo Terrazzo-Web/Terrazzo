@@ -22,7 +22,7 @@ pub struct StoreFileRequest {
     pub content: String,
 }
 
-remote_fn_service::declare_remote_fn!(
+remote_fn_service::unary::declare_remote_fn!(
     LOAD_FILE_REMOTE_FN,
     super::LOAD_FILE,
     LoadFileRequest,
@@ -33,7 +33,7 @@ remote_fn_service::declare_remote_fn!(
     }
 );
 
-remote_fn_service::declare_remote_fn!(
+unary::declare_remote_fn!(
     STORE_FILE_REMOTE_FN,
     super::STORE_FILE_IMPL,
     StoreFileRequest,

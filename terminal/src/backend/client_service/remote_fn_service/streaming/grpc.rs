@@ -1,8 +1,8 @@
 use tonic::async_trait;
 
 use super::dispatch::remote_fn_dispatch;
+use super::response::remote::RemoteResponseStream;
 use crate::backend::client_service::ClientServiceImpl;
-use crate::backend::client_service::remote_streaming_fn_service::response::remote::RemoteResponseStream;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_server::RemoteStreamingFnService;
 

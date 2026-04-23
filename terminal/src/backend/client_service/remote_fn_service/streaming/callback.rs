@@ -11,8 +11,8 @@ use tracing::debug;
 use trz_gateway_server::server::Server;
 
 use super::REMOTE_FNS;
+use super::RemoteFnError;
 use super::response::HybridResponseStream;
-use crate::backend::client_service::remote_streaming_fn_service::RemoteFnError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_client::RemoteStreamingFnServiceClient;

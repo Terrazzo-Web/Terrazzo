@@ -9,7 +9,6 @@ pub mod grpc_error;
 pub mod notify_service;
 pub mod port_forward_service;
 pub mod remote_fn_service;
-pub mod remote_streaming_fn_service;
 mod routing;
 pub mod shared_service;
 pub mod terminal_service;

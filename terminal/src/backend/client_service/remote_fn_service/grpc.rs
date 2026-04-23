@@ -1,4 +1,3 @@
-use tonic::Result;
 use tonic::Status;
 use tonic::async_trait;
 

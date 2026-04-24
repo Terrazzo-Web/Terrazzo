@@ -92,13 +92,15 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            cargo:
+            lockfiles:
               - 'Cargo.lock'
               - 'Cargo.toml'
+              - '.github/workflows/merge-validation.yml'
       - name: Re-generate Cargo.lock
-        if: steps.cargo-files-changed.outputs.cargo == 'true'
+        if: steps.cargo-files-changed.outputs.lockfiles == 'true'
         run: |
           rm -f Cargo.lock MODULE.bazel.lock
+          for i in $(ls bazel/client_server_modules/generated.*.lock); do echo "" > $i; done
           cargo generate-lockfile
           bazel mod deps
       - name: Install taplo

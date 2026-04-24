@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 pub struct TestableOnceLock<T> {
     #[cfg(not(test))]
     once_lock: std::sync::OnceLock<T>,

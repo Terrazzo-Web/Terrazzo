@@ -14,9 +14,62 @@ macro_rules! __diagnostics_warn_span {
 
 #[macro_export]
 macro_rules! __diagnostics_info_span {
-    ($($args:tt)*) => {
+    ($name:literal, $($arg:tt)*) => {{
+        $crate::__diagnostics_info_span!($($arg)*)
+    }};
+    ($name:literal) => {{
         $crate::prelude::diagnostics::span::Span
-    };
+    }};
+
+    ($k:ident = $v:expr, $($arg:tt)*) => {{
+        let _ = &$v;
+        $crate::__diagnostics_info_span!($($arg)*)
+    }};
+    ($k:ident = ?$v:expr, $($arg:tt)*) => {{
+        $crate::__diagnostics_info_span!($k = $v, $($arg)*)
+    }};
+    ($k:ident = %$v:expr, $($arg:tt)*) => {{
+        $crate::__diagnostics_info_span!($k = $v, $($arg)*)
+    }};
+
+    ($k:ident, $($arg:tt)*) => {{
+        let _ = &$k;
+        $crate::__diagnostics_info_span!($($arg)*)
+    }};
+    (?$k:ident, $($arg:tt)*) => {{
+        $crate::__diagnostics_info_span!($k, $($arg)*)
+    }};
+    (%$k:ident, $($arg:tt)*) => {{
+        $crate::__diagnostics_info_span!($k, $($arg)*)
+    }};
+
+    ($k:ident = $v:expr) => {{
+        let _ = &$v;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    ($k:ident = ?$v:expr) => {{
+        let _ = &$v;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    ($k:ident = %$v:expr) => {{
+        let _ = &$v;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    ($k:ident) => {{
+        let _ = &$k;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    (?$k:ident) => {{
+        let _ = &$k;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    (%$k:ident) => {{
+        let _ = &$k;
+        $crate::prelude::diagnostics::span::Span
+    }};
+    () => {{
+        $crate::prelude::diagnostics::span::Span
+    }};
 }
 
 #[macro_export]

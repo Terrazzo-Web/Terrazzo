@@ -96,7 +96,7 @@ include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.24" }
 jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
-libc = { version = "0.2.185" }
+libc = { version = "0.2.186" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.2" }
@@ -121,7 +121,7 @@ rpassword = { version = "7.4.0" }
 rsass = { version = "0.29.2" }
 rsass-macros = { version = "0.29.0" }
 rustix = { version = "1.1.4" }
-rustls = { version = "0.23.37" }
+rustls = { version = "0.23.39" }
 rustls-native-certs = { version = "0.8.3" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }

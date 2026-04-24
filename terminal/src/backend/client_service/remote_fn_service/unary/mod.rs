@@ -33,7 +33,7 @@ pub fn setup(server: &Arc<Server>) {
     let Ok(()) = REMOTE_FNS.set(map) else {
         panic!("REMOTE_SERVER_FNS was already set");
     };
-    super::SERVER.set(Arc::downgrade(server)).unwrap();
+    super::set_remote_fn_server(server);
 }
 
 #[nameth]

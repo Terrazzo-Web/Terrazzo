@@ -2,13 +2,14 @@
 
 use std::sync::Arc;
 
-use futures::StreamExt as _;
-use futures::channel::mpsc;
-use server_fn::BoxedStream;
-use server_fn::ServerFnError;
+use nameth::nameth;
 use terrazzo::declare_trait_aliias;
+use tonic::Status;
 
 use super::api::Conversion;
+use super::api::Conversions;
+use super::api::ConversionsRequest;
+use crate::backend::client_service::remote_fn_service;
 use crate::converter::api::Language;
 
 mod asn1;
@@ -22,59 +23,48 @@ mod tls_info;
 mod unescaped;
 mod x509;
 
-pub fn stream_conversions(input: Arc<str>) -> BoxedStream<Conversion, ServerFnError> {
-    let (tx, rx) = mpsc::unbounded();
-    tokio::spawn(async move {
-        produce_conversions(input, tx).await;
+#[nameth]
+pub async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
+    let mut conversions = vec![];
+    let mut add_conversion = |language, content| {
+        conversions.push(Conversion::new(language, content));
+    };
+    add_conversions(&input, &mut add_conversion).await;
+    return Ok(Conversions {
+        conversions: conversions.into(),
     });
-    BoxedStream::from(rx.map(Ok))
 }
 
-async fn produce_conversions(input: Arc<str>, tx: mpsc::UnboundedSender<Conversion>) {
-    if self::x509::add_x509_pem(&input, &mut add_conversion(tx.clone())) {
+async fn add_conversions(input: &str, add: &mut impl AddConversionFn) {
+    if self::x509::add_x509_pem(input, add) {
         return;
     }
-    if self::jwt::add_jwt(&input, &mut add_conversion(tx.clone())) {
+    if self::jwt::add_jwt(input, add) {
         return;
     }
-    if self::base64::add_base64(&input, &mut add_conversion(tx.clone())) {
+    if self::base64::add_base64(input, add) {
         return;
     }
-    {
-        let mut add = add_conversion(tx.clone());
-        if !self::json::add_json(&input, &mut add) {
-            self::json::add_yaml(&input, &mut add);
-        }
+    if !self::json::add_json(input, add) {
+        self::json::add_yaml(input, add);
     }
-    self::unescaped::add_unescape(&input, &mut add_conversion(tx.clone()));
-    if self::tls_info::add_tls_info(&input, &mut add_conversion(tx.clone())).await {
+    self::unescaped::add_unescape(input, add);
+    if self::tls_info::add_tls_info(input, add).await {
         return;
     }
-    let dns_input = input.clone();
-    let timestamps_input = input.clone();
-    let dns_tx = tx.clone();
-    let timestamps_tx = tx.clone();
-    tokio::join!(
-        async move {
-            let mut add = add_conversion(dns_tx);
-            let _ = self::dns::add_dns(&dns_input, &mut add).await;
-        },
-        async move {
-            let mut add = add_conversion(timestamps_tx);
-            self::timestamps::add_timestamps(&timestamps_input, &mut add);
-        }
-    );
-}
-
-fn add_conversion(
-    tx: mpsc::UnboundedSender<Conversion>,
-) -> impl FnMut(Language, String) + Send + 'static {
-    move |language, content| {
-        let _ = tx.unbounded_send(Conversion::new(language, content));
-    }
+    self::dns::add_dns(input, add).await;
+    self::timestamps::add_timestamps(input, add);
 }
 
 declare_trait_aliias!(AddConversionFn, FnMut(Language, String));
+
+remote_fn_service::declare_remote_fn!(
+    GET_CONVERSIONS_FN,
+    GET_CONVERSIONS,
+    ConversionsRequest,
+    Conversions,
+    |_server, arg| get_conversions(arg.input)
+);
 
 #[cfg(test)]
 mod tests {
@@ -92,7 +82,9 @@ mod tests {
 
     impl GetConversionForTest for &str {
         async fn get_conversion(&self, language: &str) -> String {
-            let conversions = get_conversions(self.to_string().into()).await.unwrap();
+            let conversions = super::get_conversions(self.to_string().into())
+                .await
+                .unwrap();
             let matches = conversions
                 .conversions
                 .iter()
@@ -106,7 +98,9 @@ mod tests {
         }
 
         async fn get_languages(&self) -> Vec<String> {
-            let conversions = get_conversions(self.to_string().into()).await.unwrap();
+            let conversions = super::get_conversions(self.to_string().into())
+                .await
+                .unwrap();
             let mut languages = conversions
                 .conversions
                 .iter()

@@ -5,7 +5,7 @@ use tonic::Code;
 use super::callback::ConverterCallback;
 use super::callback::ConverterLocalError;
 use super::response::HybridResponseStream;
-use crate::backend::client_service::remote_fn_service::unary::remote_fn_server;
+use crate::backend::client_service::remote_fn_service::remote_fn_server;
 use crate::backend::client_service::routing::DistributedCallback as _;
 use crate::backend::client_service::routing::DistributedCallbackError;
 use crate::backend::protos::terrazzo::converter::ConversionsRequest;

@@ -199,7 +199,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     let (server, server_handle, crash) = Server::run(backend_config).await?;
     remote_fn_service::unary::setup(&server);
     #[cfg(feature = "streaming-remote-fn")]
-    remote_fn_service::streaming::setup(&server);
+    remote_fn_service::streaming::setup();
     let crash = crash
         .then(|crash| {
             let crash = crash

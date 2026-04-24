@@ -13,6 +13,7 @@ use trz_gateway_server::server::Server;
 use super::REMOTE_FNS;
 use super::RemoteFnError;
 use super::response::HybridResponseStream;
+use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_client::RemoteStreamingFnServiceClient;
@@ -31,7 +32,7 @@ impl DistributedCallback for DistributedFn {
         request: RemoteFnRequest,
     ) -> Result<HybridResponseStream, RemoteFnError> {
         debug!("Calling local {request:?}");
-        let server = server.ok_or(RemoteFnError::ServerNotSet)?;
+        let server = server.ok_or(RemoteFnServerError::ServerNotSet)?;
         let remote_server_fn = {
             let remote_server_fns = REMOTE_FNS.get().ok_or(RemoteFnError::RemoteFnsNotSet)?;
             remote_server_fns

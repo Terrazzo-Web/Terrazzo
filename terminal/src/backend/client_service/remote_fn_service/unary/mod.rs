@@ -3,13 +3,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::Weak;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use trz_gateway_server::server::Server;
 
 use self::remote_fn::RegisteredRemoteFn;
+use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
 use crate::backend::client_service::routing::DistributedCallbackError;
 
 mod callback;
@@ -17,11 +17,6 @@ mod dispatch;
 mod grpc;
 pub mod remote_fn;
 pub mod uplift;
-
-/// Records the current [Server] instance.
-///
-/// This is necessary because remote functions are static.
-static SERVER: OnceLock<Weak<Server>> = OnceLock::new();
 
 /// The collection of remote functions, declared using the [::inventory] crate.
 static REMOTE_FNS: OnceLock<HashMap<&'static str, RegisteredRemoteFn>> = OnceLock::new();
@@ -38,12 +33,7 @@ pub fn setup(server: &Arc<Server>) {
     let Ok(()) = REMOTE_FNS.set(map) else {
         panic!("REMOTE_SERVER_FNS was already set");
     };
-    SERVER.set(Arc::downgrade(server)).unwrap();
-}
-
-pub fn remote_fn_server() -> Result<Arc<Server>, RemoteFnError> {
-    let server = SERVER.get().ok_or(RemoteFnError::ServerNotSet)?;
-    server.upgrade().ok_or(RemoteFnError::ServerWasDropped)
+    super::SERVER.set(Arc::downgrade(server)).unwrap();
 }
 
 #[nameth]
@@ -55,11 +45,8 @@ pub enum RemoteFnError {
     #[error("[{n}] The RemoteFn was not found: {0}", n = self.name())]
     RemoteFnNotFound(String),
 
-    #[error("[{n}] The Server instance was not set", n = self.name())]
-    ServerNotSet,
-
-    #[error("[{n}] The Server instance was dropped", n = self.name())]
-    ServerWasDropped,
+    #[error("[{n}] {0}", n = self.name())]
+    RemoteFnServer(#[from] RemoteFnServerError),
 
     #[error("[{n}] {0}", n = self.name())]
     Status(tonic::Status),
@@ -93,9 +80,8 @@ mod remote_fn_errors_to_status {
                     DistributedCallbackError::LocalError(RemoteFnError::RemoteFnsNotSet),
                 )
                 .into(),
-                RemoteFnError::RemoteFnsNotSet
-                | RemoteFnError::ServerNotSet
-                | RemoteFnError::ServerWasDropped => tonic::Status::internal(error.to_string()),
+                RemoteFnError::RemoteFnsNotSet => tonic::Status::internal(error.to_string()),
+                RemoteFnError::RemoteFnServer(error) => tonic::Status::internal(error.to_string()),
                 RemoteFnError::RemoteFnNotFound { .. } => {
                     tonic::Status::not_found(error.to_string())
                 }

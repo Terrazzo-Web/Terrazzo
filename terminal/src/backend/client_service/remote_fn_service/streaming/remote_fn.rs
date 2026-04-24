@@ -12,9 +12,9 @@ use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 use super::dispatch::remote_fn_dispatch;
-use super::remote_fn_server;
 use super::response::local::LocalResponseStream;
 use crate::api::client_address::ClientAddress;
+use crate::backend::client_service::remote_fn_service::remote_fn_server;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 
 /// A struct that holds a remote server function.

@@ -197,7 +197,8 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     assets::install::install_assets();
     let config = backend_config.config.clone();
     let (server, server_handle, crash) = Server::run(backend_config).await?;
-    remote_fn_service::unary::setup(&server);
+    remote_fn_service::set_remote_fn_server(Arc::downgrade(&server));
+    remote_fn_service::unary::setup();
     #[cfg(feature = "streaming-remote-fn")]
     remote_fn_service::streaming::setup();
     let crash = crash

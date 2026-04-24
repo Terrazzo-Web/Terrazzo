@@ -19,7 +19,8 @@ use tracing_subscriber::layer::SubscriberExt as _;
 use trz_gateway_server::server::Server;
 
 use super::tracing::LogStreamLayer;
-use crate::backend::client_service::remote_fn_service::remote_server_fn_for_tests;
+use crate::backend::client_service::remote_fn_service;
+use crate::backend::client_service::remote_fn_service::set_remote_fn_server;
 use crate::logs::state::LogState;
 
 pub struct TestGuard<'t>(#[allow(dead_code)] std::sync::MutexGuard<'t, ()>);
@@ -29,11 +30,13 @@ impl TestGuard<'_> {
         static TEST_LOCK: Mutex<()> = Mutex::new(());
         let dummy_server: MaybeUninit<Server> = MaybeUninit::zeroed();
         let dummy_server = unsafe { Arc::new(dummy_server.assume_init()) };
-        *remote_server_fn_for_tests() = Arc::downgrade(&dummy_server);
+        set_remote_fn_server(Arc::downgrade(&dummy_server));
         std::mem::forget(dummy_server);
 
         let lock = TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         LogState::get().reset_for_tests();
+        remote_fn_service::unary::setup_for_tests();
+        remote_fn_service::streaming::setup_for_tests();
         Self(lock)
     }
 
@@ -45,7 +48,7 @@ impl TestGuard<'_> {
 
 impl Drop for TestGuard<'_> {
     fn drop(&mut self) {
-        *remote_server_fn_for_tests() = Weak::new();
+        set_remote_fn_server(Weak::new());
     }
 }
 

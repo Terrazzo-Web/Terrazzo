@@ -36,6 +36,14 @@ pub fn setup() {
     };
 }
 
+#[cfg(test)]
+pub fn setup_for_tests() {
+    if REMOTE_FNS.get().is_some() {
+        return;
+    }
+    setup();
+}
+
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum RemoteFnError {

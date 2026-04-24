@@ -24,7 +24,7 @@ static REMOTE_FNS: OnceLock<HashMap<&'static str, RegisteredRemoteFn>> = OnceLoc
 inventory::collect!(RegisteredRemoteFn);
 
 /// Initialize the server and the list of remote functions.
-pub fn setup(server: &Arc<Server>) {
+pub fn setup() {
     let mut map: HashMap<&'static str, RegisteredRemoteFn> = HashMap::new();
     for remote_server_fn in inventory::iter::<RegisteredRemoteFn> {
         let old = map.insert(remote_server_fn.name, *remote_server_fn);
@@ -33,7 +33,14 @@ pub fn setup(server: &Arc<Server>) {
     let Ok(()) = REMOTE_FNS.set(map) else {
         panic!("REMOTE_SERVER_FNS was already set");
     };
-    super::set_remote_fn_server(server);
+}
+
+#[cfg(test)]
+pub fn setup_for_tests() {
+    if REMOTE_FNS.get().is_some() {
+        return;
+    }
+    setup();
 }
 
 #[nameth]

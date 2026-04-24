@@ -64,7 +64,7 @@ test.describe('Converter', () => {
     await input.pressSequentially('abc');
     const response = await conversionsResponse;
     expect(response.ok()).toBeTruthy();
-    expect(response.headers()['content-type']).toMatch(/^application\/octet-stream\b/i);
+    expect(response.headers()['content-type']).toMatch(/^application\/json\b/i);
 
     await expect(page.locator('pre.converter-output').first()).toHaveText('"abc"');
   });
@@ -85,7 +85,7 @@ test.describe('Converter', () => {
     await input.fill(jwt);
     const response = await conversionsResponse;
     expect(response.ok()).toBeTruthy();
-    expect(response.headers()['content-type']).toMatch(/^application\/octet-stream\b/i);
+    expect(response.headers()['content-type']).toMatch(/^application\/json\b/i);
 
     const jwtTab = page.getByText('JWT', { exact: true });
     await expect(jwtTab).toBeVisible();

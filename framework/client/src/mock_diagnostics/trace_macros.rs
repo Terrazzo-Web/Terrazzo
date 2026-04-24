@@ -14,9 +14,52 @@ macro_rules! __diagnostics_warn {
 
 #[macro_export]
 macro_rules! __diagnostics_info {
-    ($($arg:tt)*) => {
-        ()
-    };
+    ($k:ident = $v:expr, $($arg:tt)*) => {{
+        let _ = &$v;
+        $crate::__diagnostics_info!($($arg)*)
+    }};
+    ($k:ident = ?$v:expr, $($arg:tt)*) => {{
+        $crate::__diagnostics_info!($k = $v, $($arg)*)
+    }};
+    ($k:ident = %$v:expr, $($arg:tt)*) => {{
+        $crate::__diagnostics_info!($k = $v, $($arg)*)
+    }};
+
+    ($k:ident, $($arg:tt)*) => {{
+        let _ = &$k;
+        $crate::__diagnostics_info!($($arg)*)
+    }};
+    (?$k:ident, $($arg:tt)*) => {{
+        $crate::__diagnostics_info!($k, $($arg)*)
+    }};
+    (%$k:ident, $($arg:tt)*) => {{
+        $crate::__diagnostics_info!($k, $($arg)*)
+    }};
+
+    ($fmt:literal, $($arg:tt)+) => {{
+        let _ = format_args!($fmt, $($arg)+);
+    }};
+    ($fmt:literal,) => {{
+        let _ = format_args!($fmt);
+    }};
+    ($fmt:literal) => {{
+        let _ = format_args!($fmt);
+    }};
+
+    ($v:expr, $($arg:tt)*) => {{
+        let _ = &$v;
+        $crate::__diagnostics_info!($($arg)*)
+    }};
+
+    ($k:ident = $v:expr) => {{ let _ = &$v; }};
+    ($k:ident = ?$v:expr) => {{ let _ = &$v; }};
+    ($k:ident = %$v:expr) => {{ let _ = &$v; }};
+    ($k:ident) => {{ let _ = &$k; }};
+    (?$k:ident) => {{ let _ = &$k; }};
+    (%$k:ident) => {{ let _ = &$k; }};
+    ($v:expr) => {{ let _ = &$v; }};
+
+    () => {{ () }};
 }
 
 #[macro_export]
@@ -35,7 +78,11 @@ macro_rules! __diagnostics_trace {
 
 #[macro_export]
 macro_rules! __diagnostics_enabled {
-    ($($arg:tt)*) => {
+    ($v:expr) => {{
+        let _ = &$v;
         false
-    };
+    }};
+    ($($arg:tt)*) => {{
+        false
+    }};
 }

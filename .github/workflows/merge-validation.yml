@@ -87,6 +87,19 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
 
+      - name: Check for Cargo file changes
+        id: cargo-files-changed
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            cargo:
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+      - name: Re-generate Cargo.lock
+        if: steps.cargo-files-changed.outputs.cargo == 'true'
+        run: |
+          rm -f Cargo.lock
+          cargo generate-lockfile
       - name: Install taplo
         run: cargo install taplo-cli --locked
       - name: Format Cargo.toml files

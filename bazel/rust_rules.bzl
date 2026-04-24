@@ -249,6 +249,10 @@ def _rust_rules_impl(
             ) if all_crate_deps else []),
             data = data_dev,
             lint_config = ":" + name + "-lints",
+            # env = {
+            #     "RUST_TEST_NOCAPTURE": "1",
+            #     "RUST_TEST_THREADS": "1",
+            # },
         )
 
         rustfmt_test(

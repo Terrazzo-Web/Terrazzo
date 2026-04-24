@@ -1,6 +1,8 @@
 #![cfg(test)]
 #![cfg(feature = "server")]
 
+use std::mem::MaybeUninit;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 
@@ -14,6 +16,7 @@ use tracing::info_span;
 use tracing::warn;
 use tracing_subscriber::Registry;
 use tracing_subscriber::layer::SubscriberExt as _;
+use trz_gateway_server::server::Server;
 
 use super::tracing::LogStreamLayer;
 use crate::backend::client_service::remote_fn_service::remote_server_fn_for_tests;
@@ -24,9 +27,11 @@ pub struct TestGuard<'t>(#[allow(dead_code)] std::sync::MutexGuard<'t, ()>);
 impl TestGuard<'_> {
     pub fn get() -> Self {
         static TEST_LOCK: Mutex<()> = Mutex::new(());
-        unsafe {
-            *remote_server_fn_for_tests() = Weak::from_raw(std::ptr::dangling());
-        }
+        let dummy_server: MaybeUninit<Server> = MaybeUninit::zeroed();
+        let dummy_server = unsafe { Arc::new(dummy_server.assume_init()) };
+        *remote_server_fn_for_tests() = Arc::downgrade(&dummy_server);
+        std::mem::forget(dummy_server);
+
         let lock = TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         LogState::get().reset_for_tests();
         Self(lock)

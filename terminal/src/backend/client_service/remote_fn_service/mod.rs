@@ -22,7 +22,7 @@ pub fn remote_fn_server() -> Result<Arc<Server>, RemoteFnServerError> {
     let server = SERVER.get().ok_or(RemoteFnServerError::ServerNotSet)?;
 
     #[cfg(test)]
-    let server: std::sync::MutexGuard<'_, Weak<Server>> = remote_server_fn_for_tests();
+    let server = remote_server_fn_for_tests();
 
     server
         .upgrade()

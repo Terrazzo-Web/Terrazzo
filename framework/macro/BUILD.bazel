@@ -1,10 +1,12 @@
+load("@crate_macro_client//:defs.bzl", all_crate_deps_client = "all_crate_deps")
+load("@crate_macro_server//:defs.bzl", all_crate_deps_server = "all_crate_deps")
 load("//bazel:rust_rules.bzl", "rust_rules")
 
 package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "client",
-    package_name = "framework/macro",
+    all_crate_deps = all_crate_deps_client,
     assets = ["README.md"],
     crate_features = ["client"],
     crate_name = "terrazzo_macro",
@@ -13,7 +15,7 @@ rust_rules(
 
 rust_rules(
     name = "server",
-    package_name = "framework/macro",
+    all_crate_deps = all_crate_deps_server,
     assets = ["README.md"],
     crate_features = ["server"],
     crate_name = "terrazzo_macro",

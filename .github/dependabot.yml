@@ -12,8 +12,8 @@ updates:
     labels:
       - "dependabot"
     groups:
-       minor-updates:
-          applies-to: version-updates
-          update-types:
-            - "minor"
-            - "patch"
+      minor-updates:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"

@@ -1,0 +1,11 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "pty",
+    assets = ["README.md"],
+    crate_name = "terrazzo_pty",
+    deps_dev = ["//remote/common"],
+    deps = ["//utils/nameth/nameth"],
+)

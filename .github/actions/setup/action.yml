@@ -15,9 +15,15 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup cache for Rust compilation
+    - name: Get cache week
       if: ${{ inputs.cache-level != 'off' }}
-      uses: actions/cache@v5.0.4
+      id: cache-week
+      shell: bash
+      run: echo "week=$(date +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+    - name: Setup cache for Rust compilation
+      if: ${{ inputs.cache-level == 'strict' }}
+      uses: actions/cache@v5.0.5
       with:
         path: |
           ~/.cargo/.crates.toml
@@ -28,11 +34,30 @@ runs:
           ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-          target/
           ~/.cache/ms-playwright/
-        key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/*.lock') }}
+          target/
+          terminal/target
+        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+
+    - name: Restore cache for Rust compilation
+      if: ${{ inputs.cache-level == 'lenient' }}
+      uses: actions/cache/restore@v5.0.5
+      with:
+        path: |
+          ~/.cargo/.crates.toml
+          ~/.cargo/.crates2.json
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ~/.bazel/cache/disk/
+          ~/.bazel/cache/repository/
+          ~/.cache/ms-playwright/
+          target/
+          terminal/target
+        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
-          ${{ inputs.cache-level == 'lenient' && format('{0}-{1}-', runner.os, github.job) || '__strict_cache_no_restore__-' }}
+          ${{ runner.os }}-${{ github.job }}-
 
     - name: Add wasm32 compilation target
       shell: bash
@@ -42,9 +67,9 @@ runs:
       shell: bash
       run: cargo --locked install wasm-pack --version 0.14.0
 
-    - name: Install stylance
+    - name: Install terrazzo-css
       shell: bash
-      run: cargo --locked install stylance-cli --version 0.7.4
+      run: cargo install --path utils/css/cli --locked
 
     - name: Install Protoc
       uses: arduino/setup-protoc@v3

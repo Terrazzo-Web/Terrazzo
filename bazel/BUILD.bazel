@@ -8,11 +8,6 @@ config_setting(
     values = {"compilation_mode": "opt"},
 )
 
-alias(
-    name = "stylance",
-    actual = "@bindeps//:stylance-cli__stylance",
-)
-
 buildifier(
     name = "buildifier",
     lint_mode = "fix",
@@ -29,4 +24,7 @@ playwright_setup(
     name = "playwright_setup",
 )
 
-exports_files(["playwright_test.sh"])
+exports_files([
+    "generated_file.sh",
+    "playwright_test.sh",
+])

@@ -33,28 +33,33 @@ def rust_rules_matrix(overrides = {}, **kwargs):
 def rust_rules(
         name,
         package_name = None,
+        rust_srcs = None,
         deps = [],
         deps_proc_macro = [],
         deps_dev = [],
         deps_dev_proc_macro = [],
         data = [],
+        data_dev = None,
         rule = "library",
         crate_features = [],
         crate_features_dev = None,
         rustc_env_files = [],
         assets = [],
         generate_tests = True,
+        all_crate_deps = all_crate_deps,
         **kwargs):
     """Rust rules bundle
 
     Args:
       name: Name of the Bazel target
       package_name: Name of the Rust package in the crate universe
+      rust_srcs: Rust source files. Defaults to all "src/**/*.rs" Rust files.
       deps: Additional dependencies
       deps_proc_macro: Additional macro dependencies
       deps_dev: Additional dependencies for tests
       deps_dev_proc_macro: Additional macro dependencies for tests
       data: Data deps
+      data_dev: Data deps for tests
       rule: one of the https://bazelbuild.github.io/rules_rust/rust.html#rules
       crate_features: List of features enabled
       crate_features_dev: List of features enabled for tests
@@ -66,47 +71,58 @@ def rust_rules(
         - copy: optional bool; when true copy assets, otherwise symlink them
         String items expand to {"targets": [<items>]}.
       generate_tests: Whether to generate rust test and clippy targets
+      all_crate_deps: The dependency API to use to resolve dependencies
       **kwargs: Additional arguments
     """
     _rust_rules_impl(
         name,
         package_name,
+        rust_srcs,
         deps,
         deps_proc_macro,
         deps_dev,
         deps_dev_proc_macro,
         data,
+        data_dev,
         rule,
         crate_features,
         crate_features_dev,
         rustc_env_files,
         assets,
         generate_tests,
+        all_crate_deps,
         **kwargs
     )
 
 def _rust_rules_impl(
         name = "!!",
         package_name = "!!",
+        rust_srcs = ["!!"],
         deps = "!!",
         deps_proc_macro = "!!",
         deps_dev = "!!",
         deps_dev_proc_macro = "!!",
         data = "!!",
+        data_dev = "!!",
         rule = "!!",
         crate_features = "!!",
         crate_features_dev = "!!",
         rustc_env_files = "!!",
         assets = ["!!"],
         generate_tests = "!!",
+        all_crate_deps = "!!",
         **kwargs):
     if package_name == None:
-        package_name = name
+        package_name = native.package_name()
 
     if crate_features_dev == None:
         crate_features_dev = crate_features
 
-    rust_srcs = native.glob(["src/**/*.rs"])
+    if rust_srcs == None:
+        rust_srcs = native.glob(["src/**/*.rs"])
+
+    if data_dev == None:
+        data_dev = data
 
     asset_copy_targets = ["Cargo.toml"] + rust_srcs
     asset_link_targets = []
@@ -195,11 +211,14 @@ def _rust_rules_impl(
         name = name,
         srcs = [":" + mirror + "-rs"],
         lint_config = ":" + name + "-lints",
-        deps = deps + all_crate_deps(package_name = package_name, normal = True),
-        proc_macro_deps = deps_proc_macro + all_crate_deps(
+        deps = deps + (all_crate_deps(
+            package_name = package_name,
+            normal = True,
+        ) if all_crate_deps else []),
+        proc_macro_deps = deps_proc_macro + (all_crate_deps(
             package_name = package_name,
             proc_macro = True,
-        ),
+        ) if all_crate_deps else []),
         compile_data = [
             ":" + mirror + "-data",
             ":" + mirror + "-manifest",
@@ -219,17 +238,21 @@ def _rust_rules_impl(
         rust_test(
             name = name + "-test",
             crate = ":" + name,
-            lint_config = ":" + name + "-lints",
-            deps = deps_dev + all_crate_deps(
+            crate_features = crate_features_dev + ["bazel"],
+            deps = deps_dev + (all_crate_deps(
                 package_name = package_name,
                 normal_dev = True,
-            ),
-            proc_macro_deps = deps_dev_proc_macro + all_crate_deps(
+            ) if all_crate_deps else []),
+            proc_macro_deps = deps_dev_proc_macro + (all_crate_deps(
                 package_name = package_name,
                 proc_macro_dev = True,
-            ),
-            data = data,
-            crate_features = crate_features_dev + ["bazel"],
+            ) if all_crate_deps else []),
+            data = data_dev,
+            lint_config = ":" + name + "-lints",
+            # env = {
+            #     "RUST_TEST_NOCAPTURE": "1",
+            #     "RUST_TEST_THREADS": "1",
+            # },
         )
 
         rustfmt_test(
@@ -285,7 +308,7 @@ def _mirror_sources_impl(ctx):
             asset_targets = ctx.files.asset_link_targets
         for f in asset_targets:
             if f.short_path.startswith(package_name):
-                rel = f.short_path[len(package_name):]
+                rel = f.short_path[len(package_name) + 1:]
             else:
                 fail("Unexpected short_path:{} does not start with {} (path:{})".format(f.short_path, package_name, f.path))
 
@@ -297,14 +320,18 @@ def _mirror_sources_impl(ctx):
                     copied = ctx.actions.declare_directory(prefix + rel)
                 else:
                     copied = ctx.actions.declare_file(prefix + rel)
-                if copied.basename == "Cargo.toml":
+                if rel == "Cargo.toml":
                     manifest_file = copied
                 else:
                     data_files.append(copied)
 
             lines.append('mkdir -p "$(dirname "{}")"'.format(copied.path))
             if copy:
-                lines.append('cp "{}" "{}"'.format(f.path, copied.path))
+                if f.is_directory:
+                    lines.append('mkdir -p "{}"'.format(copied.path))
+                    lines.append('cp -R "$(realpath "{}")"/. "{}"'.format(f.path, copied.path))
+                else:
+                    lines.append('cp "{}" "{}"'.format(f.path, copied.path))
             else:
                 lines.append('ln -s "$(realpath "{}")" "{}"'.format(f.path, copied.path))
             copied_files.append(copied)
@@ -367,7 +394,12 @@ def _link_assets_to_dir_impl(ctx):
         else:
             out = ctx.actions.declare_file(out_path)
         commands.append('mkdir -p "$(dirname "{}")"'.format(out.path))
-        commands.append('ln -s $(realpath "{}") "{}"'.format(src.path, out.path))
+
+        if src.is_directory:
+            commands.append('mkdir -p "{}"'.format(out.path))
+            commands.append('cp -R "$(realpath "{}")"/. "{}"'.format(src.path, out.path))
+        else:
+            commands.append('ln -s $(realpath "{}") "{}"'.format(src.path, out.path))
         outputs.append(out)
 
     ctx.actions.run_shell(

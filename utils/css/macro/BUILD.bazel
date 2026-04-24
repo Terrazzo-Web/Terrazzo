@@ -1,0 +1,13 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "macro",
+    crate_name = "terrazzo_css_macro",
+    rule = "proc_macro",
+    deps = [
+        "//utils/css/shared",
+        "//utils/nameth/nameth",
+    ],
+)

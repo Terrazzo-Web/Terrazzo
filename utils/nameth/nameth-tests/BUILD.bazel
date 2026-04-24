@@ -4,6 +4,5 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "nameth-tests",
-    package_name = "utils/nameth/nameth-tests",
     deps_dev = ["//utils/nameth/nameth"],
 )

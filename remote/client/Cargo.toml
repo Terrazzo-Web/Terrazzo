@@ -35,7 +35,7 @@ tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-futures = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true }
 
 [dev-dependencies]
 trz-gateway-server = { workspace = true }

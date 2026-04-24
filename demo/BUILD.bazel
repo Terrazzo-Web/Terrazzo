@@ -1,18 +1,12 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
+load("//bazel:scss_rules.bzl", "scss_rule")
 
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
-    package_name = "demo",
-    assets = [
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
-    ],
+    assets = glob(["src/**/*.scss"]),
     crate_features = ["client"],
     overrides = {
         "client-lib": {
@@ -37,10 +31,10 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:scopeguard",
         "@crates//:serde_json",
-        "@crates//:stylance",
         "@crates//:thiserror",
         "@crates//:wasm-bindgen",
         "@crates//:wasm-bindgen-futures",
@@ -62,13 +56,12 @@ rust_wasm_bindgen(
     wasm_file = ":client-shared-lib-debug",
 )
 
-stylance_rule(
+scss_rule(
     name = "demo_scss",
     output = "target/css/demo.scss",
 )
 
 rust_rules_matrix(
-    package_name = "demo",
     assets = [
         [
             "assets/index.html",
@@ -78,7 +71,6 @@ rust_rules_matrix(
         {
             "targets": [":demo_scss"],
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],
@@ -88,6 +80,7 @@ rust_rules_matrix(
             "assets": [{
                 "targets": [":client"],
                 "prefix": "assets/wasm",
+                "copy": True,
             }],
             "deps": ["//framework/terrazzo:server"],
         },
@@ -95,6 +88,7 @@ rust_rules_matrix(
             "assets": [{
                 "targets": [":client-debug"],
                 "prefix": "assets/wasm",
+                "copy": True,
             }],
             "deps": ["//framework/terrazzo:server-debug"],
         },
@@ -109,7 +103,6 @@ rust_rules_matrix(
 )
 
 rust_rules_matrix(
-    package_name = "demo",
     crate_features = ["server"],
     crate_name = "demo_server",
     crate_root = "src/server.rs",

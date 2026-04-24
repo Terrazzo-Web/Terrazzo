@@ -18,7 +18,7 @@ mod position;
 mod size;
 mod state;
 
-stylance::import_style!(style, "game.scss");
+terrazzo_css::import_style!(style, "game.scss");
 
 #[autoclone]
 #[template]
@@ -28,9 +28,9 @@ pub fn run(main: Element) -> XElement {
     ResizeEvent::set_up(&window);
     let game = Game::new(window, main);
     div(
-        class = style::game,
+        class = style::GAME,
         img(
-            class = style::board,
+            class = style::BOARD,
             src = "/static/game/picture.jpg",
             load = move |_: web_sys::Event| {
                 autoclone!(game);

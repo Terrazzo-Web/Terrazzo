@@ -1,4 +1,3 @@
-use tonic::Status;
 use tonic::async_trait;
 use tracing::info;
 use trz_gateway_common::protos::terrazzo::remote::tests::Expression;
@@ -15,7 +14,7 @@ impl TestTunnelService for Calculator {
     async fn calculate(
         &self,
         request: tonic::Request<Expression>,
-    ) -> Result<tonic::Response<Value>, Status> {
+    ) -> Result<tonic::Response<Value>, tonic::Status> {
         let expression = request.get_ref();
         let result = calculate_impl(expression);
         let result_str = match &result {
@@ -27,27 +26,27 @@ impl TestTunnelService for Calculator {
     }
 }
 
-fn calculate_impl(request: &Expression) -> Result<Value, Status> {
+fn calculate_impl(request: &Expression) -> Result<Value, tonic::Status> {
     let result = match request
         .kind
         .as_ref()
-        .ok_or_else(|| Status::invalid_argument("null"))?
+        .ok_or_else(|| tonic::Status::invalid_argument("null"))?
     {
         expression::Kind::Operation(operation) => {
             let operands = [&operation.left, &operation.right]
                 .map(Option::as_ref)
-                .map(|e| e.ok_or_else(|| Status::invalid_argument("null operand")))
+                .map(|e| e.ok_or_else(|| tonic::Status::invalid_argument("null operand")))
                 .map(|e| e.map(|e| calculate_impl(e)));
             let [a, b] = operands;
             let operands = [a??, b??].map(|e| {
                 e.kind
-                    .ok_or_else(|| Status::invalid_argument("null result"))
+                    .ok_or_else(|| tonic::Status::invalid_argument("null result"))
             });
             let [a, b] = operands;
             let operands = (a?, b?);
             match operation.operator() {
                 Operator::UndefinedOperand => {
-                    return Err(Status::invalid_argument("null operator"));
+                    return Err(tonic::Status::invalid_argument("null operator"));
                 }
                 Operator::Plus => match operands {
                     (value::Kind::I(a), value::Kind::I(b)) => (a + b).into(),

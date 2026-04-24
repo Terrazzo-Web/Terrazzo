@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 cargo check --features=client,server
 cargo check --features client,debug,diagnostics

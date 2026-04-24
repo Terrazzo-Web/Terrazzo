@@ -2,9 +2,9 @@ module(name = "terrazzo")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2")
-bazel_dep(name = "rules_shell", version = "0.7.1")
-bazel_dep(name = "rules_rust", version = "0.69.0")
-bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.69.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_rust", version = "0.70.0")
+bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
@@ -19,7 +19,7 @@ register_toolchains("@rust_toolchains//:all")
 
 register_toolchains("@rules_rust_wasm_bindgen//:default_wasm_bindgen_toolchain")
 
-include("//bazel:crate_repositories.MODULE.bazel")
+include("//bazel:crate_repos.MODULE.bazel")
 
 local_node_tools = use_extension("//bazel:local_node_tools.bzl", "local_node_tools_ext")
 use_repo(local_node_tools, "local_node_tools")

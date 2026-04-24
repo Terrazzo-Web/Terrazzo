@@ -1,0 +1,18 @@
+crates = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crates.render_config(
+    default_alias_rule_bzl = "//bazel:crate_aliases.bzl",
+    default_alias_rule_name = "cfg_alias",
+)
+crates.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+use_repo(crates, "crates")
+
+include("//bazel/crate_macros:generated.crate_macro_client.MODULE.bazel")
+include("//bazel/crate_macros:generated.crate_macro_server.MODULE.bazel")
+include("//bazel/client_server_modules:generated.crates_server_plain.MODULE.bazel")
+include("//bazel/client_server_modules:generated.crates_client_plain.MODULE.bazel")
+include("//bazel/client_server_modules:generated.crates_server_opt.MODULE.bazel")
+include("//bazel/client_server_modules:generated.crates_client_opt.MODULE.bazel")

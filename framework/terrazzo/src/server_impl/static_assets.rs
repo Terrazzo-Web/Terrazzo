@@ -315,7 +315,7 @@ pub fn resolve_root(root: impl AsRef<Path>) -> PathBuf {
             let leg = std::env::var(&leg.to_string_lossy().as_ref()[1..]);
             result.push(
                 leg.inspect_err(|error| {
-                    warn!(
+                    eprintln!(
                         "Failed to resolve root for {:?}. ERROR={error}",
                         root.as_ref()
                     )

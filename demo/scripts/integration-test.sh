@@ -4,7 +4,9 @@ set -euo pipefail
 
 SERVER_BIN="${1:?Usage: $0 <path-to-demo-server>}"
 
-SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
+TMPDIR_ROOT="${TMPDIR:-/tmp}"
+TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-demo-server.XXXXXX")}"
+SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
 SERVER_PID=""
 
 cleanup() {
@@ -22,7 +24,7 @@ SERVER_PID="$!"
 
 for _ in $(seq 1 60); do
   if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-    npx playwright test "demo/scripts/integration-test.spec.mjs" \
+    CARGO=1 npx playwright test "demo/scripts/integration-test.spec.mjs" \
       || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi

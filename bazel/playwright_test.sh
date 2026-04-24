@@ -12,28 +12,58 @@ SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
+CARGO_MANIFEST_DIR="$(dirname "$(realpath "${SERVER_BIN}")")/cargo_root/$(basename "${SERVER_BIN}")"
 
-SERVER_LOG="${SERVER_LOG:-$(mktemp --tmpdir terrazzo-demo-server.XXXXXX.log)}"
-SERVER_PORT_FILE="${SERVER_PORT_FILE:-$(mktemp --tmpdir terrazzo-demo-server-port.XXXXXX)}"
+TMPDIR_ROOT="${TMPDIR:-/tmp}"
+TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
+SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
+SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-${TEST_TMPDIR%/}/server-endpoint}"
+TEMP_CONFIG_FILE="${TEMP_CONFIG_FILE:-${TEST_TMPDIR%/}/config.toml}"
 SERVER_PID=""
+SERVER_SUPPORTS_CONFIG_FILE=0
+
+SERVER_ARGS=(
+  --port 0
+  --set_current_endpoint "${SERVER_ENDPOINT_FILE}"
+)
 
 cleanup() {
   if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" 2>/dev/null; then
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
-  rm -f "${SERVER_LOG}" "${SERVER_PORT_FILE}"
+  rm -f "${SERVER_LOG}" "${SERVER_ENDPOINT_FILE}" "${TEMP_CONFIG_FILE}"
 }
 
 trap cleanup EXIT
 
-"${SERVER_BIN}" --port 0 --set_current_port "${SERVER_PORT_FILE}" > "${SERVER_LOG}" 2>&1 &
+if CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" "${SERVER_BIN}" --help 2>/dev/null | grep -Fq -- "--config-file"; then
+  SERVER_SUPPORTS_CONFIG_FILE=1
+fi
+
+if [[ "${SERVER_SUPPORTS_CONFIG_FILE}" == "1" ]]; then
+cat > "${TEMP_CONFIG_FILE}" <<'EOF'
+[server]
+config_file_watcher = true
+
+[server.config_file_poll_strategy]
+fixed = "1h"
+EOF
+SERVER_ARGS+=(--config-file "${TEMP_CONFIG_FILE}")
+fi
+
+CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
+RUST_BACKTRACE=1 \
+"${SERVER_BIN}" \
+    "${SERVER_ARGS[@]}" \
+  > "${SERVER_LOG}" 2>&1 &
+
 SERVER_PID="$!"
 
-for _ in $(seq 1 60); do
-  if [[ -s "${SERVER_PORT_FILE}" ]]; then
-    SERVER_PORT="$(<"${SERVER_PORT_FILE}")"
-    SERVER_URL="http://127.0.0.1:${SERVER_PORT}"
+for _ in $(seq 1 30); do
+  if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
+    SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
+    SERVER_URL="http://${SERVER_ENDPOINT}"
   else
     SERVER_URL=""
   fi
@@ -42,11 +72,13 @@ for _ in $(seq 1 60); do
     export HOME="$PLAYWRIGHT_ROOT/home"
     export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
     export PATH="$(dirname "${NODE_BIN}"):${PATH:-}"
+    export TERRAZZO_SERVER_BIN="${SERVER_BIN}"
+    export TERRAZZO_CONFIG_FILE="${TEMP_CONFIG_FILE}"
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    BASE_URL="${SERVER_URL}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
+    BAZEL=1 BASE_URL="${SERVER_URL}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
       || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi

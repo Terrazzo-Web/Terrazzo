@@ -16,13 +16,13 @@ use super::position::Position;
 use super::size::Size;
 use super::state::Game;
 
-stylance::import_style!(style, "cookie.scss");
+terrazzo_css::import_style!(style, "cookie.scss");
 
 #[template(tag = img, key = c.id.to_string())]
 #[html]
 pub fn cookie(c: CookiePtr) -> XElement {
     tag(
-        class = style::cookie,
+        class = style::COOKIE,
         style::top %= cookie_style::top(c.position.clone()),
         style::left %= cookie_style::left(c.position.clone()),
         style::width %= cookie_style::width(c.size.clone()),

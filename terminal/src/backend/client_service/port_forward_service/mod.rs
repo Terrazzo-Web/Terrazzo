@@ -1,0 +1,17 @@
+#![cfg(feature = "port-forward")]
+
+use futures::Stream;
+use terrazzo::declare_trait_aliias;
+
+use crate::backend::protos::terrazzo::portforward::PortForwardDataRequest;
+
+pub mod bind;
+pub mod download;
+mod grpc;
+mod listeners;
+pub mod stream;
+pub mod upload;
+
+declare_trait_aliias!(
+    RequestDataStream,
+    Stream<Item = Result<PortForwardDataRequest, tonic::Status>> + Unpin + Send + 'static);

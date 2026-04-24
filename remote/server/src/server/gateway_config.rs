@@ -27,6 +27,10 @@ pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
         if cfg!(debug_assertions) { 3000 } else { 3001 }
     }
 
+    fn set_current_endpoint(&self) -> Option<String> {
+        None
+    }
+
     /// The root CA is used to issue the client certificates.
     ///
     /// This asset is never rotated, even if the private key leaks.

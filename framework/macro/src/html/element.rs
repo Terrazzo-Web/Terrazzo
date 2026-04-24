@@ -1,3 +1,4 @@
+use deluxe::HasAttributes;
 use quote::quote;
 
 use super::attribute::XAttribute;
@@ -17,9 +18,17 @@ pub struct XElement {
 }
 
 impl XElement {
-    pub fn process_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
+    pub fn process_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         if let Some(event) = process_event(name, value) {
-            self.events.push(event);
+            self.events.push(quote! {
+                #(#attrs)*
+                #event
+            });
             return;
         };
         let name = ident_to_kebab_case(name);
@@ -38,12 +47,18 @@ impl XElement {
                             gen_attributes.push(#generated);
                         }
                     },
+                    attrs,
                 ));
             }
         }
     }
 
-    pub fn process_optional_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
+    pub fn process_optional_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         if process_event(name, value).is_some() {
             self.events.push(quote! { compile_error!() });
             return;
@@ -66,16 +81,18 @@ impl XElement {
                             }
                         }
                     },
+                    attrs,
                 ));
             }
         }
     }
 
-    pub fn process_style_attribute(&mut self, name: &syn::Ident, value: &syn::Expr) {
-        if let Some(event) = process_event(name, value) {
-            self.events.push(event);
-            return;
-        };
+    pub fn process_style_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
         let name = ident_to_kebab_case(name);
         let value = quote! { #value.into() };
         self.attributes.push(XAttribute::new_static(
@@ -87,6 +104,30 @@ impl XElement {
                     gen_attributes.push(#generated);
                 }
             },
+            attrs,
+        ));
+    }
+
+    pub fn process_optional_style_attribute(
+        &mut self,
+        name: &syn::Ident,
+        value: &syn::Expr,
+        attrs: &[syn::Attribute],
+    ) {
+        let name = ident_to_kebab_case(name);
+        let value = quote! { #value };
+        self.attributes.push(XAttribute::new_static(
+            &name,
+            XAttributeKind::Style,
+            move |this| {
+                let generated = this.to_tokens(quote! { value.into() });
+                quote! {
+                    if let Some(value) = #value {
+                        gen_attributes.push(#generated);
+                    }
+                }
+            },
+            attrs,
         ));
     }
 
@@ -95,6 +136,7 @@ impl XElement {
         name: &syn::Ident,
         value: &syn::Expr,
         is_style_attribute: bool,
+        attrs: &[syn::Attribute],
     ) {
         if process_event(name, value).is_some() {
             self.events.push(quote! { compile_error!() });
@@ -116,13 +158,17 @@ impl XElement {
                         (#value).into(),
                     )
                 };
-                self.attributes
-                    .push(XAttribute::new_dynamic(&name, kind, move |this| {
+                self.attributes.push(XAttribute::new_dynamic(
+                    &name,
+                    kind,
+                    move |this| {
                         let generated = this.to_tokens(value);
                         quote! {
                             gen_attributes.push(#generated);
                         }
-                    }));
+                    },
+                    attrs,
+                ));
             }
         }
     }
@@ -144,6 +190,7 @@ impl XElement {
         html_element_visitor: &mut HtmlElementVisitor,
         child: &syn::Expr,
     ) {
+        let attrs = child.attrs();
         let child = match child {
             syn::Expr::Call(expr_call)
                 if html_element_visitor.get_tag_name(&expr_call.func).is_some() =>
@@ -172,12 +219,16 @@ impl XElement {
             child => quote! { XNode::from(#child) },
         };
         self.children.push(quote! {
+            #(#attrs)*
             gen_children.push(#child);
         });
     }
 
     pub fn process_children(&mut self, children: &syn::Expr) {
+        let mut children = children.clone();
+        let attrs = std::mem::take(children.attrs_mut().unwrap());
         self.children.push(quote! {
+            #(#attrs)*
             gen_children.extend(#children.into_iter().map(XNode::from));
         });
     }

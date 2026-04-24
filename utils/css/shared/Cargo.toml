@@ -1,0 +1,19 @@
+[package]
+name = "terrazzo-css-shared"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Internal crate used by terrazzo-css"
+
+[dependencies]
+nameth = { workspace = true }
+serde = { workspace = true }
+siphasher = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+winnow = { workspace = true }
+
+[lints]
+workspace = true

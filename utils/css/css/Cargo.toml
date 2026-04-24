@@ -1,0 +1,16 @@
+[package]
+name = "terrazzo-css"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Generates constants for class names"
+
+[lib]
+
+[dependencies]
+terrazzo-css-macro = { workspace = true }
+
+[lints]
+workspace = true

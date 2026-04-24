@@ -4,7 +4,6 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "nameth-macro",
-    package_name = "utils/nameth/nameth-macro",
     assets = ["README.md"],
     rule = "proc_macro",
 )

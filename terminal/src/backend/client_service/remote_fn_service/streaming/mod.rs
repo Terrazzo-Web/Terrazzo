@@ -37,6 +37,7 @@ pub fn setup() {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 pub fn setup_for_tests() {
     if REMOTE_FNS.get().is_some() {
         return;

@@ -1,12 +1,10 @@
 //! Forward [server_fn] calls to mesh clients.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::OnceLock;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use trz_gateway_server::server::Server;
 
 use self::remote_fn::RegisteredRemoteFn;
 use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
@@ -36,6 +34,7 @@ pub fn setup() {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 pub fn setup_for_tests() {
     if REMOTE_FNS.get().is_some() {
         return;

@@ -58,7 +58,7 @@ async fn add_conversions(input: &str, add: &mut impl AddConversionFn) {
 
 declare_trait_aliias!(AddConversionFn, FnMut(Language, String));
 
-remote_fn_service::declare_remote_fn!(
+remote_fn_service::unary::declare_remote_fn!(
     GET_CONVERSIONS_FN,
     GET_CONVERSIONS,
     ConversionsRequest,
@@ -68,12 +68,6 @@ remote_fn_service::declare_remote_fn!(
 
 #[cfg(test)]
 mod tests {
-
-    use std::sync::Arc;
-
-    use futures::StreamExt as _;
-
-    use super::super::api::Conversions;
 
     pub trait GetConversionForTest {
         async fn get_conversion(&self, language: &str) -> String;
@@ -109,16 +103,5 @@ mod tests {
             languages.sort();
             return languages;
         }
-    }
-
-    async fn get_conversions(input: Arc<str>) -> Result<Conversions, tonic::Status> {
-        let mut stream = super::stream_conversions(input);
-        let mut conversions = vec![];
-        while let Some(next) = stream.next().await {
-            conversions.push(next.map_err(|error| tonic::Status::internal(error.to_string()))?);
-        }
-        Ok(Conversions {
-            conversions: conversions.into(),
-        })
     }
 }

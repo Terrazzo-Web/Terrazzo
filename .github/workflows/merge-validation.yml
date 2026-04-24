@@ -98,8 +98,9 @@ jobs:
       - name: Re-generate Cargo.lock
         if: steps.cargo-files-changed.outputs.cargo == 'true'
         run: |
-          rm -f Cargo.lock
+          rm -f Cargo.lock MODULE.bazel.lock
           cargo generate-lockfile
+          bazel mod deps
       - name: Install taplo
         run: cargo install taplo-cli --locked
       - name: Format Cargo.toml files

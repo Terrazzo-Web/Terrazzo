@@ -1,4 +1,3 @@
-use tonic::Status;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
@@ -90,12 +89,12 @@ impl From<RegisterTerminalRequest> for RegisterTerminalRequestProto {
 }
 
 impl TryFrom<RegisterTerminalModeProto> for RegisterTerminalMode {
-    type Error = Status;
+    type Error = tonic::Status;
 
     fn try_from(proto: RegisterTerminalModeProto) -> Result<Self, Self::Error> {
         Ok(match proto {
             RegisterTerminalModeProto::Unspecified => {
-                return Err(Status::invalid_argument("mode"));
+                return Err(tonic::Status::invalid_argument("mode"));
             }
             RegisterTerminalModeProto::Create => Self::Create,
             RegisterTerminalModeProto::Reopen => Self::Reopen,

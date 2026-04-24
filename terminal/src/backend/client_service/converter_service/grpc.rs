@@ -2,7 +2,6 @@
 
 use tonic::Request;
 use tonic::Response;
-use tonic::Status;
 use tonic::async_trait;
 
 use super::dispatch::conversions_dispatch;
@@ -18,10 +17,10 @@ impl ConverterService for ClientServiceImpl {
     async fn stream_conversions(
         &self,
         request: Request<ConversionsRequest>,
-    ) -> Result<Response<Self::StreamConversionsStream>, Status> {
+    ) -> Result<Response<Self::StreamConversionsStream>, tonic::Status> {
         let response = conversions_dispatch(request.into_inner())
             .await
-            .map_err(Status::from)?;
+            .map_err(tonic::Status::from)?;
         Ok(Response::new(RemoteResponseStream(response)))
     }
 }

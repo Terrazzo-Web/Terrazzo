@@ -6,7 +6,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use prost::bytes::Bytes;
 use tokio::sync::oneshot;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
@@ -65,7 +64,10 @@ impl GetLocalStream for GetDownloadStream {
             .ok_or(DownloadLocalError::NoMoreStreams)
     }
 
-    async fn call<S, T>(channel: T, stream: S) -> Result<Streaming<PortForwardDataResponse>, Status>
+    async fn call<S, T>(
+        channel: T,
+        stream: S,
+    ) -> Result<Streaming<PortForwardDataResponse>, tonic::Status>
     where
         S: Stream<Item = PortForwardDataRequest> + Send + 'static,
         T: GrpcService<BoxBody>,
@@ -91,7 +93,7 @@ pub enum DownloadLocalError {
     NoMoreStreams,
 }
 
-impl From<DownloadLocalError> for Status {
+impl From<DownloadLocalError> for tonic::Status {
     fn from(error: DownloadLocalError) -> Self {
         let code = match error {
             DownloadLocalError::StreamsNotRegistered { .. } => tonic::Code::InvalidArgument,

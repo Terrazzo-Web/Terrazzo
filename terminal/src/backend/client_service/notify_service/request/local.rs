@@ -5,7 +5,6 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use server_fn::ServerFnError;
-use tonic::Status;
 
 use super::HybridRequestStream;
 use super::HybridRequestStreamProj;
@@ -34,7 +33,7 @@ impl futures::Stream for LocalRequestStream {
 }
 
 fn poll_next_local(
-    request: Option<Result<NotifyRequestProto, Status>>,
+    request: Option<Result<NotifyRequestProto, tonic::Status>>,
 ) -> Option<Result<NotifyRequest, ServerFnError>> {
     Some(
         request?
@@ -49,6 +48,6 @@ fn poll_next_local(
                     full_path: full_path.into(),
                 },
             })
-            .map_err(Status::into),
+            .map_err(tonic::Status::into),
     )
 }

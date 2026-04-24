@@ -13,7 +13,6 @@ use futures::channel::oneshot;
 use futures::future::Shared;
 use tokio::time::Timeout;
 use tokio::time::error::Elapsed;
-use tonic::Status;
 use tracing::debug;
 use tracing::warn;
 use trz_gateway_common::retry_strategy::RetryStrategy;
@@ -30,7 +29,7 @@ use crate::portforward::schema::PortForwardStatus;
 pub struct BindStreamWithRetry(BindStreamWithRetryImpl);
 
 impl Stream for BindStreamWithRetry {
-    type Item = Result<PortForwardAcceptResponse, Status>;
+    type Item = Result<PortForwardAcceptResponse, tonic::Status>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> StreamItem {
         self.0.poll_next_unpin(cx)
@@ -86,7 +85,7 @@ struct StreamInfo {
     ask: Shared<oneshot::Receiver<()>>,
 }
 
-type StreamItem = Poll<Option<Result<PortForwardAcceptResponse, Status>>>;
+type StreamItem = Poll<Option<Result<PortForwardAcceptResponse, tonic::Status>>>;
 
 /// If the stream was up for more than [RETRY_COOLDOWN], the retry strategy resets to default.
 static RETRY_COOLDOWN: Duration = Duration::from_secs(15);
@@ -102,7 +101,7 @@ fn default_retry_strategy() -> RetryStrategy {
 }
 
 impl Stream for BindStreamWithRetryImpl {
-    type Item = Result<PortForwardAcceptResponse, Status>;
+    type Item = Result<PortForwardAcceptResponse, tonic::Status>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> StreamItem {
         loop {

@@ -6,7 +6,6 @@ use scopeguard::defer;
 use terrazzo::http::StatusCode;
 use terrazzo_pty::OpenProcessError;
 use terrazzo_pty::ProcessIO;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -56,15 +55,18 @@ impl DistributedCallback for RegisterCallback {
     type Request = (Option<ClientName>, RegisterTerminalRequest);
     type Response = HybridReader;
     type LocalError = RegisterStreamError;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(
         server: Option<&Arc<Server>>,
         (my_client_name, request): (Option<ClientName>, RegisterTerminalRequest),
     ) -> Result<HybridReader, RegisterStreamError> {
-        let server = server.ok_or_else(|| RegisterStreamError::Grpc(Status::internal("server")))?;
+        let server =
+            server.ok_or_else(|| RegisterStreamError::Grpc(tonic::Status::internal("server")))?;
         let mode = request.mode().try_into()?;
-        let def = request.def.ok_or_else(|| Status::invalid_argument("def"))?;
+        let def = request
+            .def
+            .ok_or_else(|| tonic::Status::invalid_argument("def"))?;
         let def = TerminalDef::from(def);
         let terminal_id = def.address.id.clone();
         let stream = processes::stream::open_stream(
@@ -85,7 +87,7 @@ impl DistributedCallback for RegisterCallback {
             },
         )
         .await;
-        let stream = stream.map_err(|error| Status::internal(error.to_string()))?;
+        let stream = stream.map_err(|error| tonic::Status::internal(error.to_string()))?;
         let stream = ThrottleProcessOutput::new(terminal_id, stream);
         return Ok(HybridReader::Local(stream));
     }
@@ -94,7 +96,7 @@ impl DistributedCallback for RegisterCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         (_, mut request): (Option<ClientName>, RegisterTerminalRequest),
-    ) -> Result<HybridReader, Status>
+    ) -> Result<HybridReader, tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -102,7 +104,7 @@ impl DistributedCallback for RegisterCallback {
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         let def = request.def.as_mut();
-        let def = def.ok_or_else(|| Status::invalid_argument("def"))?;
+        let def = def.ok_or_else(|| tonic::Status::invalid_argument("def"))?;
         let address = def.address.get_or_insert_default();
         address.via = Some(ClientAddress::of(client_address));
         let mut client = TerminalServiceClient::new(channel);
@@ -115,10 +117,10 @@ impl DistributedCallback for RegisterCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum RegisterStreamError {
     #[error("[{n}] {0}", n = self.name())]
-    RegisterStreamError(#[from] DistributedCallbackError<Box<RegisterStreamError>, Status>),
+    RegisterStreamError(#[from] DistributedCallbackError<Box<RegisterStreamError>, tonic::Status>),
 
     #[error("[{n}] {0}", n = self.name())]
-    Grpc(#[from] Status),
+    Grpc(#[from] tonic::Status),
 }
 
 impl IsHttpError for RegisterStreamError {
@@ -130,7 +132,7 @@ impl IsHttpError for RegisterStreamError {
     }
 }
 
-impl From<RegisterStreamError> for Status {
+impl From<RegisterStreamError> for tonic::Status {
     fn from(error: RegisterStreamError) -> Self {
         match error {
             RegisterStreamError::RegisterStreamError(error) => error.into(),
@@ -139,8 +141,8 @@ impl From<RegisterStreamError> for Status {
     }
 }
 
-impl From<Box<RegisterStreamError>> for Status {
+impl From<Box<RegisterStreamError>> for tonic::Status {
     fn from(error: Box<RegisterStreamError>) -> Self {
-        Status::from(*error)
+        tonic::Status::from(*error)
     }
 }

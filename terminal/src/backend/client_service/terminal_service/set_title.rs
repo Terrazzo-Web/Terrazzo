@@ -4,7 +4,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -45,7 +44,7 @@ impl DistributedCallback for SetTitleCallback {
     type Request = SetTitleRequest;
     type Response = ();
     type LocalError = SetTitleErrorImpl;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(
         _: Option<&Arc<Server>>,
@@ -65,7 +64,7 @@ impl DistributedCallback for SetTitleCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         mut request: SetTitleRequest,
-    ) -> Result<(), Status>
+    ) -> Result<(), tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -83,7 +82,7 @@ impl DistributedCallback for SetTitleCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum SetTitleError {
     #[error("[{n}] {0}", n = self.name())]
-    SetTitleError(#[from] DistributedCallbackError<SetTitleErrorImpl, Status>),
+    SetTitleError(#[from] DistributedCallbackError<SetTitleErrorImpl, tonic::Status>),
 }
 
 impl IsHttpError for SetTitleError {
@@ -94,7 +93,7 @@ impl IsHttpError for SetTitleError {
     }
 }
 
-impl From<SetTitleError> for Status {
+impl From<SetTitleError> for tonic::Status {
     fn from(error: SetTitleError) -> Self {
         match error {
             SetTitleError::SetTitleError(error) => error.into(),
@@ -102,11 +101,11 @@ impl From<SetTitleError> for Status {
     }
 }
 
-impl From<SetTitleErrorImpl> for Status {
+impl From<SetTitleErrorImpl> for tonic::Status {
     fn from(error: SetTitleErrorImpl) -> Self {
         match error {
             error @ SetTitleErrorImpl::TerminalNotFound { .. } => {
-                Status::not_found(error.to_string())
+                tonic::Status::not_found(error.to_string())
             }
         }
     }

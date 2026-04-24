@@ -46,7 +46,7 @@ mod backend {
 
     static STATE: Mutex<Option<Box<[RunningPortForward]>>> = Mutex::new(None);
 
-    remote_fn_service::declare_remote_fn!(
+    remote_fn_service::unary::declare_remote_fn!(
         /// Stores the port forwards on the designated remote terrazzo server.
         ///
         /// As a side effect, it runs the port forward engine as necessary to activate the new
@@ -83,7 +83,7 @@ mod backend {
         }
     );
 
-    remote_fn_service::declare_remote_fn!(
+    remote_fn_service::unary::declare_remote_fn!(
         /// Loads the port forwards from the designated remote terrazzo server.
         LOAD_PORT_FORWARDS_FN,
         super::LOAD_PORT_FORWARDS,

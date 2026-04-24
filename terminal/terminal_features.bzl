@@ -2,7 +2,7 @@
 
 load("//bazel/feature_deps:feature_deps_rules.bzl", "base_compute_srcs")
 
-_ALL_FEATURES = ["bazel", "client", "client-all", "client-prod", "concise-traces", "converter", "converter-client", "converter-server", "correlation-id", "debug", "diagnostics", "logs-panel", "logs-panel-client", "logs-panel-server", "max-level-debug", "max-level-info", "no_wasm_build", "port-forward", "port-forward-client", "port-forward-server", "prod", "remotes-ui", "rustdoc", "server", "server-all", "terminal", "terminal-client", "terminal-server", "text-editor", "text-editor-client", "text-editor-server"]
+_ALL_FEATURES = ["bazel", "client", "client-all", "client-prod", "concise-traces", "converter", "converter-client", "converter-server", "correlation-id", "debug", "diagnostics", "logs-panel", "logs-panel-client", "logs-panel-server", "max-level-debug", "max-level-info", "no_wasm_build", "port-forward", "port-forward-client", "port-forward-server", "prod", "remotes-ui", "rustdoc", "server", "server-all", "streaming-remote-fn", "terminal", "terminal-client", "terminal-server", "text-editor", "text-editor-client", "text-editor-server"]
 BAZEL_DEPS = []
 BAZEL_FEATURES = ["bazel"]
 CLIENT_DEPS = [
@@ -22,7 +22,10 @@ CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + [
 CONVERTER_CLIENT_FEATURES = CLIENT_FEATURES + CONVERTER_FEATURES + REMOTES_UI_FEATURES + ["converter-client"]
 LOGS_PANEL_DEPS = []
 LOGS_PANEL_FEATURES = ["logs-panel"]
-LOGS_PANEL_CLIENT_DEPS = CLIENT_DEPS + LOGS_PANEL_DEPS + ["@crates//:futures"]
+LOGS_PANEL_CLIENT_DEPS = CLIENT_DEPS + LOGS_PANEL_DEPS + [
+    "@crates//:futures",
+    "@crates//:scopeguard",
+]
 LOGS_PANEL_CLIENT_FEATURES = CLIENT_FEATURES + LOGS_PANEL_FEATURES + ["logs-panel-client"]
 PORT_FORWARD_DEPS = []
 PORT_FORWARD_FEATURES = ["port-forward"]
@@ -110,8 +113,10 @@ DEBUG_DEPS = []
 DEBUG_FEATURES = ["debug"]
 DIAGNOSTICS_DEPS = []
 DIAGNOSTICS_FEATURES = ["diagnostics"]
-LOGS_PANEL_SERVER_DEPS = LOGS_PANEL_DEPS + SERVER_DEPS + ["@crates//:tracing-subscriber"]
-LOGS_PANEL_SERVER_FEATURES = LOGS_PANEL_FEATURES + SERVER_FEATURES + ["logs-panel-server"]
+STREAMING_REMOTE_FN_DEPS = ["@crates//:tracing-futures"]
+STREAMING_REMOTE_FN_FEATURES = ["streaming-remote-fn"]
+LOGS_PANEL_SERVER_DEPS = LOGS_PANEL_DEPS + SERVER_DEPS + STREAMING_REMOTE_FN_DEPS + ["@crates//:tracing-subscriber"]
+LOGS_PANEL_SERVER_FEATURES = LOGS_PANEL_FEATURES + SERVER_FEATURES + STREAMING_REMOTE_FN_FEATURES + ["logs-panel-server"]
 MAX_LEVEL_DEBUG_DEPS = []
 MAX_LEVEL_DEBUG_FEATURES = ["max-level-debug"]
 NO_WASM_BUILD_DEPS = []
@@ -163,13 +168,14 @@ _EXCLUSION_MAP = [
     {"feature": "terminal-server", "delta": []},
     {"feature": "text-editor-client", "delta": []},
     {"feature": "text-editor-server", "delta": []},
-    {"feature": "converter", "delta": [108, 3, 116, 3, 254, 2, 260, 15]},
-    {"feature": "logs-panel", "delta": [-288, 15, -256, 2, -120, 3, -112, 3, 124, 3, 132, 3, 312, 4, 322, 5]},
-    {"feature": "port-forward", "delta": [-330, 5, -318, 4, -136, 3, -128, 3, 162, 4, 172, 2, 332, 3, 340, 4]},
-    {"feature": "text-editor", "delta": [-346, 4, -336, 3, -174, 2, -168, 4, 140, 4, 150, 6, 304, 3, 388, 16, 422, 15, 456, 10]},
-    {"feature": "client", "delta": [-474, 10, -450, 15, -418, 16, -160, 6, -146, 4, 3, 6, 17, 290, 2, 296, 4, 313, 317, 372, 2, 378, 4]},
-    {"feature": "terminal", "delta": [-315, -311, -308, 7, -292, 2, -11, -8, 2, -1, 58, 13, 196, 5, 208, 6, 348, 3, 356, 4]},
-    {"feature": "server", "delta": [-384, 4, -374, 2, -38, 13, -9, 46, 4, 57, 94, 51, 207, 220, 11, 244, 5, 262, 13, 335]},
+    {"feature": "logs-panel", "delta": [318, 4, 328, 5]},
+    {"feature": "streaming-remote-fn", "delta": [-336, 5, -324, 4, 164, 3, 172, 5]},
+    {"feature": "converter", "delta": [-180, 5, -168, 3, 108, 3, 116, 3, 260, 2, 266, 15]},
+    {"feature": "port-forward", "delta": [-294, 15, -262, 2, -120, 3, -112, 3, 148, 4, 158, 2, 338, 3, 346, 4]},
+    {"feature": "text-editor", "delta": [-352, 4, -342, 3, -160, 2, -154, 4, 126, 4, 136, 6, 310, 3, 394, 16, 428, 15, 462, 10]},
+    {"feature": "client", "delta": [-480, 10, -456, 15, -424, 16, -146, 6, -132, 4, 3, 6, 17, 296, 2, 302, 4, 319, 323, 378, 2, 384, 4]},
+    {"feature": "terminal", "delta": [-321, -317, -314, 7, -298, 2, -11, -8, 2, -1, 58, 13, 202, 5, 214, 6, 354, 3, 362, 4]},
+    {"feature": "server", "delta": [-390, 4, -380, 2, -38, 13, -9, 46, 4, 57, 94, 54, 213, 226, 11, 250, 5, 268, 13, 341]},
 ]
 
 def compute_srcs(features):

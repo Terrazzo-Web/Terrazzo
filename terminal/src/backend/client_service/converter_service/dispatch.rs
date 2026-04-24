@@ -1,7 +1,6 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tonic::Code;
-use tonic::Status;
 
 use super::callback::ConverterCallback;
 use super::callback::ConverterLocalError;
@@ -29,14 +28,14 @@ pub async fn conversions_dispatch(
 #[derive(thiserror::Error, Debug)]
 pub enum ConversionsError {
     #[error("[{n}] {0}", n = self.name())]
-    Error(DistributedCallbackError<ConverterLocalError, Status>),
+    Error(DistributedCallbackError<ConverterLocalError, tonic::Status>),
 }
 
-impl From<ConversionsError> for Status {
+impl From<ConversionsError> for tonic::Status {
     fn from(mut error: ConversionsError) -> Self {
         let code = match &mut error {
             ConversionsError::Error(DistributedCallbackError::RemoteError(error)) => {
-                return std::mem::replace(error, Status::ok(""));
+                return std::mem::replace(error, tonic::Status::ok(""));
             }
             ConversionsError::Error(DistributedCallbackError::LocalError { .. })
             | ConversionsError::Error(DistributedCallbackError::ServerNotSet) => Code::Internal,
@@ -44,6 +43,6 @@ impl From<ConversionsError> for Status {
                 Code::NotFound
             }
         };
-        Status::new(code, error.to_string())
+        tonic::Status::new(code, error.to_string())
     }
 }

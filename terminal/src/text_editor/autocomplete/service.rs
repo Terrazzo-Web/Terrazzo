@@ -15,9 +15,8 @@ use tonic::Code;
 use tracing::debug;
 use tracing::debug_span;
 
-use crate::backend::client_service::grpc_error::GrpcError;
+use super::server_fn::AutocompleteItem;
 use crate::backend::client_service::grpc_error::IsGrpcError;
-use crate::text_editor::autocomplete::server_fn::AutocompleteItem;
 use crate::text_editor::fsio::canonical::canonicalize;
 use crate::text_editor::fsio::canonical::concat_base_file_path;
 use crate::text_editor::path_selector::schema::PathSelector;
@@ -30,7 +29,7 @@ pub fn autocomplete_path(
     kind: PathSelector,
     prefix: &str,
     input: &str,
-) -> Result<Vec<AutocompleteItem>, GrpcError<AutoCompleteError>> {
+) -> Result<Vec<AutocompleteItem>, AutoCompleteError> {
     let prefix = prefix.trim();
     let input = input.trim();
     let options = Options {
@@ -44,12 +43,7 @@ pub fn autocomplete_path(
     } else {
         concat_base_file_path(format!("{ROOT}{prefix}"), input)
     };
-    return Ok(autocomplete_path_impl(
-        prefix.as_ref(),
-        &path,
-        options,
-        |m| kind.accept(m),
-    )?);
+    autocomplete_path_impl(prefix.as_ref(), &path, options, |m| kind.accept(m))
 }
 
 #[derive(Debug, Default)]

@@ -5,7 +5,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -43,7 +42,7 @@ impl DistributedCallback for NewIdCallback {
     type Request = ();
     type Response = i32;
     type LocalError = Impossible;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     fn local(_: Option<&Arc<Server>>, (): ()) -> impl Future<Output = Result<i32, Impossible>> {
         ready(Ok(next_terminal_id()))
@@ -53,7 +52,7 @@ impl DistributedCallback for NewIdCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         (): (),
-    ) -> Result<i32, Status>
+    ) -> Result<i32, tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -75,7 +74,7 @@ impl DistributedCallback for NewIdCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum NewIdError {
     #[error("[{n}] {0}", n = self.name())]
-    NewIdError(#[from] DistributedCallbackError<Impossible, Status>),
+    NewIdError(#[from] DistributedCallbackError<Impossible, tonic::Status>),
 }
 
 impl IsHttpError for NewIdError {
@@ -86,7 +85,7 @@ impl IsHttpError for NewIdError {
     }
 }
 
-impl From<NewIdError> for Status {
+impl From<NewIdError> for tonic::Status {
     fn from(error: NewIdError) -> Self {
         match error {
             NewIdError::NewIdError(error) => error.into(),

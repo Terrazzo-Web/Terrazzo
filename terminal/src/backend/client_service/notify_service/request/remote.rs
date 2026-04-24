@@ -5,7 +5,6 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use server_fn::ServerFnError;
-use tonic::Status;
 
 use super::HybridRequestStream;
 use super::HybridRequestStreamProj;
@@ -18,7 +17,7 @@ use crate::text_editor::notify::server_fn::NotifyRequest;
 pub struct RemoteRequestStream(#[pin] pub HybridRequestStream);
 
 impl futures::Stream for RemoteRequestStream {
-    type Item = Result<NotifyRequestProto, Status>;
+    type Item = Result<NotifyRequestProto, tonic::Status>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project().0.project() {
@@ -32,7 +31,7 @@ impl futures::Stream for RemoteRequestStream {
 
 fn poll_next_remote(
     request: Option<Result<NotifyRequest, ServerFnError>>,
-) -> Option<Result<NotifyRequestProto, Status>> {
+) -> Option<Result<NotifyRequestProto, tonic::Status>> {
     Some(
         request?
             .map(|request| NotifyRequestProto {
@@ -46,6 +45,6 @@ fn poll_next_remote(
                     }
                 }),
             })
-            .map_err(|error| Status::internal(format!("Remote error: {error}"))),
+            .map_err(|error| tonic::Status::internal(format!("Remote error: {error}"))),
     )
 }

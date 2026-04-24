@@ -11,39 +11,58 @@ use crate::api::client_address::ClientAddress;
 pub async fn stream(
     remote: Option<ClientAddress>,
 ) -> Result<TextStream<ServerFnError>, ServerFnError> {
-    imp::stream_impl(remote).await
+    imp::stream_logs(remote).await
 }
 
 #[cfg(feature = "server")]
 mod imp {
-    use std::pin::Pin;
-
     use futures::Stream;
+    use futures::StreamExt as _;
     use futures::TryStreamExt as _;
-    use server_fn::BoxedStream;
+    use nameth::nameth;
+    use scopeguard::guard;
     use server_fn::ServerFnError;
     use server_fn::codec::TextStream;
+    use tracing::info;
 
     use crate::api::client_address::ClientAddress;
-    use crate::backend::client_service::logs_service::dispatch::logs_dispatch;
-    use crate::backend::protos::terrazzo::logs::LogsRequest;
-    use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;
+    use crate::backend::client_service::remote_fn_service;
     use crate::logs::event::LogEvent;
+    use crate::logs::state::LogState;
     use crate::utils::ndjson::serialize_line;
 
-    pub(super) async fn stream_impl(
+    #[nameth]
+    pub(super) async fn stream_logs(
         remote: Option<ClientAddress>,
     ) -> Result<TextStream<ServerFnError>, ServerFnError> {
-        let request = LogsRequest {
-            address: remote.map(|remote| ClientAddressProto::of(&remote)),
-        };
-        let stream = logs_dispatch(request)
-            .await
-            .map(BoxedStream::from)
-            .map_err(ServerFnError::new)?;
-        let stream: Pin<Box<dyn Stream<Item = _> + Send>> = stream.into();
+        let stream = STREAM_LOGS_FN.call(remote.unwrap_or_default(), ()).await?;
         let stream = stream.map_ok(|event| serialize_log_event(&event));
-        Ok(TextStream::new(stream))
+        Ok(TextStream::new(stream.map_err(|error| error.into())))
+    }
+
+    remote_fn_service::streaming::declare_remote_fn!(
+        STREAM_LOGS_FN,
+        STREAM_LOGS,
+        (),
+        LogEvent,
+        |_server, ()| { local_logs_stream().map(Ok::<LogEvent, tonic::Status>) }
+    );
+
+    fn local_logs_stream() -> impl Stream<Item = LogEvent> {
+        info!("Log stream start");
+        let end = guard((), |_| info!("Log stream end"));
+        let subscription = LogState::get().subscribe();
+        let stream = futures::stream::unfold(subscription, |mut subscription| async move {
+            let next = if let Some(event) = subscription.backlog.pop_front() {
+                Some(event)
+            } else {
+                subscription.receiver.recv().await
+            }?;
+            Some(((*next).clone(), subscription))
+        });
+        stream.inspect(move |_log_event: &LogEvent| {
+            let _ = &end;
+        })
     }
 
     fn serialize_log_event(event: &LogEvent) -> String {

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use futures::StreamExt as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -28,7 +27,7 @@ impl DistributedCallback for NotifyCallback {
     type Request = HybridRequestStream;
     type Response = HybridResponseStream;
     type LocalError = NotifyLocalError;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(
         _server: Option<&Arc<Server>>,
@@ -43,7 +42,7 @@ impl DistributedCallback for NotifyCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         request: HybridRequestStream,
-    ) -> Result<HybridResponseStream, Status>
+    ) -> Result<HybridResponseStream, tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,

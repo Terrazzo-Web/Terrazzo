@@ -270,10 +270,18 @@ logs-panel = []
 logs-panel-client = [
   "client",
   "dep:futures",
+  "dep:scopeguard",
   "logs-panel",
   "web-sys/HtmlDivElement",
 ]
-logs-panel-server = ["dep:tracing-subscriber", "logs-panel", "server"]
+logs-panel-server = [
+  "dep:tracing-subscriber",
+  "logs-panel",
+  "server",
+  "streaming-remote-fn",
+]
+
+streaming-remote-fn = ["dep:tracing-futures"]
 
 [package.metadata.css]
 output_file = "target/css/terrazzo-terminal.scss"

@@ -6,7 +6,6 @@ pub fn main() {
         .compile_protos(
             &[
                 "src/backend/protos/converter.proto",
-                "src/backend/protos/logs.proto",
                 "src/backend/protos/notify.proto",
                 "src/backend/protos/portforward.proto",
                 "src/backend/protos/remote_fn.proto",

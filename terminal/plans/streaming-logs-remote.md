@@ -127,7 +127,7 @@ The remote callback should only forward already-serialized lines. That keeps the
 - Feature gates should follow the existing logs feature, likely `logs-panel`, the same way `notify_service` is gated by `text-editor`.
 - `ClientServiceImpl` registration in [`terminal/src/backend/agent.rs`](/home/richard/Github/Terminal/terminal/src/backend/agent.rs) must include the new tonic service only when the logs feature is enabled.
 - The browser-side `NdjsonBuffer` parser should not need to change if the gRPC service forwards complete JSON lines verbatim.
-- Error mapping should follow the `notify_service` pattern: local errors become `ServerFnError`, remote tonic failures become `Status`, and the dispatch layer converts them into the server-function error type returned to the browser.
+- Error mapping should follow the `notify_service` pattern: local errors become `ServerFnError`, remote tonic failures become `tonic::Status`, and the dispatch layer converts them into the server-function error type returned to the browser.
 
 ## Minimal Viable Architecture
 

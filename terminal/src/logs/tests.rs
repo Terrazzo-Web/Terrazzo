@@ -1,7 +1,10 @@
 #![cfg(test)]
 #![cfg(feature = "server")]
 
+use std::mem::MaybeUninit;
+use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::Weak;
 
 use futures::FutureExt as _;
 use tokio::time::Duration;
@@ -13,8 +16,11 @@ use tracing::info_span;
 use tracing::warn;
 use tracing_subscriber::Registry;
 use tracing_subscriber::layer::SubscriberExt as _;
+use trz_gateway_server::server::Server;
 
 use super::tracing::LogStreamLayer;
+use crate::backend::client_service::remote_fn_service;
+use crate::backend::client_service::remote_fn_service::set_remote_fn_server;
 use crate::logs::state::LogState;
 
 pub struct TestGuard<'t>(#[allow(dead_code)] std::sync::MutexGuard<'t, ()>);
@@ -22,14 +28,27 @@ pub struct TestGuard<'t>(#[allow(dead_code)] std::sync::MutexGuard<'t, ()>);
 impl TestGuard<'_> {
     pub fn get() -> Self {
         static TEST_LOCK: Mutex<()> = Mutex::new(());
+        let dummy_server: MaybeUninit<Server> = MaybeUninit::zeroed();
+        let dummy_server = unsafe { Arc::new(dummy_server.assume_init()) };
+        set_remote_fn_server(Arc::downgrade(&dummy_server));
+        std::mem::forget(dummy_server);
+
         let lock = TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         LogState::get().reset_for_tests();
+        remote_fn_service::unary::setup_for_tests();
+        remote_fn_service::streaming::setup_for_tests();
         Self(lock)
     }
 
     pub fn with_test_subscriber(&self, f: impl FnOnce()) {
         let subscriber = Registry::default().with(LogStreamLayer);
         tracing::dispatcher::with_default(&Dispatch::new(subscriber), f);
+    }
+}
+
+impl Drop for TestGuard<'_> {
+    fn drop(&mut self) {
+        set_remote_fn_server(Weak::new());
     }
 }
 

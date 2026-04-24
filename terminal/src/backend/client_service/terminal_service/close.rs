@@ -4,7 +4,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -45,7 +44,7 @@ impl DistributedCallback for CloseCallback {
     type Request = TerminalId;
     type Response = ();
     type LocalError = CloseProcessError;
-    type RemoteError = Status;
+    type RemoteError = tonic::Status;
 
     async fn local(
         _: Option<&Arc<Server>>,
@@ -58,7 +57,7 @@ impl DistributedCallback for CloseCallback {
         channel: T,
         client_address: &[impl AsRef<str>],
         terminal_id: TerminalId,
-    ) -> Result<(), Status>
+    ) -> Result<(), tonic::Status>
     where
         T: GrpcService<BoxBody>,
         T::Error: Into<StdError>,
@@ -81,7 +80,7 @@ impl DistributedCallback for CloseCallback {
 #[derive(thiserror::Error, Debug)]
 pub enum CloseError {
     #[error("[{n}] {0}", n = self.name())]
-    CloseError(#[from] DistributedCallbackError<CloseProcessError, Status>),
+    CloseError(#[from] DistributedCallbackError<CloseProcessError, tonic::Status>),
 }
 
 impl IsHttpError for CloseError {
@@ -92,7 +91,7 @@ impl IsHttpError for CloseError {
     }
 }
 
-impl From<CloseError> for Status {
+impl From<CloseError> for tonic::Status {
     fn from(error: CloseError) -> Self {
         match error {
             CloseError::CloseError(error) => error.into(),
@@ -100,11 +99,11 @@ impl From<CloseError> for Status {
     }
 }
 
-impl From<CloseProcessError> for Status {
+impl From<CloseProcessError> for tonic::Status {
     fn from(error: CloseProcessError) -> Self {
         match error {
             error @ CloseProcessError::TerminalNotFound { .. } => {
-                Status::not_found(error.to_string())
+                tonic::Status::not_found(error.to_string())
             }
         }
     }

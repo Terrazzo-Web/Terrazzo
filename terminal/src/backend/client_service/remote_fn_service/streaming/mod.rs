@@ -110,7 +110,6 @@ mod remote_fn_errors_to_status {
     }
 }
 
-#[allow(unused)] // TODO: remove this, this is guarded by a feature
 macro_rules! declare_remote_fn {
     (
         $(#[$meta:meta])*
@@ -138,5 +137,4 @@ macro_rules! declare_remote_fn {
     };
 }
 
-#[allow(unused)] // TODO: remove this, this is guarded by a feature
 pub(crate) use declare_remote_fn;

@@ -14,6 +14,9 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 use clap::Parser as _;
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 
 const CLIENT_NAME: &str = "mesh-integration-client";
 const TIMEOUT: Duration = Duration::from_secs(45);
@@ -28,10 +31,15 @@ struct Args {
 }
 
 fn main() {
+    let _ = tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_target(false)
+        .try_init();
+
     match run() {
         Ok(()) => {}
         Err(error) => {
-            eprintln!("{error}");
+            error!("{error}");
             std::process::exit(1);
         }
     }
@@ -47,6 +55,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let test_dir = test_dir()?;
     std::fs::create_dir_all(test_dir.join("home"))?;
+    info!(test_dir = %test_dir.display(), "starting mesh harness");
 
     let root_ca = test_dir.join("root-ca");
     let gateway = ServerInstance::start(
@@ -60,8 +69,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     )?;
     gateway.wait_until_ready()?;
     let gateway_endpoint = gateway.endpoint()?;
+    info!(gateway_endpoint, "gateway node is ready");
     let root_ca_cert = root_ca.with_extension("cert");
     wait_for_file(&root_ca_cert)?;
+    info!(root_ca_cert = %root_ca_cert.display(), "gateway root certificate is ready");
 
     let client_cert = test_dir.join("client-certificate");
     let first_client = ServerInstance::start(
@@ -83,6 +94,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     first_client.wait_for_log("Failed to load Client Certificate")?;
     first_client.wait_for_log("Gateway returned 403 Forbidden")?;
     first_client.stop()?;
+    info!("invalid-auth client stopped after expected gateway rejection");
 
     let auth_code = gateway.wait_for_auth_code()?;
     if auth_code.is_empty() {
@@ -92,6 +104,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         )
         .into());
     }
+    info!("gateway auth code was discovered");
 
     let client = ServerInstance::start(
         "client-valid-auth-code",
@@ -110,6 +123,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         vec!["--auth-code".into(), auth_code.into()],
     )?;
     wait_for_file(&client_cert.with_extension("cert"))?;
+    info!(
+        client_cert = %client_cert.with_extension("cert").display(),
+        "client certificate is ready; supervising mesh nodes"
+    );
 
     loop {
         gateway.ensure_running()?;
@@ -217,6 +234,13 @@ impl ServerInstance {
         let stderr = log.try_clone()?;
 
         let mut command = Command::new(server_bin);
+        info!(
+            name,
+            config_file = %config_file.display(),
+            endpoint_file = %endpoint_file.display(),
+            log_file = %log_file.display(),
+            "starting server node"
+        );
         command
             .arg("--config-file")
             .arg(&config_file)
@@ -230,6 +254,7 @@ impl ServerInstance {
             .stdout(Stdio::from(log))
             .stderr(Stdio::from(stderr));
         let child = command.spawn()?;
+        info!(name, pid = child.id(), "server node started");
 
         Ok(Self {
             name: name.to_owned(),
@@ -290,6 +315,7 @@ impl ServerInstance {
             return Ok(());
         };
         if child.try_wait()?.is_none() {
+            warn!(name = %self.name, pid = child.id(), "stopping server node");
             child.kill()?;
         }
         let _ = child.wait();

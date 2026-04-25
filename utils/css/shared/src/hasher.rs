@@ -7,8 +7,14 @@ pub struct ClassNameHasher {
 
 impl ClassNameHasher {
     pub fn new(file_content: &str) -> Self {
-        let file_hash = siphasher::sip::SipHasher24::new().hash(file_content.as_bytes());
-        let file_hash = hash_to_string(file_hash, FILE_HASH_LEN);
+        let mut file_hash = siphasher::sip::SipHasher24::new().hash(file_content.as_bytes());
+        let file_hash = loop {
+            let h = hash_to_string(file_hash, FILE_HASH_LEN);
+            if h.starts_with(|c| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                break h;
+            }
+            file_hash += 1;
+        };
         Self { file_hash }
     }
 

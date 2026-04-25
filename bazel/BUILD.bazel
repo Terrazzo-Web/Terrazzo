@@ -11,7 +11,7 @@ config_setting(
 
 alias(
     name = "wasm_bindgen_cli",
-    actual = "@wasm_bindgen_cli_tool//:wasm-bindgen__bin",
+    actual = "@crates//:wasm-bindgen-cli__wasm-bindgen",
 )
 
 rust_wasm_bindgen_toolchain(

@@ -1,3 +1,6 @@
+use std::time::Duration;
+use std::time::SystemTime;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::x509::X509;
@@ -17,6 +20,7 @@ use trz_gateway_common::x509::key::MakeKeyError;
 use trz_gateway_common::x509::key::make_key;
 use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::time::Asn1ToSystemTimeError;
+use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_common::x509::validity::ValidityError;
 
 use super::root_ca_config::PrivateRootCa;
@@ -34,6 +38,13 @@ pub fn make_tls_config(
     let intermediates_pem: String;
 
     if cfg!(target_os = "macos") {
+        const TLS_CERTIFICATE_VALIDITY: Duration = Duration::from_secs(3600 * 24 * 90);
+        let root_validity: Validity = root_ca_x509.certificate.as_ref().try_into()?;
+        let now = SystemTime::now();
+        let validity = Validity {
+            from: now,
+            to: SystemTime::min(root_validity.to, now + TLS_CERTIFICATE_VALIDITY),
+        };
         certificate = make_cert(
             (*root_ca_x509).as_ref(),
             CertitficateName {

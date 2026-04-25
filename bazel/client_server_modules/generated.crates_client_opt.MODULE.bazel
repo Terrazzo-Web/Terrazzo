@@ -14,6 +14,11 @@ crates_client_opt.annotation(
     ],
     repositories = ["crates_client_opt"],
 )
+crates_client_opt.annotation(
+    crate = "wasm-bindgen-cli",
+    gen_binaries = ["wasm-bindgen"],
+    repositories = ["crates_client_opt"],
+)
 crates_client_opt.from_cargo(
     name = "crates_client_opt",
     cargo_lockfile = "//bazel/client_server_modules:generated.crates_client_opt.lock",

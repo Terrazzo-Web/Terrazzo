@@ -1,0 +1,19 @@
+[package]
+name = "terrazzo-terminal-tests"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Test harness binaries for Terrazzo Terminal."
+publish = false
+
+[[bin]]
+name = "terrazzo-terminal-tests"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

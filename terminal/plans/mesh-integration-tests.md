@@ -22,3 +22,29 @@ This should be implemented as a Rust test. Try to use integration tests as usual
 You must first check that you have all the tools to do your work so I am not prompted all the time.
 
 Then you need to update the plan with documentation of the test harness.
+
+## Test harness
+
+Implemented as `//terminal:mesh-integration-test` in `terminal/tests/mesh_integration_test.rs`.
+The Bazel target is a `rust_test` that receives the built `:server-debug` binary as its first
+argument and launches it directly, matching the existing Playwright wrapper's `CARGO_MANIFEST_DIR`
+setup for Bazel-built terminal servers.
+
+The test creates a unique directory under `TEST_TMPDIR`, writes all configs, pidfiles, endpoint
+files, logs, the shared private root CA, and the client certificate under that directory, and starts:
+
+- one gateway server with `port = 0` and `--set_current_endpoint`;
+- one mesh client without `--auth-code`, which is expected to log the 403 certificate load failure;
+- one mesh client restarted with the auth code parsed from the gateway log.
+
+Readiness is checked by waiting for the dynamically allocated endpoint file and a TCP connection to
+the reported endpoint. The gateway log is polled for `Invalid auth code. Got '' expected '...'`, and
+the parsed auth code is passed to the second client via `--auth-code`. Success is asserted by waiting
+for the generated client certificate and verifying its X.509 subject common name contains the
+configured `mesh.client_name`.
+
+Run it with:
+
+```sh
+bazel test //terminal:mesh-integration-test
+```

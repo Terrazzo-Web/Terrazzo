@@ -30,6 +30,21 @@ The Bazel target is a `rust_test` that receives the built `:server-debug` binary
 argument and launches it directly, matching the existing Playwright wrapper's `CARGO_MANIFEST_DIR`
 setup for Bazel-built terminal servers.
 
+Added `//terminal/terrazzo-terminal-tests:terrazzo-terminal-tests`, a small binary harness that
+starts a gateway node and a mesh client node. Its parameters are:
+
+```text
+terrazzo-terminal-tests <terrazzo-terminal-server-bin> <gateway-port> <gateway-set-current-endpoint> [-- <server-args>...]
+```
+
+The harness writes temp configs, starts the supplied Terrazzo Terminal server binary as a gateway
+with the requested port and gateway endpoint file, then starts a client node configured with the
+gateway URL reported by the gateway. It performs the same auth-code bootstrap as the current Rust
+test: start a client with an invalid auth code, parse the expected auth code from the gateway log,
+restart the client with `--auth-code`, wait for the client certificate, then keep both nodes running
+until one exits or the harness is killed. The current `mesh_client_gets_certificate_from_gateway`
+test is intentionally left launching the server directly until the later refactor.
+
 The test creates a unique directory under `TEST_TMPDIR`, writes all configs, pidfiles, endpoint
 files, logs, the shared private root CA, and the client certificate under that directory, and starts:
 

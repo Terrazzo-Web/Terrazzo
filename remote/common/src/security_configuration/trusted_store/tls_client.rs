@@ -16,6 +16,7 @@ use tracing::info_span;
 use super::TrustedStoreConfig;
 use super::root_cert_store::ToRootCertStore;
 use super::root_cert_store::ToRootCertStoreError;
+use crate::crypto_provider::crypto_provider;
 use crate::security_configuration::custom_server_certificate_verifier::CustomServerCertificateVerifier;
 
 /// TLS client for
@@ -41,6 +42,7 @@ where
     V: CustomServerCertificateVerifier + 'static,
 {
     let _span = info_span!("Setup TLS client").entered();
+    crypto_provider();
     let root_store = Arc::new(trusted_store_config.to_root_cert_store()?);
     let builder = if V::has_custom_logic() {
         info!("Use root certificates + custom server certificate verifier");

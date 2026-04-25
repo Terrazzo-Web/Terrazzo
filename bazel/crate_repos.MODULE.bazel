@@ -8,6 +8,11 @@ crates.from_cargo(
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
+crates.annotation(
+    crate = "wasm-bindgen-cli",
+    gen_binaries = ["wasm-bindgen"],
+    repositories = ["crates"],
+)
 use_repo(crates, "crates")
 
 include("//bazel/crate_macros:generated.crate_macro_client.MODULE.bazel")

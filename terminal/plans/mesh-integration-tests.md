@@ -17,7 +17,7 @@ The goal is to have an as much as possible hermetic test that starts two terrazz
 
 ## Notes
 
-This should be implemented as a Rust test. Try to use integration tests as usually done in rust (i.e. terminal/tests/mesh_integration_test.rs), else as a normal unit test. The test should run with bazel.
+This should be implemented as a Rust test. Try to use integration tests as usually done in rust (i.e. terminal/tests/mesh_integration_test.rs), else as a normal unit test. The test should run with bazel. You need to create a new bazel rust test target that depends on //terminal:server so it can run the terrazzo server.
 
 You must first check that you have all the tools to do your work so I am not prompted all the time.
 

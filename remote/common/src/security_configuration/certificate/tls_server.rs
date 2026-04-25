@@ -39,6 +39,7 @@ fn to_tls_server_impl<T: CertificateConfig>(
     certificate_config: T,
 ) -> Result<Arc<ServerConfig>, ToTlsServerError<T::Error>> {
     let _span = info_span!("Setup TLS server certificate").entered();
+    crypto_provider();
     let server_config = ServerConfig::builder().with_no_client_auth();
     let mut server_config = if certificate_config.is_dynamic() {
         server_config.with_cert_resolver(Arc::new(ServerCertificateResolver {

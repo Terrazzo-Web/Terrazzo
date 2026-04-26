@@ -18,7 +18,7 @@ load(
     "TERMINAL_SERVER_DEPS",
     "TERMINAL_SERVER_FEATURES",
 )
-load(":terminal_rules.bzl", "terminal_rules","terminal_assets")
+load(":terminal_rules.bzl", "terminal_assets", "terminal_rules")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -33,9 +33,10 @@ feature_deps(
 )
 
 terminal_assets(
-    name="assets",
-    manifest=":server-debug-manifest-mirror",
-    server=":server-debug")
+    name = "assets",
+    manifest = ":server-debug-mirror-manifest",
+    server = ":server-debug",
+)
 
 terminal_rules(
     client_deps = ["//utils/nameth/nameth"] + CLIENT_PROD_DEPS,

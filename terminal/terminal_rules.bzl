@@ -117,6 +117,7 @@ def terminal_rules(
             prefix + "server-lib-debug": {
                 "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_") + "_debug",
                 "assets": server_assets_debug,
+                "crate_features": ["debug"],
                 "deps": ["//framework/terrazzo:server-debug"],
             },
         },
@@ -167,7 +168,7 @@ def _terminal_assets_impl(ctx):
         tools = [ctx.executable.server],
         command = command,
         mnemonic = "TerminalAssets",
-        progress_message = "Listing Terrazzo terminal assets" ,
+        progress_message = "Listing Terrazzo terminal assets",
     )
     return [DefaultInfo(files = depset([output]))]
 
@@ -176,11 +177,10 @@ terminal_assets = rule(
     attrs = {
         "manifest": attr.label(
             allow_single_file = True,
-            cfg = "exec",
             mandatory = True,
         ),
         "server": attr.label(
-            cfg = "exec",
+            cfg = "target",
             executable = True,
             mandatory = True,
         ),

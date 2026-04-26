@@ -1,8 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitStatus;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
@@ -16,13 +14,15 @@ use tracing::info;
 use crate::server::Server;
 use crate::server::ServerProperties;
 use crate::server::TestProperties;
+use crate::signal_handler::install_signal_handlers;
+use crate::signal_handler::termination_requested;
 
 mod server;
+mod signal_handler;
 mod test_dir;
 mod toml;
 
 const TIMEOUT: Duration = Duration::from_secs(45);
-static TERMINATION_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(clap::Parser)]
 struct Args {
@@ -155,31 +155,6 @@ fn wait_until<T>(description: &str, mut f: impl FnMut() -> Option<T>) -> Result<
         }
         sleep(Duration::from_millis(250));
     }
-}
-
-fn install_signal_handlers() -> Result<(), RunError> {
-    install_signal_handler(libc::SIGTERM)?;
-    install_signal_handler(libc::SIGINT)?;
-    Ok(())
-}
-
-fn install_signal_handler(signal: libc::c_int) -> Result<(), RunError> {
-    let previous_handler = unsafe { libc::signal(signal, handle_signal as libc::sighandler_t) };
-    if previous_handler == libc::SIG_ERR {
-        return Err(RunError::InstallSignalHandler {
-            signal,
-            source: std::io::Error::last_os_error(),
-        });
-    }
-    Ok(())
-}
-
-extern "C" fn handle_signal(_signal: libc::c_int) {
-    TERMINATION_REQUESTED.store(true, Ordering::Relaxed);
-}
-
-fn termination_requested() -> bool {
-    TERMINATION_REQUESTED.load(Ordering::Relaxed)
 }
 
 #[nameth]

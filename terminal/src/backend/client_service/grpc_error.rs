@@ -4,7 +4,6 @@ use std::convert::Infallible;
 use std::ops::Deref;
 
 use tonic::Code;
-use tonic::Status;
 
 /// A trait implemented by errors that translate to gRPC status codes.
 pub trait IsGrpcError: std::error::Error + Sized {
@@ -23,14 +22,14 @@ impl IsGrpcError for Infallible {
     }
 }
 
-/// A wrapper to translate errors into grpc [Status]es.
+/// A wrapper to translate errors into grpc [tonic::Status]es.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error(transparent)]
 pub struct GrpcError<E: IsGrpcError>(#[from] E);
 
-impl<E: IsGrpcError> From<GrpcError<E>> for Status {
+impl<E: IsGrpcError> From<GrpcError<E>> for tonic::Status {
     fn from(error: GrpcError<E>) -> Self {
-        Status::new(error.code(), error.to_string())
+        tonic::Status::new(error.code(), error.to_string())
     }
 }
 

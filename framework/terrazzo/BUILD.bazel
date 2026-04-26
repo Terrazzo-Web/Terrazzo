@@ -1,15 +1,12 @@
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
-load("//bazel:stylance_rules.bzl", "stylance_rule")
+load("//bazel:scss_rules.bzl", "scss_rule")
 
 package(default_visibility = ["//visibility:public"])
 
 rust_rules_matrix(
     assets = [
         "README.md",
-        {
-            "targets": glob(["src/**/*.scss"]),
-            "copy": True,
-        },
+        glob(["src/**/*.scss"]),
     ],
     crate_features = ["client"],
     crate_name = "terrazzo",
@@ -33,10 +30,10 @@ rust_rules_matrix(
         },
     },
     deps = [
+        "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:futures",
         "@crates//:scopeguard",
-        "@crates//:stylance",
         "@crates//:thiserror",
         "@crates//:wasm-bindgen",
         "@crates//:wasm-bindgen-futures",
@@ -50,7 +47,6 @@ rust_rules_matrix(
         {
             "targets": ":common_scss",
             "prefix": "target/css",
-            "copy": True,
         },
     ],
     crate_features = ["server"],
@@ -77,7 +73,7 @@ rust_rules_matrix(
     ],
 )
 
-stylance_rule(
+scss_rule(
     name = "common_scss",
     output = "common.scss",
 )

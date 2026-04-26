@@ -8,7 +8,7 @@ use terrazzo::widgets::select;
 use terrazzo::widgets::select::SelectPtr;
 use web_sys::MouseEvent;
 
-stylance::import_crate_style!(style, "src/demo/attributes.scss");
+terrazzo_css::import_style!(style, "attributes.scss");
 
 #[autoclone]
 #[template(tag = div)]
@@ -31,11 +31,23 @@ pub fn attributes_demo() -> XElement {
         ],
         None,
     );
+
+    let mutable_attribute = XSignal::new("mutable", "before");
+
+    #[template(wrap = true)]
+    fn get_mutable_attribute(#[signal] mutable_attribute: &'static str) -> XAttributeValue {
+        mutable_attribute
+    }
+
     tag(
         key = "attributes",
         id = "attributes",
         h1("Attributes"),
         select.show(),
+        #[cfg(feature = "bazel")]
+        class = "bazel",
+        #[cfg(not(feature = "bazel"))]
+        class = "not bazel",
         span(
             button(
                 click = move |_ev: MouseEvent| {
@@ -74,6 +86,45 @@ pub fn attributes_demo() -> XElement {
         result(select.selected.clone(), bold, underline, italic),
         before_render = |_: &Element| info!("Before render"),
         after_render = |_: &Element| info!("After render"),
+        div(
+            id = "conditional-attributes",
+            style::visibility = "hidden",
+            style::display = "none",
+            // attribute
+            data_attribute = "START",
+            #[cfg(feature = "bazel")]
+            data_attribute = "bazel",
+            #[cfg(not(feature = "bazel"))]
+            data_attribute = "not bazel",
+            data_attribute = "END",
+            // optional attribute
+            #[cfg(feature = "bazel")]
+            data_optional_attribute |= Some("bazel"),
+            #[cfg(not(feature = "bazel"))]
+            data_optional_attribute |= Some("not bazel"),
+            // style
+            #[cfg(feature = "bazel")]
+            style::font_family = "Arial",
+            #[cfg(not(feature = "bazel"))]
+            style::font_family = "Helvetica",
+            // optional style
+            #[cfg(feature = "bazel")]
+            style::font_family |= Some("serif"),
+            #[cfg(not(feature = "bazel"))]
+            style::font_family |= Some("sans-serif"),
+            #[cfg(feature = "bazel")]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("bazel");
+            },
+            #[cfg(not(feature = "bazel"))]
+            click = move |_| {
+                autoclone!(mutable_attribute);
+                mutable_attribute.set("not bazel");
+            },
+            data_mutable_attribute %= get_mutable_attribute(mutable_attribute.clone()),
+            "Conditional attributes",
+        ),
     )
 }
 
@@ -86,33 +137,33 @@ fn result(
     italic: XSignal<bool>,
 ) -> XElement {
     let value = match flavor {
-        Flavor::Zero => div(class = style::rbox, "Hello, world! - zero"),
+        Flavor::Zero => div(class = style::RBOX, "Hello, world! - zero"),
         Flavor::BoldS_ItalicS_UnderlineS_Class => div(
             style = BOLD,
             style = ITALIC,
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicS_UnderlineS_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style = ITALIC,
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineS_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style %= style_tpl::italic(italic.clone()),
             style = UNDERLINE,
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldD_ItalicD_UnderlineD_Class => div(
             style %= style_tpl::bold(bold.clone()),
             style %= style_tpl::italic(italic.clone()),
             style %= style_tpl::underline(underline.clone()),
-            class = style::rbox,
+            class = style::RBOX,
             "{flavor:?}",
         ),
         Flavor::BoldS_ItalicS_UnderlineS_Style => div(
@@ -217,6 +268,6 @@ mod style_tpl {
 
     #[template(wrap = true)]
     pub fn active(#[signal] mut active: bool) -> XAttributeValue {
-        active.then_some(style::active)
+        active.then_some(format!("{} active-button", style::ACTIVE))
     }
 }

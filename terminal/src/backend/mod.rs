@@ -51,11 +51,13 @@ use self::agent::AgentTunnelConfig;
 use self::auth::AuthConfig;
 use self::cli::Action;
 use self::cli::Cli;
+use self::client_service::remote_fn_service;
 use self::config::Config;
 use self::config::ConfigFile;
 use self::config::DynConfig;
 use self::config::io::ConfigFileError;
 use self::config::kill::KillServerError;
+use self::config::mesh::DynamicMeshConfig;
 use self::config::password::SetPasswordError;
 use self::daemonize::DaemonizeServerError;
 use self::root_ca_config::PrivateRootCa;
@@ -64,9 +66,6 @@ use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
 use self::tls_config::make_tls_config;
 use crate::assets;
-use crate::backend::client_service::remote_fn_service;
-use crate::backend::config::mesh::DynamicMeshConfig;
-use crate::utils::more_path::MorePath as _;
 
 mod agent;
 pub mod auth;
@@ -95,8 +94,7 @@ pub fn run_server() -> Result<(), RunServerError> {
         if let Some(config_file) = &mut cli.config_file
             && Path::new(config_file).is_relative()
         {
-            let concat: PathBuf = [home(), ".terrazzo", config_file].iter().collect();
-            *config_file = concat.to_owned_string()
+            *config_file = terrazzo_home().join(&config_file)
         }
         cli
     };
@@ -197,7 +195,10 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     assets::install::install_assets();
     let config = backend_config.config.clone();
     let (server, server_handle, crash) = Server::run(backend_config).await?;
-    remote_fn_service::setup(&server);
+    remote_fn_service::set_remote_fn_server(Arc::downgrade(&server));
+    remote_fn_service::unary::setup();
+    #[cfg(feature = "streaming-remote-fn")]
+    remote_fn_service::streaming::setup();
     let crash = crash
         .then(|crash| {
             let crash = crash
@@ -469,7 +470,12 @@ pub enum RunClientError {
     Aborted(String),
 }
 
-fn home() -> &'static str {
-    static HOME: OnceLock<String> = OnceLock::new();
-    HOME.get_or_init(|| std::env::var("HOME").expect("HOME"))
+fn terrazzo_home() -> &'static Path {
+    static TERRAZZO_HOME: OnceLock<PathBuf> = OnceLock::new();
+    TERRAZZO_HOME.get_or_init(|| home().join(".terrazzo"))
+}
+
+fn home() -> &'static Path {
+    static HOME: OnceLock<PathBuf> = OnceLock::new();
+    HOME.get_or_init(|| std::env::var("HOME").expect("HOME").into())
 }

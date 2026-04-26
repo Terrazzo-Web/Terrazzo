@@ -1,4 +1,3 @@
-use tonic::Status;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
 
@@ -30,7 +29,7 @@ impl ClientAddressProto {
 #[derive(thiserror::Error, Debug)]
 pub enum Impossible {}
 
-impl From<Impossible> for Status {
+impl From<Impossible> for tonic::Status {
     fn from(_: Impossible) -> Self {
         unreachable!()
     }

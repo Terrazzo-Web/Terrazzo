@@ -2,6 +2,7 @@
 
 use std::env::set_current_dir;
 use std::iter::once;
+use std::path::PathBuf;
 
 use clap::Parser as _;
 use terrazzo::axum;
@@ -19,15 +20,15 @@ use tracing::info;
 use crate::api;
 use crate::assets;
 
-const PORT: u16 = if cfg!(debug_assertions) { 3001 } else { 3000 };
+const PORT: u16 = if cfg!(debug_assertions) { 3000 } else { 3001 };
 
 #[derive(clap::Parser)]
 struct Args {
-    #[arg(short = 'p', long = "port", default_value_t = PORT)]
+    #[arg(short = 'p', long, default_value_t = PORT)]
     port: u16,
 
-    #[arg(long = "set_current_endpoint")]
-    set_current_endpoint: Option<String>,
+    #[arg(long)]
+    set_current_endpoint: Option<PathBuf>,
 }
 
 pub async fn run_server() {

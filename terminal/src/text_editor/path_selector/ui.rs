@@ -54,9 +54,9 @@ fn path_selector_impll(
 ) -> XElement {
     let show_input = kind == PathSelector::FilePath || force_edit_path;
     tag(
-        class = style::path_selector,
+        class = style::PATH_SELECTOR,
         style = (!show_input).then_some("width: auto;"),
-        img(class = style::path_selector_icon, src = kind.icon()),
+        img(class = style::PATH_SELECTOR_ICON, src = kind.icon()),
         if show_input {
             path_selector_input(manager, kind, prefix, path)
         } else {
@@ -90,7 +90,7 @@ fn path_selector_input(
             .unwrap_or_else(|| debug!("input was not set"));
     });
     div(
-        class = style::path_selector_widget,
+        class = style::PATH_SELECTOR_WIDGET,
         key = "input",
         input(
             before_render = move |element| {
@@ -98,7 +98,7 @@ fn path_selector_input(
                 input_capture(element);
             },
             r#type = "text",
-            class = style::path_selector_field,
+            class = style::PATH_SELECTOR_FIELD,
             focus = start_autocomplete(
                 manager.clone(),
                 kind,
@@ -135,10 +135,10 @@ fn path_selector_display(
     force_edit_path_mut: MutableSignal<bool>,
 ) -> XElement {
     div(
-        class = style::path_selector_widget,
+        class = style::PATH_SELECTOR_WIDGET,
         key = "display",
         span(
-            class = style::path_selector_field,
+            class = style::PATH_SELECTOR_FIELD,
             dblclick = move |_ev| force_edit_path_mut.set(true),
             "{path}",
         ),

@@ -7,7 +7,7 @@ use terrazzo_macro::template;
 use wasm_bindgen::JsCast as _;
 use web_sys::HtmlElement;
 
-stylance::import_style!(style, "tabs.scss");
+terrazzo_css::import_style!(style, "tabs.scss");
 
 const DRAG_KEY: &str = "id";
 
@@ -299,17 +299,17 @@ mod tab_options {
     impl TabsOptions<&'static str> {
         pub const fn base_options() -> Self {
             Self {
-                tabs_class: style::tabs,
-                titles_class: style::titles,
-                title_class: style::title,
-                items_class: style::items,
-                item_class: style::item,
-                selected_class: style::selected,
-                title_show_sep: style::title_show_sep,
-                title_hide_sep: style::title_hide_sep,
-                title_drop_zone: style::title_drop_zone,
-                title_dropping: style::title_dropping,
-                title_drop_sep: style::title_drop_sep,
+                tabs_class: style::TABS,
+                titles_class: style::TITLES,
+                title_class: style::TITLE,
+                items_class: style::ITEMS,
+                item_class: style::ITEM,
+                selected_class: style::SELECTED,
+                title_show_sep: style::TITLE_SHOW_SEP,
+                title_hide_sep: style::TITLE_HIDE_SEP,
+                title_drop_zone: style::TITLE_DROP_ZONE,
+                title_dropping: style::TITLE_DROPPING,
+                title_drop_sep: style::TITLE_DROP_SEP,
             }
         }
 

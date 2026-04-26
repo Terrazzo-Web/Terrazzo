@@ -97,7 +97,7 @@ macro_rules! make_state {
                 pub value: super::ty::Type,
             }
 
-            remote_fn_service::declare_remote_fn!(
+            remote_fn_service::unary::declare_remote_fn!(
                 GET_REMOTE_FN,
                 formatcp!("{}-state-{}", super::GET, stringify!($name)),
                 GetRequest,
@@ -110,7 +110,7 @@ macro_rules! make_state {
                 }
             );
 
-            remote_fn_service::declare_remote_fn!(
+            remote_fn_service::unary::declare_remote_fn!(
                 SET_REMOTE_FN,
                 formatcp!("{}-state-{}", super::SET_IMPL, stringify!($name)),
                 SetRequest,

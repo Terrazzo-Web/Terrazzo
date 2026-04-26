@@ -1,4 +1,5 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen_toolchain")
 load(":playwright_rules.bzl", "playwright_setup")
 
 package(default_visibility = ["//visibility:public"])
@@ -9,8 +10,19 @@ config_setting(
 )
 
 alias(
-    name = "stylance",
-    actual = "@bindeps//:stylance-cli__stylance",
+    name = "wasm_bindgen_cli",
+    actual = "@crates//:wasm-bindgen-cli__wasm-bindgen",
+)
+
+rust_wasm_bindgen_toolchain(
+    name = "wasm_bindgen_toolchain_impl",
+    wasm_bindgen_cli = ":wasm_bindgen_cli",
+)
+
+toolchain(
+    name = "wasm_bindgen_toolchain",
+    toolchain = ":wasm_bindgen_toolchain_impl",
+    toolchain_type = "@rules_rust_wasm_bindgen//:toolchain_type",
 )
 
 buildifier(

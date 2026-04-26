@@ -18,7 +18,7 @@ use crate::frontend::menu::app;
 use crate::frontend::remotes::Remote;
 use crate::state::app::App;
 
-stylance::import_style!(style, "login.scss");
+terrazzo_css::import_style!(style, "login.scss");
 
 #[autoclone]
 #[html]
@@ -39,15 +39,15 @@ pub fn login(#[signal] mut logged_in: LoggedInStatus, remote: XSignal<Remote>) -
         LoggedInStatus::Login => div(
             key = "app",
             div(
-                class = style::app_shell,
+                class = style::APP_SHELL,
                 show_app(app(), remote.clone()),
                 maybe_logs_panel(remote),
             ),
         ),
         LoggedInStatus::Logout => div(
             key = "login",
-            class = style::login,
-            img(class = style::key_icon, src = icons::key_icon()),
+            class = style::LOGIN,
+            img(class = style::KEY_ICON, src = icons::key_icon()),
             input(
                 r#type = "password",
                 after_render = |password: &Element| {
@@ -85,7 +85,7 @@ pub fn login(#[signal] mut logged_in: LoggedInStatus, remote: XSignal<Remote>) -
                 }
             };
             spawn_local(login_task.in_current_span());
-            div(key = "login-pending", class = style::login)
+            div(key = "login-pending", class = style::LOGIN)
         }
     }
 }
@@ -110,7 +110,7 @@ pub enum LoggedInStatus {
 #[template(tag = div)]
 fn show_app(#[signal] app: App, remote: XSignal<Remote>) -> XElement {
     tag(
-        class = style::app_content,
+        class = style::APP_CONTENT,
         match app {
             #[cfg(feature = "terminal")]
             App::Terminal => div(move |t| crate::terminal::terminals(t, remote.clone())),

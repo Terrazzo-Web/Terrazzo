@@ -154,7 +154,9 @@ impl TabDescriptor for TerminalTab {
         });
         let close_button = img(
             key = "close-icon",
-            class = super::style::close_icon,
+            class = super::style::CLOSE_ICON,
+            #[cfg(not(feature = "client-prod"))]
+            class = "close-icon",
             src = icons::close_tab(),
             click = move |ev: web_sys::MouseEvent| {
                 autoclone!(terminal);
@@ -176,7 +178,7 @@ impl TabDescriptor for TerminalTab {
         let this = self.clone();
         let state = state.clone();
         div(
-            class = style::terminal,
+            class = style::TERMINAL,
             div(move |template| attach::attach(template, state.clone(), this.clone())),
         )
     }
@@ -251,7 +253,7 @@ fn print_editable_title(
 #[html]
 #[template]
 fn print_title(#[signal] title: XString) -> XElement {
-    span("{title}", class = style::title_span)
+    span("{title}", class = style::TITLE_SPAN)
 }
 
 impl std::fmt::Debug for TerminalTab {

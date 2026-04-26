@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 
@@ -11,7 +13,7 @@ use crate::unwrap_infallible::UnwrapInfallible as _;
 pub enum LoadTrustedStore<'t> {
     Native,
     PEM(&'t str),
-    File(&'t str),
+    File(&'t Path),
 }
 
 impl LoadTrustedStore<'_> {

@@ -6,17 +6,17 @@ using the [Terrazzo](https://docs.rs/terrazzo) library.
 ## Getting started
 Pre-requisite:
 - [`wasm-pack` CLI](https://rustwasm.github.io/wasm-pack/installer/)
-- [`stylance-cli` CLI](https://github.com/basro/stylance-rs?tab=readme-ov-file#stylance-cli)
+- [`terrazzo-css-cli` CLI](https://github.com/Terrazzo-Web/Terrazzo/tree/main/utils/css/cli)
 
 ```
 cargo install --locked wasm-pack
-cargo install --locked stylance-cli
+cargo install --locked terrazzo-css-cli
 ```
 
 ## Compile from source
 Then run `terrazzo-terminal` using
 ```
-cargo run --locked --bin terrazzo-terminal --release
+cargo run --locked --bin terrazzo-terminal --release --features prod
 ```
 
 Open the address printed on the terminal to stack hacking
@@ -26,7 +26,7 @@ Listening on http://127.0.0.1:3001
 
 ## Install using `cargo install`
 ```
-cargo install --locked terrazzo-terminal
+cargo install --locked terrazzo-terminal --features prod
 ```
 
 Then start it using

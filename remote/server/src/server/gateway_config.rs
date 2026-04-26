@@ -1,5 +1,7 @@
 //! Configuration for the Terrazzo Gateway.
 
+use std::path::PathBuf;
+
 use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::security_configuration::HasDynamicSecurityConfig;
 use trz_gateway_common::security_configuration::HasSecurityConfig;
@@ -27,7 +29,7 @@ pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
         if cfg!(debug_assertions) { 3000 } else { 3001 }
     }
 
-    fn set_current_endpoint(&self) -> Option<String> {
+    fn set_current_endpoint(&self) -> Option<PathBuf> {
         None
     }
 

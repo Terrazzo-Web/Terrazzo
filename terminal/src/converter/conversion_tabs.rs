@@ -26,7 +26,7 @@ use super::api::Conversions;
 use crate::assets::icons;
 use crate::converter::api::Language;
 
-stylance::import_style!(style, "conversion_tabs.scss");
+terrazzo_css::import_style!(style, "conversion_tabs.scss");
 
 impl TabsDescriptor for Conversions {
     type State = ConversionsState;
@@ -61,9 +61,9 @@ impl Label {
     #[template(tag = div)]
     fn show(#[signal] this: Label) -> XElement {
         match this {
-            Label::Ready => div(img(class = style::copy_icon, src = icons::copy()), "Copy"),
+            Label::Ready => div(img(class = style::COPY_ICON, src = icons::copy()), "Copy"),
             Label::Copying => div("Copying"),
-            Label::Copied => div(img(class = style::copy_icon, src = icons::done()), "Copied"),
+            Label::Copied => div(img(class = style::COPY_ICON, src = icons::done()), "Copied"),
             Label::Failed => div("Failed"),
         }
     }
@@ -78,7 +78,7 @@ fn copy_impl(label: XSignal<Label>, #[signal] selected: Option<Conversion>) -> X
     };
     tag(
         Label::show(label.clone()),
-        class = style::label,
+        class = style::LABEL,
         click = move |_ev: MouseEvent| {
             let window = web_sys::window().or_throw("window");
             let clipboard = window.navigator().clipboard();
@@ -180,7 +180,7 @@ impl TabDescriptor for Conversion {
         let language = self.language.name.clone();
         terrazzo::widgets::link::link(
             |_click| {},
-            move || [span(class = super::ui::style::title_span, "{language}")],
+            move || [span(class = super::ui::style::TITLE_SPAN, "{language}")],
         )
     }
 

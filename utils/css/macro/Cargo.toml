@@ -1,0 +1,23 @@
+[package]
+name = "terrazzo-css-macro"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Generates constants for class names"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = { workspace = true }
+nameth = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+terrazzo-css-shared = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

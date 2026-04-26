@@ -4,7 +4,6 @@ use futures::TryFutureExt as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use terrazzo::http::StatusCode;
-use tonic::Status;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -99,17 +98,19 @@ impl<L: IsHttpError, R: IsHttpError> IsHttpError for DistributedCallbackError<L,
     }
 }
 
-impl<L: std::error::Error + Into<Status>, R: std::error::Error + Into<Status>>
-    From<DistributedCallbackError<L, R>> for Status
+impl<L: std::error::Error + Into<tonic::Status>, R: std::error::Error + Into<tonic::Status>>
+    From<DistributedCallbackError<L, R>> for tonic::Status
 {
     fn from(error: DistributedCallbackError<L, R>) -> Self {
         match error {
             DistributedCallbackError::RemoteError(error) => error.into(),
             DistributedCallbackError::LocalError(error) => error.into(),
             error @ DistributedCallbackError::RemoteClientNotFound { .. } => {
-                Status::not_found(error.to_string())
+                tonic::Status::not_found(error.to_string())
             }
-            error @ DistributedCallbackError::ServerNotSet => Status::internal(error.to_string()),
+            error @ DistributedCallbackError::ServerNotSet => {
+                tonic::Status::internal(error.to_string())
+            }
         }
     }
 }

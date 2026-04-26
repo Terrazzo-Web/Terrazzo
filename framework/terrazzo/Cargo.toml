@@ -30,8 +30,8 @@ nameth = { workspace = true, optional = true }
 rsass = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
-stylance = { workspace = true, optional = true }
 terrazzo-client = { workspace = true, optional = true }
+terrazzo-css = { workspace = true, optional = true }
 terrazzo-macro = { workspace = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
@@ -58,11 +58,11 @@ client = [
   "dep:futures",
   "dep:nameth",
   "dep:scopeguard",
-  "dep:stylance",
   "dep:terrazzo-client",
+  "dep:terrazzo-css",
   "dep:thiserror",
-  "dep:wasm-bindgen",
   "dep:wasm-bindgen-futures",
+  "dep:wasm-bindgen",
   "dep:web-sys",
   "terrazzo-macro/client",
 ]
@@ -83,9 +83,9 @@ max_client_level_debug = ["terrazzo-client?/max_level_debug"]
 max_client_level_info = ["terrazzo-client?/max_level_info"]
 debug = ["dep:rsass"]
 
-[package.metadata.stylance]
-output_file = "./target/css/common.scss"
-folders = ["./src/"]
+[package.metadata.css]
+output_file = "target/css/common.scss"
+folders = ["src"]
 extensions = [".scss", ".css"]
 
 [lints]

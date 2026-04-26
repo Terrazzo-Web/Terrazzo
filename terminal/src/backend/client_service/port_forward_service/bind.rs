@@ -23,7 +23,6 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
@@ -49,7 +48,10 @@ use crate::backend::protos::terrazzo::shared::ClientAddress;
 
 pub async fn dispatch(
     server: &Arc<Server>,
-    mut requests: impl Stream<Item = Result<PortForwardEndpoint, Status>> + Unpin + Send + 'static,
+    mut requests: impl Stream<Item = Result<PortForwardEndpoint, tonic::Status>>
+    + Unpin
+    + Send
+    + 'static,
 ) -> Result<BindStream, BindError> {
     let task = async move {
         debug!("Start");
@@ -78,7 +80,7 @@ pub enum BindStream {
 
 declare_trait_aliias! {
     IsBindStream,
-    Stream<Item = Result<PortForwardAcceptResponse, Status>> + Unpin + Send + 'static
+    Stream<Item = Result<PortForwardAcceptResponse, tonic::Status>> + Unpin + Send + 'static
 }
 
 #[pin_project]
@@ -90,7 +92,7 @@ pub struct LocalBindStream(
 pub struct RemoteBindStream(#[pin] Box<Streaming<PortForwardAcceptResponse>>);
 
 impl Stream for BindStream {
-    type Item = Result<PortForwardAcceptResponse, Status>;
+    type Item = Result<PortForwardAcceptResponse, tonic::Status>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project() {
@@ -346,7 +348,7 @@ pub enum BindLocalError {
     EndpointInUse(EndpointId),
 }
 
-impl From<BindLocalError> for Status {
+impl From<BindLocalError> for tonic::Status {
     fn from(mut error: BindLocalError) -> Self {
         let code = match &mut error {
             BindLocalError::Hostname { .. } => tonic::Code::InvalidArgument,
@@ -360,16 +362,16 @@ impl From<BindLocalError> for Status {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 #[error("[{n}] {0}", n = Self::type_name())]
-pub struct BindRemoteError(Status);
+pub struct BindRemoteError(tonic::Status);
 
-impl From<BindRemoteError> for Status {
+impl From<BindRemoteError> for tonic::Status {
     fn from(BindRemoteError(status): BindRemoteError) -> Self {
         status
     }
 }
 
-impl From<Status> for BindRemoteError {
-    fn from(status: Status) -> Self {
+impl From<tonic::Status> for BindRemoteError {
+    fn from(status: tonic::Status) -> Self {
         Self(status)
     }
 }
@@ -381,7 +383,7 @@ pub enum BindError {
     EmptyRequest,
 
     #[error("[{n}] Failed request: {0}", n = Self::type_name())]
-    RequestError(Status),
+    RequestError(tonic::Status),
 
     #[error("[{n}] {0}", n = Self::type_name())]
     Dispatch(#[from] DistributedCallbackError<BindLocalError, BindRemoteError>),
@@ -390,7 +392,7 @@ pub enum BindError {
     Canceled,
 }
 
-impl From<BindError> for Status {
+impl From<BindError> for tonic::Status {
     fn from(error: BindError) -> Self {
         let code = match error {
             BindError::EmptyRequest => tonic::Code::InvalidArgument,

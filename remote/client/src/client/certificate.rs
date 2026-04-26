@@ -7,6 +7,7 @@ use nameth::nameth;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
 use reqwest::Client;
+use reqwest::StatusCode;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::x509::PemAsStringError;
 use trz_gateway_common::x509::PemString as _;
@@ -30,7 +31,13 @@ pub async fn get_certifiate(
             public_key,
             name: client_config.client_name(),
         })?);
-    Ok(request.send().await?.text().await?)
+    let response = request.send().await?;
+    let status = response.status();
+    let body = response.text().await?;
+    if !status.is_success() {
+        return Err(GetCertificateError::HttpStatus { status, body });
+    }
+    Ok(body)
 }
 
 /// Errors returned by [get_certifiate].
@@ -45,4 +52,7 @@ pub enum GetCertificateError {
 
     #[error("[{n}] {0}", n = self.name())]
     HttpRequest(#[from] reqwest::Error),
+
+    #[error("[{n}] Gateway returned {status}: {body}", n = self.name())]
+    HttpStatus { status: StatusCode, body: String },
 }

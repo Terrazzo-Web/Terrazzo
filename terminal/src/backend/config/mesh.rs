@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -22,10 +23,10 @@ pub struct MeshConfig<T: ConfigTypes = RuntimeTypes> {
     /// The Gateway CA.
     ///
     /// This is the Root CA of the Gateway server certificate.
-    pub gateway_pki: T::MaybeString,
+    pub gateway_pki: T::MaybePath,
 
     /// The file to store the client certificate.
-    pub client_certificate: T::String,
+    pub client_certificate: T::Path,
 
     /// The strategy to retry connecting.
     pub retry_strategy: T::RetryStrategy,
@@ -51,12 +52,13 @@ impl From<Arc<DynamicConfig<DiffOption<DiffArc<MeshConfig>>>>> for DynamicMeshCo
 }
 
 impl MeshConfig {
-    pub fn client_certificate_paths(&self) -> CertificateInfo<String> {
+    pub fn client_certificate_paths(&self) -> CertificateInfo<PathBuf> {
         const CLIENT_CERTIFICATE_FILE_SUFFIX: CertificateInfo<&str> = CertificateInfo {
             certificate: "cert",
             private_key: "key",
         };
 
-        CLIENT_CERTIFICATE_FILE_SUFFIX.map(|suffix| format!("{}.{suffix}", self.client_certificate))
+        CLIENT_CERTIFICATE_FILE_SUFFIX
+            .map(|suffix| self.client_certificate.with_added_extension(suffix))
     }
 }

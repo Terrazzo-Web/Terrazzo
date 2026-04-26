@@ -74,9 +74,9 @@ fn text_editor_impl(#[signal] remote: Remote, remote_signal: XSignal<Remote>) ->
 
     div(
         key = "text-editor",
-        class = style::text_editor,
+        class = style::TEXT_EDITOR,
         div(
-            class = style::header,
+            class = style::HEADER,
             menu(),
             manager.base_path_selector(),
             manager.file_path_selector(),
@@ -94,7 +94,7 @@ fn text_editor_impl(#[signal] remote: Remote, remote_signal: XSignal<Remote>) ->
 #[html]
 fn editor_body(manager: Ptr<TextEditorManager>, editor_state: XSignal<EditorState>) -> XElement {
     div(
-        class = super::style::body,
+        class = super::style::BODY,
         show_side_view(manager.clone(), manager.side_view.clone()),
         editor_container(manager, editor_state),
     )
@@ -118,16 +118,16 @@ fn editor_container(
             }
             fsio::File::Error(error) => {
                 warn!("Failed to load file: {error}");
-                return tag(class = super::style::editor_container);
+                return tag(class = super::style::EDITOR_CONTAINER);
             }
         },
         EditorState::Search(EditorSearchState { results, .. }) => {
             let results = results.clone();
             folder(manager, None, results)
         }
-        EditorState::Empty => return tag(class = super::style::editor_container),
+        EditorState::Empty => return tag(class = super::style::EDITOR_CONTAINER),
     };
-    tag(class = super::style::editor_container, body)
+    tag(class = super::style::EDITOR_CONTAINER, body)
 }
 
 impl TextEditorManager {

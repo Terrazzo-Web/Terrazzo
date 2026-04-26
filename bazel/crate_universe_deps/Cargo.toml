@@ -45,7 +45,6 @@ serde-wasm-bindgen = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }
-stylance = { workspace = true }
 tantivy = { workspace = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true }
@@ -70,6 +69,7 @@ unescaper = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 wasm-bindgen = { workspace = true }
+wasm-bindgen-cli = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 wasm-streams = { workspace = true }
 x509-parser = { workspace = true }

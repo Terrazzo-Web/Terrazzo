@@ -26,15 +26,15 @@ use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::portforward::schema::PortForwardState;
 
-stylance::import_style!(style, "port_forward.scss");
-pub use style::tag;
+terrazzo_css::import_style!(style, "port_forward.scss");
+pub use style::TAG;
 
 /// The UI for the port forward app.
 #[html]
 #[template]
 pub fn port_forward(remote: XSignal<Remote>) -> XElement {
     let manager = Manager::new(remote);
-    div(class = style::outer, port_forward_impl(manager))
+    div(class = style::OUTER, port_forward_impl(manager))
 }
 
 #[html]
@@ -42,9 +42,9 @@ fn port_forward_impl(manager: Manager) -> XElement {
     let remote = manager.remote();
     let port_forwards = manager.port_forwards().clone();
     div(
-        class = style::inner,
+        class = style::INNER,
         key = "port-forward",
-        div(class = style::header, menu(), show_remote(remote.clone())),
+        div(class = style::HEADER, menu(), show_remote(remote.clone())),
         show_port_forwards(manager, remote, port_forwards),
     )
 }
@@ -62,7 +62,7 @@ fn show_port_forwards(
         .map(|port_forward| show_port_forward(&manager, &remote, port_forward));
     let new_sync_state = XSignal::new("new sync-state", Default::default());
     tag(
-        class = style::port_forwards,
+        class = style::PORT_FORWARDS,
         port_forward_tags..,
         div(
             show_add_port_forward(new_sync_state.clone()),
@@ -101,7 +101,7 @@ fn click_add_port_forward(
 #[template(tag = div)]
 fn show_add_port_forward(#[signal] new_sync_state: SyncState) -> XElement {
     tag(
-        class = style::add,
+        class = style::ADD,
         div(img(src = new_sync_state.add_src())),
         "Add port forward",
     )
@@ -125,9 +125,9 @@ fn show_port_forward(manager: &Manager, remote: &Remote, port_forward: &PortForw
     };
 
     div(
-        class = style::port_forward,
+        class = style::PORT_FORWARD,
         div(
-            class = style::title,
+            class = style::TITLE,
             show_status(sync_state.clone()),
             "Listen to traffic from\u{00A0}",
             port_forward.from.show(),
@@ -142,9 +142,9 @@ fn show_port_forward(manager: &Manager, remote: &Remote, port_forward: &PortForw
             ),
         ),
         div(
-            class = style::port_forward_body,
+            class = style::PORT_FORWARD_BODY,
             div(
-                class = style::from,
+                class = style::FROM,
                 show_host_port_definition(params, "From", from, |old, new| {
                     Some(PortForward {
                         from: new,
@@ -153,7 +153,7 @@ fn show_port_forward(manager: &Manager, remote: &Remote, port_forward: &PortForw
                 }),
             ),
             div(
-                class = style::to,
+                class = style::TO,
                 show_host_port_definition(params, "To", to, |old, new| {
                     Some(PortForward {
                         to: new,
@@ -199,7 +199,7 @@ fn show_active_checkbox(params: ShowHostPortDefinition, port_forward: &PortForwa
     };
 
     div(
-        class = style::active_checkbox,
+        class = style::ACTIVE_CHECKBOX,
         label(r#for = format!("active-{id}"), "Active "),
         input(
             r#type = "checkbox",
@@ -215,20 +215,20 @@ fn show_state(state: &PortForwardState) -> XElement {
     let state = state.lock();
     let count = state.count;
     match &state.status {
-        PortForwardStatus::Pending => div(class = style::port_forward_status, "Pending..."),
-        PortForwardStatus::Up => div(class = style::port_forward_status, "Up: {count}"),
+        PortForwardStatus::Pending => div(class = style::PORT_FORWARD_STATUS, "Pending..."),
+        PortForwardStatus::Up => div(class = style::PORT_FORWARD_STATUS, "Up: {count}"),
         PortForwardStatus::Offline => {
             if count == 0 {
-                div(class = style::port_forward_status, "Offline")
+                div(class = style::PORT_FORWARD_STATUS, "Offline")
             } else {
                 div(
-                    class = style::port_forward_status,
+                    class = style::PORT_FORWARD_STATUS,
                     "Pending shutdown: {count}",
                 )
             }
         }
         PortForwardStatus::Failed(error) => div(
-            class = style::port_forward_status,
+            class = style::PORT_FORWARD_STATUS,
             span(style::color = "red", style::font_weight = "bold", "Error: "),
             "{error}",
         ),
@@ -238,7 +238,7 @@ fn show_state(state: &PortForwardState) -> XElement {
 #[html]
 #[template(tag = img)]
 fn show_status(#[signal] sync_state: SyncState) -> XElement {
-    tag(class = style::status, src = sync_state.status_src())
+    tag(class = style::STATUS, src = sync_state.status_src())
 }
 
 #[autoclone]
@@ -252,7 +252,7 @@ fn show_delete(
     #[signal] sync_state: SyncState,
 ) -> XElement {
     tag(
-        class = style::delete,
+        class = style::DELETE,
         style::visibility = sync_state.is_deleting().then_some("hidden"),
         src = icons::trash(),
         click = move |_| {
@@ -370,10 +370,10 @@ fn show_host_port_definition(
     };
 
     div(
-        class = style::host_port_definition,
-        div(class = style::endpoint, "{endpoint}"),
+        class = style::HOST_PORT_DEFINITION,
+        div(class = style::ENDPOINT, "{endpoint}"),
         div(
-            class = style::remote,
+            class = style::REMOTE,
             label(r#for = format!("remote-{id}"), "Remote: "),
             show_remote_select(
                 format!("host-{id}"),
@@ -383,7 +383,7 @@ fn show_host_port_definition(
             ),
         ),
         div(
-            class = style::host,
+            class = style::HOST,
             label(r#for = format!("host-{id}"), "Host: "),
             input(
                 r#type = "text",
@@ -402,7 +402,7 @@ fn show_host_port_definition(
             ),
         ),
         div(
-            class = style::port,
+            class = style::PORT,
             label(r#for = format!("port-{id}"), "Port: "),
             input(
                 r#type = "number",

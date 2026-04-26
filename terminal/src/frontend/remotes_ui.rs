@@ -8,7 +8,7 @@ use self::diagnostics::debug;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes::RemotesState;
 
-stylance::import_style!(style, "remotes_ui.scss");
+terrazzo_css::import_style!(style, "remotes_ui.scss");
 
 #[html]
 #[template(tag = div)]
@@ -24,10 +24,12 @@ pub fn show_remote(#[signal] mut cur_remote: Remote) -> XElement {
         None => "Local",
     };
     tag(
-        class = style::remotes,
+        class = style::REMOTES,
+        #[cfg(not(feature = "client-prod"))]
+        class = "show-remote",
         div(
             "{cur_remote_name}",
-            class = style::show_current,
+            class = style::SHOW_CURRENT,
             mouseenter = remotes_state.mouseenter(),
         ),
         mouseleave = remotes_state.mouseleave(),
@@ -36,7 +38,7 @@ pub fn show_remote(#[signal] mut cur_remote: Remote) -> XElement {
                 let remote_name = remote
                     .map(|remote_name| format!("{remote_name} ⏎"))
                     .unwrap_or_else(|| "Local".into());
-                let remote_class = (cur_remote.as_ref() == remote).then_some(style::current);
+                let remote_class = (cur_remote.as_ref() == remote).then_some(style::CURRENT);
                 (remote_name, remote_class)
             },
             move |_, new_remote| {

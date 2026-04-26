@@ -5,7 +5,6 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use server_fn::ServerFnError;
-use tonic::Status;
 
 use super::HybridResponseStream;
 use super::HybridResponseStreamProj;
@@ -20,7 +19,7 @@ use crate::text_editor::notify::server_fn::NotifyResponse;
 pub struct RemoteResponseStream(#[pin] pub HybridResponseStream);
 
 impl futures::Stream for RemoteResponseStream {
-    type Item = Result<NotifyResponseProto, Status>;
+    type Item = Result<NotifyResponseProto, tonic::Status>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project().0.project() {
@@ -34,14 +33,15 @@ impl futures::Stream for RemoteResponseStream {
 
 fn poll_next_remote(
     response: Option<Result<NotifyResponse, ServerFnError>>,
-) -> Option<Result<NotifyResponseProto, Status>> {
+) -> Option<Result<NotifyResponseProto, tonic::Status>> {
     Some(poll_next_remote_some(response?))
 }
 
 fn poll_next_remote_some(
     response: Result<NotifyResponse, ServerFnError>,
-) -> Result<NotifyResponseProto, Status> {
-    let response = response.map_err(|error| Status::internal(format!("Remote error: {error}")))?;
+) -> Result<NotifyResponseProto, tonic::Status> {
+    let response =
+        response.map_err(|error| tonic::Status::internal(format!("Remote error: {error}")))?;
     let event_kind = match response.kind {
         EventKind::File(kind) => notify_response::Kind::File(
             match kind {
@@ -54,7 +54,7 @@ fn poll_next_remote_some(
         ),
         EventKind::CargoCheck(diagnostics) => notify_response::Kind::CargoCheck(
             serde_json::to_string(&diagnostics)
-                .map_err(|error| Status::internal(format!("JSON error: {error}")))?,
+                .map_err(|error| tonic::Status::internal(format!("JSON error: {error}")))?,
         ),
     };
     Ok(NotifyResponseProto {

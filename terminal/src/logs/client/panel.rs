@@ -20,7 +20,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 
-stylance::import_style!(style, "panel.scss");
+terrazzo_css::import_style!(style, "panel.scss");
 
 #[html]
 #[template(tag = div)]
@@ -41,7 +41,7 @@ fn logs_panel(#[signal] show_logs_panel: bool, #[signal] remote: Remote) -> XEle
         let logs_panel = ElementCapture::<HtmlDivElement>::default();
         let first_render = Cell::new(true).into();
         tag(
-            class = style::logs_panel,
+            class = style::LOGS_PANEL,
             before_render = logs_panel.capture(),
             after_render = move |_| {
                 let _ = &logs_engine;
@@ -63,7 +63,7 @@ fn logs_list(
     #[signal] logs: Arc<VecDeque<ClientLogEvent>>,
 ) -> XElement {
     tag(
-        class = style::logs_list,
+        class = style::LOGS_LIST,
         after_render =
             move |_| after_logs_render(&first_render, logs.is_empty(), logs_panel.clone()),
         logs.iter().map(|log| {
@@ -71,9 +71,9 @@ fn logs_list(
             let message = &log.message;
             li(
                 key = log.id.to_string(),
-                class = style::log_item,
-                div(class = style::log_level, "{level}"),
-                div(class = style::log_message, "{message}"),
+                class = style::LOG_ITEM,
+                div(class = style::LOG_LEVEL, "{level}"),
+                div(class = style::LOG_MESSAGE, "{message}"),
             )
         })..,
     )
@@ -125,12 +125,12 @@ fn logs_panel_height(#[signal] position: Option<Position>) -> XAttributeValue {
 fn resize_bar(show_logs_panel: XSignal<bool>) -> XElement {
     let resize_bar_visibility = resize_bar_visibility(show_logs_panel.clone());
     div(
-        class = style::resize_bar,
+        class = style::RESIZE_BAR,
         mousedown = RESIZE_MANAGER.mousedown(),
         dblclick = |_| RESIZE_MANAGER.delta.set(None),
         div(
             img(
-                class = style::resize_icon,
+                class = style::RESIZE_ICON,
                 class %= resize_icon_class(show_logs_panel.clone()),
                 src %= resize_icon_src(show_logs_panel.clone()),
                 alt = "Resize logs panel",
@@ -144,9 +144,9 @@ fn resize_bar(show_logs_panel: XSignal<bool>) -> XElement {
 #[template(wrap = true)]
 pub fn resize_icon_class(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
     if show_logs_panel {
-        style::resize_icon_show
+        style::RESIZE_ICON_SHOW
     } else {
-        style::resize_icon_hide
+        style::RESIZE_ICON_HIDE
     }
 }
 
@@ -161,7 +161,7 @@ pub fn resize_icon_src(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
 
 #[template(wrap = true)]
 pub fn resize_bar_visibility(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
-    (!show_logs_panel).then_some(style::resize_bar_hidden)
+    (!show_logs_panel).then_some(style::RESIZE_BAR_HIDDEN)
 }
 
 static RESIZE_MANAGER: LazyLock<MousemoveManager> = LazyLock::new(MousemoveManager::new);

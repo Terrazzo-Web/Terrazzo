@@ -37,7 +37,7 @@ impl std::fmt::Debug for SynchronizedState {
 #[template(tag = img)]
 pub fn show_synchronized_state(synchronized_state: XSignal<SynchronizedState>) -> XElement {
     tag(
-        class = style::sync_status,
+        class = style::SYNC_STATUS,
         src %= icon_src(synchronized_state.clone()),
     )
 }

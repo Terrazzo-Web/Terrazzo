@@ -98,11 +98,11 @@ mod server {
             let host = &self.host;
             let port = self.port;
             span(
-                span("{forwarded_remote}", class = super::super::ui::tag),
+                span("{forwarded_remote}", class = super::super::ui::TAG),
                 ":",
-                span("{host}", class = super::super::ui::tag),
+                span("{host}", class = super::super::ui::TAG),
                 ":",
-                span("{port}", class = super::super::ui::tag),
+                span("{port}", class = super::super::ui::TAG),
             )
         }
     }

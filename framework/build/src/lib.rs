@@ -190,10 +190,10 @@ enum BuildErrorInner {
     CpTargetAssetsError,
 }
 
-/// Invokes [stylance](https://crates.io/crates/stylance-cli) at compile time.
+/// Invokes terrazzo-css at compile time.
 pub fn build_css() {
     let dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
-    let status = std::process::Command::new("stylance")
+    let status = std::process::Command::new("terrazzo-css")
         .current_dir(&dir)
         .arg(".")
         .status();

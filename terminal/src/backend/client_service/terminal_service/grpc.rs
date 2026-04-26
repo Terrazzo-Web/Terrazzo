@@ -1,7 +1,6 @@
 use tonic::Request;
 use tonic::Response;
 use tonic::Result;
-use tonic::Status;
 use tonic::async_trait;
 
 use crate::backend::client_service::ClientServiceImpl;
@@ -26,7 +25,7 @@ impl TerminalService for ClientServiceImpl {
     async fn list_terminals(
         &self,
         mut request: Request<ListTerminalsRequest>,
-    ) -> Result<Response<ListTerminalsResponse>, Status> {
+    ) -> Result<Response<ListTerminalsResponse>, tonic::Status> {
         use self::terminal_service::list::list_terminals;
         let mut visited = std::mem::take(&mut request.get_mut().visited);
         visited.push(self.client_name.to_string());
@@ -37,7 +36,7 @@ impl TerminalService for ClientServiceImpl {
     async fn new_id(
         &self,
         request: Request<NewIdRequest>,
-    ) -> Result<Response<NewIdResponse>, Status> {
+    ) -> Result<Response<NewIdResponse>, tonic::Status> {
         use self::terminal_service::new_id::new_id;
         let address = request.into_inner().address;
         let next = new_id(
@@ -53,7 +52,7 @@ impl TerminalService for ClientServiceImpl {
     async fn register(
         &self,
         request: Request<RegisterTerminalRequest>,
-    ) -> Result<Response<Self::RegisterStream>, Status> {
+    ) -> Result<Response<Self::RegisterStream>, tonic::Status> {
         use self::terminal_service::register::register;
         let stream = register(
             Some(self.client_name.clone()),
@@ -64,7 +63,10 @@ impl TerminalService for ClientServiceImpl {
         Ok(Response::new(RemoteReader(stream)))
     }
 
-    async fn write(&self, request: Request<WriteRequest>) -> Result<Response<Empty>, Status> {
+    async fn write(
+        &self,
+        request: Request<WriteRequest>,
+    ) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::write::write;
         let mut request = request.into_inner();
         let terminal = request.terminal.get_or_insert_default();
@@ -73,7 +75,10 @@ impl TerminalService for ClientServiceImpl {
         Ok(Response::new(Empty {}))
     }
 
-    async fn resize(&self, request: Request<ResizeRequest>) -> Result<Response<Empty>, Status> {
+    async fn resize(
+        &self,
+        request: Request<ResizeRequest>,
+    ) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::resize::resize;
         let mut request = request.into_inner();
         let terminal = request.terminal.get_or_insert_default();
@@ -82,7 +87,10 @@ impl TerminalService for ClientServiceImpl {
         Ok(Response::new(Empty {}))
     }
 
-    async fn close(&self, request: Request<TerminalAddress>) -> Result<Response<Empty>, Status> {
+    async fn close(
+        &self,
+        request: Request<TerminalAddress>,
+    ) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::close::close;
         let terminal = request.into_inner();
         let terminal_id = terminal.terminal_id.as_str().into();
@@ -94,7 +102,7 @@ impl TerminalService for ClientServiceImpl {
     async fn set_title(
         &self,
         request: Request<SetTitleRequest>,
-    ) -> Result<Response<Empty>, Status> {
+    ) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::set_title::set_title;
         let mut request = request.into_inner();
         let terminal = request.address.get_or_insert_default();
@@ -106,13 +114,13 @@ impl TerminalService for ClientServiceImpl {
     async fn set_order(
         &self,
         request: Request<SetOrderRequest>,
-    ) -> Result<Response<Empty>, Status> {
+    ) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::set_order::set_order;
         let () = set_order(&self.server, request.into_inner().terminals).await;
         Ok(Response::new(Empty {}))
     }
 
-    async fn ack(&self, request: Request<AckRequest>) -> Result<Response<Empty>, Status> {
+    async fn ack(&self, request: Request<AckRequest>) -> Result<Response<Empty>, tonic::Status> {
         use self::terminal_service::ack::ack;
         let mut request = request.into_inner();
         let terminal = request.terminal.get_or_insert_default();

@@ -6,7 +6,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use prost::bytes::Bytes;
 use tokio::net::TcpStream;
-use tonic::Status;
 use tonic::Streaming;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
@@ -54,7 +53,10 @@ impl GetLocalStream for GetUploadStream {
         Ok(tcp_stream)
     }
 
-    async fn call<S, T>(channel: T, stream: S) -> Result<Streaming<PortForwardDataResponse>, Status>
+    async fn call<S, T>(
+        channel: T,
+        stream: S,
+    ) -> Result<Streaming<PortForwardDataResponse>, tonic::Status>
     where
         S: Stream<Item = PortForwardDataRequest> + Send + 'static,
         T: GrpcService<BoxBody>,
@@ -77,7 +79,7 @@ pub enum UploadLocalError {
     SetNodelay(std::io::Error),
 }
 
-impl From<UploadLocalError> for Status {
+impl From<UploadLocalError> for tonic::Status {
     fn from(error: UploadLocalError) -> Self {
         let code = match error {
             UploadLocalError::Connect { .. } => tonic::Code::Aborted,

@@ -129,11 +129,23 @@ impl AssetBuilder {
 ///
 /// The content of the file is compiled into the server binary using the [include_bytes] macro.
 #[macro_export]
+#[cfg(not(feature = "debug"))]
 macro_rules! declare_asset {
     ($file:expr $(,)?) => {
         $crate::static_assets::AssetBuilder::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
             include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $file)),
+        )
+    };
+}
+
+#[macro_export]
+#[cfg(feature = "debug")]
+macro_rules! declare_asset {
+    ($file:expr $(,)?) => {
+        $crate::static_assets::AssetBuilder::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
+            &[],
         )
     };
 }

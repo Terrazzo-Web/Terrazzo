@@ -16,6 +16,7 @@ path = "src/exec.rs"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
+libc = { workspace = true }
 nameth = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

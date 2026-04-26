@@ -10,19 +10,18 @@ NODE_BIN="${4:?${USAGE}}"
 NPX_BIN="${5:?${USAGE}}"
 TEST_SPEC="${6:?${USAGE}}"
 
-if [[ "${TARGET_SERVER}" != "-" ]]; then
-  TARGET_SERVER="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TARGET_SERVER}"
-fi
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
 if [[ "${TARGET_SERVER}" == "-" ]]; then
-  SERVER_MANIFEST_BIN="${SERVER_BIN}"
+  TERRAZZO_SERVER_BIN="${SERVER_BIN}"
 else
-  SERVER_MANIFEST_BIN="${TARGET_SERVER}"
+  TARGET_SERVER="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TARGET_SERVER}"
+  TERRAZZO_SERVER_BIN="${TARGET_SERVER}"
 fi
-CARGO_MANIFEST_DIR="$(dirname "$(realpath "${SERVER_MANIFEST_BIN}")")/cargo_root/$(basename "${SERVER_MANIFEST_BIN}")"
+# TODO: this won't work
+CARGO_MANIFEST_DIR="$(dirname "$(realpath "${TERRAZZO_SERVER_BIN}")")/cargo_root/$(basename "${TERRAZZO_SERVER_BIN}")"
 
 TMPDIR_ROOT="${TMPDIR:-/tmp}"
 TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
@@ -33,7 +32,6 @@ SERVER_PID=""
 
 cleanup() {
   if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" 2>/dev/null; then
-    pkill -TERM -P "${SERVER_PID}" 2>/dev/null || true
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
@@ -74,7 +72,7 @@ for _ in $(seq 1 30); do
     export HOME="$PLAYWRIGHT_ROOT/home"
     export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
     export PATH="$(dirname "${NODE_BIN}"):${PATH:-}"
-    export TERRAZZO_SERVER_BIN="${SERVER_MANIFEST_BIN}"
+    export TERRAZZO_SERVER_BIN
     export TERRAZZO_CONFIG_FILE
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"

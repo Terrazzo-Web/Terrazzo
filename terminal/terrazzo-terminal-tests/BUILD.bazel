@@ -4,11 +4,12 @@ package(default_visibility = ["//visibility:public"])
 
 rust_rules(
     name = "terrazzo-terminal-tests",
-    all_crate_deps = None,
     crate_name = "terrazzo_terminal_tests",
     crate_root = "src/main.rs",
     deps = [
+        "//utils/nameth/nameth",
         "@crates//:clap",
+        "@crates//:thiserror",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
     ],

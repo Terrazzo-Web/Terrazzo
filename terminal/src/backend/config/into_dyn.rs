@@ -80,8 +80,8 @@ impl Config {
                 let () = config
                     .to_config_file()
                     .save(config_file_path)
-                    .inspect(|()| info!("Saved config file {config_file_path}"))
-                    .unwrap_or_else(|error| warn!("Failed to save {config_file_path}: {error}"));
+                    .inspect(|()| info!("Saved config file {config_file_path:?}"))
+                    .unwrap_or_else(|error| warn!("Failed to save {config_file_path:?}: {error}"));
             }
         });
         let config = DiffArc::from(DynConfig {
@@ -110,11 +110,11 @@ struct ReloadState {
 }
 
 async fn run_config_reload_tasks(
-    config_file_path: String,
+    config_file_path: PathBuf,
     cli: Arc<Cli>,
     config: DiffArc<DynConfig>,
 ) {
-    let span = info_span!("Config file live reload", config_file_path);
+    let span = info_span!("Config file live reload", ?config_file_path);
     async move {
         let state = Arc::new(ReloadState {
             last_modified: Mutex::new(config_file_last_modified(Path::new(&config_file_path))),
@@ -207,13 +207,12 @@ fn is_relevant_config_event(event: &notify::Event, config_file_path: &Path) -> b
 }
 
 async fn poll_config_file(
-    config_file_path: String,
+    config_file_path: PathBuf,
     cli: Arc<Cli>,
     config: DiffArc<DynConfig>,
     state: Arc<ReloadState>,
 ) {
-    let span = info_span!("Polling config file", config_file_path);
-    let config_file_path = PathBuf::from(config_file_path);
+    let span = info_span!("Polling config file", ?config_file_path);
     async move {
         loop {
             let Some(mut retry_strategy) =

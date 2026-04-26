@@ -66,7 +66,6 @@ use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
 use self::tls_config::make_tls_config;
 use crate::assets;
-use crate::utils::more_path::MorePath as _;
 
 mod agent;
 pub mod auth;
@@ -95,8 +94,7 @@ pub fn run_server() -> Result<(), RunServerError> {
         if let Some(config_file) = &mut cli.config_file
             && Path::new(config_file).is_relative()
         {
-            let concat: PathBuf = [home(), ".terrazzo", config_file].iter().collect();
-            *config_file = concat.to_owned_string()
+            *config_file = terrazzo_home().join(&config_file)
         }
         cli
     };
@@ -485,7 +483,12 @@ pub enum RunClientError {
     Aborted(String),
 }
 
-fn home() -> &'static str {
-    static HOME: OnceLock<String> = OnceLock::new();
-    HOME.get_or_init(|| std::env::var("HOME").expect("HOME"))
+fn terrazzo_home() -> &'static Path {
+    static TERRAZZO_HOME: OnceLock<PathBuf> = OnceLock::new();
+    TERRAZZO_HOME.get_or_init(|| home().join(".terrazzo"))
+}
+
+fn home() -> &'static Path {
+    static HOME: OnceLock<PathBuf> = OnceLock::new();
+    HOME.get_or_init(|| std::env::var("HOME").expect("HOME").into())
 }

@@ -19,7 +19,7 @@ pub struct Cli {
 
     /// The file to store the config.
     #[arg(long)]
-    pub config_file: Option<String>,
+    pub config_file: Option<PathBuf>,
 
     /// The TCP port to listen to.
     #[arg(long)]

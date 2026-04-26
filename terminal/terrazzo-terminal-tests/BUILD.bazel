@@ -6,12 +6,9 @@ rust_rules(
     name = "terrazzo-terminal-tests",
     crate_name = "terrazzo_terminal_tests",
     crate_root = "src/main.rs",
+    rust_srcs = glob(["src/**/*.rs"]),
     deps = [
         "//utils/nameth/nameth",
-        "@crates//:clap",
-        "@crates//:thiserror",
-        "@crates//:tracing",
-        "@crates//:tracing-subscriber",
     ],
     generate_tests = False,
     rule = "binary",

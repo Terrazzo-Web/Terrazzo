@@ -51,10 +51,6 @@ pub struct TestProperties {
 
     /// Path to the server executable
     server_bin: PathBuf,
-
-    /// Path to the server crate manifest dir
-    #[builder(default)]
-    server_manifest_dir: Option<PathBuf>,
 }
 
 impl TestProperties {
@@ -176,9 +172,6 @@ impl Server {
         command.arg("--set-current-endpoint");
         command.arg(&endpoint_file);
         command.args(server_args);
-        if let Some(server_manifest_dir) = &properties.server_manifest_dir {
-            command.env("CARGO_MANIFEST_DIR", server_manifest_dir);
-        }
         command.env("RUST_BACKTRACE", "1");
         command.stdout(Stdio::from(log)).stderr(Stdio::from(stderr));
         let process = command.spawn().map_err(|source| RunError::SpawnServer {

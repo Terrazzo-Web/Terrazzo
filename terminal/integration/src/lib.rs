@@ -30,9 +30,6 @@ struct Args {
     #[arg(long)]
     server_bin: PathBuf,
 
-    #[arg(long, num_args = 0..=1)]
-    server_manifest_dir: Option<PathBuf>,
-
     #[arg(long, default_value_t = 0)]
     port: u16,
 
@@ -63,7 +60,6 @@ fn run() -> Result<(), RunError> {
         server_bin,
         port,
         set_current_endpoint,
-        server_manifest_dir,
     } = Args::parse();
 
     let test_dir = test_dir::test_dir()?;
@@ -72,7 +68,6 @@ fn run() -> Result<(), RunError> {
         .test_dir(test_dir)
         .root_ca(root_ca)
         .server_bin(server_bin)
-        .server_manifest_dir(server_manifest_dir)
         .build()
         .into();
 

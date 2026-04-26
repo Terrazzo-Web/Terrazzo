@@ -36,6 +36,9 @@ pub async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
 }
 
 async fn add_conversions(input: &str, add: &mut impl AddConversionFn) {
+    if input.trim().is_empty() {
+        return;
+    }
     if self::x509::add_x509_pem(input, add) {
         return;
     }
@@ -103,5 +106,14 @@ mod tests {
             languages.sort();
             return languages;
         }
+    }
+
+    #[tokio::test]
+    async fn empty_input_has_no_conversions() {
+        assert!(super::get_conversions("".into())
+            .await
+            .unwrap()
+            .conversions
+            .is_empty());
     }
 }

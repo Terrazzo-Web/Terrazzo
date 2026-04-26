@@ -25,6 +25,8 @@ pub fn show_remote(#[signal] mut cur_remote: Remote) -> XElement {
     };
     tag(
         class = style::REMOTES,
+        #[cfg(not(feature = "client-prod"))]
+        class = "show-remote",
         div(
             "{cur_remote_name}",
             class = style::SHOW_CURRENT,

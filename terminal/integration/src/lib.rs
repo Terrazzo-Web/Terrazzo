@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitStatus;
+use std::task::Poll;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
@@ -134,23 +135,32 @@ fn run() -> Result<(), RunError> {
 
 fn wait_for_file(path: &Path) -> Result<(), RunError> {
     wait_until(&format!("file {}", path.display()), || {
-        path.exists().then_some(())
+        match path.exists() {
+            true => Poll::Ready(Ok(())),
+            false => Poll::Pending,
+        }
     })
 }
 
-// TODO: report the last error
-fn wait_until<T>(description: &str, mut f: impl FnMut() -> Option<T>) -> Result<T, RunError> {
+fn wait_until<T>(
+    description: &str,
+    mut f: impl FnMut() -> Poll<Result<T, RunError>>,
+) -> Result<T, RunError> {
     let deadline = Instant::now() + TIMEOUT;
+    let mut last_error = None;
     loop {
         if termination_requested() {
             return Err(RunError::Terminated);
         }
-        if let Some(value) = f() {
-            return Ok(value);
+        match f() {
+            Poll::Ready(Ok(value)) => return Ok(value),
+            Poll::Ready(Err(error)) => last_error = Some(Box::new(error)),
+            Poll::Pending => {}
         }
         if Instant::now() >= deadline {
             return Err(RunError::Timeout {
                 description: description.to_owned(),
+                last_error,
             });
         }
         sleep(Duration::from_millis(250));
@@ -200,8 +210,21 @@ enum RunError {
         source: std::io::Error,
     },
 
-    #[error("[{n}] Timed out waiting for {description}", n = self.name())]
-    Timeout { description: String },
+    #[error("[{n}] Failed to connect to {endpoint}: {source}", n = self.name())]
+    Connect {
+        endpoint: String,
+        source: std::io::Error,
+    },
+
+    #[error(
+        "[{n}] Timed out waiting for {description}{last_error}",
+        n = self.name(),
+        last_error = .last_error.as_ref().map(|error| format!("; last error: {error}")).unwrap_or_default(),
+    )]
+    Timeout {
+        description: String,
+        last_error: Option<Box<RunError>>,
+    },
 
     #[error("[{n}] Gateway logged an empty auth code; log:\n{log}", n = self.name())]
     EmptyAuthCode { log: String },

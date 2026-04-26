@@ -9,6 +9,7 @@ use std::process::Child;
 use std::process::Command;
 use std::process::Stdio;
 use std::rc::Rc;
+use std::task::Poll;
 
 use tracing::info;
 use tracing::info_span;
@@ -198,9 +199,14 @@ impl Server {
 
     pub fn wait_until_ready(&self) -> Result<(), RunError> {
         wait_until("server endpoint to accept TCP connections", || {
-            let endpoint = self.endpoint().ok()?;
-            TcpStream::connect(endpoint).ok()?;
-            Some(())
+            let endpoint = match self.endpoint() {
+                Ok(endpoint) => endpoint,
+                Err(error) => return Poll::Ready(Err(error)),
+            };
+            match TcpStream::connect(&endpoint) {
+                Ok(_) => Poll::Ready(Ok(())),
+                Err(source) => Poll::Ready(Err(RunError::Connect { endpoint, source })),
+            }
         })
     }
 
@@ -234,13 +240,19 @@ impl Server {
 
     pub fn wait_for_log(&self, pattern: &str) -> Result<(), RunError> {
         wait_until(&format!("log containing {pattern:?}"), || {
-            self.log_contents().contains(pattern).then_some(())
+            match self.log_contents().contains(pattern) {
+                true => Poll::Ready(Ok(())),
+                false => Poll::Pending,
+            }
         })
     }
 
     pub fn wait_for_auth_code(&self) -> Result<String, RunError> {
         let auth_code = wait_until("auth code in gateway log", || {
-            parse_auth_code(&self.log_contents())
+            match parse_auth_code(&self.log_contents()) {
+                Some(auth_code) => Poll::Ready(Ok(auth_code)),
+                None => Poll::Pending,
+            }
         })?;
         if auth_code.is_empty() {
             return Err(RunError::EmptyAuthCode {

@@ -1,6 +1,5 @@
 load("@crates//:defs.bzl", "all_crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_test")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:scss_rules.bzl", "scss_rule")
 load("//bazel/feature_deps:feature_deps_rules.bzl", "feature_deps")

@@ -34,7 +34,7 @@ feature_deps(
 
 terminal_assets(
     name = "assets",
-    manifest = ":server-debug-mirror-manifest",
+    output = "terminal_assets.bzl",
     server = ":server-debug",
 )
 

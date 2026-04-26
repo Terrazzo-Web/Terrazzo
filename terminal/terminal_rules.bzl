@@ -1,6 +1,7 @@
 """Rules to build Terrazzo Terminal"""
 
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("//bazel:generated_file.bzl", "generate_file")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
 load(":terminal_features.bzl", "compute_srcs")
 
@@ -151,9 +152,8 @@ def terminal_rules(
         deps = ["@crates//:tracing"],
     )
 
-
-def _terminal_assets_impl(ctx):
-    output = ctx.actions.declare_file(ctx.label.name + ".txt")
+def _generate_terminal_assets_impl(ctx):
+    output = ctx.actions.declare_file("generated-" + ctx.label.name + ".txt")
     command = "\n".join([
         "set -e",
         'CARGO_MANIFEST_DIR="$(dirname "$(realpath "{}")")" "{}" --action list-assets > "{}"'.format(
@@ -172,8 +172,8 @@ def _terminal_assets_impl(ctx):
     )
     return [DefaultInfo(files = depset([output]))]
 
-terminal_assets = rule(
-    implementation = _terminal_assets_impl,
+_generate_terminal_assets = rule(
+    implementation = _generate_terminal_assets_impl,
     attrs = {
         "manifest": attr.label(
             allow_single_file = True,
@@ -186,3 +186,22 @@ terminal_assets = rule(
         ),
     },
 )
+
+def terminal_assets(name, output, server = ":server-debug"):
+    """Defines targets that generate and update the terminal asset manifest.
+
+    Args:
+        name: Name for the generated Bazel targets.
+        output: Package-relative path of the checked-in asset manifest to update.
+        server: Label of the terminal server executable used to list assets.
+    """
+    _generate_terminal_assets(
+        name = name,
+        manifest = server + "-mirror-manifest",
+        server = server,
+    )
+    generate_file(
+        name = name + "_update",
+        src = ":" + name,
+        dest = output,
+    )

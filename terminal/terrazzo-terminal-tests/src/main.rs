@@ -1,4 +1,3 @@
-use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitStatus;
@@ -12,23 +11,24 @@ use nameth::nameth;
 use tracing::error;
 use tracing::info;
 
-use crate::config::client_config;
-use crate::config::server_config;
-use crate::server::ServerInstance;
+use crate::server::Server;
+use crate::server::ServerProperties;
+use crate::server::TestProperties;
 
-mod config;
 mod server;
 mod test_dir;
+mod toml;
 
 const TIMEOUT: Duration = Duration::from_secs(45);
 
+// TODO: all parameter must be set with --long-param-name param-value
 #[derive(clap::Parser)]
 struct Args {
     server_bin: PathBuf,
+    // TODO: clap should treat this parameter as optional
+    server_manifest_dir: Option<PathBuf>,
     port: u16,
     set_current_endpoint: PathBuf,
-    #[arg(last = true)]
-    server_args: Vec<OsString>,
 }
 
 fn main() {
@@ -52,76 +52,61 @@ fn run() -> Result<(), RunError> {
         server_bin,
         port,
         set_current_endpoint,
-        server_args,
+        server_manifest_dir,
     } = Args::parse();
 
     let test_dir = test_dir::test_dir()?;
     let root_ca = test_dir.path().join("root-ca");
-    let gateway = ServerInstance::start(
-        "gateway",
-        &server_bin,
-        test_dir.path(),
-        server_config(test_dir.path(), "gateway", port, &root_ca),
-        &set_current_endpoint,
-        &server_args,
-        Vec::new(),
-    )?;
+    let test_properties = TestProperties::builder()
+        .test_dir(test_dir)
+        .root_ca(root_ca)
+        .server_bin(server_bin)
+        .server_manifest_dir(server_manifest_dir)
+        .build()
+        .into();
+
+    let gateway_properties = ServerProperties::builder()
+        .test_properties(&test_properties)
+        .name("gateway")
+        .mode(server::Mode::Gateway)
+        .port(port)
+        .set_current_endpoint(set_current_endpoint)
+        .build();
+    let gateway = Server::start(gateway_properties, &[])?;
     gateway.wait_until_ready()?;
+    assert!(gateway.process.borrow().id().to_string() == gateway.pid_file_contents().trim());
     let gateway_endpoint = gateway.endpoint()?;
     info!(gateway_endpoint, "gateway node is ready");
-    let root_ca_cert = root_ca.with_extension("cert");
+    let root_ca_cert = test_properties.root_ca.with_extension("cert");
     wait_for_file(&root_ca_cert)?;
     info!(root_ca_cert = %root_ca_cert.display(), "gateway root certificate is ready");
 
-    let client_cert = test_dir.path().join("client-certificate");
-    let first_client = ServerInstance::start(
-        "client-invalid-auth-code",
-        &server_bin,
-        test_dir.path(),
-        client_config(
-            test_dir.path(),
-            "client-invalid-auth-code",
-            &root_ca,
-            &root_ca_cert,
-            &client_cert,
-            &gateway_endpoint,
-        ),
-        &test_dir.path().join("client-invalid-auth-code.endpoint"),
-        &server_args,
-        Vec::new(),
-    )?;
+    let client_properties = ServerProperties::builder()
+        .test_properties(&test_properties)
+        .name("client-invalid-auth-code")
+        .mode(server::Mode::Client {
+            gateway_endpoint: gateway_endpoint.clone(),
+        })
+        .build();
+    let first_client = Server::start(client_properties, &[])?;
     first_client.wait_for_log("Failed to load Client Certificate")?;
     first_client.wait_for_log("Gateway returned 403 Forbidden")?;
     first_client.stop()?;
     info!("invalid-auth client stopped after expected gateway rejection");
 
     let auth_code = gateway.wait_for_auth_code()?;
-    if auth_code.is_empty() {
-        return Err(RunError::EmptyAuthCode {
-            log: gateway.log_contents(),
-        });
-    }
     info!("gateway auth code was discovered");
 
-    let client = ServerInstance::start(
-        "client-valid-auth-code",
-        &server_bin,
-        test_dir.path(),
-        client_config(
-            test_dir.path(),
-            "client-valid-auth-code",
-            &root_ca,
-            &root_ca_cert,
-            &client_cert,
-            &gateway_endpoint,
-        ),
-        &test_dir.path().join("client-valid-auth-code.endpoint"),
-        &server_args,
-        vec!["--auth-code".into(), auth_code.into()],
-    )?;
-    wait_for_file(&client_cert.with_extension("cert"))?;
+    let client_properties = ServerProperties::builder()
+        .test_properties(&test_properties)
+        .name("client")
+        .mode(server::Mode::Client { gateway_endpoint })
+        .build();
+    let client = Server::start(client_properties, &["--auth-code".into(), auth_code.into()])?;
+    let client_cert = client.client_cert_file.with_extension("cert");
+    wait_for_file(&client_cert)?;
     info!(
-        client_cert = %client_cert.with_extension("cert").display(),
+        client_cert = %client_cert.display(),
         "client certificate is ready; supervising mesh nodes"
     );
 
@@ -138,6 +123,7 @@ fn wait_for_file(path: &Path) -> Result<(), RunError> {
     })
 }
 
+// TODO: report the last error
 fn wait_until<T>(description: &str, mut f: impl FnMut() -> Option<T>) -> Result<T, RunError> {
     let deadline = Instant::now() + TIMEOUT;
     loop {
@@ -162,9 +148,9 @@ enum RunError {
         source: std::io::Error,
     },
 
-    #[error("[{n}] Failed to write config for {name:?} to {path:?}: {source}", n = self.name())]
+    #[error("[{n}] Failed to write config for {server:?} to {path:?}: {source}", n = self.name())]
     WriteConfig {
-        name: String,
+        server: String,
         path: PathBuf,
         source: std::io::Error,
     },
@@ -176,9 +162,9 @@ enum RunError {
         source: std::io::Error,
     },
 
-    #[error("[{n}] Failed to clone log for {name:?} at {path:?}: {source}", n = self.name())]
+    #[error("[{n}] Failed to clone log for {server:?} at {path:?}: {source}", n = self.name())]
     CloneLog {
-        name: String,
+        server: String,
         path: PathBuf,
         source: std::io::Error,
     },
@@ -196,20 +182,11 @@ enum RunError {
         source: std::io::Error,
     },
 
-    #[error("[{n}] Server binary has no parent: {server_bin:?}", n = self.name())]
-    ServerBinMissingParent { server_bin: PathBuf },
-
-    #[error("[{n}] Server binary has no file name: {server_bin:?}", n = self.name())]
-    ServerBinMissingFileName { server_bin: PathBuf },
-
     #[error("[{n}] Timed out waiting for {description}", n = self.name())]
     Timeout { description: String },
 
     #[error("[{n}] Gateway logged an empty auth code; log:\n{log}", n = self.name())]
     EmptyAuthCode { log: String },
-
-    #[error("[{n}] {name} is not running", n = self.name())]
-    NodeNotRunning { name: String },
 
     #[error("[{n}] Failed to poll {name}: {source}", n = self.name())]
     TryWait {

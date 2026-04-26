@@ -88,9 +88,9 @@ fn merge_server_config(
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);
             pidfile.unwrap_or_else(|| {
-                [home(), &format!(".terrazzo/terminal-{port}.pid")]
-                    .iter()
-                    .collect::<PathBuf>()
+                home()
+                    .join(".terrazzo")
+                    .join(format!("terminal-{port}.pid"))
             })
         },
         private_root_ca: {
@@ -98,8 +98,7 @@ fn merge_server_config(
             let private_root_ca = private_root_ca
                 .or(server.private_root_ca.as_deref())
                 .map(expand_tilde);
-            private_root_ca
-                .unwrap_or_else(|| [home(), ".terrazzo/root_ca"].iter().collect::<PathBuf>())
+            private_root_ca.unwrap_or_else(|| home().join(".terrazzo").join("root_ca"))
         },
         password: server.password.clone(),
         token_lifetime: parse_duration(server.token_lifetime.as_deref())
@@ -140,11 +139,7 @@ fn merge_mesh_config(
         client_certificate: client_certificate
             .or(mesh.and_then(|m| m.client_certificate.to_owned()))
             .map(expand_tilde)
-            .unwrap_or_else(|| {
-                [home(), ".terrazzo/client_certificate"]
-                    .iter()
-                    .collect::<PathBuf>()
-            }),
+            .unwrap_or_else(|| home().join(".terrazzo").join("client_certificate")),
         retry_strategy: mesh
             .and_then(|mesh| mesh.retry_strategy.clone())
             .unwrap_or_default(),
@@ -190,7 +185,7 @@ mod tests {
     fn expand_tilde() {
         assert!(!home().ends_with("/"));
         assert_eq!(
-            home().to_owned() + "/home/path",
+            home().join("home/path"),
             super::expand_tilde("~//home/path")
         );
         assert_eq!(Path::new("~home/path"), super::expand_tilde("~home/path"));
@@ -203,12 +198,19 @@ mod tests {
     #[test]
     fn collapse_tilde() {
         assert_eq!(
-            super::collapse_tilde(home().to_owned() + "/home/path"),
-            Path::new("~/home/path")
+            "~/home/path",
+            super::collapse_tilde(format!("{}/home/path", home().display()))
+                .display()
+                .to_string()
         );
         assert_eq!(
-            super::collapse_tilde(home().to_owned() + home() + "/home/path"),
-            "~".to_owned() + home() + "/home/path"
+            format!(
+                "~/{}/home/path",
+                home().display().to_string().trim_matches('/')
+            ),
+            super::collapse_tilde(format!("{home}{home}/home/path", home = home().display()))
+                .display()
+                .to_string()
         );
     }
 
@@ -227,8 +229,8 @@ mod tests {
                 host: "localhost".into(),
                 port: 3000,
                 set_current_endpoint: None,
-                pidfile: format!("{}/.terrazzo/test.pid", home()).into(),
-                private_root_ca: format!("{}/.terrazzo/root_ca", home()).into(),
+                pidfile: home().join(".terrazzo").join("test.pid"),
+                private_root_ca: home().join(".terrazzo").join("root_ca"),
                 password: None,
                 token_lifetime: parse_duration(Some("5m")).unwrap(),
                 token_refresh: parse_duration(Some("4m 50s")).unwrap(),

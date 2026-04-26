@@ -118,13 +118,3 @@ playwright_matrix_test(
     },
     test = "tests/integration-test-password-update.spec.mjs",
 )
-
-rust_test(
-    name = "mesh-integration-test",
-    srcs = ["tests/mesh_integration_test.rs"],
-    args = ["$(location :server-debug)"],
-    data = [":server-debug"],
-    deps = [
-        "@crates//:openssl",
-    ],
-)

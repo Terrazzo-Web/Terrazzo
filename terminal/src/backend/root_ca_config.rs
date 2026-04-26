@@ -36,8 +36,8 @@ impl PrivateRootCa {
                         ..CertitficateName::default()
                     },
                     CertificateInfo {
-                        certificate: format!("{}.cert", server.private_root_ca),
-                        private_key: format!("{}.key", server.private_root_ca),
+                        certificate: server.private_root_ca.with_added_extension("cert"),
+                        private_key: server.private_root_ca.with_added_extension("key"),
                     },
                     Validity {
                         from: 0,

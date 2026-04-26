@@ -135,10 +135,9 @@ div>.HnhCUtD9>.HnhCZxyk {
 }
 
 /* $TEMP_DIR/src/root.scss */
-div>.1JR7UtD9 {
+div>.AKR7UtD9 {
     font-family: "root";
-}
-"#
+}"#
             .trim(),
             output
                 .replace(temp_dir.to_string_lossy().as_ref(), "$TEMP_DIR")

@@ -2,6 +2,7 @@ use std::iter::once;
 use std::sync::Arc;
 
 use nameth::nameth;
+use std::path::PathBuf;
 use terrazzo::axum::Router;
 use terrazzo::axum::extract::Path;
 use terrazzo::axum::routing::get;
@@ -92,7 +93,7 @@ impl GatewayConfig for TerminalBackendServer {
         self.config.server.with(|server| server.port)
     }
 
-    fn set_current_endpoint(&self) -> Option<String> {
+    fn set_current_endpoint(&self) -> Option<PathBuf> {
         self.config
             .server
             .with(|server| server.set_current_endpoint.to_owned())

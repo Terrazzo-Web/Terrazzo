@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -75,7 +76,7 @@ pub struct Server {
     connections: Arc<Connections>,
     issuer_config: Arc<DynamicConfig<Result<Arc<IssuerConfig>, Arc<dyn IsGlobalError>>, RO>>,
     app_config: Box<dyn AppConfig>,
-    set_current_endpoint: Option<String>,
+    set_current_endpoint: Option<PathBuf>,
 }
 
 impl Server {

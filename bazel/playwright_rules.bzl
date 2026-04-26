@@ -73,31 +73,50 @@ def playwright_matrix_test(overrides = {}, **kwargs):
     """
     make_rules_matrix(playwright_test, overrides, **kwargs)
 
-def playwright_test(name, server, test, **kwargs):
+def _target_with_suffix(target, suffix):
+    if ":" in target:
+        return target + suffix
+
+    fail("Expected a target label with an explicit target name, got %s" % target)
+
+def playwright_test(name, server, test, target_server = None, **kwargs):
     """Defines a Playwright test.
 
     Args:
       name: Name of the Bazel test target.
-      server: Label of the server binary or script started by the test wrapper.
+      server: Label of the server binary or launcher started by the test wrapper.
       test: Label of the Playwright test entrypoint to execute.
+      target_server: Optional server binary managed by the launcher.
       **kwargs: Additional arguments forwarded to `sh_test`.
     """
+    terrazzo_server = target_server if target_server else server
+    terrazzo_server_manifest = _target_with_suffix(terrazzo_server, "-mirror-manifest")
+    terrazzo_server_data = _target_with_suffix(terrazzo_server, "-mirror-data")
+
+    data = [
+        server,
+        test,
+        terrazzo_server_data,
+        terrazzo_server_manifest,
+        "//bazel:playwright_setup",
+        "@local_node_tools//:node",
+        "@local_node_tools//:npx",
+    ]
+    if target_server:
+        data.append(target_server)
+
     sh_test(
         name = name,
         srcs = ["//bazel:playwright_test.sh"],
         args = [
-            "$(location %s)" % server,
+            "$(rootpath %s)" % server,
+            "$(rootpath %s)" % target_server if target_server else "-",
+            "$(rootpath %s)" % terrazzo_server_manifest,
             "$(rootpath //bazel:playwright_setup)",
             "$(rootpath @local_node_tools//:node)",
             "$(rootpath @local_node_tools//:npx)",
             "$(rootpath %s)" % test,
         ],
-        data = [
-            server,
-            test,
-            "//bazel:playwright_setup",
-            "@local_node_tools//:node",
-            "@local_node_tools//:npx",
-        ],
+        data = data,
         **kwargs
     )

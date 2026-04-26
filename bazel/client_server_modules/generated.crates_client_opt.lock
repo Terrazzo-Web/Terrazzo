@@ -4728,6 +4728,9 @@ name = "terrazzo-terminal-tests"
 version = "0.2.0"
 dependencies = [
  "clap",
+ "nameth",
+ "tempfile",
+ "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
 ]

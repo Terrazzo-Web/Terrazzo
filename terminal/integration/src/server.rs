@@ -102,7 +102,6 @@ pub struct Server {
     server_properties: ServerProperties,
     pub client_cert_file: PathBuf,
     pub log_file: PathBuf,
-    pub pid_file: PathBuf,
     pub endpoint_file: PathBuf,
     pub process: RefCell<Child>,
 }
@@ -118,6 +117,12 @@ impl Deref for Server {
 impl Server {
     pub fn start(properties: ServerProperties, server_args: &[OsString]) -> Result<Self, RunError> {
         let name = &properties.name;
+        std::fs::create_dir(properties.get_test_temp_path(name)).map_err(|source| {
+            RunError::ServerTempDir {
+                name: name.clone(),
+                source,
+            }
+        })?;
         let _span = info_span!("Start", server = name).entered();
         let config_file = properties.get_temp_path(&properties.config_file_suffix);
         let log_file = properties.get_temp_path(&properties.logs_path_suffix);
@@ -186,7 +191,6 @@ impl Server {
             server_properties: properties,
             client_cert_file,
             log_file,
-            pid_file,
             endpoint_file,
             process: process.into(),
         })
@@ -241,10 +245,6 @@ impl Server {
 
     pub fn log_contents(&self) -> String {
         std::fs::read_to_string(&self.log_file).unwrap_or_default()
-    }
-
-    pub fn pid_file_contents(&self) -> String {
-        std::fs::read_to_string(&self.pid_file).unwrap_or_default()
     }
 
     pub fn ensure_running(&self) -> Result<(), RunError> {

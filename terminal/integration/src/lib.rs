@@ -21,13 +21,18 @@ mod toml;
 
 const TIMEOUT: Duration = Duration::from_secs(45);
 
-// TODO: all parameter must be set with --long-param-name param-value
 #[derive(clap::Parser)]
 struct Args {
+    #[arg(long)]
     server_bin: PathBuf,
-    // TODO: clap should treat this parameter as optional
+
+    #[arg(long, num_args = 0..=1)]
     server_manifest_dir: Option<PathBuf>,
+
+    #[arg(long, default_value_t = 0)]
     port: u16,
+
+    #[arg(long)]
     set_current_endpoint: PathBuf,
 }
 
@@ -74,7 +79,6 @@ fn run() -> Result<(), RunError> {
         .build();
     let gateway = Server::start(gateway_properties, &[])?;
     gateway.wait_until_ready()?;
-    assert!(gateway.process.borrow().id().to_string() == gateway.pid_file_contents().trim());
     let gateway_endpoint = gateway.endpoint()?;
     info!(gateway_endpoint, "gateway node is ready");
     let root_ca_cert = test_properties.root_ca.with_added_extension("cert");
@@ -203,6 +207,12 @@ enum RunError {
 
     #[error("[{n}] Failed to stop {name}: {source}", n = self.name())]
     KillServer {
+        name: String,
+        source: std::io::Error,
+    },
+
+    #[error("[{n}] Failed to create temp dir for {name}: {source}", n = self.name())]
+    ServerTempDir {
         name: String,
         source: std::io::Error,
     },

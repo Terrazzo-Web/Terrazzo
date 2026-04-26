@@ -4,7 +4,7 @@ pub fn server_toml(pid_file: &Path, port: u16, root_ca: &Path) -> String {
     format!(
         r#"
 [server]
-host = "127.0.0.1"
+host = "localhost"
 port = {port}
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
@@ -28,7 +28,7 @@ pub fn client_toml(
     format!(
         r#"
 [server]
-host = "127.0.0.1"
+host = "localhost"
 port = 0
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"

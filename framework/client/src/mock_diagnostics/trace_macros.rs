@@ -82,7 +82,5 @@ macro_rules! __diagnostics_enabled {
         let _ = &$v;
         false
     }};
-    ($($arg:tt)*) => {{
-        false
-    }};
+    ($($arg:tt)*) => {{ false }};
 }

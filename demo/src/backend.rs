@@ -2,6 +2,7 @@
 
 use std::env::set_current_dir;
 use std::iter::once;
+use std::path::PathBuf;
 
 use clap::Parser as _;
 use terrazzo::axum;
@@ -27,7 +28,7 @@ struct Args {
     port: u16,
 
     #[arg(long = "set_current_endpoint")]
-    set_current_endpoint: Option<String>,
+    set_current_endpoint: Option<PathBuf>,
 }
 
 pub async fn run_server() {

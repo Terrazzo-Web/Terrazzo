@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::GatewayConfig;
@@ -13,7 +14,7 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn port(&self) -> u16 {
         self.as_ref().port()
     }
-    fn set_current_endpoint(&self) -> Option<String> {
+    fn set_current_endpoint(&self) -> Option<PathBuf> {
         self.as_ref().set_current_endpoint()
     }
 

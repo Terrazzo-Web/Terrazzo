@@ -4621,6 +4621,19 @@ name = "terrazzo-fixture"
 version = "0.2.0"
 
 [[package]]
+name = "terrazzo-integration-tests"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "nameth",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+ "typed-builder",
+]
+
+[[package]]
 name = "terrazzo-macro"
 version = "0.2.0"
 dependencies = [
@@ -4721,19 +4734,6 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "x509-parser",
-]
-
-[[package]]
-name = "terrazzo-terminal-tests"
-version = "0.2.0"
-dependencies = [
- "clap",
- "nameth",
- "tempfile",
- "thiserror 2.0.18",
- "tracing",
- "tracing-subscriber",
- "typed-builder",
 ]
 
 [[package]]

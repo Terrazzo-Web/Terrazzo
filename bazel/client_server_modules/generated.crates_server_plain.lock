@@ -4621,6 +4621,19 @@ name = "terrazzo-fixture"
 version = "0.2.0"
 
 [[package]]
+name = "terrazzo-integration-tests"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "nameth",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+ "typed-builder",
+]
+
+[[package]]
 name = "terrazzo-macro"
 version = "0.2.0"
 dependencies = [
@@ -4721,18 +4734,6 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "x509-parser",
-]
-
-[[package]]
-name = "terrazzo-terminal-tests"
-version = "0.2.0"
-dependencies = [
- "clap",
- "nameth",
- "tempfile",
- "thiserror 2.0.18",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -5377,6 +5378,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59b11b2b5241ba34be09c3cc85a36e56e48f9888862e19cedf23336d35316ed1"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31aa81521b70f94402501d848ccc0ecaa8f93c8eb6999eb9747e72287757ffda"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "076a02dc54dd46795c2e9c8282ed40bcfb1e22747e955de9389a1de28190fb26"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

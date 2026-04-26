@@ -13,7 +13,7 @@ members = [
   "remote/common",
   "remote/server",
   "terminal",
-  "terminal/terrazzo-terminal-tests",
+  "terminal/integration",
   "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
   "utils/css/cli",

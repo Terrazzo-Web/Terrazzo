@@ -33,6 +33,7 @@ pub fn menu() -> XElement {
         class = style::MENU,
         div(
             class = style::MENU_INNER,
+            #[cfg(not(feature = "client-prod"))]
             class = "app-menu-trigger",
             img(class = style::MENU_ICON, src = icons::menu()),
             mouseover = move |_: MouseEvent| {

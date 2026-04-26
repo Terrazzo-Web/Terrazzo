@@ -20,6 +20,7 @@ use crate::backend::auth::DEFAULT_TOKEN_LIFETIME;
 use crate::backend::auth::DEFAULT_TOKEN_REFRESH;
 use crate::backend::cli::Cli;
 use crate::backend::home;
+use crate::backend::terrazzo_home;
 
 impl ConfigFile {
     pub fn merge(self, cli: &Cli) -> Config {
@@ -87,19 +88,14 @@ fn merge_server_config(
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);
-            pidfile.unwrap_or_else(|| {
-                [home(), &format!(".terrazzo/terminal-{port}.pid")]
-                    .iter()
-                    .collect::<PathBuf>()
-            })
+            pidfile.unwrap_or_else(|| terrazzo_home().join(format!("terminal-{port}.pid")))
         },
         private_root_ca: {
             let private_root_ca = cli.private_root_ca.as_deref();
             let private_root_ca = private_root_ca
                 .or(server.private_root_ca.as_deref())
                 .map(expand_tilde);
-            private_root_ca
-                .unwrap_or_else(|| [home(), ".terrazzo/root_ca"].iter().collect::<PathBuf>())
+            private_root_ca.unwrap_or_else(|| terrazzo_home().join("root_ca"))
         },
         password: server.password.clone(),
         token_lifetime: parse_duration(server.token_lifetime.as_deref())
@@ -140,11 +136,7 @@ fn merge_mesh_config(
         client_certificate: client_certificate
             .or(mesh.and_then(|m| m.client_certificate.to_owned()))
             .map(expand_tilde)
-            .unwrap_or_else(|| {
-                [home(), ".terrazzo/client_certificate"]
-                    .iter()
-                    .collect::<PathBuf>()
-            }),
+            .unwrap_or_else(|| terrazzo_home().join("client_certificate")),
         retry_strategy: mesh
             .and_then(|mesh| mesh.retry_strategy.clone())
             .unwrap_or_default(),
@@ -185,12 +177,13 @@ mod tests {
     use super::parse_duration;
     use crate::backend::config::types::RuntimeTypes;
     use crate::backend::home;
+    use crate::backend::terrazzo_home;
 
     #[test]
     fn expand_tilde() {
         assert!(!home().ends_with("/"));
         assert_eq!(
-            home().to_owned() + "/home/path",
+            home().join("home/path"),
             super::expand_tilde("~//home/path")
         );
         assert_eq!(Path::new("~home/path"), super::expand_tilde("~home/path"));
@@ -203,12 +196,19 @@ mod tests {
     #[test]
     fn collapse_tilde() {
         assert_eq!(
-            super::collapse_tilde(home().to_owned() + "/home/path"),
-            Path::new("~/home/path")
+            "~/home/path",
+            super::collapse_tilde(format!("{}/home/path", home().display()))
+                .display()
+                .to_string()
         );
         assert_eq!(
-            super::collapse_tilde(home().to_owned() + home() + "/home/path"),
-            "~".to_owned() + home() + "/home/path"
+            format!(
+                "~/{}/home/path",
+                home().display().to_string().trim_matches('/')
+            ),
+            super::collapse_tilde(format!("{home}{home}/home/path", home = home().display()))
+                .display()
+                .to_string()
         );
     }
 
@@ -227,8 +227,8 @@ mod tests {
                 host: "localhost".into(),
                 port: 3000,
                 set_current_endpoint: None,
-                pidfile: format!("{}/.terrazzo/test.pid", home()).into(),
-                private_root_ca: format!("{}/.terrazzo/root_ca", home()).into(),
+                pidfile: terrazzo_home().join("test.pid"),
+                private_root_ca: terrazzo_home().join("root_ca"),
                 password: None,
                 token_lifetime: parse_duration(Some("5m")).unwrap(),
                 token_refresh: parse_duration(Some("4m 50s")).unwrap(),

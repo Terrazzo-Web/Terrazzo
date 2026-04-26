@@ -26,6 +26,67 @@ async function fetchServerFnFromPage(page, path, payload) {
   }, { path, payload });
 }
 
+function getConverterInput(page) {
+  return page.locator('textarea.converter-input');
+}
+
+function getConverterOutput(page) {
+  return page.locator('pre.converter-output').first();
+}
+
+function waitForConversionsResponse(page) {
+  return page.waitForResponse((response) =>
+    response.request().method() === 'POST' &&
+    response.url().includes('/api/fn/get_conversions'),
+  );
+}
+
+async function expectConversionsResponse(response) {
+  expect(response.ok()).toBeTruthy();
+  expect(response.headers()['content-type']).toMatch(/^application\/json\b/i);
+}
+
+async function openConverter(page) {
+  await page.locator('.app-menu-trigger').hover();
+  await page.getByText('Converter', { exact: true }).click();
+
+  const input = getConverterInput(page);
+  await expect(input).toBeVisible();
+  await page.waitForTimeout(500);
+  return input;
+}
+
+async function setConverterInput(page, value) {
+  const input = getConverterInput(page);
+  const conversionsResponse = waitForConversionsResponse(page);
+  await input.fill(value);
+  await expectConversionsResponse(await conversionsResponse);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function showRemoteDropdown(page) {
+  const remote = page.locator('.show-remote');
+  await remote.hover();
+
+  const options = remote.locator('li');
+  await expect(options.filter({ hasText: /^Local$/ })).toBeVisible();
+  await expect(options.filter({ hasText: /^test-client/ })).toBeVisible();
+  return options;
+}
+
+async function selectRemote(page, name) {
+  const options = await showRemoteDropdown(page);
+  const optionText = name === 'Local'
+    ? new RegExp(`^${escapeRegExp(name)}$`)
+    : new RegExp(`^${escapeRegExp(name)}`);
+  const conversionsResponse = waitForConversionsResponse(page);
+  await options.filter({ hasText: optionText }).click();
+  await expectConversionsResponse(await conversionsResponse);
+}
+
 test.describe('Converter', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(5 * SECOND);
@@ -50,52 +111,53 @@ test.describe('Converter', () => {
   });
 
   test('typing abc shows abc', async ({ page }) => {
-    await page.locator('.app-menu-trigger').hover();
-    await page.getByText('Converter', { exact: true }).click();
-
-    const input = page.locator('textarea.converter-input');
-    await expect(input).toBeVisible();
-    await page.waitForTimeout(500);
-    const conversionsResponse = page.waitForResponse((response) =>
-      response.request().method() === 'POST' &&
-      response.url().includes('/api/fn/get_conversions'),
-    );
+    const input = await openConverter(page);
+    const conversionsResponse = waitForConversionsResponse(page);
     await input.click();
     await input.pressSequentially('abc');
-    const response = await conversionsResponse;
-    expect(response.ok()).toBeTruthy();
-    expect(response.headers()['content-type']).toMatch(/^application\/json\b/i);
+    await expectConversionsResponse(await conversionsResponse);
 
-    await expect(page.locator('pre.converter-output').first()).toHaveText('"abc"');
+    await expect(getConverterOutput(page)).toHaveText('"abc"');
   });
 
   test('typing a JWT shows parsed JWT content', async ({ page }) => {
     const jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2In0.eyJpc3MiOiJodHRwczovL29wZW5pZC5leGFtcGxlLmNvbSIsInN1YiI6IjEyMzQ1Njc4OTAiLCJhdWQiOiJjbGllbnQtMTIzIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDAsIm5vbmNlIjoiYWJjMTIzIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJqb2huQGV4YW1wbGUuY29tIn0.Qh6cZf5tR8wPz7g9m1Xl3k2YV9JpL0aWZx3nF5K8mJp2ZrT7vLw9sX1yQd6fG8hJkL2mN4pQ7rS9tU1vW3xY5zA';
 
-    await page.locator('.app-menu-trigger').hover();
-    await page.getByText('Converter', { exact: true }).click();
-
-    const input = page.locator('textarea.converter-input');
-    await expect(input).toBeVisible();
-    await page.waitForTimeout(500);
-    const conversionsResponse = page.waitForResponse((response) =>
-      response.request().method() === 'POST' &&
-      response.url().includes('/api/fn/get_conversions'),
-    );
-    await input.fill(jwt);
-    const response = await conversionsResponse;
-    expect(response.ok()).toBeTruthy();
-    expect(response.headers()['content-type']).toMatch(/^application\/json\b/i);
+    await openConverter(page);
+    await setConverterInput(page, jwt);
 
     const jwtTab = page.getByText('JWT', { exact: true });
     await expect(jwtTab).toBeVisible();
     await jwtTab.click();
 
-    await expect(page.locator('pre.converter-output').first()).toContainText('aud: client-123');
-    await expect(page.locator('pre.converter-output').first()).toContainText('email: john@example.com');
-    await expect(page.locator('pre.converter-output').first()).toHaveText(
+    await expect(getConverterOutput(page)).toContainText('aud: client-123');
+    await expect(getConverterOutput(page)).toContainText('email: john@example.com');
+    await expect(getConverterOutput(page)).toHaveText(
       /exp: 1700003600 = 2023-11-14T23:13:20Z \(.+ ago\)/,
     );
   });
 
+  test('remote selector keeps converter content per remote', async ({ page }) => {
+    await openConverter(page);
+
+    if (await getConverterInput(page).inputValue() !== '') {
+      await setConverterInput(page, '');
+    }
+
+    const helloWorld = { Hello: 'World!' };
+    const bonjourMonde = { Bonjour: 'Monde!' };
+
+    await selectRemote(page, 'test-client');
+    await setConverterInput(page, JSON.stringify(helloWorld));
+    await expect(getConverterOutput(page)).toHaveText(JSON.stringify(helloWorld, null, 2));
+
+    await selectRemote(page, 'Local');
+    await expect(page.locator('pre.converter-output')).toHaveCount(0);
+
+    await setConverterInput(page, JSON.stringify(bonjourMonde));
+    await expect(getConverterOutput(page)).toHaveText(JSON.stringify(bonjourMonde, null, 2));
+
+    await selectRemote(page, 'test-client');
+    await expect(getConverterOutput(page)).toHaveText(JSON.stringify(helloWorld, null, 2));
+  });
 });

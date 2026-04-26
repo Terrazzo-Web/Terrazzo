@@ -30,9 +30,6 @@ struct Args {
     #[arg(long)]
     server_bin: PathBuf,
 
-    #[arg(long, num_args = 0..=1)]
-    server_manifest_dir: Option<PathBuf>,
-
     #[arg(long, default_value_t = 0)]
     port: u16,
 
@@ -63,16 +60,14 @@ fn run() -> Result<(), RunError> {
         server_bin,
         port,
         set_current_endpoint,
-        server_manifest_dir,
     } = Args::parse();
 
     let test_dir = test_dir::test_dir()?;
     let root_ca = test_dir.join("root-ca");
     let test_properties = TestProperties::builder()
-        .test_dir(test_dir)
+        .test_dir(test_dir.clone())
         .root_ca(root_ca)
         .server_bin(server_bin)
-        .server_manifest_dir(server_manifest_dir)
         .build()
         .into();
 
@@ -123,14 +118,27 @@ fn run() -> Result<(), RunError> {
     loop {
         if termination_requested() {
             info!("termination requested; stopping mesh nodes");
-            client.stop()?;
-            gateway.stop()?;
+            let client_stop_result = client.stop();
+            let gateway_stop_result = gateway.stop();
+            remove_test_dir(&test_dir)?;
+            client_stop_result?;
+            gateway_stop_result?;
             return Ok(());
         }
         gateway.ensure_running()?;
         client.ensure_running()?;
         sleep(Duration::from_millis(250));
     }
+}
+
+fn remove_test_dir(test_dir: &Path) -> Result<(), RunError> {
+    std::fs::remove_dir_all(test_dir).or_else(|source| match source.kind() {
+        std::io::ErrorKind::NotFound => Ok(()),
+        _ => Err(RunError::RemoveTestDir {
+            path: test_dir.to_path_buf(),
+            source,
+        }),
+    })
 }
 
 fn wait_for_file(path: &Path) -> Result<(), RunError> {
@@ -173,6 +181,12 @@ enum RunError {
     #[error("[{n}] Failed to create test directory under {base:?}: {source}", n = self.name())]
     CreateTestDir {
         base: Option<PathBuf>,
+        source: std::io::Error,
+    },
+
+    #[error("[{n}] Failed to remove test directory at {path:?}: {source}", n = self.name())]
+    RemoveTestDir {
+        path: PathBuf,
         source: std::io::Error,
     },
 

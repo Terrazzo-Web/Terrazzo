@@ -49,9 +49,6 @@ SERVER_ARGS=(
 )
 if [[ "${TARGET_SERVER}" != "-" ]]; then
   SERVER_ARGS=(--server-bin "${TARGET_SERVER}" "${SERVER_ARGS[@]}")
-  if "${SERVER_BIN}" --help 2>/dev/null | grep -Fq -- "--server-manifest-dir"; then
-    SERVER_ARGS+=(--server-manifest-dir "${CARGO_MANIFEST_DIR}")
-  fi
 fi
 CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
 RUST_BACKTRACE=1 \

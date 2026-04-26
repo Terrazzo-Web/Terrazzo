@@ -18,7 +18,7 @@ load(
     "TERMINAL_SERVER_DEPS",
     "TERMINAL_SERVER_FEATURES",
 )
-load(":terminal_rules.bzl", "terminal_rules")
+load(":terminal_rules.bzl", "terminal_rules","terminal_assets")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -31,6 +31,11 @@ feature_deps(
     },
     dependency_exclusion = ["trz-gateway-server"],
 )
+
+terminal_assets(
+    name="assets",
+    manifest=":server-debug-manifest-mirror",
+    server=":server-debug")
 
 terminal_rules(
     client_deps = ["//utils/nameth/nameth"] + CLIENT_PROD_DEPS,

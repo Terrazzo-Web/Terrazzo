@@ -93,7 +93,7 @@ impl AssetBuilder {
     /// Records the asset in a static table.
     pub fn install(self) {
         #[cfg(feature = "debug")]
-        println!("Installing {:?} => {:?}", self.asset_name, self.full_path);
+        debug!("Installing {:?} => {:?}", self.asset_name, self.full_path);
         let mime = if let Some(mime) = self.mime {
             mime
         } else {
@@ -205,6 +205,21 @@ fn add(name: String, value: Asset) {
     *assets = Some(map);
 }
 
+/// Lists the source paths of all registered static assets.
+#[cfg(feature = "debug")]
+pub fn asset_paths() -> Vec<PathBuf> {
+    let assets = ASSETS.read().unwrap();
+    let Some(assets) = assets.as_ref() else {
+        return Vec::new();
+    };
+    let mut paths = assets
+        .values()
+        .map(|asset| asset.full_path.clone())
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+}
+
 /// Axum handler that serves all the registered static assets.
 pub fn get(path: &str) -> std::future::Ready<Response<Body>> {
     debug!("Getting {path}");
@@ -295,7 +310,6 @@ macro_rules! declare_assets_dir {
 pub fn install_dir(prefix: &str, root: &Path, dir: &Dir<'static>) {
     for entry in dir.entries() {
         if let Some(dir) = entry.as_dir() {
-            let _ = root; // only used in debug mode.
             install_dir(prefix, root, dir);
         } else if let Some(file) = entry.as_file() {
             let asset_name = Path::new(prefix).join(entry.path());

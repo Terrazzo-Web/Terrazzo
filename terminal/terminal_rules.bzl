@@ -149,3 +149,40 @@ def terminal_rules(
         rule = "binary",
         deps = ["@crates//:tracing"],
     )
+
+
+def _terminal_assets_impl(ctx):
+    output = ctx.actions.declare_file(ctx.label.name + ".txt")
+    command = "\n".join([
+        "set -e",
+        'CARGO_MANIFEST_DIR="$(dirname "$(realpath "{}")")" "{}" --action list-assets > "{}"'.format(
+            ctx.file.manifest.path,
+            ctx.executable.server.path,
+            output.path,
+        ),
+    ])
+    ctx.actions.run_shell(
+        inputs = [ctx.file.manifest],
+        outputs = [output],
+        tools = [ctx.executable.server],
+        command = command,
+        mnemonic = "TerminalAssets",
+        progress_message = "Listing Terrazzo terminal assets" ,
+    )
+    return [DefaultInfo(files = depset([output]))]
+
+terminal_assets = rule(
+    implementation = _terminal_assets_impl,
+    attrs = {
+        "manifest": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            mandatory = True,
+        ),
+        "server": attr.label(
+            cfg = "exec",
+            executable = True,
+            mandatory = True,
+        ),
+    },
+)

@@ -75,4 +75,8 @@ pub enum Action {
 
     /// Sets the password
     SetPassword,
+
+    /// Lists all installed asset source paths
+    #[cfg(feature = "debug")]
+    ListAssets,
 }

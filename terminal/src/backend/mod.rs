@@ -94,7 +94,7 @@ pub fn run_server() -> Result<(), RunServerError> {
         if let Some(config_file) = &mut cli.config_file
             && Path::new(config_file).is_relative()
         {
-            *config_file = home().join(".terrazzo").join(&config_file)
+            *config_file = terrazzo_home().join(&config_file)
         }
         cli
     };
@@ -468,6 +468,11 @@ pub enum RunClientError {
 
     #[error("[{n}] {0}", n = self.name())]
     Aborted(String),
+}
+
+fn terrazzo_home() -> &'static Path {
+    static TERRAZZO_HOME: OnceLock<PathBuf> = OnceLock::new();
+    TERRAZZO_HOME.get_or_init(|| home().join(".terrazzo"))
 }
 
 fn home() -> &'static Path {

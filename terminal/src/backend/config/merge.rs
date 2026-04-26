@@ -20,6 +20,7 @@ use crate::backend::auth::DEFAULT_TOKEN_LIFETIME;
 use crate::backend::auth::DEFAULT_TOKEN_REFRESH;
 use crate::backend::cli::Cli;
 use crate::backend::home;
+use crate::backend::terrazzo_home;
 
 impl ConfigFile {
     pub fn merge(self, cli: &Cli) -> Config {
@@ -87,18 +88,14 @@ fn merge_server_config(
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);
-            pidfile.unwrap_or_else(|| {
-                home()
-                    .join(".terrazzo")
-                    .join(format!("terminal-{port}.pid"))
-            })
+            pidfile.unwrap_or_else(|| terrazzo_home().join(format!("terminal-{port}.pid")))
         },
         private_root_ca: {
             let private_root_ca = cli.private_root_ca.as_deref();
             let private_root_ca = private_root_ca
                 .or(server.private_root_ca.as_deref())
                 .map(expand_tilde);
-            private_root_ca.unwrap_or_else(|| home().join(".terrazzo").join("root_ca"))
+            private_root_ca.unwrap_or_else(|| terrazzo_home().join("root_ca"))
         },
         password: server.password.clone(),
         token_lifetime: parse_duration(server.token_lifetime.as_deref())
@@ -139,7 +136,7 @@ fn merge_mesh_config(
         client_certificate: client_certificate
             .or(mesh.and_then(|m| m.client_certificate.to_owned()))
             .map(expand_tilde)
-            .unwrap_or_else(|| home().join(".terrazzo").join("client_certificate")),
+            .unwrap_or_else(|| terrazzo_home().join("client_certificate")),
         retry_strategy: mesh
             .and_then(|mesh| mesh.retry_strategy.clone())
             .unwrap_or_default(),
@@ -180,6 +177,7 @@ mod tests {
     use super::parse_duration;
     use crate::backend::config::types::RuntimeTypes;
     use crate::backend::home;
+    use crate::backend::terrazzo_home;
 
     #[test]
     fn expand_tilde() {
@@ -229,8 +227,8 @@ mod tests {
                 host: "localhost".into(),
                 port: 3000,
                 set_current_endpoint: None,
-                pidfile: home().join(".terrazzo").join("test.pid"),
-                private_root_ca: home().join(".terrazzo").join("root_ca"),
+                pidfile: terrazzo_home().join("test.pid"),
+                private_root_ca: terrazzo_home().join("root_ca"),
                 password: None,
                 token_lifetime: parse_duration(Some("5m")).unwrap(),
                 token_refresh: parse_duration(Some("4m 50s")).unwrap(),

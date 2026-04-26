@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::OsString;
+use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -213,16 +214,23 @@ impl Server {
         })?;
         let endpoint = endpoint.trim();
         if endpoint.is_empty() {
-            Err(RunError::ReadEndpoint {
+            return Err(RunError::ReadEndpoint {
                 path: self.endpoint_file.clone(),
                 source: std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "The endpoint file is empty",
                 ),
-            })
-        } else {
-            Ok(endpoint.to_owned())
+            });
         }
+
+        let Ok(socket_addr) = endpoint.parse::<SocketAddr>() else {
+            return Ok(endpoint.to_owned());
+        };
+        if socket_addr.ip().is_loopback() {
+            return Ok(format!("localhost:{}", socket_addr.port()));
+        }
+
+        Ok(endpoint.to_owned())
     }
 
     pub fn wait_for_log(&self, pattern: &str) -> Result<(), RunError> {

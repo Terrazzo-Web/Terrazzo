@@ -28,12 +28,13 @@ pub struct TestGuard<'t>(#[allow(dead_code)] std::sync::MutexGuard<'t, ()>);
 impl TestGuard<'_> {
     pub fn get() -> Self {
         static TEST_LOCK: Mutex<()> = Mutex::new(());
+        let lock = TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+
         let dummy_server: MaybeUninit<Server> = MaybeUninit::zeroed();
         let dummy_server = unsafe { Arc::new(dummy_server.assume_init()) };
         set_remote_fn_server(Arc::downgrade(&dummy_server));
         std::mem::forget(dummy_server);
 
-        let lock = TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         LogState::get().reset_for_tests();
         remote_fn_service::unary::setup_for_tests();
         remote_fn_service::streaming::setup_for_tests();

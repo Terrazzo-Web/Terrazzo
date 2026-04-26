@@ -20,7 +20,6 @@ use crate::backend::auth::DEFAULT_TOKEN_LIFETIME;
 use crate::backend::auth::DEFAULT_TOKEN_REFRESH;
 use crate::backend::cli::Cli;
 use crate::backend::home;
-use crate::utils::more_path::MorePath as _;
 
 impl ConfigFile {
     pub fn merge(self, cli: &Cli) -> Config {
@@ -92,7 +91,6 @@ fn merge_server_config(
                 [home(), &format!(".terrazzo/terminal-{port}.pid")]
                     .iter()
                     .collect::<PathBuf>()
-                    .to_owned_string()
             })
         },
         private_root_ca: {
@@ -100,12 +98,8 @@ fn merge_server_config(
             let private_root_ca = private_root_ca
                 .or(server.private_root_ca.as_deref())
                 .map(expand_tilde);
-            private_root_ca.unwrap_or_else(|| {
-                [home(), ".terrazzo/root_ca"]
-                    .iter()
-                    .collect::<PathBuf>()
-                    .to_owned_string()
-            })
+            private_root_ca
+                .unwrap_or_else(|| [home(), ".terrazzo/root_ca"].iter().collect::<PathBuf>())
         },
         password: server.password.clone(),
         token_lifetime: parse_duration(server.token_lifetime.as_deref())
@@ -150,7 +144,6 @@ fn merge_mesh_config(
                 [home(), ".terrazzo/client_certificate"]
                     .iter()
                     .collect::<PathBuf>()
-                    .to_owned_string()
             }),
         retry_strategy: mesh
             .and_then(|mesh| mesh.retry_strategy.clone())
@@ -161,24 +154,25 @@ fn merge_mesh_config(
     }))
 }
 
-fn expand_tilde(path: impl AsRef<Path>) -> String {
+fn expand_tilde(path: impl AsRef<Path>) -> PathBuf {
     let path = path.as_ref();
     if let Ok(stripped) = path.strip_prefix("~") {
-        return Path::new(&home()).join(stripped).to_owned_string();
+        return Path::new(&home()).join(stripped);
     }
-    path.to_owned_string()
+    path.to_owned()
 }
 
-fn collapse_tilde(path: impl AsRef<str>) -> String {
+fn collapse_tilde(path: impl AsRef<Path>) -> PathBuf {
     let path = path.as_ref();
     return path
         .strip_prefix(home())
-        .map(|p| ["~", p].into_iter().collect())
-        .unwrap_or_else(|| path.to_owned());
+        .map(|p| [Path::new("~"), p].into_iter().collect())
+        .unwrap_or_else(|_error: std::path::StripPrefixError| path.to_owned());
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::time::Duration;
 
     use trz_gateway_common::dynamic_config::has_diff::DiffArc;
@@ -199,15 +193,18 @@ mod tests {
             home().to_owned() + "/home/path",
             super::expand_tilde("~//home/path")
         );
-        assert_eq!("~home/path", super::expand_tilde("~home/path"));
-        assert_eq!("/~/home/path", super::expand_tilde("/~/home/path"));
+        assert_eq!(Path::new("~home/path"), super::expand_tilde("~home/path"));
+        assert_eq!(
+            Path::new("/~/home/path"),
+            super::expand_tilde("/~/home/path")
+        );
     }
 
     #[test]
     fn collapse_tilde() {
         assert_eq!(
             super::collapse_tilde(home().to_owned() + "/home/path"),
-            "~/home/path"
+            Path::new("~/home/path")
         );
         assert_eq!(
             super::collapse_tilde(home().to_owned() + home() + "/home/path"),
@@ -230,8 +227,8 @@ mod tests {
                 host: "localhost".into(),
                 port: 3000,
                 set_current_endpoint: None,
-                pidfile: format!("{}/.terrazzo/test.pid", home()),
-                private_root_ca: format!("{}/.terrazzo/root_ca", home()),
+                pidfile: format!("{}/.terrazzo/test.pid", home()).into(),
+                private_root_ca: format!("{}/.terrazzo/root_ca", home()).into(),
                 password: None,
                 token_lifetime: parse_duration(Some("5m")).unwrap(),
                 token_refresh: parse_duration(Some("4m 50s")).unwrap(),

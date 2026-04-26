@@ -17,13 +17,13 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
 
     /// The TCP port to listen to.
     pub port: T::Port,
-    pub set_current_endpoint: T::MaybeString,
+    pub set_current_endpoint: T::MaybePath,
 
     /// The file to store the pid of the daemon while it is running,
-    pub pidfile: T::String,
+    pub pidfile: T::Path,
 
     /// The file to the store private Root CA.
-    pub private_root_ca: T::String,
+    pub private_root_ca: T::Path,
 
     /// The password to login to the UI.
     pub password: Option<Password>,

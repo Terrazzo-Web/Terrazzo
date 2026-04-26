@@ -77,7 +77,7 @@ fn run() -> Result<(), RunError> {
     assert!(gateway.process.borrow().id().to_string() == gateway.pid_file_contents().trim());
     let gateway_endpoint = gateway.endpoint()?;
     info!(gateway_endpoint, "gateway node is ready");
-    let root_ca_cert = test_properties.root_ca.with_extension("cert");
+    let root_ca_cert = test_properties.root_ca.with_added_extension("cert");
     wait_for_file(&root_ca_cert)?;
     info!(root_ca_cert = %root_ca_cert.display(), "gateway root certificate is ready");
 
@@ -103,7 +103,7 @@ fn run() -> Result<(), RunError> {
         .mode(server::Mode::Client { gateway_endpoint })
         .build();
     let client = Server::start(client_properties, &["--auth-code".into(), auth_code.into()])?;
-    let client_cert = client.client_cert_file.with_extension("cert");
+    let client_cert = client.client_cert_file.with_added_extension("cert");
     wait_for_file(&client_cert)?;
     info!(
         client_cert = %client_cert.display(),

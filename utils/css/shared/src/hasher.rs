@@ -10,7 +10,7 @@ impl ClassNameHasher {
         let mut file_hash = siphasher::sip::SipHasher24::new().hash(file_content.as_bytes());
         let file_hash = loop {
             let h = hash_to_string(file_hash, FILE_HASH_LEN);
-            if h.starts_with(|c| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+            if h.starts_with(|c: char| c.is_ascii_alphabetic()) {
                 break h;
             }
             file_hash += 1;

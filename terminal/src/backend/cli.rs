@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap::ValueEnum;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug, Default)]
 #[command(version, about, long_about = None)]
@@ -26,15 +27,15 @@ pub struct Cli {
 
     /// A temp file to write the port allocated dynamically.
     #[arg(long = "set_current_endpoint")]
-    pub set_current_endpoint: Option<String>,
+    pub set_current_endpoint: Option<PathBuf>,
 
     /// The file to store the pid of the daemon while it is running.
     #[arg(long)]
-    pub pidfile: Option<String>,
+    pub pidfile: Option<PathBuf>,
 
     /// The file to the store private Root CA.
     #[arg(long)]
-    pub private_root_ca: Option<String>,
+    pub private_root_ca: Option<PathBuf>,
 
     /// If using mesh: the Client name.
     #[arg(long)]
@@ -46,7 +47,7 @@ pub struct Cli {
 
     /// If using mesh: the Gateway CA
     #[arg(long)]
-    pub gateway_pki: Option<String>,
+    pub gateway_pki: Option<PathBuf>,
 
     /// If using mesh: the AuthCode to get a client certificate
     #[arg(long, default_value_t = String::default())]
@@ -54,7 +55,7 @@ pub struct Cli {
 
     /// If using mesh: the file to store the client certificate
     #[arg(long)]
-    pub client_certificate: Option<String>,
+    pub client_certificate: Option<PathBuf>,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

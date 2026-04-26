@@ -133,7 +133,7 @@ impl Server {
             Mode::Client { gateway_endpoint } => client_toml(
                 &pid_file,
                 &properties.root_ca,
-                &properties.root_ca.with_extension("cert"),
+                &properties.root_ca.with_added_extension("cert"),
                 &client_cert_file,
                 gateway_endpoint,
             ),

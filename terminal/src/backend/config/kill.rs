@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use nix::errno::Errno;
@@ -35,7 +37,7 @@ pub enum KillServerError {
     ReadPidfile(#[from] ReadPidfileError),
 
     #[error("[{n}] Pid file '{pidfile}' not found", n = self.name())]
-    PidfileNotFound { pidfile: String },
+    PidfileNotFound { pidfile: PathBuf },
 
     #[error("[{n}] {0}", n = self.name())]
     DeletePidfile(#[from] DeletePidfileError),

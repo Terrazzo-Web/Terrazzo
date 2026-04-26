@@ -35,7 +35,7 @@ fn mesh_client_gets_certificate_from_gateway() -> Result<(), Box<dyn Error>> {
     )?;
     server.wait_until_ready()?;
     let gateway_endpoint = server.endpoint()?;
-    let root_ca_cert = root_ca.with_extension("cert");
+    let root_ca_cert = root_ca.with_added_extension("cert");
     wait_for_file(&root_ca_cert)?;
 
     let client_cert = test_dir.join("client-certificate");
@@ -78,8 +78,8 @@ fn mesh_client_gets_certificate_from_gateway() -> Result<(), Box<dyn Error>> {
         ),
         vec!["--auth-code".to_owned(), auth_code],
     )?;
-    wait_for_file(&client_cert.with_extension("cert"))?;
-    assert_certificate_common_name(&client_cert.with_extension("cert"), CLIENT_NAME)?;
+    wait_for_file(&client_cert.with_added_extension("cert"))?;
+    assert_certificate_common_name(&client_cert.with_added_extension("cert"), CLIENT_NAME)?;
     second_client.stop()?;
     server.stop()?;
     Ok(())

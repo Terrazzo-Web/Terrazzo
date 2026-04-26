@@ -1,6 +1,6 @@
 use std::path::Path;
 
-pub fn server_config(test_dir: &Path, name: &str, port: u16, root_ca: &Path) -> String {
+pub fn server_toml(test_dir: &Path, name: &str, port: u16, root_ca: &Path) -> String {
     format!(
         r#"
 [server]
@@ -18,7 +18,7 @@ certificate_renewal_threshold = "30days"
     )
 }
 
-pub fn client_config(
+pub fn client_toml(
     test_dir: &Path,
     name: &str,
     root_ca: &Path,

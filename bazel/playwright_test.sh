@@ -2,12 +2,18 @@
 
 set -euo pipefail
 
-SERVER_BIN="${1:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
-PLAYWRIGHT_ROOT="${2:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
-NODE_BIN="${3:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
-NPX_BIN="${4:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
-TEST_SPEC="${5:?Usage: $0 <path-to-demo-server> <playwright-root> <node-bin> <npx-bin> <test-spec>}"
+USAGE="Usage: $0 <direct|mesh> <path-to-mesh-runner> <path-to-server> <playwright-root> <node-bin> <npx-bin> <test-spec>"
+SERVER_MODE="${1:?${USAGE}}"
+MESH_RUNNER="${2:?${USAGE}}"
+SERVER_BIN="${3:?${USAGE}}"
+PLAYWRIGHT_ROOT="${4:?${USAGE}}"
+NODE_BIN="${5:?${USAGE}}"
+NPX_BIN="${6:?${USAGE}}"
+TEST_SPEC="${7:?${USAGE}}"
 
+if [[ "${SERVER_MODE}" == "mesh" ]]; then
+  MESH_RUNNER="${TEST_SRCDIR}/${TEST_WORKSPACE}/${MESH_RUNNER}"
+fi
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
@@ -18,45 +24,43 @@ TMPDIR_ROOT="${TMPDIR:-/tmp}"
 TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"
 SERVER_LOG="${SERVER_LOG:-${TEST_TMPDIR%/}/server.log}"
 SERVER_ENDPOINT_FILE="${SERVER_ENDPOINT_FILE:-${TEST_TMPDIR%/}/server-endpoint}"
-TEMP_CONFIG_FILE="${TEMP_CONFIG_FILE:-${TEST_TMPDIR%/}/config.toml}"
+TERRAZZO_CONFIG_FILE="${TERRAZZO_CONFIG_FILE:-${TEST_TMPDIR%/}/terrazzo-integration-test/gateway/config.toml}"
 SERVER_PID=""
-SERVER_SUPPORTS_CONFIG_FILE=0
-
-SERVER_ARGS=(
-  --port 0
-  --set_current_endpoint "${SERVER_ENDPOINT_FILE}"
-)
 
 cleanup() {
   if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" 2>/dev/null; then
+    pkill -TERM -P "${SERVER_PID}" 2>/dev/null || true
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
   fi
-  rm -f "${SERVER_LOG}" "${SERVER_ENDPOINT_FILE}" "${TEMP_CONFIG_FILE}"
+  rm -f "${SERVER_LOG}" "${SERVER_ENDPOINT_FILE}"
 }
 
 trap cleanup EXIT
 
-if CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" "${SERVER_BIN}" --help 2>/dev/null | grep -Fq -- "--config-file"; then
-  SERVER_SUPPORTS_CONFIG_FILE=1
+export TEST_TMPDIR
+
+if [[ "${SERVER_MODE}" == "mesh" ]]; then
+  # TODO: instead of --server-manifest-dir "${CARGO_MANIFEST_DIR}", change //terminal/integration:exec to propagate the env variable
+  RUST_BACKTRACE=1 \
+  "${MESH_RUNNER}" \
+      --server-bin "${SERVER_BIN}" \
+      --server-manifest-dir "${CARGO_MANIFEST_DIR}" \
+      --port 0 \
+      --set-current-endpoint "${SERVER_ENDPOINT_FILE}" \
+    > "${SERVER_LOG}" 2>&1 &
+elif [[ "${SERVER_MODE}" == "direct" ]]; then
+  CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
+  RUST_BACKTRACE=1 \
+  "${SERVER_BIN}" \
+      --port 0 \
+      --set-current-endpoint "${SERVER_ENDPOINT_FILE}" \
+    > "${SERVER_LOG}" 2>&1 &
+else
+  echo "Unknown server mode: ${SERVER_MODE}" >&2
+  echo "${USAGE}" >&2
+  exit 1
 fi
-
-if [[ "${SERVER_SUPPORTS_CONFIG_FILE}" == "1" ]]; then
-cat > "${TEMP_CONFIG_FILE}" <<'EOF'
-[server]
-config_file_watcher = true
-
-[server.config_file_poll_strategy]
-fixed = "1h"
-EOF
-SERVER_ARGS+=(--config-file "${TEMP_CONFIG_FILE}")
-fi
-
-CARGO_MANIFEST_DIR="${CARGO_MANIFEST_DIR}" \
-RUST_BACKTRACE=1 \
-"${SERVER_BIN}" \
-    "${SERVER_ARGS[@]}" \
-  > "${SERVER_LOG}" 2>&1 &
 
 SERVER_PID="$!"
 
@@ -73,7 +77,7 @@ for _ in $(seq 1 30); do
     export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
     export PATH="$(dirname "${NODE_BIN}"):${PATH:-}"
     export TERRAZZO_SERVER_BIN="${SERVER_BIN}"
-    export TERRAZZO_CONFIG_FILE="${TEMP_CONFIG_FILE}"
+    export TERRAZZO_CONFIG_FILE
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"

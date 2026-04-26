@@ -10,7 +10,6 @@ use std::process::Command;
 use std::process::Stdio;
 use std::rc::Rc;
 
-use tempfile::TempDir;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
@@ -24,7 +23,7 @@ use crate::wait_until;
 #[derive(TypedBuilder)]
 pub struct TestProperties {
     /// A temp folder allocated to run the test harness
-    test_dir: TempDir,
+    test_dir: PathBuf,
 
     /// Suffix added to generate the path where the server reports the dynamic port number
     #[builder(default = "current_endpoint".into(), setter(into))]
@@ -59,7 +58,7 @@ pub struct TestProperties {
 
 impl TestProperties {
     fn get_test_temp_path(&self, suffix: impl AsRef<str>) -> PathBuf {
-        self.test_dir.path().join(suffix.as_ref())
+        self.test_dir.join(suffix.as_ref())
     }
 }
 
@@ -173,7 +172,7 @@ impl Server {
         );
         command.arg("--config-file");
         command.arg(&config_file);
-        command.arg("--set_current_endpoint");
+        command.arg("--set-current-endpoint");
         command.arg(&endpoint_file);
         command.args(server_args);
         if let Some(server_manifest_dir) = &properties.server_manifest_dir {

@@ -45,10 +45,11 @@ restart the client with `--auth-code`, wait for the client certificate, then kee
 until one exits or the harness is killed. The current `mesh_client_gets_certificate_from_gateway`
 test is intentionally left launching the server directly until the later refactor.
 
-The test creates a unique directory under `TEST_TMPDIR`, writes all configs, pidfiles, endpoint
-files, logs, the shared private root CA, and the client certificate under that directory, and starts:
+The test creates a deterministic directory under `TEST_TMPDIR`, writes all configs, pidfiles,
+endpoint files, logs, the shared private root CA, and the client certificate under that directory,
+and starts:
 
-- one gateway server with `port = 0` and `--set_current_endpoint`;
+- one gateway server with `port = 0` and `--set-current-endpoint`;
 - one mesh client without `--auth-code`, which is expected to log the 403 certificate load failure;
 - one mesh client restarted with the auth code parsed from the gateway log.
 

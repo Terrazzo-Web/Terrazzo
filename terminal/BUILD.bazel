@@ -90,6 +90,7 @@ playwright_matrix_test(
             "tags": ["opt_mode"],
         },
     },
+    server_mesh = True,
     test = "tests/integration-test-converter.spec.mjs",
 )
 
@@ -103,6 +104,7 @@ playwright_matrix_test(
             "tags": ["opt_mode"],
         },
     },
+    server_mesh = True,
     test = "tests/integration-test-terminal.spec.mjs",
 )
 
@@ -116,5 +118,6 @@ playwright_matrix_test(
             "tags": ["opt_mode"],
         },
     },
+    server_mesh = True,
     test = "tests/integration-test-password-update.spec.mjs",
 )

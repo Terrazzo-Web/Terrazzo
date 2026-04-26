@@ -61,7 +61,7 @@ fn run() -> Result<(), RunError> {
     } = Args::parse();
 
     let test_dir = test_dir::test_dir()?;
-    let root_ca = test_dir.path().join("root-ca");
+    let root_ca = test_dir.join("root-ca");
     let test_properties = TestProperties::builder()
         .test_dir(test_dir)
         .root_ca(root_ca)

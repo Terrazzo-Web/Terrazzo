@@ -73,17 +73,16 @@ def playwright_matrix_test(overrides = {}, **kwargs):
     """
     make_rules_matrix(playwright_test, overrides, **kwargs)
 
-def playwright_test(name, server, test, server_mesh = False, **kwargs):
+def playwright_test(name, server, test, target_server = None, **kwargs):
     """Defines a Playwright test.
 
     Args:
       name: Name of the Bazel test target.
-      server: Label of the server binary started by the test wrapper.
+      server: Label of the server binary or launcher started by the test wrapper.
       test: Label of the Playwright test entrypoint to execute.
-      server_mesh: Whether to start the server through the terminal mesh test launcher.
+      target_server: Optional server binary managed by the launcher.
       **kwargs: Additional arguments forwarded to `sh_test`.
     """
-    mesh_runner = "//terminal/integration:exec"
     data = [
         server,
         test,
@@ -91,16 +90,15 @@ def playwright_test(name, server, test, server_mesh = False, **kwargs):
         "@local_node_tools//:node",
         "@local_node_tools//:npx",
     ]
-    if server_mesh:
-        data.append(mesh_runner)
+    if target_server:
+        data.append(target_server)
 
     sh_test(
         name = name,
         srcs = ["//bazel:playwright_test.sh"],
         args = [
-            "mesh" if server_mesh else "direct",
-            "$(rootpath %s)" % mesh_runner if server_mesh else "-",
             "$(rootpath %s)" % server,
+            "$(rootpath %s)" % target_server if target_server else "-",
             "$(rootpath //bazel:playwright_setup)",
             "$(rootpath @local_node_tools//:node)",
             "$(rootpath @local_node_tools//:npx)",

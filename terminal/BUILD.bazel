@@ -83,41 +83,41 @@ scss_rule(
 playwright_matrix_test(
     overrides = {
         "converter-integration-test-debug": {
-            "server": ":converter-server-debug",
+            "target_server": ":converter-server-debug",
         },
         "converter-integration-test-release": {
-            "server": ":converter-server",
+            "target_server": ":converter-server",
             "tags": ["opt_mode"],
         },
     },
-    server_mesh = True,
+    server = "//terminal/integration:exec",
     test = "tests/integration-test-converter.spec.mjs",
 )
 
 playwright_matrix_test(
     overrides = {
         "terminal-integration-test-debug": {
-            "server": ":terminal-server-debug",
+            "target_server": ":terminal-server-debug",
         },
         "terminal-integration-test-release": {
-            "server": ":terminal-server",
+            "target_server": ":terminal-server",
             "tags": ["opt_mode"],
         },
     },
-    server_mesh = True,
+    server = "//terminal/integration:exec",
     test = "tests/integration-test-terminal.spec.mjs",
 )
 
 playwright_matrix_test(
     overrides = {
         "terminal-password-update-test-debug": {
-            "server": ":terminal-server-debug",
+            "target_server": ":terminal-server-debug",
         },
         "terminal-password-update-test-release": {
-            "server": ":terminal-server",
+            "target_server": ":terminal-server",
             "tags": ["opt_mode"],
         },
     },
-    server_mesh = True,
+    server = "//terminal/integration:exec",
     test = "tests/integration-test-password-update.spec.mjs",
 )

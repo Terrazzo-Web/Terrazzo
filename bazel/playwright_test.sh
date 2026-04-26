@@ -2,15 +2,17 @@
 
 set -euo pipefail
 
-USAGE="Usage: $0 <path-to-server-or-launcher> <path-to-target-server-or-> <playwright-root> <node-bin> <npx-bin> <test-spec>"
+USAGE="Usage: $0 <path-to-server-or-launcher> <path-to-target-server-or-> <path-to-terrazzo-server-manifest> <playwright-root> <node-bin> <npx-bin> <test-spec>"
 SERVER_BIN="${1:?${USAGE}}"
 TARGET_SERVER="${2:?${USAGE}}"
-PLAYWRIGHT_ROOT="${3:?${USAGE}}"
-NODE_BIN="${4:?${USAGE}}"
-NPX_BIN="${5:?${USAGE}}"
-TEST_SPEC="${6:?${USAGE}}"
+TERRAZZO_SERVER_MANIFEST="${3:?${USAGE}}"
+PLAYWRIGHT_ROOT="${4:?${USAGE}}"
+NODE_BIN="${5:?${USAGE}}"
+NPX_BIN="${6:?${USAGE}}"
+TEST_SPEC="${7:?${USAGE}}"
 
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
+TERRAZZO_SERVER_MANIFEST="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TERRAZZO_SERVER_MANIFEST}"
 NODE_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NODE_BIN}"
 NPX_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${NPX_BIN}"
 TEST_SPEC="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TEST_SPEC}"
@@ -20,8 +22,7 @@ else
   TARGET_SERVER="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TARGET_SERVER}"
   TERRAZZO_SERVER_BIN="${TARGET_SERVER}"
 fi
-# TODO: this won't work
-CARGO_MANIFEST_DIR="$(dirname "$(realpath "${TERRAZZO_SERVER_BIN}")")/cargo_root/$(basename "${TERRAZZO_SERVER_BIN}")"
+CARGO_MANIFEST_DIR="$(dirname "$(realpath "${TERRAZZO_SERVER_MANIFEST}")")"
 
 TMPDIR_ROOT="${TMPDIR:-/tmp}"
 TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d "${TMPDIR_ROOT%/}/terrazzo-playwright.XXXXXX")}"

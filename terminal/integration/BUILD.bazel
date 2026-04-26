@@ -8,12 +8,12 @@ rust_rules(
     deps = ["//utils/nameth/nameth"],
 )
 
-
 rust_rules(
     name = "exec",
+    all_crate_deps = False,
     crate_name = "terrazzo_terminal_test_server",
     crate_root = "src/exec.rs",
     generate_tests = False,
     rule = "binary",
-    deps=[":integration"],all_crate_deps=False
+    deps = [":integration"],
 )

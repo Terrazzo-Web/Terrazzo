@@ -26,7 +26,7 @@ pub struct Cli {
     pub port: Option<u16>,
 
     /// A temp file to write the port allocated dynamically.
-    #[arg(long = "set_current_endpoint")]
+    #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,
 
     /// The file to store the pid of the daemon while it is running.

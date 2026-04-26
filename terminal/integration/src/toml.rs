@@ -10,9 +10,12 @@ pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"
 token_refresh = "4m 50s"
-config_file_watcher = false
+config_file_watcher = true
 certificate_renewal_threshold = "30days"
-"#,
+
+[server.config_file_poll_strategy]
+fixed = "1h"
+	"#,
         pid_file = toml_path(pid_file),
         root_ca = toml_path(root_ca),
     )
@@ -34,8 +37,11 @@ pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"
 token_refresh = "4m 50s"
-config_file_watcher = false
+config_file_watcher = true
 certificate_renewal_threshold = "30days"
+
+[server.config_file_poll_strategy]
+fixed = "1h"
 
 [mesh]
 client_name = "{client_name}"

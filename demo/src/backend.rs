@@ -24,10 +24,10 @@ const PORT: u16 = if cfg!(debug_assertions) { 3000 } else { 3001 };
 
 #[derive(clap::Parser)]
 struct Args {
-    #[arg(short = 'p', long = "port", default_value_t = PORT)]
+    #[arg(short = 'p', long, default_value_t = PORT)]
     port: u16,
 
-    #[arg(long = "set_current_endpoint")]
+    #[arg(long)]
     set_current_endpoint: Option<PathBuf>,
 }
 

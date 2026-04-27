@@ -61,27 +61,27 @@ client = [
   "dep:terrazzo-client",
   "dep:terrazzo-css",
   "dep:thiserror",
-  "dep:wasm-bindgen-futures",
   "dep:wasm-bindgen",
+  "dep:wasm-bindgen-futures",
   "dep:web-sys",
   "terrazzo-macro/client",
 ]
+concise-traces = ["terrazzo-client?/concise-traces"]
+debug = ["dep:rsass"]
+diagnostics = ["terrazzo-client?/diagnostics"]
+max_client_level_debug = ["terrazzo-client?/max_level_debug"]
+max_client_level_info = ["terrazzo-client?/max_level_info"]
+rustdoc = []
 server = [
   "dep:axum",
   "dep:http",
   "dep:include_directory",
-  "dep:mime_guess",
   "dep:mime",
+  "dep:mime_guess",
   "dep:rsass-macros",
   "dep:tracing",
   "terrazzo-macro/server",
 ]
-concise-traces = ["terrazzo-client?/concise-traces"]
-rustdoc = []
-diagnostics = ["terrazzo-client?/diagnostics"]
-max_client_level_debug = ["terrazzo-client?/max_level_debug"]
-max_client_level_info = ["terrazzo-client?/max_level_info"]
-debug = ["dep:rsass"]
 
 [package.metadata.css]
 output_file = "target/css/common.scss"

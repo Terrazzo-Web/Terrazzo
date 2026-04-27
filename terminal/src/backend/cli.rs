@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 use clap::ValueEnum;
-use std::path::PathBuf;
 
 #[derive(Parser, Debug, Default)]
 #[command(version, about, long_about = None)]
@@ -75,4 +76,8 @@ pub enum Action {
 
     /// Sets the password
     SetPassword,
+
+    /// Lists all installed asset source paths
+    #[cfg(feature = "debug")]
+    ListAssets,
 }

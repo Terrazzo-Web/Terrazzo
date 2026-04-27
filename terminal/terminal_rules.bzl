@@ -1,7 +1,9 @@
 """Rules to build Terrazzo Terminal"""
 
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+load("//bazel:generated_file.bzl", "generate_file")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load(":terminal_assets.bzl", "ASSETS")
 load(":terminal_features.bzl", "compute_srcs")
 
 def _dedupe(items):
@@ -81,13 +83,7 @@ def terminal_rules(
     )
 
     server_assets_common = [
-        [
-            "assets/index.html",
-            "assets/bootstrap.js",
-            "assets/images/favicon.ico",
-            "assets/jsdeps/dist/jsdeps.js",
-            "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
-        ] + native.glob(["assets/icons/*.svg"]),
+        ASSETS,
         {
             "targets": [":terminal_scss"],
             "prefix": "target/css",
@@ -96,12 +92,10 @@ def terminal_rules(
     server_assets_release = [{
         "targets": [":" + prefix + "client"],
         "prefix": "target/assets/wasm",
-        "copy": True,  # Because we need to copy the snippets folder recursively
     }]
     server_assets_debug = [{
         "targets": [":" + prefix + "client-debug"],
         "prefix": "target/assets/wasm",
-        "copy": True,  # Because we need to copy the snippets folder recursively
     }]
 
     rust_rules_matrix(
@@ -117,6 +111,7 @@ def terminal_rules(
             prefix + "server-lib-debug": {
                 "crate_name": "terrazzo_terminal" + prefix[:-1].replace("-", "_") + "_debug",
                 "assets": server_assets_debug,
+                "crate_features": ["debug"],
                 "deps": ["//framework/terrazzo:server-debug"],
             },
         },
@@ -148,4 +143,58 @@ def terminal_rules(
         },
         rule = "binary",
         deps = ["@crates//:tracing"],
+    )
+
+def _generate_terminal_assets_impl(ctx):
+    output = ctx.actions.declare_file("generated-" + ctx.label.name + ".txt")
+    command = "\n".join([
+        "set -e",
+        'CARGO_MANIFEST_DIR="$(dirname "$(realpath "{}")")" "{}" --action list-assets > "{}"'.format(
+            ctx.file.manifest.path,
+            ctx.executable.server.path,
+            output.path,
+        ),
+    ])
+    ctx.actions.run_shell(
+        inputs = [ctx.file.manifest],
+        outputs = [output],
+        tools = [ctx.executable.server],
+        command = command,
+        mnemonic = "TerminalAssets",
+        progress_message = "Listing Terrazzo terminal assets",
+    )
+    return [DefaultInfo(files = depset([output]))]
+
+_generate_terminal_assets = rule(
+    implementation = _generate_terminal_assets_impl,
+    attrs = {
+        "manifest": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "server": attr.label(
+            cfg = "target",
+            executable = True,
+            mandatory = True,
+        ),
+    },
+)
+
+def terminal_assets(name, output, server = ":server-debug"):
+    """Defines targets that generate and update the terminal asset manifest.
+
+    Args:
+        name: Name for the generated Bazel targets.
+        output: Package-relative path of the checked-in asset manifest to update.
+        server: Label of the terminal server executable used to list assets.
+    """
+    _generate_terminal_assets(
+        name = name,
+        manifest = server + "-mirror-manifest",
+        server = server,
+    )
+    generate_file(
+        name = name + "_update",
+        src = ":" + name,
+        dest = output,
     )

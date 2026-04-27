@@ -6,5 +6,7 @@ common --experimental_disk_cache_gc_max_size=15G
 build:linux --linkopt=-fuse-ld=bfd
 build:linux --host_linkopt=-fuse-ld=bfd
 
-build:linux --action_env=PROTOC=/usr/bin/protoc
-build:macos --action_env=PROTOC=/opt/homebrew/bin/protoc
+build:linux      --action_env=PROTOC=/usr/bin/protoc
+build:linux --host_action_env=PROTOC=/usr/bin/protoc
+build:macos      --action_env=PROTOC=/opt/homebrew/bin/protoc
+build:macos --host_action_env=PROTOC=/opt/homebrew/bin/protoc

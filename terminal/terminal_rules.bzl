@@ -92,12 +92,10 @@ def terminal_rules(
     server_assets_release = [{
         "targets": [":" + prefix + "client"],
         "prefix": "target/assets/wasm",
-        "copy": True,  # Because we need to copy the snippets folder recursively
     }]
     server_assets_debug = [{
         "targets": [":" + prefix + "client-debug"],
         "prefix": "target/assets/wasm",
-        "copy": True,  # Because we need to copy the snippets folder recursively
     }]
 
     rust_rules_matrix(

@@ -1,8 +1,8 @@
 use std::iter::once;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nameth::nameth;
-use std::path::PathBuf;
 use terrazzo::axum::Router;
 use terrazzo::axum::extract::Path;
 use terrazzo::axum::routing::get;

@@ -1,0 +1,31 @@
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = [
+  "dependencies",
+  "dev-dependencies",
+  "build-dependencies",
+  "target.*.dependencies",
+  "target.*.dev-dependencies",
+  "target.*.build-dependencies",
+  "workspace.dependencies",
+]
+
+[rule.formatting]
+reorder_keys = true
+
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = [
+  "features",
+  "dependencies.*.features",
+  "dev-dependencies.*.features",
+  "build-dependencies.*.features",
+  "target.*.dependencies.*.features",
+  "target.*.dev-dependencies.*.features",
+  "target.*.build-dependencies.*.features",
+  "workspace.dependencies.*.features",
+]
+
+[rule.formatting]
+reorder_keys = true
+reorder_arrays = true

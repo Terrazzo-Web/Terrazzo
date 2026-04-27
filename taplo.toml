@@ -27,5 +27,4 @@ keys = [
 ]
 
 [rule.formatting]
-reorder_keys = true
 reorder_arrays = true

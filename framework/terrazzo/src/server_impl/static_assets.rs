@@ -310,6 +310,7 @@ macro_rules! declare_assets_dir {
 pub fn install_dir(prefix: &str, root: &Path, dir: &Dir<'static>) {
     for entry in dir.entries() {
         if let Some(dir) = entry.as_dir() {
+            let _ = root; // only used in debug mode.
             install_dir(prefix, root, dir);
         } else if let Some(file) = entry.as_file() {
             let asset_name = Path::new(prefix).join(entry.path());

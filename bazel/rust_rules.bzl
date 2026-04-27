@@ -326,7 +326,7 @@ def _mirror_sources_impl(ctx):
                     data_files.append(copied)
 
             lines.append('mkdir -p "$(dirname "{}")"'.format(copied.path))
-            if copy:
+            if copy or  f.is_directory:
                 if f.is_directory:
                     lines.append('mkdir -p "{}"'.format(copied.path))
                     lines.append('cp -R "$(realpath "{}")"/. "{}"'.format(f.path, copied.path))

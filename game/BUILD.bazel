@@ -74,7 +74,6 @@ rust_rules_matrix(
             "assets": [{
                 "targets": [":client"],
                 "prefix": "target/assets/wasm",
-                "copy": True,
             }],
             "deps": ["//framework/terrazzo:server"],
         },
@@ -82,7 +81,6 @@ rust_rules_matrix(
             "assets": [{
                 "targets": [":client-debug"],
                 "prefix": "target/assets/wasm",
-                "copy": True,
             }],
             "deps": ["//framework/terrazzo:server-debug"],
         },

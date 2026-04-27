@@ -3,6 +3,7 @@
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
 load("//bazel:generated_file.bzl", "generate_file")
 load("//bazel:rust_rules.bzl", "rust_rules_matrix")
+load(":terminal_assets.bzl", "ASSETS")
 load(":terminal_features.bzl", "compute_srcs")
 
 def _dedupe(items):
@@ -82,13 +83,7 @@ def terminal_rules(
     )
 
     server_assets_common = [
-        [
-            "assets/index.html",
-            "assets/bootstrap.js",
-            "assets/images/favicon.ico",
-            "assets/jsdeps/dist/jsdeps.js",
-            "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
-        ] + native.glob(["assets/icons/*.svg"]),
+        ASSETS,
         {
             "targets": [":terminal_scss"],
             "prefix": "target/css",

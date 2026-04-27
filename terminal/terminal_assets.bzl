@@ -27,7 +27,4 @@ ASSETS = [
     "assets/index.html",
     "assets/jsdeps/dist/jsdeps.js",
     "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
-    "target/assets/wasm/terrazzo_terminal.js",
-    "target/assets/wasm/terrazzo_terminal_bg.wasm",
-    "target/css/terrazzo-terminal.scss",
 ]

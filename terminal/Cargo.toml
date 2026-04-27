@@ -48,9 +48,9 @@ rpassword = { workspace = true, optional = true }
 rustls-native-certs = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
 serde = { workspace = true }
-serde-wasm-bindgen = { workspace = true, optional = true }
 serde_json = { workspace = true }
 serde_yaml_ng = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
 server_fn = { workspace = true }
 sha2 = { workspace = true, optional = true }
 simple_asn1 = { workspace = true, optional = true }
@@ -101,19 +101,12 @@ tonic-prost-build = { workspace = true }
 fluent-asserter = { workspace = true }
 
 [features]
-bazel = []
 rustdoc = []
+bazel = []
 
-client-prod = ["client-all", "max-level-info"]
 prod = ["max-level-info", "server-all"]
+client-prod = ["max-level-info", "client-all"]
 
-client-all = [
-  "converter-client",
-  "logs-panel-client",
-  "port-forward-client",
-  "terminal-client",
-  "text-editor-client",
-]
 server-all = [
   "converter-server",
   "logs-panel-server",
@@ -121,31 +114,21 @@ server-all = [
   "terminal-server",
   "text-editor-server",
 ]
+client-all = [
+  "converter-client",
+  "logs-panel-client",
+  "port-forward-client",
+  "terminal-client",
+  "text-editor-client",
+]
 
 client = [
   "dep:terrazzo-css",
-  "dep:wasm-bindgen",
   "dep:wasm-bindgen-futures",
+  "dep:wasm-bindgen",
   "server_fn/browser",
   "terrazzo/client",
 ]
-concise-traces = ["terrazzo?/concise-traces"]
-correlation-id = []
-debug = ["terrazzo?/debug"]
-diagnostics = ["terrazzo?/diagnostics"]
-max-level-debug = [
-  "terrazzo?/max_client_level_debug",
-  "tracing?/max_level_debug",
-  "tracing?/release_max_level_debug",
-]
-max-level-info = [
-  "concise-traces",
-  "terrazzo?/max_client_level_info",
-  "tracing?/max_level_info",
-  "tracing?/release_max_level_info",
-]
-no_wasm_build = []
-remotes-ui = []
 server = [
   "dep:axum-extra",
   "dep:base64",
@@ -160,8 +143,8 @@ server = [
   "dep:openssl",
   "dep:pbkdf2",
   "dep:pin-project",
-  "dep:prost",
   "dep:prost-types",
+  "dep:prost",
   "dep:rpassword",
   "dep:scopeguard",
   "dep:sha2",
@@ -169,8 +152,8 @@ server = [
   "dep:toml",
   "dep:tonic",
   "dep:tonic-prost",
-  "dep:tower",
   "dep:tower-http",
+  "dep:tower",
   "dep:tracing",
   "dep:trz-gateway-client",
   "dep:trz-gateway-common",
@@ -180,6 +163,23 @@ server = [
   "server_fn/browser",
   "terrazzo/server",
 ]
+max-level-debug = [
+  "terrazzo?/max_client_level_debug",
+  "tracing?/max_level_debug",
+  "tracing?/release_max_level_debug",
+]
+max-level-info = [
+  "terrazzo?/max_client_level_info",
+  "tracing?/max_level_info",
+  "tracing?/release_max_level_info",
+  "concise-traces",
+]
+concise-traces = ["terrazzo?/concise-traces"]
+diagnostics = ["terrazzo?/diagnostics"]
+no_wasm_build = []
+debug = ["terrazzo?/debug"]
+correlation-id = []
+remotes-ui = []
 
 terminal = ["correlation-id"]
 terminal-client = [

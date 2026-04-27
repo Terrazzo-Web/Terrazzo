@@ -8,5 +8,5 @@ edition = "2024"
 [dependencies]
 
 [features]
-method_does_not_exist = []
 some_unused_method = []
+method_does_not_exist = []

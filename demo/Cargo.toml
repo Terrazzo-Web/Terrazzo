@@ -50,42 +50,42 @@ scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }
 
 [features]
-bazel = []
+default = []
 client = [
   "dep:nameth",
   "dep:scopeguard",
   "dep:serde_json",
   "dep:terrazzo-css",
   "dep:thiserror",
-  "dep:wasm-bindgen",
   "dep:wasm-bindgen-futures",
+  "dep:wasm-bindgen",
   "dep:web-sys",
   "terrazzo/client",
   "web-sys/HtmlSelectElement",
 ]
-concise-traces = ["terrazzo?/concise-traces"]
-debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
-default = []
+server = [
+  "dep:clap",
+  "dep:tokio",
+  "dep:tower-http",
+  "dep:tracing-subscriber",
+  "dep:tracing",
+  "terrazzo/server",
+]
 max_level_debug = [
   "terrazzo?/max_client_level_debug",
   "tracing?/max_level_debug",
   "tracing?/release_max_level_debug",
 ]
 max_level_info = [
-  "concise-traces",
   "terrazzo?/max_client_level_info",
   "tracing?/max_level_info",
   "tracing?/release_max_level_info",
+  "concise-traces",
 ]
+concise-traces = ["terrazzo?/concise-traces"]
+debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
 no_wasm_build = []
-server = [
-  "dep:clap",
-  "dep:tokio",
-  "dep:tower-http",
-  "dep:tracing",
-  "dep:tracing-subscriber",
-  "terrazzo/server",
-]
+bazel = []
 
 [package.metadata.css]
 output_file = "target/css/demo.scss"

@@ -9,8 +9,8 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 
 [features]
-client = []
 default = ["client", "server"]
+client = []
 server = []
 
 [package.metadata.css]

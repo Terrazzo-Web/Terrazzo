@@ -35,34 +35,34 @@ scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }
 
 [features]
+default = []
 client = [
   "dep:terrazzo-css",
   "dep:wasm-bindgen",
   "dep:web-sys",
   "terrazzo/client",
 ]
-concise-traces = ["terrazzo?/concise-traces"]
-debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
-default = []
+server = [
+  "dep:tokio",
+  "dep:tower-http",
+  "dep:tracing-subscriber",
+  "dep:tracing",
+  "terrazzo/server",
+]
 max-level-debug = [
   "terrazzo?/max_client_level_debug",
   "tracing?/max_level_debug",
   "tracing?/release_max_level_debug",
 ]
 max-level-info = [
-  "concise-traces",
   "terrazzo?/max_client_level_info",
   "tracing?/max_level_info",
   "tracing?/release_max_level_info",
+  "concise-traces",
 ]
+concise-traces = ["terrazzo?/concise-traces"]
+debug = ["terrazzo/debug", "terrazzo?/diagnostics"]
 no_wasm_build = []
-server = [
-  "dep:tokio",
-  "dep:tower-http",
-  "dep:tracing",
-  "dep:tracing-subscriber",
-  "terrazzo/server",
-]
 
 [package.metadata.css]
 output_file = "target/css/game.scss"

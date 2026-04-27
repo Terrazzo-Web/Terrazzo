@@ -126,10 +126,10 @@ rustls = { version = "0.23.39" }
 rustls-native-certs = { version = "0.8.3" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.149" }
 serde_urlencoded = { version = "0.7.1" }
 serde_yaml_ng = { version = "0.10.0" }
+serde-wasm-bindgen = { version = "0.6.5" }
 server_fn = { version = "0.8.12", features = ["browser"] }
 server_fn_macro = { version = "0.8.3" }
 sha2 = { version = "0.11.0" }
@@ -143,6 +143,7 @@ thiserror = { version = "2.0.18" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.52.1" }
 tokio-rustls = { version = "0.26.4" }
+typed-builder = { version = "0.23.2" }
 tokio-stream = { version = "0.1.18" }
 tokio-tungstenite = { version = "0.29.0" }
 tokio-util = { version = "0.7.18" }
@@ -157,7 +158,6 @@ tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
-typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.1", features = ["v4", "fast-rng"] }

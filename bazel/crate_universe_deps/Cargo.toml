@@ -40,8 +40,8 @@ rsass = { workspace = true }
 rsass-macros = { workspace = true }
 rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
-serde-wasm-bindgen = { workspace = true }
 serde_yaml_ng = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }
@@ -72,6 +72,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-cli = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 wasm-streams = { workspace = true }
+x509-parser = { workspace = true }
 web-sys = { workspace = true, features = [
   "Clipboard",
   "ClipboardEvent",
@@ -96,4 +97,3 @@ web-sys = { workspace = true, features = [
   "Response",
   "Window",
 ] }
-x509-parser = { workspace = true }

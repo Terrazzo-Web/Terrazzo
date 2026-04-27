@@ -109,8 +109,10 @@ pub fn run_server() -> Result<(), RunServerError> {
         let cargo_manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         println!("ASSETS = [");
         for path in terrazzo::static_assets::asset_paths() {
-            if let Ok(path) = path.strip_prefix(cargo_manifest_dir) {
-                println!("    {path:?},");
+            if let Ok(path) = path.strip_prefix(cargo_manifest_dir)
+                && path.starts_with("assets")
+            {
+                println!("{path:?},");
             }
         }
         println!("]");

@@ -14,16 +14,16 @@ members = [
   "remote/server",
   "terminal",
   "terminal/integration",
-  "utils/autoclone/autoclone-tests",
   "utils/autoclone/autoclone",
+  "utils/autoclone/autoclone-tests",
   "utils/css/cli",
+  "utils/css/css",
   "utils/css/macro",
   "utils/css/shared",
-  "utils/css/css",
   "utils/fixture",
+  "utils/nameth/nameth",
   "utils/nameth/nameth-macro",
   "utils/nameth/nameth-tests",
-  "utils/nameth/nameth",
 ]
 resolver = "2"
 

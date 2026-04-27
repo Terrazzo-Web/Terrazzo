@@ -93,7 +93,7 @@ def playwright_test(name, server, test, target_server = None, **kwargs):
     terrazzo_server_manifest = _target_with_suffix(terrazzo_server, "-mirror-manifest")
     terrazzo_server_data = _target_with_suffix(terrazzo_server, "-mirror-data")
 
-    data = [ 
+    data = [
         server,
         test,
         terrazzo_server_data,

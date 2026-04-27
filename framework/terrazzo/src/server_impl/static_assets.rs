@@ -205,19 +205,34 @@ fn add(name: String, value: Asset) {
     *assets = Some(map);
 }
 
+/// Prints the registered asset dependencies in a Bazel-loadable format.
+#[cfg(feature = "debug")]
+pub fn echo_asset_dependencies() {
+    let cargo_manifest_dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
+    println!("ASSETS = [");
+    for asset_path in asset_paths() {
+        if let Ok(asset_path) = asset_path.strip_prefix(&cargo_manifest_dir)
+            && asset_path.starts_with("assets")
+        {
+            println!("{asset_path:?},");
+        }
+    }
+    println!("]");
+}
+
 /// Lists the source paths of all registered static assets.
 #[cfg(feature = "debug")]
-pub fn asset_paths() -> Vec<PathBuf> {
+fn asset_paths() -> Vec<PathBuf> {
     let assets = ASSETS.read().unwrap();
     let Some(assets) = assets.as_ref() else {
         return Vec::new();
     };
-    let mut paths = assets
+    let mut asset_paths = assets
         .values()
         .map(|asset| asset.full_path.clone())
         .collect::<Vec<_>>();
-    paths.sort();
-    paths
+    asset_paths.sort();
+    asset_paths
 }
 
 /// Axum handler that serves all the registered static assets.

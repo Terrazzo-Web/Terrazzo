@@ -106,16 +106,7 @@ pub fn run_server() -> Result<(), RunServerError> {
     #[cfg(feature = "debug")]
     if cli.action == Action::ListAssets {
         assets::install::install_assets();
-        let cargo_manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        println!("ASSETS = [");
-        for path in terrazzo::static_assets::asset_paths() {
-            if let Ok(path) = path.strip_prefix(cargo_manifest_dir)
-                && path.starts_with("assets")
-            {
-                println!("{path:?},");
-            }
-        }
-        println!("]");
+        terrazzo::static_assets::echo_asset_dependencies();
         return Ok(());
     }
 

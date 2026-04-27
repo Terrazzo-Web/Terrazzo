@@ -110,10 +110,12 @@ mod tests {
 
     #[tokio::test]
     async fn empty_input_has_no_conversions() {
-        assert!(super::get_conversions("".into())
-            .await
-            .unwrap()
-            .conversions
-            .is_empty());
+        assert!(
+            super::get_conversions("".into())
+                .await
+                .unwrap()
+                .conversions
+                .is_empty()
+        );
     }
 }

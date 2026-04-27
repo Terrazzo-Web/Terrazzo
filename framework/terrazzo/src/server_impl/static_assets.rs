@@ -207,11 +207,13 @@ fn add(name: String, value: Asset) {
 
 /// Prints the registered asset dependencies in a Bazel-loadable format.
 #[cfg(feature = "debug")]
-pub fn echo_asset_dependencies() {
-    let cargo_manifest_dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
+pub fn echo_asset_dependencies(cargo_manifest_dir: impl AsRef<Path>) {
+    let cargo_manifest_dir = cargo_manifest_dir.as_ref();
+    println!(r#""""Generated assets dependencies constants.""""#);
+    println!();
     println!("ASSETS = [");
     for asset_path in asset_paths() {
-        if let Ok(asset_path) = asset_path.strip_prefix(&cargo_manifest_dir)
+        if let Ok(asset_path) = asset_path.strip_prefix(cargo_manifest_dir)
             && asset_path.starts_with("assets")
         {
             println!("{asset_path:?},");

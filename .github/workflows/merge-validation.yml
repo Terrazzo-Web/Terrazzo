@@ -125,7 +125,9 @@ jobs:
           npx webpack
 
       - name: Update auto-generated files
-        run: bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run
+        run: |
+          export PROTOC=$(which protoc)
+          bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run --action_env=PROTOC
 
       - name: Buildifier
         run: bazel run //bazel:buildifier

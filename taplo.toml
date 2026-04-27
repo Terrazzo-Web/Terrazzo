@@ -16,6 +16,7 @@ reorder_keys = true
 [[rule]]
 include = ["**/Cargo.toml"]
 keys = [
+  "workspace",
   "features",
   "dependencies.*.features",
   "dev-dependencies.*.features",

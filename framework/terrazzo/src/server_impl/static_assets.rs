@@ -93,7 +93,7 @@ impl AssetBuilder {
     /// Records the asset in a static table.
     pub fn install(self) {
         #[cfg(feature = "debug")]
-        println!("Installing {:?} => {:?}", self.asset_name, self.full_path);
+        debug!("Installing {:?} => {:?}", self.asset_name, self.full_path);
         let mime = if let Some(mime) = self.mime {
             mime
         } else {
@@ -129,11 +129,23 @@ impl AssetBuilder {
 ///
 /// The content of the file is compiled into the server binary using the [include_bytes] macro.
 #[macro_export]
+#[cfg(not(feature = "debug"))]
 macro_rules! declare_asset {
     ($file:expr $(,)?) => {
         $crate::static_assets::AssetBuilder::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
             include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $file)),
+        )
+    };
+}
+
+#[macro_export]
+#[cfg(feature = "debug")]
+macro_rules! declare_asset {
+    ($file:expr $(,)?) => {
+        $crate::static_assets::AssetBuilder::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/", $file),
+            &[],
         )
     };
 }
@@ -191,6 +203,38 @@ fn add(name: String, value: Asset) {
     let mut map = HashMap::new();
     map.insert(name, value);
     *assets = Some(map);
+}
+
+/// Prints the registered asset dependencies in a Bazel-loadable format.
+#[cfg(feature = "debug")]
+pub fn echo_asset_dependencies(cargo_manifest_dir: impl AsRef<Path>) {
+    let cargo_manifest_dir = cargo_manifest_dir.as_ref();
+    println!(r#""""Generated assets dependencies constants.""""#);
+    println!();
+    println!("ASSETS = [");
+    for asset_path in asset_paths() {
+        if let Ok(asset_path) = asset_path.strip_prefix(cargo_manifest_dir)
+            && asset_path.starts_with("assets")
+        {
+            println!("{asset_path:?},");
+        }
+    }
+    println!("]");
+}
+
+/// Lists the source paths of all registered static assets.
+#[cfg(feature = "debug")]
+fn asset_paths() -> Vec<PathBuf> {
+    let assets = ASSETS.read().unwrap();
+    let Some(assets) = assets.as_ref() else {
+        return Vec::new();
+    };
+    let mut asset_paths = assets
+        .values()
+        .map(|asset| asset.full_path.clone())
+        .collect::<Vec<_>>();
+    asset_paths.sort();
+    asset_paths
 }
 
 /// Axum handler that serves all the registered static assets.

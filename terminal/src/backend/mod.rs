@@ -103,6 +103,13 @@ pub fn run_server() -> Result<(), RunServerError> {
         return Err(RunServerError::PasswordStdinRequiresSetPassword);
     }
 
+    #[cfg(feature = "debug")]
+    if cli.action == Action::ListAssets {
+        assets::install::install_assets();
+        terrazzo::static_assets::echo_asset_dependencies(env!("CARGO_MANIFEST_DIR"));
+        return Ok(());
+    }
+
     let config = if let Some(path) = cli.config_file.as_deref() {
         ConfigFile::load(path)?
     } else {

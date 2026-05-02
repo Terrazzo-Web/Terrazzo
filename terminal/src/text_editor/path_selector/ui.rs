@@ -140,6 +140,8 @@ fn path_selector_display(
     #[signal] path: Arc<str>,
     force_edit_path_mut: MutableSignal<bool>,
 ) -> XElement {
+    #[cfg(feature = "client-prod")]
+    let _ = kind;
     div(
         class = style::PATH_SELECTOR_WIDGET,
         key = "display",

@@ -66,6 +66,8 @@ pub fn folder(
             .unwrap_or_default();
         rows.push(tr(
             id = "{name}",
+            #[cfg(not(feature = "client-prod"))]
+            class = "folder-row",
             click = move |_| {
                 autoclone!(manager, file_path, name);
                 let file_path = &*file_path;
@@ -80,7 +82,11 @@ pub fn folder(
                 };
                 manager.path.file.set(file.to_owned_string())
             },
-            td("{display_name}"),
+            td(
+                #[cfg(not(feature = "client-prod"))]
+                class = "folder-name",
+                "{display_name}",
+            ),
             td("{size}"),
             td(modified),
             td("{user}"),

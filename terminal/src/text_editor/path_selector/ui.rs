@@ -99,6 +99,11 @@ fn path_selector_input(
             },
             r#type = "text",
             class = style::PATH_SELECTOR_FIELD,
+            #[cfg(not(feature = "client-prod"))]
+            class = match kind {
+                PathSelector::BasePath => "base-path-selector-field",
+                PathSelector::FilePath => "file-path-selector-field",
+            },
             focus = start_autocomplete(
                 manager.clone(),
                 kind,

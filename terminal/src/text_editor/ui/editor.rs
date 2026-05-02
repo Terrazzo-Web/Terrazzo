@@ -83,6 +83,8 @@ pub fn editor(
 
     tag(
         class = style::EDITOR,
+        #[cfg(not(feature = "client-prod"))]
+        class = "code-mirror-editor",
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;

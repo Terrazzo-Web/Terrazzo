@@ -115,9 +115,9 @@ pub fn editor(
         class = style::EDITOR,
         class = is_pdf.then_some(style::PDF_VIEWER),
         #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf).then_some("code-mirror-editor"),
-        #[cfg(not(feature = "client-prod"))]
         class = is_pdf.then_some("pdf-viewer"),
+        #[cfg(not(feature = "client-prod"))]
+        class = (!is_pdf).then_some("code-mirror-editor"),
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;

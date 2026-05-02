@@ -32,7 +32,7 @@ function getCodeMirrorContent(page) {
 }
 
 function getPdfPage(page, pageNumber) {
-  return page.locator(`.pdf-viewer canvas.pdf-page[data-page-number="${pageNumber}"]`);
+  return page.locator(`.pdf-viewer canvas[data-page-number="${pageNumber}"]`);
 }
 
 async function expectPdfPage(page, pageNumber) {

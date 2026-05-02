@@ -19,16 +19,16 @@ use self::diagnostics::debug;
 use self::diagnostics::debug_span;
 use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
-use super::file_path::FilePath;
 use super::fsio;
 use super::fsio::ui::store_file;
-use super::manager::EditorDataState;
-use super::manager::TextEditorManager;
-use super::notify::server_fn::EventKind;
-use super::notify::server_fn::FileEventKind;
-use super::notify::server_fn::NotifyResponse;
 use super::style;
-use super::synchronized_state::SynchronizedState;
+use crate::text_editor::file_path::FilePath;
+use crate::text_editor::manager::EditorDataState;
+use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::notify::server_fn::EventKind;
+use crate::text_editor::notify::server_fn::FileEventKind;
+use crate::text_editor::notify::server_fn::NotifyResponse;
+use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::utils::more_path::MorePath as _;
 
 #[autoclone]

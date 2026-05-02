@@ -35,7 +35,7 @@ impl CodeMirrorJs {
     }
 }
 
-#[wasm_bindgen(module = "/src/text_editor/code_mirror.js")]
+#[wasm_bindgen(module = "/src/text_editor/ui/code_mirror.js")]
 extern "C" {
     #[derive(Clone)]
     pub type CodeMirrorJsImpl;

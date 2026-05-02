@@ -10,16 +10,16 @@ use terrazzo::template;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
-use super::fsio::FileMetadata;
-use super::manager::EditorDataState;
-use super::manager::TextEditorManager;
-use super::notify::server_fn::EventKind;
-use super::notify::server_fn::FileEventKind;
-use super::notify::ui::NotifyRegistration;
 use crate::frontend::menu::before_menu;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
+use crate::text_editor::fsio::FileMetadata;
+use crate::text_editor::manager::EditorDataState;
+use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::notify::server_fn::EventKind;
+use crate::text_editor::notify::server_fn::FileEventKind;
+use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "folder.scss");

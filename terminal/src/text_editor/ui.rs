@@ -16,9 +16,9 @@ use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::debug;
 use self::diagnostics::warn;
-use super::editor::editor;
+use self::editor::editor;
+use self::folder::folder;
 use super::file_path::FilePath;
-use super::folder::folder;
 use super::fsio;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
@@ -35,6 +35,10 @@ use crate::frontend::menu::menu;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::text_editor::search::state::EditorSearchState;
+
+mod code_mirror;
+mod editor;
+mod folder;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)

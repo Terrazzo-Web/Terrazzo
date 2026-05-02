@@ -85,12 +85,12 @@ fn install_xterm() {
 fn install_pdfjs() {
     #[cfg(feature = "text-editor")]
     {
-        declare_asset!("/assets/pdfjs/pdf.mjs")
-            .asset_name("pdfjs/pdf.mjs")
+        declare_asset!("/assets/pdfjs/pdf.min.mjs")
+            .asset_name("pdfjs/pdf.min.mjs")
             .mime("text/javascript; charset=utf-8")
             .install();
-        declare_asset!("/assets/pdfjs/pdf.worker.mjs")
-            .asset_name("pdfjs/pdf.worker.mjs")
+        declare_asset!("/assets/pdfjs/pdf.worker.min.mjs")
+            .asset_name("pdfjs/pdf.worker.min.mjs")
             .mime("text/javascript; charset=utf-8")
             .install();
         declare_asset!("/assets/pdfjs/pdfjs-loader.js")

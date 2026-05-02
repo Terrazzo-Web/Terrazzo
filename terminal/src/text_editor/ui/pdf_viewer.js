@@ -2,8 +2,8 @@ let pdfjsLibPromise;
 
 function loadPdfJs() {
     if (!pdfjsLibPromise) {
-        pdfjsLibPromise = import("/static/pdfjs/pdf.mjs").then((pdfjsLib) => {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.mjs";
+        pdfjsLibPromise = import("/static/pdfjs/pdf.min.mjs").then((pdfjsLib) => {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.mjs";
             return pdfjsLib;
         });
     }

@@ -56,6 +56,9 @@ pub fn main() {
     if Feature::LogsPanel.is_set() {
         Feature::LogsPanelClient.add(&mut wasm_pack_options);
     }
+    if Feature::Prod.is_set() {
+        Feature::ClientProd.add(&mut wasm_pack_options);
+    }
     let wasm_pack_options = wasm_pack_options
         .iter()
         .map(|s| s.as_str())

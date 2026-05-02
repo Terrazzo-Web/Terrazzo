@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const SECOND = 1000;
 const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
+const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 
 async function createTempFile(name) {
   const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-'));
@@ -17,12 +19,71 @@ function getBasePathInput(page) {
   return page.locator('.base-path-selector-field');
 }
 
+function getBasePathDisplay(page) {
+  return page.locator('.base-path-selector-display');
+}
+
 function getFolderFile(page, name) {
   return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
 }
 
 function getCodeMirrorContent(page) {
   return page.locator('.code-mirror-editor .cm-content');
+}
+
+function getPdfPage(page, pageNumber) {
+  return page.locator(`.pdf-viewer canvas.pdf-page[data-page-number="${pageNumber}"]`);
+}
+
+async function expectPdfPage(page, pageNumber) {
+  const viewer = page.locator('.pdf-viewer');
+  await expect(viewer).toBeVisible({ timeout: 30 * SECOND });
+
+  const canvas = getPdfPage(page, pageNumber);
+  try {
+    await expect(canvas).toBeVisible({ timeout: 30 * SECOND });
+  } catch (error) {
+    const status = await viewer.locator('.pdf-status').textContent().catch(() => '<none>');
+    throw new Error(`PDF page ${pageNumber} did not render. Status: ${status}\n${error.message}`);
+  }
+  return canvas;
+}
+
+async function renderedPixelCount(canvas) {
+  return canvas.evaluate((node) => {
+    const context = node.getContext('2d');
+    const { width, height } = node;
+    if (!context || width === 0 || height === 0) {
+      return { width, height, paintedPixels: 0 };
+    }
+
+    const data = context.getImageData(0, 0, width, height).data;
+    let paintedPixels = 0;
+    const sampleStride = 64;
+    for (let i = 0; i < data.length; i += 4 * sampleStride) {
+      const red = data[i];
+      const green = data[i + 1];
+      const blue = data[i + 2];
+      const alpha = data[i + 3];
+      if (alpha !== 0 && (red !== 255 || green !== 255 || blue !== 255)) {
+        paintedPixels += 1;
+      }
+    }
+    return { width, height, paintedPixels };
+  });
+}
+
+async function showBasePathInput(page) {
+  const basePathInput = getBasePathInput(page);
+  await page
+    .locator('.base-path-selector-field, .base-path-selector-display')
+    .first()
+    .waitFor({ state: 'visible', timeout: 30 * SECOND });
+  if (!(await basePathInput.isVisible().catch(() => false))) {
+    await getBasePathDisplay(page).dblclick();
+  }
+  await expect(basePathInput).toBeVisible({ timeout: 30 * SECOND });
+  return basePathInput;
 }
 
 test.describe('Text editor', () => {
@@ -42,8 +103,7 @@ test.describe('Text editor', () => {
 
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
-    const basePathInput = getBasePathInput(page);
-    await expect(basePathInput).toBeVisible({ timeout: 30 * SECOND });
+    const basePathInput = await showBasePathInput(page);
     await basePathInput.fill(baseDir);
     await basePathInput.blur();
 
@@ -57,5 +117,31 @@ test.describe('Text editor', () => {
     await expect
       .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
       .toBe('Hello, world!');
+  });
+
+  test('renders a PDF file', async ({ page }) => {
+    test.setTimeout(60 * SECOND);
+
+    const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
+    await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
+
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+    const basePathInput = await showBasePathInput(page);
+    await basePathInput.fill(baseDir);
+    await basePathInput.blur();
+
+    await getFolderFile(page, 'PlantUML.pdf').click();
+
+    const firstPage = await expectPdfPage(page, 1);
+    await expect
+      .poll(async () => (await renderedPixelCount(firstPage)).paintedPixels, {
+        timeout: 30 * SECOND,
+      })
+      .toBeGreaterThan(0);
+    const pixels = await renderedPixelCount(firstPage);
+    expect(pixels.width).toBeGreaterThan(0);
+    expect(pixels.height).toBeGreaterThan(0);
+    expect(pixels.paintedPixels).toBeGreaterThan(0);
   });
 });

@@ -86,15 +86,19 @@ fn install_pdfjs() {
     #[cfg(feature = "text-editor")]
     {
         declare_asset!("/assets/pdfjs/LICENSE")
+            .asset_name("pdfjs/LICENSE")
             .mime(terrazzo::mime::TEXT_PLAIN_UTF_8.as_ref())
             .install();
         declare_asset!("/assets/pdfjs/pdf.mjs")
+            .asset_name("pdfjs/pdf.mjs")
             .mime("text/javascript; charset=utf-8")
             .install();
         declare_asset!("/assets/pdfjs/pdf.worker.mjs")
+            .asset_name("pdfjs/pdf.worker.mjs")
             .mime("text/javascript; charset=utf-8")
             .install();
         declare_asset!("/assets/pdfjs/pdfjs-loader.js")
+            .asset_name("pdfjs/pdfjs-loader.js")
             .mime("text/javascript; charset=utf-8")
             .install();
     }

@@ -1,3 +1,15 @@
+let pdfjsLibPromise;
+
+function loadPdfJs() {
+    if (!pdfjsLibPromise) {
+        pdfjsLibPromise = import("/static/pdfjs/pdf.mjs").then((pdfjsLib) => {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.mjs";
+            return pdfjsLib;
+        });
+    }
+    return pdfjsLibPromise;
+}
+
 class PdfJsImpl {
     element;
     loadingTask;
@@ -31,10 +43,7 @@ class PdfJsImpl {
         this.showStatus("Loading PDF...");
 
         try {
-            const pdfjsLib = globalThis.pdfjsLib;
-            if (!pdfjsLib) {
-                throw new Error("PDF.js is not loaded");
-            }
+            const pdfjsLib = await loadPdfJs();
 
             this.loadingTask = pdfjsLib.getDocument({
                 data: base64ToBytes(base64),

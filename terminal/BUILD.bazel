@@ -144,6 +144,7 @@ playwright_matrix_test(
 )
 
 playwright_matrix_test(
+    extra_data = ["tests/PlantUML.pdf"],
     overrides = {
         "text-editor-integration-test-debug": {
             "target_server": ":text-editor-server-debug",

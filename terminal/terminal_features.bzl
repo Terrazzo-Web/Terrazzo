@@ -51,6 +51,7 @@ TEXT_EDITOR_CLIENT_DEPS = CLIENT_DEPS + REMOTES_UI_DEPS + TEXT_EDITOR_DEPS + [
     "@crates//:futures",
     "@crates//:scopeguard",
     "@crates//:serde-wasm-bindgen",
+    "@crates//:web-sys",
 ]
 TEXT_EDITOR_CLIENT_FEATURES = CLIENT_FEATURES + REMOTES_UI_FEATURES + TEXT_EDITOR_FEATURES + ["text-editor-client"]
 CLIENT_ALL_DEPS = CONVERTER_CLIENT_DEPS + LOGS_PANEL_CLIENT_DEPS + PORT_FORWARD_CLIENT_DEPS + TERMINAL_CLIENT_DEPS + TEXT_EDITOR_CLIENT_DEPS
@@ -170,9 +171,9 @@ _EXCLUSION_MAP = [
     {"feature": "logs-panel", "delta": [-280, 15, -248, 2, 304, 4, 314, 5]},
     {"feature": "streaming-remote-fn", "delta": [-322, 5, -310, 4, 150, 3, 158, 5]},
     {"feature": "port-forward", "delta": [-166, 5, -154, 3, 134, 4, 144, 2, 324, 3, 332, 4]},
-    {"feature": "text-editor", "delta": [-338, 4, -328, 3, -146, 2, -140, 4, 112, 4, 122, 6, 296, 3, 380, 16, 414, 15, 448, 10]},
-    {"feature": "client", "delta": [-466, 10, -442, 15, -410, 16, -132, 6, -118, 4, 3, 6, 17, 282, 2, 288, 4, 305, 309, 364, 2, 370, 4]},
-    {"feature": "terminal", "delta": [-307, -303, -300, 7, -284, 2, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 340, 3, 348, 4]},
+    {"feature": "text-editor", "delta": [-338, 4, -328, 3, -146, 2, -140, 4, 112, 4, 122, 6, 296, 3, 380, 13, 408, 15, 442, 13]},
+    {"feature": "client", "delta": [-460, 10, -436, 15, -404, 13, -132, 6, -118, 4, 3, 6, 17, 282, 2, 288, 4, 305, 309, 364, 2, 370, 4]},
+    {"feature": "terminal", "delta": [-466, 3, -307, -303, -300, 7, -284, 2, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 340, 3, 348, 4]},
     {"feature": "server", "delta": [-376, 4, -366, 2, -38, 13, -9, 46, 4, 57, 94, 47, 199, 212, 11, 236, 5, 254, 13, 327]},
 ]
 

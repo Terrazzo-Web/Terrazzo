@@ -84,6 +84,16 @@ div.text_editor {
             div.editor {
                 height: 100%;
                 overflow-y: auto;
+
+                &.pdf-viewer {
+                    box-sizing: border-box;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: calc(2 * var(--padding));
+                    padding: calc(2 * var(--padding));
+                    background-color: rgb(38, 38, 38);
+                }
             }
         }
     }

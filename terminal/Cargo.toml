@@ -207,7 +207,6 @@ text-editor-client = [
   "dep:futures",
   "dep:scopeguard",
   "dep:serde-wasm-bindgen",
-  "dep:base64",
   "dep:web-sys",
   "remotes-ui",
   "text-editor",

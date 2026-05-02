@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use base64::Engine;
 use nameth::nameth;
 use scopeguard::guard;
 use server_fn::ServerFnError;
@@ -16,6 +15,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::debug;
 use self::diagnostics::warn;
+use self::editor::EditorDocument;
 use self::editor::editor;
 use self::folder::folder;
 use super::file_path::FilePath;
@@ -39,6 +39,7 @@ use crate::text_editor::search::state::EditorSearchState;
 mod code_mirror;
 mod editor;
 mod folder;
+mod pdf_viewer;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -119,14 +120,11 @@ fn editor_container(
         EditorState::Data(editor_state) => match &*editor_state.data {
             fsio::File::TextFile { content, .. } => {
                 let content = content.clone();
-                editor(manager, editor_state, content)
+                editor(manager, editor_state, EditorDocument::Text(content))
             }
             fsio::File::PdfFile { base64, .. } => {
-                let content = base64::prelude::BASE64_STANDARD
-                    .decode(base64.as_bytes())
-                    .unwrap();
-                let content = format!("{}", content.len()).into();
-                editor(manager, editor_state, content)
+                let base64 = base64.clone();
+                editor(manager, editor_state, EditorDocument::Pdf(base64))
             }
             fsio::File::Folder(list) => {
                 let list = list.clone();

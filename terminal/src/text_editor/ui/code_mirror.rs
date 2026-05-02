@@ -33,6 +33,14 @@ impl CodeMirrorJs {
             element, content, onchange, base_path, full_path,
         ))
     }
+
+    pub fn set_content(&self, content: String) {
+        self.0.set_content(content);
+    }
+
+    pub fn cargo_check(&self, diagnostics: JsValue) {
+        self.0.cargo_check(diagnostics);
+    }
 }
 
 #[wasm_bindgen(module = "/src/text_editor/ui/code_mirror.js")]

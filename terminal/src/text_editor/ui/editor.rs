@@ -21,6 +21,7 @@ use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
 use super::fsio;
 use super::fsio::ui::store_file;
+use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
@@ -30,6 +31,34 @@ use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::utils::more_path::MorePath as _;
+
+#[derive(Clone)]
+pub(super) enum EditorDocument {
+    Text(Arc<str>),
+    Pdf(Arc<str>),
+}
+
+trait EditorBody {
+    fn set_content(&self, content: String);
+
+    fn cargo_check(&self, _diagnostics: JsValue) {}
+}
+
+impl EditorBody for CodeMirrorJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
+    }
+
+    fn cargo_check(&self, diagnostics: JsValue) {
+        self.cargo_check(diagnostics);
+    }
+}
+
+impl EditorBody for PdfJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
+    }
+}
 
 #[autoclone]
 #[html]
@@ -42,9 +71,10 @@ use crate::utils::more_path::MorePath as _;
 pub fn editor(
     manager: Ptr<TextEditorManager>,
     editor_state: EditorDataState,
-    content: Arc<str>,
+    document: EditorDocument,
 ) -> XElement {
     let EditorDataState { path, .. } = editor_state;
+    let is_pdf = matches!(document, EditorDocument::Pdf(_));
 
     // Set to true when there are edits waiting (debounced) to be committed.
     // This is used to ignored notifications about file changes that would anyway be overwritten.
@@ -66,11 +96,11 @@ pub fn editor(
         spawn_local(write.in_current_span());
     });
 
-    let code_mirror = Ptr::new(Mutex::new(None));
+    let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
 
     let edits_notify_registration = manager.notify_service.watch_file(
         &path,
-        make_edits_notify_handler(&manager, &code_mirror, &path, &writing),
+        make_edits_notify_handler(&manager, &editor_body, &path, &writing),
     );
     let base_path = FilePath {
         base: path.base.clone(),
@@ -78,24 +108,31 @@ pub fn editor(
     };
     let diagnostics_notify_registration = manager.notify_service.watch_file(
         &base_path,
-        make_diagnostics_notify_handler(&code_mirror, &base_path),
+        make_diagnostics_notify_handler(&editor_body, &base_path),
     );
 
     tag(
         class = style::EDITOR,
+        class = is_pdf.then_some(style::PDF_VIEWER),
         #[cfg(not(feature = "client-prod"))]
-        class = "code-mirror-editor",
+        class = (!is_pdf).then_some("code-mirror-editor"),
+        #[cfg(not(feature = "client-prod"))]
+        class = is_pdf.then_some("pdf-viewer"),
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
-            *code_mirror.lock().unwrap() = Some(CodeMirrorJs::new(
-                element.clone(),
-                content.as_ref().into(),
-                &on_change,
-                path.base.to_string(),
-                path.as_deref().full_path().to_owned_string(),
-            ));
+            let body: Box<dyn EditorBody> = match &document {
+                EditorDocument::Text(content) => Box::new(CodeMirrorJs::new(
+                    element.clone(),
+                    content.as_ref().into(),
+                    &on_change,
+                    path.base.to_string(),
+                    path.as_deref().full_path().to_owned_string(),
+                )),
+                EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), &base64)),
+            };
+            *editor_body.lock().unwrap() = Some(body);
         },
     )
 }
@@ -103,12 +140,12 @@ pub fn editor(
 #[autoclone]
 fn make_edits_notify_handler(
     manager: &Ptr<TextEditorManager>,
-    code_mirror: &Ptr<Mutex<Option<CodeMirrorJs>>>,
+    editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: &FilePath<Arc<str>>,
     writing: &Arc<AtomicBool>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
-        autoclone!(manager, code_mirror, path, writing);
+        autoclone!(manager, editor_body, path, writing);
         let _span = debug_span!("Editor notifier", ?path).entered();
         let EventKind::File(FileEventKind::Create | FileEventKind::Modify) = event.kind else {
             return;
@@ -118,14 +155,14 @@ fn make_edits_notify_handler(
             return;
         }
         spawn_local(
-            notify_edit(manager.clone(), code_mirror.clone(), path.clone()).in_current_span(),
+            notify_edit(manager.clone(), editor_body.clone(), path.clone()).in_current_span(),
         );
     }
 }
 
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
-    code_mirror: Ptr<Mutex<Option<CodeMirrorJs>>>,
+    editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: FilePath<Arc<str>>,
 ) {
     debug!("Loading modified file");
@@ -135,19 +172,17 @@ async fn notify_edit(
             content,
         })) => {
             debug!("Loaded modified file");
-            let Some(code_mirror) = &*code_mirror.lock().unwrap() else {
+            let Some(editor_body) = &*editor_body.lock().unwrap() else {
                 return;
             };
-            code_mirror.set_content(content.to_string());
+            editor_body.set_content(content.to_string());
         }
         Ok(Some(fsio::File::PdfFile { base64, .. })) => {
-            // TODO: Handle pdf file refresh
             debug!("Loaded modified file");
-            let Some(code_mirror) = &*code_mirror.lock().unwrap() else {
+            let Some(editor_body) = &*editor_body.lock().unwrap() else {
                 return;
             };
-            let content = format!("Reloaded {}", base64.len());
-            code_mirror.set_content(content);
+            editor_body.set_content(base64.to_string());
         }
         Ok(None) => {
             debug!("The modified file is gone");
@@ -172,19 +207,19 @@ async fn notify_edit(
 
 #[autoclone]
 fn make_diagnostics_notify_handler(
-    code_mirror: &Ptr<Mutex<Option<CodeMirrorJs>>>,
+    editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: &FilePath<Arc<str>>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
-        autoclone!(code_mirror, path);
+        autoclone!(editor_body, path);
         let _span = debug_span!("Diagnostics notifier", ?path).entered();
         let EventKind::CargoCheck(diagnostics) = &event.kind else {
             return;
         };
         if let Ok(diagnostics) = serde_wasm_bindgen::to_value(diagnostics)
-            && let Some(code_mirror) = &*code_mirror.lock().unwrap()
+            && let Some(editor_body) = &*editor_body.lock().unwrap()
         {
-            code_mirror.cargo_check(diagnostics);
+            editor_body.cargo_check(diagnostics);
         }
     }
 }

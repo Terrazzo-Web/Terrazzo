@@ -93,6 +93,12 @@ div.text_editor {
                     gap: calc(2 * var(--padding));
                     padding: calc(2 * var(--padding));
                     background-color: rgb(38, 38, 38);
+
+                    canvas {
+                        max-width: 100%;
+                        background-color: white;
+                        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+                    }
                 }
             }
         }

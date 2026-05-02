@@ -47,6 +47,7 @@ TERMINAL_CLIENT_FEATURES = CLIENT_FEATURES + TERMINAL_FEATURES + ["terminal-clie
 TEXT_EDITOR_DEPS = []
 TEXT_EDITOR_FEATURES = ["text-editor"]
 TEXT_EDITOR_CLIENT_DEPS = CLIENT_DEPS + REMOTES_UI_DEPS + TEXT_EDITOR_DEPS + [
+    "@crates//:base64",
     "@crates//:futures",
     "@crates//:scopeguard",
     "@crates//:serde-wasm-bindgen",

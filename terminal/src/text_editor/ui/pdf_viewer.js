@@ -15,10 +15,10 @@ class PdfJsImpl {
     loadingTask;
     generation;
 
-    constructor(element, base64) {
+    constructor(element, data) {
         this.element = element;
         this.generation = 0;
-        this.set_content(base64);
+        this.set_content(data);
     }
 
     destroy() {
@@ -30,11 +30,11 @@ class PdfJsImpl {
         this.element.replaceChildren();
     }
 
-    set_content(base64) {
-        this.render(base64);
+    set_content(data) {
+        this.render(data);
     }
 
-    async render(base64) {
+    async render(data) {
         const generation = ++this.generation;
         if (this.loadingTask) {
             this.loadingTask.destroy();
@@ -46,7 +46,7 @@ class PdfJsImpl {
             const pdfjsLib = await loadPdfJs();
 
             this.loadingTask = pdfjsLib.getDocument({
-                data: base64ToBytes(base64),
+                data,
             });
             const pdf = await this.loadingTask.promise;
             if (generation !== this.generation) return;
@@ -70,15 +70,11 @@ class PdfJsImpl {
         const scale = Math.min(Math.max(availableWidth / unscaledViewport.width, 0.5), 2);
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
-        canvas.className = "pdf-page";
         canvas.dataset.pageNumber = `${pageNumber}`;
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
-        canvas.style.maxWidth = "100%";
-        canvas.style.backgroundColor = "white";
-        canvas.style.boxShadow = "0 2px 12px rgba(0, 0, 0, 0.5)";
 
         this.element.appendChild(canvas);
         const canvasContext = canvas.getContext("2d");
@@ -93,15 +89,6 @@ class PdfJsImpl {
         status.style.padding = "var(--padding)";
         this.element.replaceChildren(status);
     }
-}
-
-function base64ToBytes(base64) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
 }
 
 export {

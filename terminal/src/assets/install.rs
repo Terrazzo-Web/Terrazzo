@@ -85,10 +85,6 @@ fn install_xterm() {
 fn install_pdfjs() {
     #[cfg(feature = "text-editor")]
     {
-        declare_asset!("/assets/pdfjs/LICENSE")
-            .asset_name("pdfjs/LICENSE")
-            .mime(terrazzo::mime::TEXT_PLAIN_UTF_8.as_ref())
-            .install();
         declare_asset!("/assets/pdfjs/pdf.mjs")
             .asset_name("pdfjs/pdf.mjs")
             .mime("text/javascript; charset=utf-8")

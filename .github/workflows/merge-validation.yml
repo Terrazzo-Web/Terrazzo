@@ -65,6 +65,15 @@ jobs:
           export PROTOC=$(which protoc)
           bazel test --action_env=PROTOC --test_output=errors --verbose_failures -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
 
+      - name: Update auto-generated files
+        if: always()
+        run: |
+          export PROTOC=$(which protoc)
+          bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run --action_env=PROTOC
+
+      - name: Buildifier
+        run: bazel run //bazel:buildifier
+
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -123,14 +132,6 @@ jobs:
           cd terminal/assets/jsdeps
           npm install
           npx webpack
-
-      - name: Update auto-generated files
-        run: |
-          export PROTOC=$(which protoc)
-          bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run --action_env=PROTOC
-
-      - name: Buildifier
-        run: bazel run //bazel:buildifier
 
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7

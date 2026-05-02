@@ -25,6 +25,11 @@ pub enum File {
         metadata: Arc<FileMetadata>,
         content: Arc<str>,
     },
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
+    PdfFile {
+        metadata: Arc<FileMetadata>,
+        base64: Arc<str>,
+    },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
     Folder(Arc<Vec<FileMetadata>>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
@@ -58,6 +63,7 @@ impl std::fmt::Debug for File {
         let mut f = f.debug_tuple(self.name());
         match self {
             Self::TextFile { content, .. } => f.field(&content.len()),
+            Self::PdfFile { base64, .. } => f.field(&base64.len()),
             Self::Folder(folder) => f.field(&folder.len()),
             Self::Error(error) => f.field(error),
         }

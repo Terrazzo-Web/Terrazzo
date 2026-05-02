@@ -138,6 +138,15 @@ async fn notify_edit(
             };
             code_mirror.set_content(content.to_string());
         }
+        Ok(Some(fsio::File::PdfFile { base64, .. })) => {
+            // TODO: Handle pdf file refresh
+            debug!("Loaded modified file");
+            let Some(code_mirror) = &*code_mirror.lock().unwrap() else {
+                return;
+            };
+            let content = format!("Reloaded {}", base64.len());
+            code_mirror.set_content(content);
+        }
         Ok(None) => {
             debug!("The modified file is gone");
             manager.path.file.update(|file_path| {

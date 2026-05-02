@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use base64::Engine;
 use nameth::nameth;
 use scopeguard::guard;
 use server_fn::ServerFnError;
@@ -110,6 +111,13 @@ fn editor_container(
         EditorState::Data(editor_state) => match &*editor_state.data {
             fsio::File::TextFile { content, .. } => {
                 let content = content.clone();
+                editor(manager, editor_state, content)
+            }
+            fsio::File::PdfFile { base64, .. } => {
+                let content = base64::prelude::BASE64_STANDARD
+                    .decode(base64.as_bytes())
+                    .unwrap();
+                let content = format!("{}", content.len()).into();
                 editor(manager, editor_state, content)
             }
             fsio::File::Folder(list) => {

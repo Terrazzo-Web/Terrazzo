@@ -207,6 +207,7 @@ text-editor-client = [
   "dep:futures",
   "dep:scopeguard",
   "dep:serde-wasm-bindgen",
+  "dep:base64",
   "remotes-ui",
   "text-editor",
   "web-sys/KeyboardEvent",

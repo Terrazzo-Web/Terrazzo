@@ -96,13 +96,37 @@ Create a git commit for this task.
 
 ---
 
-TODO: Edit the present `terminal/plans/pdf-file-editor.md` file and put your summary in this section between the two horizontal lines.
+`editor_container` currently switches on `EditorState`. Text files are rendered through
+`editor(...)`, folders through `folder(...)`, errors as an empty editor container, and PDFs
+are temporarily decoded from base64 only to display their byte length in the CodeMirror editor.
 
-Include
-- how the CodeMirror is configured
-- how the file is watched for edits
-- what happens to the UI when the file is reloaded: do we always rebuild and replace the UI, lose pending changes, scroll back to the top, etc.
-- suggest 1 or 2 improvements
+CodeMirror is configured in `terminal/src/text_editor/ui/code_mirror.js`. The Rust side creates a
+`CodeMirrorJs` wrapper after the editor host renders, passing the current content, an `onchange`
+closure, the base path, and the full path. The JavaScript side creates an `EditorState` with
+`basicSetup`, `lintGutter`, `oneDark`, a document-change listener, absolute-positioned tooltips,
+and an extension from `JsDeps.languages[ext]` when the file extension is known. The change listener
+is suppressed while content is being loaded from disk so reloads do not trigger saves.
+
+File edits are watched in `terminal/src/text_editor/ui/editor.rs`. Each editor registers a
+file watcher for the current file and a second watcher on the base path for cargo diagnostics.
+Local edits set a `writing` flag while the debounced save is pending; matching create/modify
+notifications are ignored during that window because the pending write would overwrite them.
+Otherwise, create/modify events call `notify_edit`, which reloads the file through `fsio::ui::load_file`.
+
+When a text file is reloaded, the UI is not rebuilt. Instead, `CodeMirrorJs::set_content` replaces
+the whole document inside the existing editor, keeping the selection anchor clamped to the new
+content length. This should preserve the editor instance and approximate cursor position, but it
+does not explicitly preserve scroll position. Pending local changes can still be lost if an
+external reload arrives after the `writing` flag is cleared but before the user's unsaved state is
+otherwise protected. If the file disappears, the file path is moved to its parent; if the path
+becomes a folder, the file path is forced to reload the folder view. The PDF branch currently only
+updates the placeholder byte-length text.
+
+Suggested improvements:
+- Abstract CodeMirror behind an `EditorBody` trait with `set_content`/reload behavior so text and
+  PDF bodies can share file watching while keeping body-specific refresh logic.
+- Track dirty state or version tokens per loaded file so external reloads can warn, defer, or merge
+  instead of blindly replacing editor content after pending local edits have settled.
 
 ---
 

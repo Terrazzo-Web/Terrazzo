@@ -29,4 +29,8 @@ ASSETS = [
     "assets/index.html",
     "assets/jsdeps/dist/jsdeps.js",
     "assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css",
+    "assets/pdfjs/LICENSE",
+    "assets/pdfjs/pdf.mjs",
+    "assets/pdfjs/pdf.worker.mjs",
+    "assets/pdfjs/pdfjs-loader.js",
 ]

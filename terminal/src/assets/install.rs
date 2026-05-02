@@ -13,6 +13,7 @@ pub fn install_assets() {
     declare_asset!("/assets/images/favicon.ico").install();
     declare_scss_asset!("target/css/terrazzo-terminal.scss").install();
     install_icons();
+    install_pdfjs();
     install_xterm();
     install_wasm();
 }
@@ -79,6 +80,24 @@ fn install_icons() {
 
 fn install_xterm() {
     declare_asset!("/assets/jsdeps/node_modules/@xterm/xterm/css/xterm.css").install();
+}
+
+fn install_pdfjs() {
+    #[cfg(feature = "text-editor")]
+    {
+        declare_asset!("/assets/pdfjs/LICENSE")
+            .mime(terrazzo::mime::TEXT_PLAIN_UTF_8.as_ref())
+            .install();
+        declare_asset!("/assets/pdfjs/pdf.mjs")
+            .mime("text/javascript; charset=utf-8")
+            .install();
+        declare_asset!("/assets/pdfjs/pdf.worker.mjs")
+            .mime("text/javascript; charset=utf-8")
+            .install();
+        declare_asset!("/assets/pdfjs/pdfjs-loader.js")
+            .mime("text/javascript; charset=utf-8")
+            .install();
+    }
 }
 
 fn install_wasm() {

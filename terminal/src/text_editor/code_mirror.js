@@ -1,4 +1,4 @@
-class CodeMirrorJs {
+class CodeMirrorJsImpl {
     editorView;
     reloadFromDisk; // Set to true when the file is updated from disk
     basePath;
@@ -46,25 +46,33 @@ class CodeMirrorJs {
         this.reloadFromDisk = false;
     }
 
+    destroy() {
+        this.editorView.destroy();
+        console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
+    }
+
     set_content(content) {
         const current = this.editorView.state.doc;
         if (current == content) return;
         this.reloadFromDisk = true;
-        const changes = {
-            from: 0,
-            to: current.length,
-            insert: content
-        };
-        const selection = {
-            anchor: Math.min(
-                this.editorView.state.selection.main.anchor,
-                content.length)
-        };
-        this.editorView.dispatch({
-            changes,
-            selection
-        });
-        this.reloadFromDisk = false;
+        try {
+            const changes = {
+                from: 0,
+                to: current.length,
+                insert: content
+            };
+            const selection = {
+                anchor: Math.min(
+                    this.editorView.state.selection.main.anchor,
+                    content.length)
+            };
+            this.editorView.dispatch({
+                changes,
+                selection
+            });
+        } finally {
+            this.reloadFromDisk = false;
+        }
     }
 
     cargo_check(diagnostics) {
@@ -107,5 +115,5 @@ function getLanguage(fileName) {
 }
 
 export {
-    CodeMirrorJs
+    CodeMirrorJsImpl
 };

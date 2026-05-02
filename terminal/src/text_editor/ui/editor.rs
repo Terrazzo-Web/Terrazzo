@@ -130,7 +130,7 @@ pub fn editor(
                     path.base.to_string(),
                     path.as_deref().full_path().to_owned_string(),
                 )),
-                EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), &base64)),
+                EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), base64)),
             };
             *editor_body.lock().unwrap() = Some(body);
         },

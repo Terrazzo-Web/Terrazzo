@@ -381,13 +381,20 @@ mod tests {
     use super::Scanner;
 
     fn fixture_dir() -> PathBuf {
-        let cargo_manifest_dir = if Path::new(env!("CARGO_MANIFEST_DIR")).exists() {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        } else {
-            std::env::var("CARGO_MANIFEST_DIR")
-                .expect("CARGO_MANIFEST_DIR")
-                .into()
+        #[cfg(not(feature = "bazel"))]
+        let cargo_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+        #[cfg(feature = "bazel")]
+        let cargo_manifest_dir = {
+            runfiles::find_runfiles_dir()
+                .unwrap()
+                .join(std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE"))
+                .join(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"))
         };
+
+        for (key, value) in std::env::vars() {
+            println!("cargo::warning={key} = {value}");
+        }
         cargo_manifest_dir.join("tests/fixtures/edit_query")
     }
 

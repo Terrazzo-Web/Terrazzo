@@ -6,6 +6,7 @@ rust_rules(
     name = "synctex",
     crate_name = "terrazzo_synctex",
     data_dev = [":fixtures"],
+    deps_dev=[ "@rules_rust//rust/runfiles" ],
     deps = ["//utils/synctex/sys"],
 )
 

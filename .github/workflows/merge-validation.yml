@@ -86,6 +86,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
+          cache-key:  bazel-build
 
       - name: Check for Cargo file changes
         id: cargo-files-changed

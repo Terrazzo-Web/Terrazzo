@@ -12,6 +12,9 @@ inputs:
       - strict
       - lenient
       - off
+  cache-key:
+    description: "A prefix added to the cache key"
+    required: false
 runs:
   using: "composite"
   steps:
@@ -37,7 +40,7 @@ runs:
           ~/.cache/ms-playwright/
           target/
           terminal/target
-        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
 
     - name: Restore cache for Rust compilation
       if: ${{ inputs.cache-level == 'lenient' }}
@@ -55,9 +58,9 @@ runs:
           ~/.cache/ms-playwright/
           target/
           terminal/target
-        key: ${{ runner.os }}-${{ github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
-          ${{ runner.os }}-${{ github.job }}-
+          ${{ runner.os }}-${{ inputs.cache-key || github.job }}-
 
     - name: Add wasm32 compilation target
       shell: bash

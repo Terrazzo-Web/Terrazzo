@@ -17,7 +17,7 @@ rust_rules(
     crate_root = "src/main.rs",
     generate_tests = False,
     rule = "binary",
-    deps = [        ":terrazzo-synctex-cli",    ],
+    deps = [":terrazzo-synctex-cli"],
 )
 
 filegroup(

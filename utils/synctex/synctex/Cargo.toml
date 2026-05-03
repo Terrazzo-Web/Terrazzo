@@ -16,7 +16,7 @@ terrazzo-synctex-sys = { workspace = true }
 tempfile = { workspace = true }
 
 [features]
-bazel=[]
+bazel = []
 
 [lints]
 workspace = true

@@ -60,7 +60,7 @@ fn path_selector_impll(
         if show_input {
             path_selector_input(manager, kind, prefix, path)
         } else {
-            path_selector_display(path, force_edit_path_mut)
+            path_selector_display(kind, path, force_edit_path_mut)
         },
     )
 }
@@ -99,6 +99,11 @@ fn path_selector_input(
             },
             r#type = "text",
             class = style::PATH_SELECTOR_FIELD,
+            #[cfg(not(feature = "client-prod"))]
+            class = match kind {
+                PathSelector::BasePath => "base-path-selector-field",
+                PathSelector::FilePath => "file-path-selector-field",
+            },
             focus = start_autocomplete(
                 manager.clone(),
                 kind,
@@ -131,14 +136,22 @@ fn path_selector_input(
 #[html]
 #[template(tag = div)]
 fn path_selector_display(
+    kind: PathSelector,
     #[signal] path: Arc<str>,
     force_edit_path_mut: MutableSignal<bool>,
 ) -> XElement {
+    #[cfg(feature = "client-prod")]
+    let _ = kind;
     div(
         class = style::PATH_SELECTOR_WIDGET,
         key = "display",
         span(
             class = style::PATH_SELECTOR_FIELD,
+            #[cfg(not(feature = "client-prod"))]
+            class = match kind {
+                PathSelector::BasePath => "base-path-selector-display",
+                PathSelector::FilePath => "file-path-selector-display",
+            },
             dblclick = move |_ev| force_edit_path_mut.set(true),
             "{path}",
         ),

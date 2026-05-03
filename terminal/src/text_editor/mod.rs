@@ -1,10 +1,7 @@
 #![cfg(feature = "text-editor")]
 
 mod autocomplete;
-mod code_mirror;
-mod editor;
 pub mod file_path;
-mod folder;
 mod fsio;
 mod manager;
 pub mod notify;

@@ -1,5 +1,6 @@
 load("@crates//:defs.bzl", "all_crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("//bazel:generated_file.bzl", "generate_file")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:scss_rules.bzl", "scss_rule")
 load("//bazel/feature_deps:feature_deps_rules.bzl", "feature_deps")
@@ -17,6 +18,10 @@ load(
     "TERMINAL_CLIENT_FEATURES",
     "TERMINAL_SERVER_DEPS",
     "TERMINAL_SERVER_FEATURES",
+    "TEXT_EDITOR_CLIENT_DEPS",
+    "TEXT_EDITOR_CLIENT_FEATURES",
+    "TEXT_EDITOR_SERVER_DEPS",
+    "TEXT_EDITOR_SERVER_FEATURES",
 )
 load(":terminal_rules.bzl", "terminal_assets", "terminal_rules")
 
@@ -73,6 +78,18 @@ terminal_rules(
     server_features = TERMINAL_SERVER_FEATURES,
 )
 
+terminal_rules(
+    client_deps = ["//utils/nameth/nameth"] + TEXT_EDITOR_CLIENT_DEPS,
+    client_features = TEXT_EDITOR_CLIENT_FEATURES,
+    prefix = "text-editor",
+    server_deps = [
+        ":protos",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+    ] + TEXT_EDITOR_SERVER_DEPS,
+    server_features = TEXT_EDITOR_SERVER_FEATURES,
+)
+
 cargo_build_script(
     name = "protos",
     srcs = ["build/protos.rs"],
@@ -83,6 +100,18 @@ cargo_build_script(
 scss_rule(
     name = "terminal_scss",
     output = "target/css/terrazzo-terminal.scss",
+)
+
+generate_file(
+    name = "pdfjs_pdf_min_mjs_update",
+    src = "@pdfjs_dist//:build/pdf.min.mjs",
+    dest = "assets/pdfjs/pdf.min.mjs",
+)
+
+generate_file(
+    name = "pdfjs_pdf_worker_min_mjs_update",
+    src = "@pdfjs_dist//:build/pdf.worker.min.mjs",
+    dest = "assets/pdfjs/pdf.worker.min.mjs",
 )
 
 playwright_matrix_test(
@@ -125,4 +154,19 @@ playwright_matrix_test(
     },
     server = "//terminal/integration:exec",
     test = "tests/integration-test-password-update.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/PlantUML.pdf"],
+    overrides = {
+        "text-editor-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "text-editor-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-text-editor.spec.mjs",
 )

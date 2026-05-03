@@ -4,6 +4,8 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use base64::Engine as _;
+use base64::prelude::BASE64_STANDARD;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tonic::Code;
@@ -22,11 +24,20 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     if let Ok(metadata) = path.metadata() {
         if metadata.is_file() {
-            debug!("Loading file {path:?}");
-            let data = std::fs::read_to_string(&path)?;
+            if path.extension() == Some("pdf".as_ref()) {
+                debug!("Loading PDF file {path:?}");
+                let data = std::fs::read(&path)?;
+                let base64 = BASE64_STANDARD.encode(data).into();
+                return Ok(Some(File::PdfFile {
+                    metadata: FileMetadata::single(&path, &metadata).into(),
+                    base64,
+                }));
+            }
+            debug!("Loading text file {path:?}");
+            let content = std::fs::read_to_string(&path)?.into();
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),
-                content: Arc::from(data),
+                content,
             }));
         }
         if metadata.is_dir() {

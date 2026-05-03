@@ -21,6 +21,9 @@ enum Feature {
     NoWasmBuild,
     Debug,
 
+    Prod,
+    ClientProd,
+
     Terminal,
     TerminalClient,
     TerminalServer,

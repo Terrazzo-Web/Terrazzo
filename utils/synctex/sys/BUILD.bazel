@@ -1,0 +1,26 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "synctex_c",
+    srcs = [
+        "vendor/synctex/synctex_parser.c",
+        "vendor/synctex/synctex_parser_utils.c",
+    ],
+    hdrs = [
+        "vendor/synctex/synctex_parser.h",
+        "vendor/synctex/synctex_parser_advanced.h",
+        "vendor/synctex/synctex_parser_utils.h",
+        "vendor/synctex/synctex_version.h",
+    ],
+    includes = ["vendor/synctex"],
+    linkopts = ["-lz"],
+)
+
+rust_rules(
+    name = "sys",
+    crate_name = "terrazzo_synctex_sys",
+    deps = [":synctex_c"],
+)

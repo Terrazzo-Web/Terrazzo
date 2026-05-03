@@ -1,0 +1,17 @@
+[package]
+name = "terrazzo-synctex-sys"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "Low-level Rust FFI bindings for the SyncTeX parser."
+categories = ["external-ffi-bindings", "parser-implementations"]
+keywords = ["synctex", "tex", "pdf"]
+links = "synctex"
+
+[build-dependencies]
+cc = { workspace = true }
+
+[lints]
+workspace = true

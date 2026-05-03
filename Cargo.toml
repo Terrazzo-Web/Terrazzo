@@ -24,6 +24,8 @@ members = [
   "utils/nameth/nameth",
   "utils/nameth/nameth-macro",
   "utils/nameth/nameth-tests",
+  "utils/synctex/synctex",
+  "utils/synctex/sys",
 ]
 resolver = "2"
 
@@ -68,6 +70,8 @@ terrazzo-css-shared = { version = "0.2.1", path = "utils/css/shared" }
 terrazzo-fixture = { version = "0.2.1", path = "utils/fixture" }
 terrazzo-macro = { version = "0.2.1", path = "framework/macro" }
 terrazzo-pty = { version = "0.2.1", path = "pty" }
+terrazzo-synctex = { version = "0.2.1", path = "utils/synctex/synctex" }
+terrazzo-synctex-sys = { version = "0.2.1", path = "utils/synctex/sys" }
 trz-gateway-client = { version = "0.2.1", path = "remote/client" }
 trz-gateway-common = { version = "0.2.1", path = "remote/common" }
 trz-gateway-server = { version = "0.2.1", path = "remote/server" }
@@ -78,6 +82,7 @@ axum-server = { version = "0.8.0" }
 base64 = { version = "0.22.1" }
 bitflags = { version = "2.11.1" }
 bytes = { version = "1.11.1" }
+cc = { version = "1.2.48" }
 clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }

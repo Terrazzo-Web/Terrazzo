@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::marker::PhantomData;
 use std::path::Path;
 use std::ptr::NonNull;

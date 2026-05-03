@@ -1,5 +1,4 @@
 use std::ffi::CStr;
-use std::path::Path;
 
 use terrazzo_synctex_sys as sys;
 

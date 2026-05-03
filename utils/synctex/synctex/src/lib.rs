@@ -392,9 +392,6 @@ mod tests {
                 .join(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"))
         };
 
-        for (key, value) in std::env::vars() {
-            println!("cargo::warning={key} = {value}");
-        }
         cargo_manifest_dir.join("tests/fixtures/edit_query")
     }
 

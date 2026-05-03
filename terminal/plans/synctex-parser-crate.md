@@ -3,9 +3,9 @@
 The goal of this project is to create a Rust crate that exposes the public API from
 [`synctex_parser.h`](https://github.com/jlaurens/synctex/blob/main/synctex_parser.h).
 
-The crate should make the SyncTeX scanner usable from Rust code in this workspace, especially for
-PDF/source synchronization work in the terminal text editor, while keeping the FFI boundary small,
-auditable, and compatible with Bazel and Cargo builds.
+The crate should make the SyncTeX scanner usable from Rust code in this workspace, while keeping the
+FFI boundary small, auditable, and compatible with Bazel and Cargo builds. The PDF viewer is the
+expected future consumer, but this plan does not wire the crate into the PDF viewer yet.
 
 ## Scope
 
@@ -65,8 +65,8 @@ auditable, and compatible with Bazel and Cargo builds.
   - debug helpers:
     - `synctex_node_log`
     - `synctex_node_display`
-- Keep `synctex_parser_advanced.h` out of the first milestone unless the terminal PDF workflow
-  later needs concurrent query iterators.
+- Keep `synctex_parser_advanced.h` out of the first milestone unless a future PDF viewer
+  integration later needs concurrent query iterators.
 - Treat the upstream C structs as opaque. Rust code must not depend on their layout.
 
 ## Status Quo
@@ -75,8 +75,8 @@ auditable, and compatible with Bazel and Cargo builds.
 - The root `Cargo.toml` uses a workspace with local crates and shared dependency declarations.
 - Bazel uses `rules_rust` and generated crate repositories, so any new crate must be represented in
   both Cargo and Bazel.
-- The terminal text editor can display PDFs, but it does not yet have source/PDF synchronization
-  support.
+- The terminal text editor can display PDFs, but this plan only creates the reusable SyncTeX crate.
+  PDF viewer integration should happen in a later, separate plan.
 
 ## Crate Layout
 
@@ -88,10 +88,10 @@ auditable, and compatible with Bazel and Cargo builds.
   `terrazzo-synctex`.
   - Own Rust-safe `Scanner`, `Node`, query result, geometry, and error types.
   - Depend on `terrazzo-synctex-sys`.
-  - Provide the API that terminal code should use.
+  - Provide the API that future workspace consumers, such as the PDF viewer, should use.
 - Add both crates to the root Cargo workspace.
-- Add both crates to `workspace.dependencies` if they are expected to be consumed by
-  `terrazzo-terminal`.
+- Add both crates to `workspace.dependencies` only if that matches the workspace's local-crate
+  conventions. Do not add them as terminal dependencies in this plan.
 
 ## Upstream Source Strategy
 
@@ -174,7 +174,7 @@ auditable, and compatible with Bazel and Cargo builds.
     fixture/data wiring requires extra targets.
 - Update any generated crate-alias or feature-dependency flows if the workspace requires it for new
   local crates.
-- Validate that both Cargo and Bazel can build the crates before wiring them into terminal.
+- Validate that both Cargo and Bazel can build the crates before any consumer is added.
 
 ## Cargo Integration
 
@@ -190,7 +190,7 @@ auditable, and compatible with Bazel and Cargo builds.
 
 ## Test Fixtures
 
-- Add small SyncTeX fixtures under the safe crate or under `terminal/tests`.
+- Add small SyncTeX fixtures under the safe crate.
   - Include a tiny `.tex`, `.pdf`, and `.synctex` pair if feasible.
   - Prefer checked-in fixtures over invoking TeX during normal tests.
 - Include at least one source-to-PDF display query fixture.
@@ -248,35 +248,35 @@ Validate with:
 
 Create a git commit for this task.
 
-### Task 4: Wire the crate for terminal use
+### Task 4: Keep terminal integration out of scope
 
-- Add `terrazzo-synctex` as an optional terminal dependency.
-- Add a terminal feature such as `pdf-synctex-server` or fold it into the existing PDF/text-editor
-  server feature if that is where the UI will consume it.
-- Add Bazel feature plumbing so terminal targets can build with SyncTeX enabled.
-- Do not add UI behavior in this task unless the crate API is already proven.
-
-Validate with:
-
-    bazel build //terminal/...
-    cargo check -p terrazzo-terminal --features text-editor-server
-
-Create a git commit for this task.
-
-### Task 5: Integrate with PDF/source synchronization UI
-
-- Use `Scanner::display_query` for source-to-PDF navigation.
-- Use `Scanner::edit_query` for PDF-to-source navigation.
-- Convert SyncTeX page-space geometry into the PDF viewer coordinate system.
-- Surface multiple matches in a deterministic order using the C API result order and `page_hint`.
-- Add integration tests around opening a PDF and resolving at least one known source mapping.
+- Do not wire `terrazzo-synctex` into `terrazzo-terminal` yet.
+- Do not add terminal features, PDF viewer behavior, or Playwright integration tests in this plan.
+- Leave a short note in the crate README, if useful, that the intended future consumer is the PDF
+  viewer.
+- The only terminal-adjacent validation for this plan is that adding the new workspace crates does
+  not break existing workspace/Bazel discovery.
 
 Validate with:
 
-    bazel test //terminal:text-editor-integration-test-debug
-    bazel test //terminal:text-editor-integration-test-release
+    cargo test -p terrazzo-synctex-sys
+    cargo test -p terrazzo-synctex
+    bazel test //utils/synctex/...
 
-Create a git commit for this task.
+Create a git commit for this task only if it makes documentation or workspace-registration changes
+that were not already covered by Tasks 1-3.
+
+## Future PDF Viewer Integration
+
+This crate is expected to be used by the PDF viewer later, but that work belongs in a separate plan.
+That future plan should cover:
+
+- adding `terrazzo-synctex` as a terminal dependency
+- deciding which terminal feature owns SyncTeX support
+- using `Scanner::display_query` for source-to-PDF navigation
+- using `Scanner::edit_query` for PDF-to-source navigation
+- converting SyncTeX page-space geometry into the PDF viewer coordinate system
+- adding PDF viewer integration tests
 
 ## Rust API Sketch
 
@@ -342,17 +342,16 @@ the scanner while results are being consumed.
     cargo test -p terrazzo-synctex
     bazel test //utils/synctex/...
 
-- Run terminal validation after integration:
+- Run broader workspace validation if touching shared Bazel/Cargo metadata:
 
-    bazel build //terminal/...
-    bazel test //terminal:text-editor-integration-test-debug
-    bazel test //terminal:text-editor-integration-test-release
+    bazel build //...
 
 ## Assumptions
 
 - The first version should expose `synctex_parser.h`, not the advanced iterator API.
 - Vendoring upstream SyncTeX is acceptable because the header license permits reuse with copyright
   and permission notices preserved.
-- A safe wrapper crate is worth creating immediately because direct terminal use of raw C pointers
-  would make query-result lifetimes and scanner ownership too easy to misuse.
-- The terminal SyncTeX UI work should happen after the crate has standalone tests.
+- A safe wrapper crate is worth creating immediately because direct use of raw C pointers would make
+  query-result lifetimes and scanner ownership too easy to misuse.
+- The PDF viewer SyncTeX UI work should happen later, after the crate has standalone tests and a
+  stable Rust API.

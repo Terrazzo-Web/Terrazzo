@@ -1,6 +1,10 @@
 use std::error::Error as StdError;
-use std::ffi::{CStr, CString, NulError};
-use std::fmt::{self, Display, Formatter};
+use std::ffi::CStr;
+use std::ffi::CString;
+use std::ffi::NulError;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::{self};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::ptr::NonNull;
@@ -89,13 +93,7 @@ impl Scanner {
     ) -> Result<QueryResults<'_>> {
         let input = path_to_cstring(input)?;
         let status = unsafe {
-            sys::synctex_display_query(
-                self.raw.as_ptr(),
-                input.as_ptr(),
-                line,
-                column,
-                page_hint,
-            )
+            sys::synctex_display_query(self.raw.as_ptr(), input.as_ptr(), line, column, page_hint)
         };
         QueryResults::new(self, status)
     }
@@ -200,10 +198,8 @@ impl<'scanner> QueryResults<'scanner> {
     }
 
     pub fn reset(&mut self) -> Result<()> {
-        status_to_result(unsafe {
-            sys::synctex_scanner_reset_result(self.scanner.raw.as_ptr())
-        })
-        .map(drop)
+        status_to_result(unsafe { sys::synctex_scanner_reset_result(self.scanner.raw.as_ptr()) })
+            .map(drop)
     }
 }
 
@@ -379,9 +375,10 @@ unsafe fn optional_cstr<'a>(value: *const std::os::raw::c_char) -> Option<&'a CS
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
     use super::Scanner;
-    use std::fs;
-    use std::path::{Path, PathBuf};
 
     fn fixture_dir() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/edit_query")
@@ -390,7 +387,7 @@ mod tests {
     fn copy_fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
         for name in ["1.pdf", "1.synctex", "1.tex"] {
-            fs::copy(fixture_dir().join(name), temp.path().join(name)).unwrap();
+            std::fs::copy(fixture_dir().join(name), temp.path().join(name)).unwrap();
         }
         temp
     }
@@ -410,9 +407,26 @@ mod tests {
         assert!(scanner.magnification() > 0.0);
         assert_eq!(scanner.x_offset(), 0);
         assert_eq!(scanner.y_offset(), 0);
-        assert!(scanner.output().unwrap().to_str().unwrap().ends_with("1.pdf"));
-        assert!(scanner.synctex().unwrap().to_str().unwrap().ends_with("1.synctex"));
-        assert_eq!(scanner.name_for_tag(252).unwrap().to_str().unwrap(), "./1.tex");
+        assert!(
+            scanner
+                .output()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with("1.pdf")
+        );
+        assert!(
+            scanner
+                .synctex()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with("1.synctex")
+        );
+        assert_eq!(
+            scanner.name_for_tag(252).unwrap().to_str().unwrap(),
+            "./1.tex"
+        );
         assert!(scanner.input().is_some());
         assert!(scanner.input_with_tag(252).is_some());
         assert!(scanner.sheet(1).is_some());
@@ -423,7 +437,9 @@ mod tests {
     fn display_query_iterates_results() {
         let temp = copy_fixture();
         let mut scanner = Scanner::open(&temp.path().join("1.pdf"), None).unwrap();
-        let mut results = scanner.display_query(Path::new("./1.tex"), 23, 30, 1).unwrap();
+        let mut results = scanner
+            .display_query(Path::new("./1.tex"), 23, 30, 1)
+            .unwrap();
 
         assert!(!results.is_empty());
         let node = results.next().unwrap();

@@ -1,6 +1,9 @@
 #![allow(non_camel_case_types)]
 
-use std::os::raw::{c_char, c_float, c_int, c_long};
+use std::os::raw::c_char;
+use std::os::raw::c_float;
+use std::os::raw::c_int;
+use std::os::raw::c_long;
 
 #[repr(C)]
 pub struct synctex_scanner_t {
@@ -66,7 +69,8 @@ unsafe extern "C" {
     pub fn synctex_scanner_get_tag(scanner: synctex_scanner_p, name: *const c_char) -> c_int;
 
     pub fn synctex_scanner_input(scanner: synctex_scanner_p) -> synctex_node_p;
-    pub fn synctex_scanner_input_with_tag(scanner: synctex_scanner_p, tag: c_int) -> synctex_node_p;
+    pub fn synctex_scanner_input_with_tag(scanner: synctex_scanner_p, tag: c_int)
+    -> synctex_node_p;
     pub fn synctex_scanner_get_output(scanner: synctex_scanner_p) -> *const c_char;
     pub fn synctex_scanner_get_synctex(scanner: synctex_scanner_p) -> *const c_char;
     pub fn synctex_scanner_get_output_fmt(scanner: synctex_scanner_p) -> *const c_char;
@@ -112,13 +116,15 @@ unsafe extern "C" {
 
 #[cfg(test)]
 mod tests {
-    use super::synctex_scanner_new_with_output_file;
     use std::ffi::CString;
+
+    use super::synctex_scanner_new_with_output_file;
 
     #[test]
     fn missing_output_returns_null_scanner() {
         let output = CString::new("/definitely/missing/output.pdf").unwrap();
-        let scanner = unsafe { synctex_scanner_new_with_output_file(output.as_ptr(), std::ptr::null(), 0) };
+        let scanner =
+            unsafe { synctex_scanner_new_with_output_file(output.as_ptr(), std::ptr::null(), 0) };
         assert!(scanner.is_null());
     }
 }

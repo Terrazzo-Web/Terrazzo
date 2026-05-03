@@ -71,6 +71,10 @@ async function selectedPdfText(page, pageNumber) {
     }, pageNumber);
 }
 
+async function renderedCssWidth(canvas) {
+    return canvas.evaluate((node) => node.getBoundingClientRect().width);
+}
+
 async function renderedPixelCount(canvas) {
     return canvas.evaluate((node) => {
         const context = node.getContext('2d');
@@ -169,5 +173,21 @@ test.describe('Text editor', () => {
         const firstPageTextLayer = getPdfTextLayer(page, 1);
         await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 30 * SECOND });
         await expect.poll(() => selectedPdfText(page, 1), { timeout: 30 * SECOND }).not.toBe('');
+
+        const initialCssWidth = await renderedCssWidth(firstPage);
+        const box = await firstPage.boundingBox();
+        expect(box).not.toBeNull();
+        await firstPage.dispatchEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            clientX: box.x + box.width / 2,
+            clientY: box.y + box.height / 2,
+            ctrlKey: true,
+            deltaY: -600,
+        });
+
+        await expect
+            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
+            .toBeGreaterThan(initialCssWidth * 1.05);
     });
 });

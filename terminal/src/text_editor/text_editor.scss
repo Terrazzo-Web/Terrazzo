@@ -89,14 +89,15 @@ div.text_editor {
                     box-sizing: border-box;
                     display: flex;
                     flex-direction: column;
-                    align-items: center;
+                    align-items: stretch;
                     gap: calc(2 * var(--padding));
+                    overflow: auto;
                     padding: calc(2 * var(--padding));
                     background-color: rgb(38, 38, 38);
 
-                    >div[data-page-number] {
+                    > div[data-page-number] {
                         position: relative;
-                        max-width: 100%;
+                        margin-inline: auto;
                         background-color: white;
                         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 
@@ -105,7 +106,6 @@ div.text_editor {
 
                         canvas {
                             display: block;
-                            max-width: 100%;
                             background-color: white;
                         }
 
@@ -138,7 +138,9 @@ div.text_editor {
                                 z-index: 1;
                                 font-size: calc(var(--text-scale-factor) * var(--font-height));
                                 transform:
-                                    rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1)) scale(var(--min-font-size-inv));
+                                    rotate(var(--rotate, 0deg))
+                                    scaleX(var(--scale-x, 1))
+                                    scale(var(--min-font-size-inv));
                             }
 
                             [class~="markedContent"] {
@@ -163,4 +165,13 @@ div.text_editor {
             }
         }
     }
+}
+
+[class~="hiddenCanvasElement"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    width: 0;
+    height: 0;
 }

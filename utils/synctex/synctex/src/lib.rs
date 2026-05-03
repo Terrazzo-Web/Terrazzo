@@ -381,7 +381,14 @@ mod tests {
     use super::Scanner;
 
     fn fixture_dir() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/edit_query")
+        let cargo_manifest_dir = if Path::new(env!("CARGO_MANIFEST_DIR")).exists() {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        } else {
+            std::env::var("CARGO_MANIFEST_DIR")
+                .expect("CARGO_MANIFEST_DIR")
+                .into()
+        };
+        cargo_manifest_dir.join("tests/fixtures/edit_query")
     }
 
     fn copy_fixture() -> tempfile::TempDir {

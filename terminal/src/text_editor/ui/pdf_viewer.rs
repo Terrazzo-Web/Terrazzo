@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::sync::Arc;
 
 use base64::Engine as _;
@@ -7,6 +5,8 @@ use base64::prelude::BASE64_STANDARD;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 use web_sys::js_sys::Uint8Array;
+
+terrazzo_css::import_style!(pub(super) style, "pdf_viewer.scss");
 
 pub struct PdfJs(PdfJsImpl);
 

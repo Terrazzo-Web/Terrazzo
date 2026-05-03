@@ -1,46 +1,34 @@
-use std::error::Error as StdError;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::NulError;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fmt::{self};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::ptr::NonNull;
 use std::rc::Rc;
 
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo_synctex_sys as sys;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[nameth]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("[{n}] Path is not valid UTF-8", n = self.name())]
     InvalidPath,
-    Nul(NulError),
+
+    #[error("[{n}] Path contains an interior NUL byte: {0}", n = self.name())]
+    Nul(#[from] NulError),
+
+    #[error("[{n}] Failed to open SyncTeX scanner", n = self.name())]
     OpenFailed,
+
+    #[error("[{n}] Failed to parse SyncTeX file", n = self.name())]
     ParseFailed,
+
+    #[error("[{n}] SyncTeX query failed with status {0}", n = self.name())]
     Status(sys::synctex_status_t),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidPath => write!(f, "path is not valid UTF-8"),
-            Self::Nul(err) => write!(f, "path contains an interior NUL byte: {err}"),
-            Self::OpenFailed => write!(f, "failed to open SyncTeX scanner"),
-            Self::ParseFailed => write!(f, "failed to parse SyncTeX file"),
-            Self::Status(status) => write!(f, "SyncTeX query failed with status {status}"),
-        }
-    }
-}
-
-impl StdError for Error {}
-
-impl From<NulError> for Error {
-    fn from(value: NulError) -> Self {
-        Self::Nul(value)
-    }
 }
 
 #[derive(Debug)]

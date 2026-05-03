@@ -10,7 +10,9 @@ categories = ["parser-implementations"]
 keywords = ["synctex", "tex", "pdf"]
 
 [dependencies]
+nameth = { workspace = true }
 terrazzo-synctex-sys = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 runfiles = { workspace = true }

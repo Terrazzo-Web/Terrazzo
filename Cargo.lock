@@ -4622,9 +4622,11 @@ dependencies = [
 name = "terrazzo-synctex"
 version = "0.2.1"
 dependencies = [
+ "nameth",
  "runfiles",
  "tempfile",
  "terrazzo-synctex-sys",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

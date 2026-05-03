@@ -103,7 +103,12 @@ impl<'scanner> Node<'scanner> {
         unsafe { Self::from_raw(sys::synctex_node_next(self.raw.as_ptr())) }
     }
 
-    /// Returns this node's visible dimensions.
+    /// Returns this node's visible dimensions in page coordinates.
+    ///
+    /// Visible dimensions are floating-point values after SyncTeX's unit and
+    /// page-offset conversion. They describe this node itself; nodes whose TeX
+    /// geometry omits a size, such as some math or kern nodes, may still report
+    /// zero width, height, or depth here.
     pub fn visible(&self) -> VisibleBox {
         VisibleBox {
             h: unsafe { sys::synctex_node_visible_h(self.raw.as_ptr()) },
@@ -114,7 +119,12 @@ impl<'scanner> Node<'scanner> {
         }
     }
 
-    /// Returns this node's visible box dimensions.
+    /// Returns this node's enclosing visible box dimensions in page coordinates.
+    ///
+    /// This uses SyncTeX's enclosing-box lookup, so the returned dimensions may
+    /// come from the nearest suitable box ancestor rather than from the node
+    /// itself. It is usually the geometry to use when highlighting an output
+    /// rectangle for a query result.
     pub fn visible_box(&self) -> VisibleBox {
         VisibleBox {
             h: unsafe { sys::synctex_node_box_visible_h(self.raw.as_ptr()) },
@@ -125,7 +135,11 @@ impl<'scanner> Node<'scanner> {
         }
     }
 
-    /// Returns this node's TeX dimensions.
+    /// Returns this node's raw TeX dimensions.
+    ///
+    /// TeX dimensions are integer small-point values in TeX's coordinate space,
+    /// before SyncTeX applies the page unit conversion or page offsets used by
+    /// the visible-dimension accessors.
     pub fn tex(&self) -> TexBox {
         TexBox {
             h: unsafe { sys::synctex_node_h(self.raw.as_ptr()) },

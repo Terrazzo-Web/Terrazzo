@@ -1,0 +1,28 @@
+[package]
+name = "terrazzo-synctex-cli"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+description = "CLI tool for inspecting SyncTeX data."
+categories = ["command-line-utilities", "parser-implementations"]
+keywords = ["synctex", "tex", "pdf"]
+
+[[bin]]
+name = "terrazzo-synctex"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+terrazzo-synctex = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+runfiles = { workspace = true }
+
+[features]
+bazel = []
+
+[lints]
+workspace = true

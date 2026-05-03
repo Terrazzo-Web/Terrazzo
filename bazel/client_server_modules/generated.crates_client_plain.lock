@@ -4630,6 +4630,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "terrazzo-synctex-cli"
+version = "0.2.1"
+dependencies = [
+ "clap",
+ "terrazzo-synctex",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "terrazzo-synctex-sys"
 version = "0.2.1"
 dependencies = [

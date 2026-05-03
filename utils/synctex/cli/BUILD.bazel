@@ -1,0 +1,26 @@
+load("//bazel:rust_rules.bzl", "rust_rules")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_rules(
+    name = "cli",
+    assets = glob(["tests/fixtures/**"]),
+    crate_name = "terrazzo_synctex_cli",
+    crate_root = "src/lib.rs",
+    data_dev = [":fixtures"],
+    deps = ["//utils/synctex/synctex"],
+)
+
+rust_rules(
+    name = "terrazzo-synctex",
+    crate_name = "terrazzo_synctex_cli",
+    crate_root = "src/main.rs",
+    generate_tests = False,
+    rule = "binary",
+    deps = [        ":cli",    ],
+)
+
+filegroup(
+    name = "fixtures",
+    srcs = glob(["tests/fixtures/**"]),
+)

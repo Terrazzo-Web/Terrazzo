@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::sync::Arc;
 
 use base64::Engine as _;

@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use terrazzo::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;

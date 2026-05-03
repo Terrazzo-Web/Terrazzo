@@ -49,7 +49,7 @@ function getPdfZoomValue(page) {
 
 async function selectPdfZoom(page, percent) {
     await getPdfZoomSlider(page).evaluate((node, percent) => {
-        node.value = `${percent}`;
+        node.value = `${Math.log10(percent / 100)}`;
         node.dispatchEvent(new Event('input', { bubbles: true }));
     }, percent);
 }
@@ -192,7 +192,13 @@ test.describe('Text editor', () => {
         const zoomSlider = getPdfZoomSlider(page);
         const zoomValue = getPdfZoomValue(page);
         await expect(zoomSlider).toBeVisible();
+        await expect(zoomSlider).toHaveAttribute('min', '-1');
+        await expect(zoomSlider).toHaveAttribute('max', '1');
         await expect(zoomValue).toHaveText('100%');
+        const sliderWidth = await zoomSlider.evaluate((node) => node.getBoundingClientRect().width);
+        const viewerWidth = await page.locator('.pdf-viewer').evaluate((node) => node.getBoundingClientRect().width);
+        expect(sliderWidth).toBeGreaterThan(viewerWidth * 0.28);
+        expect(sliderWidth).toBeLessThan(viewerWidth * 0.32);
 
         const initialCssWidth = await renderedCssWidth(firstPage);
         await selectPdfZoom(page, 150);

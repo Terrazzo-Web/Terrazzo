@@ -87,6 +87,7 @@ div.text_editor {
 
                 &.pdf-viewer {
                     position: relative;
+                    container-type: inline-size;
                     box-sizing: border-box;
                     overflow: hidden;
                     background-color: rgb(38, 38, 38);
@@ -186,7 +187,7 @@ div.text_editor {
                         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 
                         input[type="range"] {
-                            width: 140px;
+                            width: 30cqw;
                             accent-color: var(--link-color);
                         }
 

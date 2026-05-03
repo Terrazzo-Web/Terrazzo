@@ -10,8 +10,10 @@ function loadPdfJs() {
     return pdfjsLibPromise;
 }
 
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 6;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 10;
+const MIN_ZOOM_SLIDER_VALUE = Math.log10(MIN_ZOOM);
+const MAX_ZOOM_SLIDER_VALUE = Math.log10(MAX_ZOOM);
 const ZOOM_RENDER_DELAY_MS = 80;
 
 class PdfJsImpl {
@@ -176,12 +178,12 @@ class PdfJsImpl {
 
         const slider = document.createElement("input");
         slider.type = "range";
-        slider.min = `${MIN_ZOOM * 100}`;
-        slider.max = `${MAX_ZOOM * 100}`;
-        slider.step = "5";
+        slider.min = `${MIN_ZOOM_SLIDER_VALUE}`;
+        slider.max = `${MAX_ZOOM_SLIDER_VALUE}`;
+        slider.step = "any";
         slider.setAttribute("aria-label", "PDF zoom");
         slider.addEventListener("input", () => {
-            this.setZoom(Number(slider.value) / 100, this.makeCenterZoomAnchor());
+            this.setZoom(this.zoomFromSliderValue(Number(slider.value)), this.makeCenterZoomAnchor());
         });
 
         const value = document.createElement("output");
@@ -218,12 +220,20 @@ class PdfJsImpl {
     updateZoomControl() {
         const percent = Math.round(this.zoom * 100);
         if (this.zoomSlider) {
-            this.zoomSlider.value = `${percent}`;
+            this.zoomSlider.value = `${this.sliderValueFromZoom(this.zoom)}`;
         }
         if (this.zoomValue) {
             this.zoomValue.value = `${percent}%`;
             this.zoomValue.textContent = `${percent}%`;
         }
+    }
+
+    zoomFromSliderValue(value) {
+        return 10 ** value;
+    }
+
+    sliderValueFromZoom(zoom) {
+        return Math.log10(Math.min(Math.max(zoom, MIN_ZOOM), MAX_ZOOM));
     }
 
     scheduleZoomRender() {

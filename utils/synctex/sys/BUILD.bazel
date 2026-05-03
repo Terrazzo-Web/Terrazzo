@@ -1,7 +1,10 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//bazel:rust_rules.bzl", "rust_rules")
+load("//utils/synctex/sys:synctex_vendor.bzl", "synctex_vendor_sources")
 
 package(default_visibility = ["//visibility:public"])
+
+synctex_vendor_sources()
 
 cc_library(
     name = "synctex_c",

@@ -5,6 +5,10 @@ use crate::Result;
 use crate::Scanner;
 use crate::status_to_result;
 
+/// Results returned by a SyncTeX query.
+///
+/// The results borrow the scanner that produced them. Iterating yields each
+/// matching node in scanner order.
 #[derive(Debug)]
 pub struct QueryResults<'scanner> {
     scanner: &'scanner mut Scanner,
@@ -20,14 +24,17 @@ impl<'scanner> QueryResults<'scanner> {
         Ok(Self { scanner, count })
     }
 
+    /// Returns the number of nodes reported by the query.
     pub fn count(&self) -> usize {
         self.count
     }
 
+    /// Returns `true` when the query did not report any matching nodes.
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
+    /// Resets the scanner result cursor to the first query result.
     pub fn reset(&mut self) -> Result<()> {
         status_to_result(unsafe { sys::synctex_scanner_reset_result(self.scanner.raw.as_ptr()) })
             .map(drop)

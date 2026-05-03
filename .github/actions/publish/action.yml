@@ -10,6 +10,10 @@ runs:
       run: |
         cargo publish --locked -p nameth-macro || true
         cargo publish --locked -p nameth || true
+        cargo publish --locked -p terrazzo-css-shared || true
+        cargo publish --locked -p terrazzo-css-macro || true
+        cargo publish --locked -p terrazzo-css || true
+        cargo publish --locked -p terrazzo-css-cli || true
         cargo publish --locked -p autoclone || true
         cargo publish --locked -p terrazzo-fixture || true
         cargo publish --locked -p terrazzo-macro || true

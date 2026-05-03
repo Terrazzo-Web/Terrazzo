@@ -394,7 +394,11 @@ mod tests {
     fn copy_fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
         for name in ["1.pdf", "1.synctex", "1.tex"] {
-            std::fs::copy(fixture_dir().join(name), temp.path().join(name)).unwrap();
+            let from = fixture_dir().join(name);
+            let to = temp.path().join(name);
+            std::fs::copy(&from, &to)
+                .inspect_err(|error| eprintln!("Failed to copy from {from:?} to {to:?}: {error}"))
+                .unwrap();
         }
         temp
     }

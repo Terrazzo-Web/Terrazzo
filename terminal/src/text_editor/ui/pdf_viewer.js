@@ -55,7 +55,7 @@ class PdfJsImpl {
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
                 if (generation !== this.generation) return;
                 const page = await pdf.getPage(pageNumber);
-                await this.renderPage(page, pageNumber);
+                await this.renderPage(pdfjsLib, page, pageNumber);
             }
         } catch (error) {
             if (generation === this.generation) {
@@ -64,11 +64,18 @@ class PdfJsImpl {
         }
     }
 
-    async renderPage(page, pageNumber) {
+    async renderPage(pdfjsLib, page, pageNumber) {
         const unscaledViewport = page.getViewport({ scale: 1 });
         const availableWidth = Math.max(this.element.clientWidth - 32, 320);
         const scale = Math.min(Math.max(availableWidth / unscaledViewport.width, 0.5), 2);
         const viewport = page.getViewport({ scale });
+
+        const pageElement = document.createElement("div");
+        pageElement.dataset.pageNumber = `${pageNumber}`;
+        pageElement.style.width = `${viewport.width}px`;
+        pageElement.style.height = `${viewport.height}px`;
+        pageElement.style.setProperty("--total-scale-factor", `${this.totalScaleFactor(viewport)}`);
+
         const canvas = document.createElement("canvas");
         canvas.dataset.pageNumber = `${pageNumber}`;
         canvas.width = Math.floor(viewport.width);
@@ -76,9 +83,27 @@ class PdfJsImpl {
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
 
-        this.element.appendChild(canvas);
+        const textLayerElement = document.createElement("div");
+        textLayerElement.dataset.layer = "text";
+
+        pageElement.append(canvas, textLayerElement);
+        this.element.appendChild(pageElement);
+
         const canvasContext = canvas.getContext("2d");
-        await page.render({ canvasContext, viewport }).promise;
+        const renderTask = page.render({ canvasContext, viewport }).promise;
+        const textLayerTask = new pdfjsLib.TextLayer({
+            textContentSource: page.streamTextContent({ includeMarkedContent: true }),
+            container: textLayerElement,
+            viewport,
+        }).render();
+
+        await Promise.all([renderTask, textLayerTask]);
+    }
+
+    totalScaleFactor(viewport) {
+        const { pageWidth, pageHeight } = viewport.rawDims;
+        const rotated = viewport.rotation % 180 !== 0;
+        return rotated ? viewport.width / pageHeight : viewport.width / pageWidth;
     }
 
     showStatus(message) {

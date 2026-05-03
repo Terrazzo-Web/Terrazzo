@@ -94,10 +94,70 @@ div.text_editor {
                     padding: calc(2 * var(--padding));
                     background-color: rgb(38, 38, 38);
 
-                    canvas {
+                    >div[data-page-number] {
+                        position: relative;
                         max-width: 100%;
                         background-color: white;
                         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+
+                        --scale-round-x: 1px;
+                        --scale-round-y: 1px;
+
+                        canvas {
+                            display: block;
+                            max-width: 100%;
+                            background-color: white;
+                        }
+
+                        [data-layer="text"] {
+                            position: absolute;
+                            inset: 0;
+                            overflow: clip;
+                            line-height: 1;
+                            text-align: initial;
+                            text-size-adjust: none;
+                            forced-color-adjust: none;
+                            transform-origin: 0 0;
+                            user-select: text;
+                            z-index: 1;
+
+                            --min-font-size: 1;
+                            --min-font-size-inv: calc(1 / var(--min-font-size));
+                            --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+
+                            :is(span, br) {
+                                position: absolute;
+                                color: transparent;
+                                white-space: pre;
+                                cursor: text;
+                                transform-origin: 0% 0%;
+                            }
+
+                            > :not([class~="markedContent"]),
+                            [class~="markedContent"] span:not([class~="markedContent"]) {
+                                z-index: 1;
+                                font-size: calc(var(--text-scale-factor) * var(--font-height));
+                                transform:
+                                    rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1)) scale(var(--min-font-size-inv));
+                            }
+
+                            [class~="markedContent"] {
+                                display: contents;
+                            }
+
+                            span[role="img"] {
+                                user-select: none;
+                                cursor: default;
+                            }
+
+                            ::selection {
+                                background: rgba(0, 0, 255, 0.25);
+                            }
+
+                            br::selection {
+                                background: transparent;
+                            }
+                        }
                     }
                 }
             }

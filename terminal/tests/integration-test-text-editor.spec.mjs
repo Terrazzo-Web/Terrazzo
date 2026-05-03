@@ -36,7 +36,22 @@ function getPdfPage(page, pageNumber) {
 }
 
 function getPdfTextLayer(page, pageNumber) {
-    return page.locator(`.pdf-viewer > div[data-page-number="${pageNumber}"] [data-layer="text"]`);
+    return page.locator(`.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="text"]`);
+}
+
+function getPdfZoomSlider(page) {
+    return page.locator('.pdf-viewer [data-control="zoom"] input[type="range"]');
+}
+
+function getPdfZoomValue(page) {
+    return page.locator('.pdf-viewer [data-control="zoom"] output');
+}
+
+async function selectPdfZoom(page, percent) {
+    await getPdfZoomSlider(page).evaluate((node, percent) => {
+        node.value = `${percent}`;
+        node.dispatchEvent(new Event('input', { bubbles: true }));
+    }, percent);
 }
 
 async function expectPdfPage(page, pageNumber) {
@@ -56,7 +71,7 @@ async function expectPdfPage(page, pageNumber) {
 async function selectedPdfText(page, pageNumber) {
     return page.evaluate((pageNumber) => {
         const textLayer = document.querySelector(
-            `.pdf-viewer > div[data-page-number="${pageNumber}"] [data-layer="text"]`,
+            `.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="text"]`,
         );
         if (!textLayer) {
             return '';
@@ -174,7 +189,19 @@ test.describe('Text editor', () => {
         await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 30 * SECOND });
         await expect.poll(() => selectedPdfText(page, 1), { timeout: 30 * SECOND }).not.toBe('');
 
+        const zoomSlider = getPdfZoomSlider(page);
+        const zoomValue = getPdfZoomValue(page);
+        await expect(zoomSlider).toBeVisible();
+        await expect(zoomValue).toHaveText('100%');
+
         const initialCssWidth = await renderedCssWidth(firstPage);
+        await selectPdfZoom(page, 150);
+        await expect(zoomValue).toHaveText('150%');
+        await expect
+            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
+            .toBeGreaterThan(initialCssWidth * 1.3);
+
+        const sliderCssWidth = await renderedCssWidth(getPdfPage(page, 1));
         const box = await firstPage.boundingBox();
         expect(box).not.toBeNull();
         await firstPage.dispatchEvent('wheel', {
@@ -188,6 +215,6 @@ test.describe('Text editor', () => {
 
         await expect
             .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
-            .toBeGreaterThan(initialCssWidth * 1.05);
+            .toBeGreaterThan(sliderCssWidth * 1.05);
     });
 });

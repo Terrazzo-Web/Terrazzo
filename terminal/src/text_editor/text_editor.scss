@@ -86,16 +86,24 @@ div.text_editor {
                 overflow-y: auto;
 
                 &.pdf-viewer {
+                    position: relative;
                     box-sizing: border-box;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: stretch;
-                    gap: calc(2 * var(--padding));
-                    overflow: auto;
-                    padding: calc(2 * var(--padding));
+                    overflow: hidden;
                     background-color: rgb(38, 38, 38);
 
-                    > div[data-page-number] {
+                    > [data-layer="pages"] {
+                        position: absolute;
+                        inset: 0;
+                        box-sizing: border-box;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: calc(2 * var(--padding));
+                        overflow: auto;
+                        padding: calc(2 * var(--padding));
+                    }
+
+                    > [data-layer="pages"] > div[data-page-number] {
                         position: relative;
                         margin-inline: auto;
                         background-color: white;
@@ -159,6 +167,33 @@ div.text_editor {
                             br::selection {
                                 background: transparent;
                             }
+                        }
+                    }
+
+                    > [data-control="zoom"] {
+                        position: absolute;
+                        right: calc(3 * var(--padding));
+                        bottom: calc(3 * var(--padding));
+                        z-index: 2;
+                        display: flex;
+                        align-items: center;
+                        gap: var(--padding);
+                        padding: calc(var(--padding) / 2) var(--padding);
+                        color: white;
+                        background-color: rgba(20, 20, 20, 0.86);
+                        border: 1px solid rgba(255, 255, 255, 0.24);
+                        border-radius: 4px;
+                        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+
+                        input[type="range"] {
+                            width: 140px;
+                            accent-color: var(--link-color);
+                        }
+
+                        output {
+                            min-width: 4ch;
+                            text-align: right;
+                            font-variant-numeric: tabular-nums;
                         }
                     }
                 }

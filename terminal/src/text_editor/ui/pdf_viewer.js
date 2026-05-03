@@ -16,6 +16,7 @@ const ZOOM_RENDER_DELAY_MS = 80;
 
 class PdfJsImpl {
     element;
+    documentElement;
     loadingTask;
     pdfjsLib;
     pdf;
@@ -23,15 +24,20 @@ class PdfJsImpl {
     zoom;
     zoomRenderTimeout;
     zoomAnchor;
+    zoomSlider;
+    zoomValue;
     activePageTasks;
     onWheel;
 
     constructor(element, data) {
         this.element = element;
+        this.documentElement = null;
         this.generation = 0;
         this.zoom = 1;
         this.zoomRenderTimeout = null;
         this.zoomAnchor = null;
+        this.zoomSlider = null;
+        this.zoomValue = null;
         this.activePageTasks = new Set();
         this.onWheel = (event) => this.handleWheel(event);
         this.element.addEventListener("wheel", this.onWheel, { passive: false });
@@ -49,6 +55,9 @@ class PdfJsImpl {
         }
         this.pdfjsLib = null;
         this.pdf = null;
+        this.documentElement = null;
+        this.zoomSlider = null;
+        this.zoomValue = null;
         this.element.replaceChildren();
     }
 
@@ -91,7 +100,10 @@ class PdfJsImpl {
 
     async renderDocument(generation) {
         this.cancelPageTasks();
+        this.documentElement = this.createDocumentElement();
         this.element.replaceChildren();
+        this.element.append(this.documentElement, this.createZoomControl());
+        this.updateZoomControl();
         for (let pageNumber = 1; pageNumber <= this.pdf.numPages; pageNumber++) {
             if (generation !== this.generation) return;
             const page = await this.pdf.getPage(pageNumber);
@@ -102,7 +114,7 @@ class PdfJsImpl {
 
     async renderPage(generation, page, pageNumber) {
         const unscaledViewport = page.getViewport({ scale: 1 });
-        const availableWidth = Math.max(this.element.clientWidth - 32, 320);
+        const availableWidth = Math.max(this.scrollElement.clientWidth - 32, 320);
         const scale = Math.min(Math.max(availableWidth / unscaledViewport.width, 0.5), 2) * this.zoom;
         const viewport = page.getViewport({ scale });
 
@@ -123,7 +135,7 @@ class PdfJsImpl {
         textLayerElement.dataset.layer = "text";
 
         pageElement.append(canvas, textLayerElement);
-        this.element.appendChild(pageElement);
+        this.documentElement.appendChild(pageElement);
 
         const canvasContext = canvas.getContext("2d");
         const renderTask = page.render({ canvasContext, viewport });
@@ -152,6 +164,35 @@ class PdfJsImpl {
         return rotated ? viewport.width / pageHeight : viewport.width / pageWidth;
     }
 
+    createDocumentElement() {
+        const documentElement = document.createElement("div");
+        documentElement.dataset.layer = "pages";
+        return documentElement;
+    }
+
+    createZoomControl() {
+        const control = document.createElement("div");
+        control.dataset.control = "zoom";
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = `${MIN_ZOOM * 100}`;
+        slider.max = `${MAX_ZOOM * 100}`;
+        slider.step = "5";
+        slider.setAttribute("aria-label", "PDF zoom");
+        slider.addEventListener("input", () => {
+            this.setZoom(Number(slider.value) / 100, this.makeCenterZoomAnchor());
+        });
+
+        const value = document.createElement("output");
+        value.setAttribute("aria-live", "polite");
+
+        control.append(slider, value);
+        this.zoomSlider = slider;
+        this.zoomValue = value;
+        return control;
+    }
+
     handleWheel(event) {
         if (!this.pdf || !this.pdfjsLib || !(event.ctrlKey || event.metaKey)) {
             return;
@@ -170,7 +211,19 @@ class PdfJsImpl {
         }
         this.zoom = nextZoom;
         this.zoomAnchor = anchor;
+        this.updateZoomControl();
         this.scheduleZoomRender();
+    }
+
+    updateZoomControl() {
+        const percent = Math.round(this.zoom * 100);
+        if (this.zoomSlider) {
+            this.zoomSlider.value = `${percent}`;
+        }
+        if (this.zoomValue) {
+            this.zoomValue.value = `${percent}%`;
+            this.zoomValue.textContent = `${percent}%`;
+        }
     }
 
     scheduleZoomRender() {
@@ -205,12 +258,23 @@ class PdfJsImpl {
     }
 
     makeZoomAnchor(event) {
-        const rect = this.element.getBoundingClientRect();
+        const scrollElement = this.scrollElement;
+        const rect = scrollElement.getBoundingClientRect();
         const pointerY = event.clientY - rect.top;
-        const scrollHeight = Math.max(this.element.scrollHeight, 1);
+        const scrollHeight = Math.max(scrollElement.scrollHeight, 1);
         return {
             pointerY,
-            ratio: (this.element.scrollTop + pointerY) / scrollHeight,
+            ratio: (scrollElement.scrollTop + pointerY) / scrollHeight,
+        };
+    }
+
+    makeCenterZoomAnchor() {
+        const scrollElement = this.scrollElement;
+        const pointerY = scrollElement.clientHeight / 2;
+        const scrollHeight = Math.max(scrollElement.scrollHeight, 1);
+        return {
+            pointerY,
+            ratio: (scrollElement.scrollTop + pointerY) / scrollHeight,
         };
     }
 
@@ -218,10 +282,18 @@ class PdfJsImpl {
         const anchor = this.zoomAnchor;
         this.zoomAnchor = null;
         if (!anchor) return;
-        this.element.scrollTop = anchor.ratio * this.element.scrollHeight - anchor.pointerY;
+        const scrollElement = this.scrollElement;
+        scrollElement.scrollTop = anchor.ratio * scrollElement.scrollHeight - anchor.pointerY;
+    }
+
+    get scrollElement() {
+        return this.documentElement ?? this.element;
     }
 
     showStatus(message) {
+        this.documentElement = null;
+        this.zoomSlider = null;
+        this.zoomValue = null;
         const status = document.createElement("div");
         status.className = "pdf-status";
         status.textContent = message;

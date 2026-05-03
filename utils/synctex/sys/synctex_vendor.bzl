@@ -19,8 +19,12 @@ _SYNCTEX_VENDOR_FILES = [
 def _target_name(path):
     return "synctex_vendor_" + path.replace(".", "_").replace("-", "_")
 
-def synctex_vendor_sources():
-    """Build targets to keep vendored SyncTeX sources up-to-date."""
+def synctex_vendor_sources(name = None):
+    """Build targets to keep vendored SyncTeX sources up-to-date.
+
+    Args:
+      name: Unused.
+    """
     for path in _SYNCTEX_VENDOR_FILES:
         target_name = _target_name(path)
         generated_path = "generated/vendor/synctex/" + path

@@ -8,6 +8,10 @@ runs:
         cargo publish --locked -p nameth-macro --dry-run
         cargo publish --locked -p nameth --dry-run
         cargo publish --locked -p autoclone --dry-run
+        cargo publish --locked -p terrazzo-css-shared --dry-run
+        cargo publish --locked -p terrazzo-css-macro --dry-run
+        cargo publish --locked -p terrazzo-css --dry-run
+        cargo publish --locked -p terrazzo-css-cli --dry-run
         cargo publish --locked -p terrazzo-fixture --dry-run
         cargo publish --locked -p terrazzo-macro --dry-run
         cargo publish --locked -p terrazzo-client --dry-run

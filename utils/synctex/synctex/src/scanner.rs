@@ -104,12 +104,19 @@ impl Scanner {
         status_to_result(unsafe { sys::synctex_scanner_reset_result(self.raw.as_ptr()) }).map(drop)
     }
 
-    /// Returns the input file name registered for `tag`.
+    /// Returns the input file path registered for `tag`.
+    ///
+    /// SyncTeX assigns each source file an integer tag in its `Input:<tag>:<name>`
+    /// records. Other nodes store that tag instead of repeating the source path.
     pub fn name_for_tag(&self, tag: i32) -> Option<&CStr> {
         unsafe { optional_cstr(sys::synctex_scanner_get_name(self.raw.as_ptr(), tag)) }
     }
 
-    /// Returns the SyncTeX tag registered for `name`.
+    /// Returns the SyncTeX tag registered for an input file path.
+    ///
+    /// `name` is the source path as recorded by SyncTeX, such as the path passed
+    /// to a forward query. The returned tag is the integer used by SyncTeX nodes
+    /// to refer back to that input file.
     pub fn tag_for_name(&self, name: &Path) -> Result<i32> {
         let name = path_to_cstring(name)?;
         Ok(unsafe { sys::synctex_scanner_get_tag(self.raw.as_ptr(), name.as_ptr()) })
@@ -140,17 +147,26 @@ impl Scanner {
         unsafe { optional_cstr(sys::synctex_scanner_get_output_fmt(self.raw.as_ptr())) }
     }
 
-    /// Returns the horizontal output offset recorded by SyncTeX.
+    /// Returns the horizontal offset used to convert TeX coordinates to output coordinates.
+    ///
+    /// SyncTeX stores node positions in TeX coordinates. Visible output
+    /// coordinates are computed as `tex_x * magnification + x_offset`.
     pub fn x_offset(&self) -> i32 {
         unsafe { sys::synctex_scanner_x_offset(self.raw.as_ptr()) }
     }
 
-    /// Returns the vertical output offset recorded by SyncTeX.
+    /// Returns the vertical offset used to convert TeX coordinates to output coordinates.
+    ///
+    /// SyncTeX stores node positions in TeX coordinates. Visible output
+    /// coordinates are computed as `tex_y * magnification + y_offset`.
     pub fn y_offset(&self) -> i32 {
         unsafe { sys::synctex_scanner_y_offset(self.raw.as_ptr()) }
     }
 
-    /// Returns the magnification factor recorded by SyncTeX.
+    /// Returns the scale factor used to convert TeX coordinates to output coordinates.
+    ///
+    /// SyncTeX applies this factor before adding the horizontal or vertical
+    /// offset, as in `tex_x * magnification + x_offset`.
     pub fn magnification(&self) -> f32 {
         unsafe { sys::synctex_scanner_magnification(self.raw.as_ptr()) }
     }

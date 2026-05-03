@@ -6,6 +6,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 use web_sys::js_sys::Uint8Array;
 
+terrazzo_css::import_style!(pub(super) style, "pdf_viewer.scss");
+
 pub struct PdfJs(PdfJsImpl);
 
 impl Drop for PdfJs {

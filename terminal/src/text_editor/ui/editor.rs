@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -113,7 +111,7 @@ pub fn editor(
 
     tag(
         class = style::EDITOR,
-        class = is_pdf.then_some(style::PDF_VIEWER),
+        class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
         #[cfg(not(feature = "client-prod"))]
         class = is_pdf.then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]

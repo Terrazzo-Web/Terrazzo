@@ -15,5 +15,8 @@ terrazzo-synctex-sys = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 
+[features]
+bazel=[]
+
 [lints]
 workspace = true

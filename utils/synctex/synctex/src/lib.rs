@@ -381,13 +381,28 @@ mod tests {
     use super::Scanner;
 
     fn fixture_dir() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/edit_query")
+        #[cfg(not(feature = "bazel"))]
+        let cargo_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+        #[cfg(feature = "bazel")]
+        let cargo_manifest_dir = {
+            runfiles::find_runfiles_dir()
+                .unwrap()
+                .join(std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE"))
+                .join(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"))
+        };
+
+        cargo_manifest_dir.join("tests/fixtures/edit_query")
     }
 
     fn copy_fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
         for name in ["1.pdf", "1.synctex", "1.tex"] {
-            std::fs::copy(fixture_dir().join(name), temp.path().join(name)).unwrap();
+            let from = fixture_dir().join(name);
+            let to = temp.path().join(name);
+            std::fs::copy(&from, &to)
+                .inspect_err(|error| eprintln!("Failed to copy from {from:?} to {to:?}: {error}"))
+                .unwrap();
         }
         temp
     }

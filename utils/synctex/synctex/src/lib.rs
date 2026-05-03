@@ -380,19 +380,19 @@ mod tests {
 
     use super::Scanner;
 
+    static TEST_FIXTURES: &str = "tests/fixtures/edit_query";
+
     fn fixture_dir() -> PathBuf {
-        #[cfg(not(feature = "bazel"))]
-        let cargo_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let result = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(TEST_FIXTURES);
+        if result.exists() {
+            return result;
+        }
 
-        #[cfg(feature = "bazel")]
-        let cargo_manifest_dir = {
-            runfiles::find_runfiles_dir()
-                .unwrap()
-                .join(std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE"))
-                .join(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"))
-        };
-
-        cargo_manifest_dir.join("tests/fixtures/edit_query")
+        return runfiles::find_runfiles_dir()
+            .unwrap()
+            .join(std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE"))
+            .join(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"))
+            .join(TEST_FIXTURES);
     }
 
     fn copy_fixture() -> tempfile::TempDir {

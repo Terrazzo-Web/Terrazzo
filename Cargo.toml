@@ -95,6 +95,7 @@ heck = { version = "0.5.0" }
 hickory-client = { version = "0.25.2", features = ["serde"] }
 hostname = { version = "0.4.2" }
 http = { version = "1.4.0" }
+runfiles= { version = "0.2.0" }
 http-body-util = { version = "0.1.3" }
 humantime = { version = "2.3.0" }
 hyper = { version = "1.9.0" }

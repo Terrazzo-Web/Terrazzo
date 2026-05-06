@@ -2,10 +2,12 @@
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-def generate_file(name, src, dest, ignore_whitespace = False):
+_GENERATED_FILE_SH = Label("//bazel:generated_file.sh")
+
+def generate_file(name, src, dest, ignore_whitespace = False, runner = _GENERATED_FILE_SH):
     sh_binary(
         name = name,
-        srcs = ["//bazel:generated_file.sh"],
+        srcs = [runner],
         data = [src],
         args = [
             "$(location %s)" % src,

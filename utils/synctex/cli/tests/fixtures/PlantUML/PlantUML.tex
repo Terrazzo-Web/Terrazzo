@@ -1,0 +1,151 @@
+\documentclass[11pt,parskip=half]{scrartcl}
+
+\usepackage[T1]{fontenc}
+\usepackage{../common}
+\usepackage{./plantuml}
+
+
+\usepackage{csquotes} % To put text into “fancy quotes” with \textquote{bla bla}
+\usepackage{epigraph} % For fancy wize quotes at the beginning of a section
+\usepackage{eso-pic} % To draw a picture on top of a page
+\usepackage{floatbytocbasic}
+
+\usepackage{minted}
+\usemintedstyle{colorful}
+
+\usepackage{multicol}
+\usepackage{pdfpages}
+\usepackage{svg}
+
+\renewcommand{\today}{\DTMdate{2026-04-29}}
+
+\title{Trying out PlantUML diagrams in \LaTeX}
+
+\author{Richard Pavy}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\listoffigures
+\listoflistings
+
+\section{Getting started with \texttt{PlantUML}}
+
+This section contains sample \href{https://plantuml.com}{PlantUML} diagrams.
+
+\subsection{Set Up}
+
+Diagrams can be easily included by
+
+\begin{minted}[linenos]{latex}
+\usepackage{./plantuml}
+...
+% Includes diagram my-sequence-diagram.puml as a figure
+% captioned "Sample UML diagram"
+\includeplantuml{my-sequence-diagram}{Sample UML diagram}
+\end{minted}
+
+\subsection{Sample UML diagrams}
+
+\begin{multicols}{2}
+  \includeplantuml{participants}{Types of participants supported by PlantUML}
+  \includeplantuml{arrows}{Types of arrows}
+  \includeplantuml{groups}{Grouping message}
+  \includeplantuml{anchors}{Anchors}
+\end{multicols}
+
+\subsection{A more complex example}
+
+\includeplantuml{SSO}{Sample diagram of SSO handshake}
+
+\subsection{A Wireframe example}
+
+This example is configured with
+\verb|\includeplantuml[width=\maxwidth]{puml}{Title}| to be as wide as possible
+and fit the page.
+
+\includeplantuml[width=\maxwidth]{salt}{S.A.L.T.}
+
+\subsection{Inlined UML diagram}
+
+UML diagrams can also be inlined in the \texttt{.tex} file, using:
+
+\begin{minted}[linenos]{latex}
+    \usepackage{./plantuml}
+    ...
+    % Includes inlined diagram as a figure captioned "Sample UML diagram"
+    \begin{plantuml}{Alice and Bob}
+        @startuml
+        Alice -> Bob: Hello
+        Bob -> Alice: Hi there
+        @enduml
+    \end{plantuml}
+\end{minted}
+
+\begin{plantuml}{Alice and Bob}
+    @startuml
+    !theme materia
+    Alice -> Bob: Hello
+    Bob -> Alice: Hi there
+    @enduml
+\end{plantuml}
+
+\section{OIDC Authorization Code Flow}
+
+\epigraph{Identity is no longer a place you log into, but a trust you carry across boundaries-quietly verified, never exposed.}{\textit{ChatGPT}}
+
+\begin{plantuml}{OIDC Authorization Code Flow}
+  @startuml
+  !theme cerulean
+  actor User
+  participant "User Agent" as Browser
+  participant "Client App" as Client
+  participant "Authorization Server" as AS
+  participant "Resource Server" as RS
+
+  User -> Browser: Open protected page
+  Browser -> Client: GET /protected
+  Client -> Browser: Redirect to /authorize
+  Browser -> AS: Authorization request\nclient_id, scope=openid, redirect_uri, state, nonce
+  AS -> User: Authenticate and consent
+  User -> AS: Credentials and consent
+  AS -> Browser: Redirect with authorization code and state
+  Browser -> Client: GET /callback?code=...&state=...
+  Client -> AS: Exchange code for tokens
+  AS -> Client: ID token, access token, refresh token
+  Client -> AS: Validate ID token / fetch user info
+  Client -> RS: API request with access token
+  RS -> Client: Protected resource
+  Client -> Browser: Authenticated session response
+  @enduml
+\end{plantuml}
+
+\section{Source code snippets}
+
+This is a \mint{html}|<h2>source code</h2>| snippet:
+
+I can type \texttt{verbatim} text too.
+
+\begin{listing}[H]
+  \begin{minted}[linenos]{rust}
+#[template]
+#[html]
+pub fn run() -> XElement {
+    let demo = Demo::new();
+    return div(
+        key = "root",
+        counter::counter_demo(demo.counter),
+        timer::timer_demo(demo.enable_timer, demo.timer),
+        api::api_demo(),
+        attributes::attributes_demo(),
+    );
+}
+\end{minted}
+  \caption{Some Rust code}
+  \label{listing:rust}
+\end{listing}
+
+\end{document}

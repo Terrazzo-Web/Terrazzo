@@ -24,6 +24,7 @@ members = [
   "utils/nameth/nameth",
   "utils/nameth/nameth-macro",
   "utils/nameth/nameth-tests",
+  "utils/synctex/cli",
   "utils/synctex/synctex",
   "utils/synctex/sys",
 ]
@@ -71,6 +72,7 @@ terrazzo-fixture = { version = "0.2.1", path = "utils/fixture" }
 terrazzo-macro = { version = "0.2.1", path = "framework/macro" }
 terrazzo-pty = { version = "0.2.1", path = "pty" }
 terrazzo-synctex = { version = "0.2.1", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.1", path = "utils/synctex/cli" }
 terrazzo-synctex-sys = { version = "0.2.1", path = "utils/synctex/sys" }
 trz-gateway-client = { version = "0.2.1", path = "remote/client" }
 trz-gateway-common = { version = "0.2.1", path = "remote/common" }

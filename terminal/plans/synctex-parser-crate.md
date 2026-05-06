@@ -266,6 +266,23 @@ Validate with:
 Create a git commit for this task only if it makes documentation or workspace-registration changes
 that were not already covered by Tasks 1-3.
 
+### Task 5: Add a CLI to test SyncTeX
+
+Create a CLI that takes a PDF file as parameter and run SyncTeX command.
+
+Use the clap crate to parse arguments.
+
+Possible actions are:
+- `display_query`: Given a line, column, optional page hint, optional source file (if not provided, default to the .tex file of the PDF given as mandatory parameter), show the list of VisibleBoxes. Use method Scanner::display_query and Node::visible
+- `edit_query`: Same but for method Scanner::edit_query. Verify there is no need for the optional source file param in this case. But we do want to show not just the VisibleBoxes but also the source file names. Share the method to pretty-print Nodes with `display_query` above.
+- `coordinates` shows x_offset, y_offset and magnification
+- `sheet`: show the Scanner::sheet node for given page number. If the optional parameter `--content` is set, use method `sheet_content` instead
+- `display_debug`
+
+All parameters should have a long and short format, e.g. `-p "value"` or `--parameter  "value"` or `--parameter=value`. No need to reinvent parameter parsing, just use standard clap crate.
+
+Add tests using PDF, TeX and SyncTeX files in utils/synctex/synctex/tests/fixtures/PlantUML. The CLI crate will be in utils/synctex/cli so you will need to move utils/synctex/synctex/tests/fixtures/PlantUML inside the CLI crate.
+
 ## Future PDF Viewer Integration
 
 This crate is expected to be used by the PDF viewer later, but that work belongs in a separate plan.

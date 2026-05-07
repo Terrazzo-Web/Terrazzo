@@ -1,3 +1,11 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "Bump jsdeps package.json ranges instead of only updating package-lock.json",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["terminal/assets/jsdeps/package.json"],
+      "rangeStrategy": "bump"
+    }
+  ]
 }

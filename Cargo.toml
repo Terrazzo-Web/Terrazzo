@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,25 +58,25 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.1", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.1", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.1", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.1", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.1", path = "framework/build" }
-terrazzo-client = { version = "0.2.1", path = "framework/client" }
-terrazzo-css = { version = "0.2.1", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.1", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.1", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.1", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.1", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.1", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.1", path = "pty" }
-terrazzo-synctex = { version = "0.2.1", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.1", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.1", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.1", path = "remote/client" }
-trz-gateway-common = { version = "0.2.1", path = "remote/common" }
-trz-gateway-server = { version = "0.2.1", path = "remote/server" }
+autoclone = { version = "0.2.2", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.2", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.2", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.2", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.2", path = "framework/build" }
+terrazzo-client = { version = "0.2.2", path = "framework/client" }
+terrazzo-css = { version = "0.2.2", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.2", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.2", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.2", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.2", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.2", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.2", path = "pty" }
+terrazzo-synctex = { version = "0.2.2", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.2", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.2", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.2", path = "remote/client" }
+trz-gateway-common = { version = "0.2.2", path = "remote/common" }
+trz-gateway-server = { version = "0.2.2", path = "remote/server" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
@@ -111,10 +111,10 @@ mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.2" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.78" }
+openssl = { version = "0.10.79" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "3.0.6" }
-pin-project = { version = "1.1.11" }
+pin-project = { version = "1.1.12" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.106" }
@@ -150,17 +150,17 @@ tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.18" }
 tls-parser = { version = "0.12.2" }
-tokio = { version = "1.52.1" }
+tokio = { version = "1.52.2" }
 tokio-rustls = { version = "0.26.4" }
 tokio-stream = { version = "0.1.18" }
 tokio-tungstenite = { version = "0.29.0" }
 tokio-util = { version = "0.7.18" }
 toml = { version = "1.1.2" }
-tonic = { version = "0.14.5" }
-tonic-prost = { version = "0.14.5" }
-tonic-prost-build = { version = "0.14.5" }
+tonic = { version = "0.14.6" }
+tonic-prost = { version = "0.14.6" }
+tonic-prost-build = { version = "0.14.6" }
 tower = { version = "0.5.3" }
-tower-http = { version = "0.6.8" }
+tower-http = { version = "0.6.10" }
 tower-layer = { version = "0.3.3" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }

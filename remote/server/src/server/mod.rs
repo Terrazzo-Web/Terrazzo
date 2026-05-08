@@ -204,7 +204,7 @@ impl Server {
             .flatten()
             .collect::<Vec<_>>();
             info!("Reporting current endpoints as: {current_endpoints:?}");
-            std::fs::write(set_current_endpoint, current_endpoints.join("\n"))
+            std::fs::write(set_current_endpoint, current_endpoints.join(";"))
                 .expect("write endpoint to file");
         }
 

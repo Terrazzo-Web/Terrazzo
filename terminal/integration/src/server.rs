@@ -210,7 +210,7 @@ impl Server {
                 source,
             }
         })?;
-        let endpoint = endpoint.trim();
+        let endpoint = endpoint.split(';').next().unwrap_or_default().trim();
         if endpoint.is_empty() {
             return Err(RunError::ReadEndpoint {
                 path: self.endpoint_file.clone(),

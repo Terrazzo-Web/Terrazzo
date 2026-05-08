@@ -24,6 +24,7 @@ use trz_gateway_server::server::Server;
 use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
 use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
+use trz_gateway_server::server::gateway_config::Ports;
 use trz_gateway_server::server::gateway_config::app_config::AppConfig;
 
 use super::auth::AuthConfig;
@@ -89,8 +90,8 @@ impl GatewayConfig for TerminalBackendServer {
         self.config.server.with(|server| server.host.to_owned())
     }
 
-    fn port(&self) -> u16 {
-        self.config.server.with(|server| server.port)
+    fn ports(&self) -> impl Ports + 'static {
+        self.config.server.with(|server| server.ports.clone())
     }
 
     fn set_current_endpoint(&self) -> Option<PathBuf> {
@@ -153,7 +154,7 @@ mod debug {
         fn fmt(&self, f: &mut Formatter<'_>) -> Result {
             f.debug_struct(TerminalBackendServer::type_name())
                 .field("host", &self.host())
-                .field("port", &self.port())
+                .field("ports", &self.ports())
                 .finish()
         }
     }

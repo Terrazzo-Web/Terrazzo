@@ -147,10 +147,15 @@ impl Server {
             set_current_endpoint: config.set_current_endpoint(),
         });
 
-        let (host, port) = (config.host(), config.port());
-        let socket_addrs = (host.as_str(), port)
+        let (host, ports) = (config.host(), config.ports());
+        let socket_addrs = (host.as_str(), *ports.first().unwrap())
             .to_socket_addrs()
-            .map_err(|error| GatewayError::ToSocketAddrs { host, port, error })?;
+            .map_err(|error| GatewayError::ToSocketAddrs { host, error })?
+            .flat_map(|socket_addr| {
+                ports
+                    .iter()
+                    .map(move |port| SocketAddr::new(socket_addr.ip(), *port))
+            });
         drop(config);
 
         let mut terminated = vec![];
@@ -299,10 +304,9 @@ pub enum GatewayError<C: GatewayConfig> {
     #[error("[{n}] Failed to get the client certificate issuer configuration: {0}", n = self.name())]
     IssuerConfig(#[from] IssuerConfigError<<C::ClientCertificateIssuerConfig as HasDynamicSecurityConfig>::HasSecurityConfig>),
 
-    #[error("[{n}] Failed to get socket address for {host}:{port}: {error}", n = self.name())]
+    #[error("[{n}] Failed to get socket address for host={host}: {error}", n = self.name())]
     ToSocketAddrs {
         host: String,
-        port: u16,
         error: std::io::Error,
     },
 

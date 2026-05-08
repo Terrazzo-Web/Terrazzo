@@ -20,7 +20,10 @@ impl<G> TestClientConfig<G> {
 
 impl<G: GatewayConfig> ClientConfig for TestClientConfig<G> {
     fn base_url(&self) -> impl std::fmt::Display {
-        std::format!("https://localhost:{}", self.gateway_config.port())
+        std::format!(
+            "https://localhost:{}",
+            self.gateway_config.ports().first().unwrap()
+        )
     }
 
     fn client_name(&self) -> ClientName {

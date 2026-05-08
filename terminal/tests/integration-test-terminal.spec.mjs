@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 const SECOND = 1000;
-const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
+  .split(';')
+  .map((url) => url.trim())
+  .filter(Boolean)[0];
 
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);

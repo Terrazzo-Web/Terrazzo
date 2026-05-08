@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 
 const SECOND = 1000;
-const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
+  .split(';')
+  .map((url) => url.trim())
+  .filter(Boolean)[0];
 const SERVER_BIN = process.env.TERRAZZO_SERVER_BIN;
 const CONFIG_FILE = process.env.TERRAZZO_CONFIG_FILE;
 

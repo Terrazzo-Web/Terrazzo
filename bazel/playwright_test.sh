@@ -60,9 +60,13 @@ SERVER_PID="$!"
 
 for _ in $(seq 1 30); do
   if [[ -s "${SERVER_ENDPOINT_FILE}" ]]; then
-    SERVER_ENDPOINT="$(<"${SERVER_ENDPOINT_FILE}")"
-    SERVER_URL="http://${SERVER_ENDPOINT}"
+    SERVER_ENDPOINTS="$(<"${SERVER_ENDPOINT_FILE}")"
+    SERVER_ENDPOINT="${SERVER_ENDPOINTS%%;*}"
+    SERVER_URLS="http://${SERVER_ENDPOINTS//;/;http://}"
+    SERVER_URL="${SERVER_URLS%%;*}"
   else
+    SERVER_ENDPOINTS=""
+    SERVER_URLS=""
     SERVER_URL=""
   fi
 
@@ -76,7 +80,7 @@ for _ in $(seq 1 30); do
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    BAZEL=1 BASE_URL="${SERVER_URL}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
+    BAZEL=1 BASE_URL="${SERVER_URLS}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
       || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi

@@ -26,6 +26,10 @@ pub struct Cli {
     #[arg(long)]
     pub port: Option<u16>,
 
+    /// Additional TCP ports to listen to.
+    #[arg(long)]
+    pub ports: Vec<u16>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,

@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const SECOND = 1000;
-const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
+    .split(';')
+    .map((url) => url.trim())
+    .filter(Boolean)[0];
 const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
 const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 

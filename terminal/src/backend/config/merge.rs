@@ -42,7 +42,7 @@ impl Config {
         ConfigFile(ConfigImpl {
             server: DiffArc::from(ServerConfig {
                 host: Some(server.host.clone()),
-                port: Some(server.port),
+                ports: server.ports.clone(),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -76,14 +76,21 @@ fn merge_server_config(
     server: &ServerConfig<ConfigFileTypes>,
     cli: &Cli,
 ) -> ServerConfig<RuntimeTypes> {
-    let port = cli.port.or(server.port).unwrap_or(PORT);
+    let port = cli.port.or(server.ports.first().cloned()).unwrap_or(PORT);
+    let ports = if !cli.ports.is_empty() {
+        std::iter::once(port).chain(cli.ports.clone()).collect()
+    } else if !server.ports.is_empty() {
+        server.ports.clone()
+    } else {
+        vec![PORT]
+    };
     ServerConfig {
         host: {
             let host = cli.host.as_deref();
             let host = host.or(server.host.as_deref());
             host.unwrap_or(HOST).to_owned()
         },
-        port,
+        ports,
         set_current_endpoint: cli.set_current_endpoint.clone(),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
@@ -225,7 +232,7 @@ mod tests {
         let config = Config::from(ConfigImpl {
             server: DiffArc::from(ServerConfig::<RuntimeTypes> {
                 host: "localhost".into(),
-                port: 3000,
+                ports: vec![3000],
                 set_current_endpoint: None,
                 pidfile: terrazzo_home().join("test.pid"),
                 private_root_ca: terrazzo_home().join("root_ca"),

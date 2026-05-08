@@ -12,6 +12,9 @@ use self::app_config::AppConfig;
 pub mod app_config;
 mod arc;
 
+pub trait Ports: std::ops::Deref<Target = [u16]> + Clone + std::fmt::Debug {}
+impl<T: std::ops::Deref<Target = [u16]> + Clone + std::fmt::Debug> Ports for T {}
+
 /// Configuration for the Terrazzo Gateway.
 pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
     /// Whether to enable tracing.
@@ -25,8 +28,8 @@ pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
     }
 
     /// Port to listen to.
-    fn port(&self) -> u16 {
-        if cfg!(debug_assertions) { 3000 } else { 3001 }
+    fn ports(&self) -> impl Ports + 'static {
+        vec![if cfg!(debug_assertions) { 3000 } else { 3001 }]
     }
 
     fn set_current_endpoint(&self) -> Option<PathBuf> {

@@ -36,6 +36,7 @@ use trz_gateway_common::x509::validity::Validity;
 
 use super::Server;
 use super::gateway_config::GatewayConfig;
+use super::gateway_config::Ports;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
 use crate::auth_code::AuthCode;
@@ -165,7 +166,8 @@ async fn idle_tcp_connection_times_out() -> Result<(), Box<dyn Error>> {
 
     let _client = make_client(&config).await?;
 
-    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    let mut stream =
+        TcpStream::connect((config.host().as_str(), *config.ports().first().unwrap())).await?;
     let start = Instant::now();
     let mut buffer = [0; 1];
     let read_result = tokio::time::timeout(Duration::from_secs(3), stream.read(&mut buffer)).await;
@@ -199,7 +201,8 @@ async fn http_connection_times_out() -> Result<(), Box<dyn Error>> {
 
     let _client = make_client(&config).await?;
 
-    let mut stream = TcpStream::connect((config.host().as_str(), config.port())).await?;
+    let mut stream =
+        TcpStream::connect((config.host().as_str(), *config.ports().first().unwrap())).await?;
     send_plaintext_keep_alive_request(&mut stream, &config).await?;
     assert_eq!(
         StatusCode::NOT_FOUND,
@@ -374,8 +377,8 @@ impl GatewayConfig for TestConfig {
         "localhost".into()
     }
 
-    fn port(&self) -> u16 {
-        self.port
+    fn ports(&self) -> impl Ports + 'static {
+        vec![self.port]
     }
 
     type RootCaConfig = Arc<PemCertificate>;

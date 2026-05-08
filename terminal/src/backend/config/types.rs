@@ -13,6 +13,7 @@ pub trait ConfigTypes: Clone {
     type MaybePath: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type MaybeBool: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type Port: Serialize + for<'t> Deserialize<'t> + Debug + Default;
+    type Ports: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type Duration: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type RetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type MaybeRetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default;
@@ -27,6 +28,7 @@ impl<T: ConfigTypes> ConfigTypes for ConfigFileTypes<T> {
     type MaybePath = T::MaybePath;
     type MaybeBool = Option<bool>;
     type Port = Option<T::Port>;
+    type Ports = T::Ports;
     type Duration = Option<String>;
     type RetryStrategy = Option<RetryStrategy>;
     type MaybeRetryStrategy = Option<RetryStrategy>;
@@ -41,6 +43,7 @@ impl ConfigTypes for RuntimeTypes {
     type MaybePath = Option<PathBuf>;
     type MaybeBool = bool;
     type Port = u16;
+    type Ports = Vec<u16>;
     type Duration = Duration;
     type RetryStrategy = RetryStrategy;
     type MaybeRetryStrategy = Option<RetryStrategy>;

@@ -1,11 +1,11 @@
 use std::path::Path;
 
-pub fn server_toml(pid_file: &Path, port: u16, root_ca: &Path) -> String {
+pub fn server_toml(pid_file: &Path, _port: u16, root_ca: &Path) -> String {
     format!(
         r#"
 [server]
 host = "localhost"
-port = {port}
+ports = [0, 0]
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"
@@ -32,7 +32,7 @@ pub fn client_toml(
         r#"
 [server]
 host = "localhost"
-port = 0
+ports = [0, 0]
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"

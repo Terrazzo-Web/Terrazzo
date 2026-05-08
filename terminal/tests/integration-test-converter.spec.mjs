@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 const SECOND = 1000;
-const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const BASE_URLS = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
+  .split(';')
+  .map((url) => url.trim())
+  .filter(Boolean);
+const BASE_URL = BASE_URLS[0];
 
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
@@ -96,6 +100,19 @@ test.describe('Converter', () => {
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
+  });
+
+  test('reports two working server endpoints', async ({ request }) => {
+    expect(BASE_URLS).toHaveLength(2);
+
+    const ports = BASE_URLS.map((url) => new URL(url).port);
+    expect(new Set(ports).size).toBe(2);
+
+    for (const url of BASE_URLS) {
+      const response = await request.get(url);
+      const failureDetails = `url=${url} status=${response.status()} headers=${JSON.stringify(response.headers())}`;
+      expect(response.ok(), `endpoint should respond (${failureDetails})`).toBeTruthy();
+    }
   });
 
   test('Invalid server_fn endpoint', async ({ page }) => {

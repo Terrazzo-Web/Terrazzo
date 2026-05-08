@@ -20,6 +20,7 @@ use trz_gateway_common::x509::key::make_key;
 use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
+use trz_gateway_server::server::gateway_config::Ports;
 use trz_gateway_server::server::root_ca_configuration;
 use trz_gateway_server::server::root_ca_configuration::RootCaConfigError;
 
@@ -57,8 +58,8 @@ impl GatewayConfig for TestGatewayConfig {
         "localhost".into()
     }
 
-    fn port(&self) -> u16 {
-        self.port
+    fn ports(&self) -> impl Ports + 'static {
+        vec![self.port]
     }
 
     type RootCaConfig = Arc<PemCertificate>;

@@ -159,19 +159,21 @@ impl Server {
         drop(config);
 
         let mut terminated = vec![];
+        let mut handles = vec![];
 
         let (server_crash_tx, server_crash_rx) = oneshot::channel();
         let server_crash_tx = Arc::new(Mutex::new(Some(server_crash_tx)));
         for socket_addr in socket_addrs {
             let _span = info_span!("Listen", %socket_addr).entered();
             info!("Setup server");
-            let task = server.clone().run_endpoint(socket_addr);
+            let (handle, serving) = server.clone().run_endpoint(socket_addr);
+            handles.push(handle);
             let (terminated_tx, terminated_rx) = oneshot::channel();
             terminated.push(terminated_rx);
             let server_crash_tx = server_crash_tx.clone();
             tokio::spawn(
                 async move {
-                    match task.await {
+                    match serving.await {
                         Ok(()) => (),
                         Err(error) => {
                             error!("Failed {error}");
@@ -186,6 +188,24 @@ impl Server {
                 }
                 .in_current_span(),
             );
+        }
+
+        if let Some(set_current_endpoint) = server.set_current_endpoint.clone() {
+            use futures::future::join_all;
+            let current_endpoints = join_all(handles.into_iter().map(|handle| async move {
+                handle
+                    .listening()
+                    .await
+                    .filter(SocketAddr::is_ipv4)
+                    .map(|local_addr| format!("{}:{}", local_addr.ip(), local_addr.port()))
+            }))
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+            info!("Reporting current endpoints as: {current_endpoints:?}");
+            std::fs::write(set_current_endpoint, current_endpoints.join("\n"))
+                .expect("write endpoint to file");
         }
 
         {
@@ -203,7 +223,13 @@ impl Server {
     }
 
     #[autoclone]
-    async fn run_endpoint(self: Arc<Self>, socket_addr: SocketAddr) -> Result<(), RunGatewayError> {
+    fn run_endpoint(
+        self: Arc<Self>,
+        socket_addr: SocketAddr,
+    ) -> (
+        Handle<SocketAddr>,
+        impl Future<Output = Result<(), RunGatewayError>>,
+    ) {
         let app = self.make_app();
 
         let handle = Handle::new();
@@ -232,27 +258,16 @@ impl Server {
             .in_current_span(),
         );
 
-        if let Some(set_current_endpoint) = &self.set_current_endpoint {
-            tokio::spawn(async move {
-                autoclone!(set_current_endpoint);
-                if let Some(local_addr) = handle.listening().await
-                    && local_addr.is_ipv4()
-                {
-                    let current_endpoint = format!("{}:{}", local_addr.ip(), local_addr.port());
-                    info!("Reporting current endpoint as: {current_endpoint}");
-                    std::fs::write(set_current_endpoint, current_endpoint)
-                        .expect("write endpoint to file");
-                }
-            });
-        }
-
-        info!("Serving...");
-        let () = axum_server
-            .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-            .await
-            .map_err(RunGatewayError::Serve)?;
-        info!("Serving: done");
-        Ok(())
+        let serving = async move {
+            info!("Serving...");
+            let () = axum_server
+                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+                .await
+                .map_err(RunGatewayError::Serve)?;
+            info!("Serving: done");
+            Ok(())
+        };
+        (handle, serving)
     }
 
     /// Returns the list of client connections.

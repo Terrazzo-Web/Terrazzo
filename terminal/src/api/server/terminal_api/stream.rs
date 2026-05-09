@@ -4,7 +4,6 @@ use terrazzo::axum::Json;
 use terrazzo::axum::response::IntoResponse;
 use tracing::Instrument as _;
 use tracing::info_span;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::Server;
@@ -12,7 +11,6 @@ use trz_gateway_server::server::Server;
 use self::register::RegisterStreamError;
 use crate::api::server::correlation_id::CorrelationId;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
-use crate::backend::config::DynConfig;
 
 mod ack;
 mod close;
@@ -31,12 +29,11 @@ pub async fn pipe(server: Arc<Server>, correlation_id: CorrelationId) -> impl In
 
 pub async fn register(
     my_client_name: Option<ClientName>,
-    config: DiffArc<DynConfig>,
     server: Arc<Server>,
     Json(request): Json<RegisterTerminalRequest>,
 ) -> Result<(), HttpError<RegisterStreamError>> {
     let span = info_span!("Register", terminal_id = %request.def.address.id);
-    let response = register::register(my_client_name, &config, &server, request)
+    let response = register::register(my_client_name, &server, request)
         .instrument(span)
         .await;
     Ok(response?)

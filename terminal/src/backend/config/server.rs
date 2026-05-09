@@ -19,9 +19,6 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     pub ports: T::Ports,
     pub set_current_endpoint: T::MaybePath,
 
-    /// The user to run terminal processes as.
-    pub run_as: T::MaybeString,
-
     /// The file to store the pid of the daemon while it is running,
     pub pidfile: T::Path,
 

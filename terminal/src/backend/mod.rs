@@ -311,19 +311,16 @@ async fn run_client_async(
     let terminated_all_tx = Arc::new(terminated_all_tx);
 
     let dynamic_mesh_config = config.mesh.clone();
-    let agent_config = config.clone();
     let dynamic_client = config.mesh.view(move |mesh| {
         debug!("Refresh mesh config");
         if let Some(mesh) = (**mesh).clone() {
             let auth_code = Arc::new(Mutex::new(auth_code.clone()));
-            let agent_config = agent_config.clone();
 
             let (abort_client_tx, abort_client_rx) = oneshot::channel();
             let abort_client_rx = abort_client_rx.shared();
             let client_task = async move {
                 autoclone!(server, terminated_all_tx, dynamic_mesh_config);
-                let Some(agent_config) =
-                    AgentTunnelConfig::new(auth_code, &mesh, &server, &agent_config).await
+                let Some(agent_config) = AgentTunnelConfig::new(auth_code, &mesh, &server).await
                 else {
                     info!("Gateway client disabled");
                     return Err(RunClientError::ClientNotEnabled);

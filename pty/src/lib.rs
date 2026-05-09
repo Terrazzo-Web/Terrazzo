@@ -57,33 +57,14 @@ pub enum OpenProcessError {
 impl ProcessIO {
     pub async fn open(
         client_name: Option<impl AsRef<str>>,
-        run_as: Option<impl AsRef<str>>,
         scrollback: usize,
     ) -> Result<Self, OpenProcessError> {
         let pty = Pty::new()?;
-        let mut command = if let Some(run_as) = &run_as {
-            let mut command = Command::new("sudo");
-            command.arg("-Hiu").arg(run_as.as_ref()).arg("env");
-            command
-        } else {
-            let mut command =
-                std::env::var("SHELL").map_or_else(|_| Command::new("/bin/bash"), Command::new);
-            command.arg("-i");
-            command
-        };
+        let mut command =
+            std::env::var("SHELL").map_or_else(|_| Command::new("/bin/bash"), Command::new);
+        command.arg("-i");
         if let Some(client_name) = client_name {
-            if run_as.is_some() {
-                let client_name = client_name.as_ref().replace(|c: char| !c.is_ascii(), "");
-                command.arg(format!("{TERRAZZO_CLIENT_NAME}={client_name}"));
-            } else {
-                command.env(TERRAZZO_CLIENT_NAME, client_name.as_ref());
-            }
-        }
-        if run_as.is_some() {
-            command
-                .arg("/bin/sh")
-                .arg("-lc")
-                .arg("exec \"${SHELL:-/bin/bash}\" -i");
+            command.env(TERRAZZO_CLIENT_NAME, client_name.as_ref());
         }
         let child = command.spawn(&pty.pts()?)?;
 
@@ -165,7 +146,7 @@ impl Stream for ProcessOutput {
 mod tests {
     #[tokio::test]
     async fn open() {
-        super::ProcessIO::open(Option::<String>::None, Option::<String>::None, 1000)
+        super::ProcessIO::open(Option::<String>::None, 1000)
             .await
             .unwrap();
     }

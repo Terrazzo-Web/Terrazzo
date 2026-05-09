@@ -74,8 +74,8 @@ pub fn terminal_api_routes(
             .route(
                 "/stream/register",
                 post(|request| {
-                    autoclone!(client_name, config, server);
-                    stream::register(client_name, config, server, request)
+                    autoclone!(client_name, server);
+                    stream::register(client_name, server, request)
                 }),
             )
             .route(

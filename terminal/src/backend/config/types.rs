@@ -9,6 +9,7 @@ use trz_gateway_common::retry_strategy::RetryStrategy;
 
 pub trait ConfigTypes: Clone {
     type String: Serialize + for<'t> Deserialize<'t> + Debug + Default;
+    type MaybeString: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type Path: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type MaybePath: Serialize + for<'t> Deserialize<'t> + Debug + Default;
     type MaybeBool: Serialize + for<'t> Deserialize<'t> + Debug + Default;
@@ -24,6 +25,7 @@ pub struct ConfigFileTypes<T = RuntimeTypes>(PhantomData<T>);
 
 impl<T: ConfigTypes> ConfigTypes for ConfigFileTypes<T> {
     type String = Option<T::String>;
+    type MaybeString = T::MaybeString;
     type Path = Option<T::Path>;
     type MaybePath = T::MaybePath;
     type MaybeBool = Option<bool>;
@@ -39,6 +41,7 @@ pub struct RuntimeTypes(PhantomData<()>);
 
 impl ConfigTypes for RuntimeTypes {
     type String = String;
+    type MaybeString = Option<String>;
     type Path = std::path::PathBuf;
     type MaybePath = Option<PathBuf>;
     type MaybeBool = bool;

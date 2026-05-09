@@ -44,6 +44,7 @@ impl Config {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
                 set_current_endpoint: server.set_current_endpoint.clone(),
+                run_as: server.run_as.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
                 password: server.password.clone(),
@@ -92,6 +93,7 @@ fn merge_server_config(
         },
         ports,
         set_current_endpoint: cli.set_current_endpoint.clone(),
+        run_as: server.run_as.clone(),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);
@@ -234,6 +236,7 @@ mod tests {
                 host: "localhost".into(),
                 ports: vec![3000],
                 set_current_endpoint: None,
+                run_as: None,
                 pidfile: terrazzo_home().join("test.pid"),
                 private_root_ca: terrazzo_home().join("root_ca"),
                 password: None,

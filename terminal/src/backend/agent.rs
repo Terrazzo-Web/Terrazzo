@@ -12,6 +12,7 @@ use trz_gateway_client::client::config::ClientConfig;
 use trz_gateway_client::client::service::ClientService;
 use trz_gateway_client::load_client_certificate::load_client_certificate;
 use trz_gateway_client::tunnel_config::TunnelConfig;
+use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
@@ -19,6 +20,7 @@ use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrus
 use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStore;
 use trz_gateway_server::server::Server;
 
+use super::config::DynConfig;
 use super::config::mesh::MeshConfig;
 use crate::backend::client_service::ClientServiceImpl;
 use crate::backend::protos::terrazzo::remotefn::remote_fn_service_server::RemoteFnServiceServer;
@@ -30,6 +32,7 @@ pub struct AgentTunnelConfig {
     client_certificate: CachedCertificate,
     retry_strategy: RetryStrategy,
     server: Arc<Server>,
+    config: DiffArc<DynConfig>,
     current_auth_code: Arc<Mutex<AuthCode>>,
 }
 
@@ -45,6 +48,7 @@ impl AgentTunnelConfig {
         current_auth_code: Arc<Mutex<AuthCode>>,
         mesh: &MeshConfig,
         server: &Arc<Server>,
+        config: &DiffArc<DynConfig>,
     ) -> Option<Self> {
         async move {
             let client_name = mesh.client_name.as_str().into();
@@ -77,6 +81,7 @@ impl AgentTunnelConfig {
                 client_certificate,
                 retry_strategy: RetryStrategy::default(),
                 server: server.clone(),
+                config: config.clone(),
                 current_auth_code,
             })
         }
@@ -109,10 +114,11 @@ impl TunnelConfig for AgentTunnelConfig {
     fn client_service(&self) -> impl ClientService {
         let client_name = self.client_name();
         let gateway_server = self.server.clone();
+        let config = self.config.clone();
         move |mut server: tonic::transport::Server| {
             info!("Configuring Client gRPC service");
             let client_service =
-                ClientServiceImpl::new(client_name.clone(), gateway_server.clone());
+                ClientServiceImpl::new(client_name.clone(), gateway_server.clone(), config.clone());
             let server = server
                 .add_service(SharedServiceServer::new(client_service.clone()))
                 .add_service(RemoteFnServiceServer::new(client_service.clone()));

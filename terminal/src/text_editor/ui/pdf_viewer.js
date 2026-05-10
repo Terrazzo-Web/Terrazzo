@@ -25,7 +25,9 @@ class PdfJsImpl {
     generation;
     zoom;
     zoomRenderTimeout;
+    zoomRenderStartedAt;
     zoomAnchor;
+    zoomControl;
     zoomSlider;
     zoomValue;
     activePageTasks;
@@ -37,7 +39,9 @@ class PdfJsImpl {
         this.generation = 0;
         this.zoom = 1;
         this.zoomRenderTimeout = null;
+        this.zoomRenderStartedAt = 0;
         this.zoomAnchor = null;
+        this.zoomControl = null;
         this.zoomSlider = null;
         this.zoomValue = null;
         this.activePageTasks = new Set();
@@ -58,6 +62,7 @@ class PdfJsImpl {
         this.pdfjsLib = null;
         this.pdf = null;
         this.documentElement = null;
+        this.zoomControl = null;
         this.zoomSlider = null;
         this.zoomValue = null;
         this.element.replaceChildren();
@@ -93,6 +98,7 @@ class PdfJsImpl {
             this.pdfjsLib = pdfjsLib;
             this.pdf = pdf;
             await this.renderDocument(generation);
+            this.zoomRenderStartedAt = window.performance.now();
         } catch (error) {
             if (generation === this.generation) {
                 this.showStatus(`Failed to load PDF: ${error}`);
@@ -100,11 +106,23 @@ class PdfJsImpl {
         }
     }
 
-    async renderDocument(generation) {
+    async renderDocument(generation, preserveZoomControl = false) {
         this.cancelPageTasks();
-        this.documentElement = this.createDocumentElement();
-        this.element.replaceChildren();
-        this.element.append(this.documentElement, this.createZoomControl());
+        const previousDocumentElement = this.documentElement;
+        const documentElement = this.createDocumentElement();
+        this.documentElement = documentElement;
+        const zoomControl = preserveZoomControl && this.zoomControl
+            ? this.zoomControl
+            : this.createZoomControl();
+
+        if (preserveZoomControl && previousDocumentElement?.parentElement === this.element) {
+            previousDocumentElement.replaceWith(documentElement);
+            if (zoomControl.parentElement !== this.element) {
+                this.element.appendChild(zoomControl);
+            }
+        } else {
+            this.element.replaceChildren(documentElement, zoomControl);
+        }
         this.updateZoomControl();
         for (let pageNumber = 1; pageNumber <= this.pdf.numPages; pageNumber++) {
             if (generation !== this.generation) return;
@@ -190,6 +208,7 @@ class PdfJsImpl {
         value.setAttribute("aria-live", "polite");
 
         control.append(slider, value);
+        this.zoomControl = control;
         this.zoomSlider = slider;
         this.zoomValue = value;
         return control;
@@ -238,18 +257,23 @@ class PdfJsImpl {
 
     scheduleZoomRender() {
         this.clearZoomRender();
+        const now = window.performance.now();
+        const delay = this.zoomRenderStartedAt
+            ? Math.max(0, ZOOM_RENDER_DELAY_MS - (now - this.zoomRenderStartedAt))
+            : ZOOM_RENDER_DELAY_MS;
         this.zoomRenderTimeout = window.setTimeout(() => {
             this.zoomRenderTimeout = null;
             if (!this.pdf || !this.pdfjsLib) {
                 return;
             }
+            this.zoomRenderStartedAt = window.performance.now();
             const generation = ++this.generation;
-            this.renderDocument(generation).catch((error) => {
+            this.renderDocument(generation, true).catch((error) => {
                 if (generation === this.generation) {
                     this.showStatus(`Failed to zoom PDF: ${error}`);
                 }
             });
-        }, ZOOM_RENDER_DELAY_MS);
+        }, delay);
     }
 
     clearZoomRender() {
@@ -302,6 +326,7 @@ class PdfJsImpl {
 
     showStatus(message) {
         this.documentElement = null;
+        this.zoomControl = null;
         this.zoomSlider = null;
         this.zoomValue = null;
         const status = document.createElement("div");

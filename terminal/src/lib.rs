@@ -14,6 +14,8 @@ mod utils;
 
 #[cfg(test)]
 use fluent_asserter as _;
+#[cfg(test)]
+use tempfile as _;
 
 #[cfg(feature = "server")]
 pub use self::backend::RunServerError;

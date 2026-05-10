@@ -100,6 +100,7 @@ tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
 fluent-asserter = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 rustdoc = []
@@ -217,8 +218,8 @@ text-editor-client = [
 text-editor-server = [
   "dep:libc",
   "dep:notify",
-  "dep:lru",
-  "dep:tokio-stream",
+    "dep:lru",
+"dep:tokio-stream",
   "server",
   "text-editor",
 ]

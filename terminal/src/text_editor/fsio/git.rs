@@ -3,6 +3,7 @@
 use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
@@ -14,6 +15,44 @@ static GIT_REPOS: LazyLock<GitReposCache<StdFs>> = LazyLock::new(|| GitReposCach
 
 pub fn is_in_git_repo(path: impl AsRef<Path>) -> bool {
     GIT_REPOS.is_in_git_repo(path.as_ref())
+}
+
+#[allow(dead_code)]
+pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::Result<String> {
+    let path = path.as_ref().canonicalize()?;
+    let parent = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("path has no parent: {}", path.display()),
+        )
+    })?;
+    let repo_root = git_output(parent, ["rev-parse", "--show-toplevel"])?;
+    let repo_root = PathBuf::from(repo_root.trim_end());
+    let relative_path = path.strip_prefix(&repo_root).map_err(|error| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "path {} is not under git repo {}: {error}",
+                path.display(),
+                repo_root.display()
+            ),
+        )
+    })?;
+    let object = format!("{}:{}", commit, relative_path.display());
+    git_output(&repo_root, ["show", object.as_str()])
+}
+
+#[allow(dead_code)]
+fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<String> {
+    let output = Command::new("git").args(args).current_dir(cwd).output()?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(format!(
+            "git failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
 }
 
 trait GitRepoFs {
@@ -81,6 +120,7 @@ impl<F: GitRepoFs> GitReposCache<F> {
 mod tests {
     use std::cell::RefCell;
     use std::collections::HashSet;
+    use std::process::Command;
 
     use super::*;
 
@@ -161,5 +201,77 @@ mod tests {
         assert!(!cache.is_in_git_repo("/workspace/src/main.rs"));
         assert!(cache.fs.calls.borrow().is_empty());
         cache.fs.calls.borrow_mut().clear();
+    }
+
+    #[test]
+    fn reads_file_content_at_git_commit() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let repo = tempdir.path();
+        let file = repo.join("dummy.txt");
+
+        git(repo, &["init"]);
+        git(repo, &["config", "user.email", "test@example.com"]);
+        git(repo, &["config", "user.name", "Test User"]);
+
+        std::fs::write(&file, "init").unwrap();
+        commit_file(repo, "init");
+
+        std::fs::write(&file, "commit 1").unwrap();
+        commit_file(repo, "commit 1");
+        let commit1 = git(repo, &["rev-parse", "HEAD"]);
+
+        std::fs::write(&file, "commit 2").unwrap();
+        commit_file(repo, "commit 2");
+        let commit2 = git(repo, &["rev-parse", "HEAD"]);
+
+        git(repo, &["checkout", "-b", "test_branch"]);
+        std::fs::write(&file, "branched").unwrap();
+        commit_file(repo, "branched");
+
+        git(repo, &["checkout", "-b", "test_branch2"]);
+        std::fs::write(&file, "tagged").unwrap();
+        commit_file(repo, "tagged");
+        git(repo, &["tag", "test_tag"]);
+
+        std::fs::write(&file, "final").unwrap();
+        commit_file(repo, "final");
+
+        std::fs::write(&file, "current").unwrap();
+
+        assert_eq!("final", file_content_at_commit(&file, "HEAD").unwrap());
+        assert_eq!("tagged", file_content_at_commit(&file, "HEAD^").unwrap());
+        assert_eq!(
+            "branched",
+            file_content_at_commit(&file, "test_branch").unwrap()
+        );
+        assert_eq!("tagged", file_content_at_commit(&file, "test_tag").unwrap());
+        assert_eq!(
+            "commit 1",
+            file_content_at_commit(&file, commit1.trim_end()).unwrap()
+        );
+        assert_eq!(
+            "commit 2",
+            file_content_at_commit(&file, commit2.trim_end()).unwrap()
+        );
+    }
+
+    fn commit_file(repo: &Path, message: &str) {
+        git(repo, &["add", "dummy.txt"]);
+        git(repo, &["commit", "-m", message]);
+    }
+
+    fn git(repo: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(repo)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
     }
 }

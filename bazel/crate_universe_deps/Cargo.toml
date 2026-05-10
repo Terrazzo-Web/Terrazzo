@@ -42,6 +42,7 @@ rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 serde_yaml_ng = { workspace = true }
+lru = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }

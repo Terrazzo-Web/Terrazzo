@@ -6,6 +6,7 @@ class CodeMirrorJsImpl {
     fullPath;
     constructor(
         element,
+        original,
         content,
         onchange,
         basePath,
@@ -32,7 +33,7 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
-        if (false) {
+        if (original == null) {
             this.rootView = new JsDeps.EditorView({
                 state: JsDeps.EditorState.create({
                     doc: content,
@@ -47,7 +48,7 @@ class CodeMirrorJsImpl {
         } else {
             this.rootView = new JsDeps.MergeView({
                 a: {
-                    doc: content,
+                    doc: original,
                     extensions: [
                         JsDeps.basicSetup,
                         JsDeps.lintGutter(),

@@ -118,9 +118,14 @@ fn editor_container(
 ) -> XElement {
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data {
-            fsio::File::TextFile { content, .. } => {
-                let content = content.clone();
-                editor(manager, editor_state, EditorDocument::Text(content))
+            fsio::File::TextFile {
+                original, content, ..
+            } => {
+                let editor_document = EditorDocument::Text {
+                    original: original.clone(),
+                    content: content.clone(),
+                };
+                editor(manager, editor_state, editor_document)
             }
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();

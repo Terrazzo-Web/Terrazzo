@@ -22,13 +22,14 @@ impl std::ops::Deref for CodeMirrorJs {
 impl CodeMirrorJs {
     pub fn new(
         element: Element,
+        original: JsValue,
         content: JsValue,
         onchange: &Closure<dyn FnMut(JsValue)>,
         base_path: String,
         full_path: String,
     ) -> Self {
         Self(CodeMirrorJsImpl::new(
-            element, content, onchange, base_path, full_path,
+            element, original, content, onchange, base_path, full_path,
         ))
     }
 
@@ -49,6 +50,7 @@ extern "C" {
     #[wasm_bindgen(constructor)]
     fn new(
         element: Element,
+        original: JsValue,
         content: JsValue,
         onchange: &Closure<dyn FnMut(JsValue)>,
         base_path: String,

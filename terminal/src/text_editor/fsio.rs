@@ -25,6 +25,7 @@ pub enum File {
     TextFile {
         metadata: Arc<FileMetadata>,
         content: Arc<str>,
+        original: Option<Arc<str>>,
     },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
     PdfFile {

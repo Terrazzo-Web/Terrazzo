@@ -32,7 +32,10 @@ use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
 pub(super) enum EditorDocument {
-    Text(Arc<str>),
+    Text {
+        original: Option<Arc<str>>,
+        content: Arc<str>,
+    },
     Pdf(Arc<str>),
 }
 
@@ -121,8 +124,12 @@ pub fn editor(
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Box<dyn EditorBody> = match &document {
-                EditorDocument::Text(content) => Box::new(CodeMirrorJs::new(
+                EditorDocument::Text { original, content } => Box::new(CodeMirrorJs::new(
                     element.clone(),
+                    original
+                        .as_deref()
+                        .map(JsValue::from)
+                        .unwrap_or(JsValue::null()),
                     content.as_ref().into(),
                     &on_change,
                     path.base.to_string(),
@@ -167,6 +174,7 @@ async fn notify_edit(
     match fsio::ui::load_file(manager.remote.clone(), path.clone()).await {
         Ok(Some(fsio::File::TextFile {
             metadata: _,
+            original: _,
             content,
         })) => {
             debug!("Loaded modified file");

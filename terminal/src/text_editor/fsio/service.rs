@@ -10,6 +10,7 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tonic::Code;
 use tracing::debug;
+use tracing::warn;
 
 use super::File;
 use super::FileMetadata;
@@ -36,9 +37,17 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
             }
             debug!("Loading text file {path:?}");
             let content = std::fs::read_to_string(&path)?.into();
-            if git::is_in_git_repo(&path) {}
+            let original = git::is_in_git_repo(&path)
+                .then(|| {
+                    git::file_content_at_commit(&path, "HEAD")
+                        .inspect_err(|error| warn!("Failed to load git file: {error}"))
+                        .ok()
+                })
+                .flatten()
+                .map(Arc::from);
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),
+                original,
                 content,
             }));
         }

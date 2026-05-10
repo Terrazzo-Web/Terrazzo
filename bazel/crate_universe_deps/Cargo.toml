@@ -24,6 +24,7 @@ instant-acme = { workspace = true }
 inventory = { workspace = true }
 jsonwebtoken = { workspace = true }
 libc = { workspace = true }
+lru = { workspace = true }
 mime_guess = { workspace = true }
 nix = { workspace = true, features = ["signal"] }
 notify = { workspace = true }
@@ -42,7 +43,6 @@ rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 serde_yaml_ng = { workspace = true }
-lru = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }

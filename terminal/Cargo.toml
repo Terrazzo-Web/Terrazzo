@@ -34,6 +34,7 @@ humantime = { workspace = true, optional = true }
 inventory = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 libc = { workspace = true, optional = true }
+lru = { workspace = true, optional = true }
 nameth = { workspace = true }
 nix = { workspace = true, optional = true, features = ["signal"] }
 notify = { workspace = true, optional = true }
@@ -60,7 +61,6 @@ terrazzo = { workspace = true, optional = true }
 terrazzo-css = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
 thiserror = { workspace = true }
-lru = { workspace = true,optional=true }
 tls-parser = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tokio-rustls = { workspace = true, optional = true }
@@ -217,9 +217,9 @@ text-editor-client = [
 ]
 text-editor-server = [
   "dep:libc",
+  "dep:lru",
   "dep:notify",
-    "dep:lru",
-"dep:tokio-stream",
+  "dep:tokio-stream",
   "server",
   "text-editor",
 ]

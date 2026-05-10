@@ -24,6 +24,8 @@ pub fn show_side_view(
 ) -> XElement {
     tag(
         class = style::SIDE,
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view",
         show_side_view_list(&manager, "".as_ref(), side_view),
     )
 }
@@ -81,6 +83,8 @@ fn show_side_view_node(
             div(
                 key = "file",
                 class = style::FILE,
+                #[cfg(not(feature = "client-prod"))]
+                data_file_path = path.to_owned_string(),
                 img(src = icons::file(), class = style::ICON),
                 div(
                     class %= selected_item(manager.path.file.clone(), path.clone()),
@@ -112,6 +116,8 @@ fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
     img(
         src = icons::close_tab(),
         class = format!("{} {}", style::ICON, style::CLOSE),
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view-close-file",
         click = move |_ev| {
             autoclone!(manager, path);
             manager.remove_from_side_view(&path);

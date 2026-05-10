@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { execFile } from 'node:child_process';
 import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 const SECOND = 1000;
+const execFileAsync = promisify(execFile);
 const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
     .split(';')
     .map((url) => url.trim())
@@ -32,6 +35,14 @@ function getFolderFile(page, name) {
 
 function getCodeMirrorContent(page) {
     return page.locator('.code-mirror-editor .cm-content');
+}
+
+function getSideViewFile(page, filePath) {
+    return page.locator(`.side-view [data-file-path="${filePath}"]`);
+}
+
+function getMergeViewEditors(page) {
+    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
 }
 
 function getPdfPage(page, pageNumber) {
@@ -170,6 +181,37 @@ async function openFolderFile(page, name) {
         .toBe(true);
 }
 
+async function git(cwd, args) {
+    await execFileAsync('git', args, { cwd });
+}
+
+async function createCommittedReadme() {
+    const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-git-'));
+    const fileName = 'README.md';
+    const filePath = path.join(baseDir, fileName);
+    await git(baseDir, ['init']);
+    await git(baseDir, ['config', 'user.email', 'test@example.com']);
+    await git(baseDir, ['config', 'user.name', 'Test User']);
+    await writeFile(filePath, 'Hello, World!');
+    await git(baseDir, ['add', fileName]);
+    await git(baseDir, ['commit', '-m', 'Add README']);
+    return { baseDir, fileName, filePath };
+}
+
+async function replaceEditorText(page, editor, content) {
+    await editor.click();
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+    await page.keyboard.type(content);
+}
+
+async function closeSideViewFile(page, filePath) {
+    const sideViewFile = getSideViewFile(page, filePath);
+    await expect(sideViewFile).toBeVisible({ timeout: 30 * SECOND });
+    await sideViewFile.hover();
+    await sideViewFile.locator('img.side-view-close-file').click({ force: true });
+    await expect(sideViewFile).toHaveCount(0, { timeout: 30 * SECOND });
+}
+
 test.describe('Text editor', () => {
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
@@ -261,5 +303,41 @@ test.describe('Text editor', () => {
         await expect
             .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
             .toBeGreaterThan(sliderCssWidth * 1.05);
+    });
+
+    test('shows a git diff for modified files and returns to plain view when reverted', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const { baseDir, fileName, filePath } = await createCommittedReadme();
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
+        const plainEditor = getCodeMirrorContent(page).first();
+        await expect(plainEditor).toContainText('Hello, World!', { timeout: 30 * SECOND });
+
+        await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
+
+        await closeSideViewFile(page, fileName);
+        await openFolderFile(page, fileName);
+
+        await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 30 * SECOND });
+        const diffEditors = getCodeMirrorContent(page);
+        await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 30 * SECOND });
+        await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 30 * SECOND });
+
+        await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
+
+        await closeSideViewFile(page, fileName);
+        await openFolderFile(page, fileName);
+
+        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 30 * SECOND });
+        await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 30 * SECOND });
     });
 });

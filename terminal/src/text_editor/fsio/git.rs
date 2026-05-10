@@ -1,9 +1,12 @@
 #![cfg(feature = "server")]
-#![allow(dead_code)]
 
 use std::num::NonZero;
-use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, Mutex};
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::LazyLock;
+use std::sync::Mutex;
+
+use lru::LruCache;
 
 const LRU_CACHE_SIZE: NonZero<usize> = NonZero::new(10_000).expect("LRU_CACHE_SIZE");
 
@@ -29,14 +32,14 @@ impl GitRepoFs for StdFs {
 
 struct GitReposCache<F> {
     fs: F,
-    cache: Mutex<lru::LruCache<PathBuf, bool>>,
+    cache: Mutex<LruCache<PathBuf, bool>>,
 }
 
 impl<F> GitReposCache<F> {
     fn new(fs: F) -> Self {
         Self {
             fs,
-            cache: Mutex::new(lru::LruCache::new(LRU_CACHE_SIZE)),
+            cache: Mutex::new(LruCache::new(LRU_CACHE_SIZE)),
         }
     }
 }
@@ -63,7 +66,7 @@ impl<F: GitRepoFs> GitReposCache<F> {
     fn maybe_in_git_repo<'l>(
         &self,
         path: &'l Path,
-        cache: &mut lru::LruCache<PathBuf, bool>,
+        cache: &mut LruCache<PathBuf, bool>,
         backfill: &mut Vec<&'l Path>,
     ) -> Option<bool> {
         if let Some(is_in_git_repo) = cache.get(path) {
@@ -76,9 +79,10 @@ impl<F: GitRepoFs> GitReposCache<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::cell::RefCell;
     use std::collections::HashSet;
+
+    use super::*;
 
     #[derive(Default)]
     struct MockFs {

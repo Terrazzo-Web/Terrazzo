@@ -46,6 +46,21 @@ class CodeMirrorJsImpl {
             });
             this.editorView = this.rootView;
         } else {
+            const mergePaneExtensions = [
+                JsDeps.EditorView.lineWrapping,
+                JsDeps.EditorView.theme({
+                    "&": {
+                        minWidth: "0",
+                        width: "100%",
+                    },
+                    ".cm-scroller": {
+                        overflowX: "auto",
+                    },
+                    ".cm-content": {
+                        minWidth: "0",
+                    },
+                }),
+            ];
             this.rootView = new JsDeps.MergeView({
                 a: {
                     doc: original,
@@ -54,6 +69,7 @@ class CodeMirrorJsImpl {
                         JsDeps.lintGutter(),
                         JsDeps.oneDark,
                         JsDeps.EditorView.editable.of(false),
+                        ...mergePaneExtensions,
                     ],
                 },
                 b: {
@@ -61,10 +77,21 @@ class CodeMirrorJsImpl {
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
-                    extensions,
+                    extensions: [
+                        ...extensions,
+                        ...mergePaneExtensions,
+                    ],
                 },
                 parent: element,
             });
+            this.rootView.dom.style.overflowX = "auto";
+            this.rootView.dom
+                .querySelectorAll(".cm-mergeViewEditor")
+                .forEach((editor) => {
+                    editor.style.flex = "1 1 0";
+                    editor.style.minWidth = "0";
+                    editor.style.width = "0";
+                });
             this.editorView = this.rootView.b;
         }
         this.reloadFromDisk = false;

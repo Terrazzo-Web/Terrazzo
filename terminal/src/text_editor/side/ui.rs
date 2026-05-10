@@ -24,6 +24,8 @@ pub fn show_side_view(
 ) -> XElement {
     tag(
         class = style::SIDE,
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view",
         show_side_view_list(&manager, "".as_ref(), side_view),
     )
 }
@@ -81,6 +83,7 @@ fn show_side_view_node(
             div(
                 key = "file",
                 class = style::FILE,
+                // TODO: Add a data-file-path attribute with the file path so tests can find the file in the side view panel. The attribute should be guarded by #[cfg(not(feature = "client-prod"))]
                 img(src = icons::file(), class = style::ICON),
                 div(
                     class %= selected_item(manager.path.file.clone(), path.clone()),

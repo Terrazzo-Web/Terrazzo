@@ -36,7 +36,7 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
                 }));
             }
             debug!("Loading text file {path:?}");
-            let content = std::fs::read_to_string(&path)?.into();
+            let content: Arc<str> = std::fs::read_to_string(&path)?.into();
             let original = git::is_in_git_repo(&path)
                 .then(|| {
                     git::file_content_at_commit(&path, "HEAD")
@@ -44,6 +44,7 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
                         .ok()
                 })
                 .flatten()
+                .filter(|original| original != content.as_ref())
                 .map(Arc::from);
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),

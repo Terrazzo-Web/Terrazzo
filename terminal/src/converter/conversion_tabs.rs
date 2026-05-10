@@ -188,6 +188,7 @@ impl TabDescriptor for Conversion {
     fn item(&self, _state: &Self::State) -> impl Into<XNode> {
         let content = &self.content;
         pre(
+            #[cfg(not(feature = "client-prod"))]
             class = "converter-output",
             "{content}",
             contenteditable = "true",

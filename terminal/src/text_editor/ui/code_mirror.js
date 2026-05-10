@@ -1,4 +1,5 @@
 class CodeMirrorJsImpl {
+    rootView;
     editorView;
     reloadFromDisk; // Set to true when the file is updated from disk
     basePath;
@@ -31,18 +32,40 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
-        const state = JsDeps.EditorState.create({
-            doc: content,
-            tooltips: JsDeps.tooltips({
-                position: "absolute",
-            }),
-            extensions,
-        });
-
-        this.editorView = new JsDeps.EditorView({
-            state,
-            parent: element,
-        });
+        if (false) {
+            this.rootView = new JsDeps.EditorView({
+                state: JsDeps.EditorState.create({
+                    doc: content,
+                    tooltips: JsDeps.tooltips({
+                        position: "absolute",
+                    }),
+                    extensions,
+                }),
+                parent: element,
+            });
+            this.editorView = this.rootView;
+        } else {
+            this.rootView = new JsDeps.MergeView({
+                a: {
+                    doc: content,
+                    extensions: [
+                        JsDeps.basicSetup,
+                        JsDeps.lintGutter(),
+                        JsDeps.oneDark,
+                        JsDeps.EditorView.editable.of(false),
+                    ],
+                },
+                b: {
+                    doc: content,
+                    tooltips: JsDeps.tooltips({
+                        position: "absolute",
+                    }),
+                    extensions,
+                },
+                parent: element,
+            });
+            this.editorView = this.rootView.b;
+        }
         this.reloadFromDisk = false;
     }
 

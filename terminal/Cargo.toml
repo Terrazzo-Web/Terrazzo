@@ -34,6 +34,7 @@ humantime = { workspace = true, optional = true }
 inventory = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 libc = { workspace = true, optional = true }
+lru = { workspace = true, optional = true }
 nameth = { workspace = true }
 nix = { workspace = true, optional = true, features = ["signal"] }
 notify = { workspace = true, optional = true }
@@ -99,6 +100,7 @@ tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
 fluent-asserter = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 rustdoc = []
@@ -215,8 +217,8 @@ text-editor-client = [
 ]
 text-editor-server = [
   "dep:libc",
+  "dep:lru",
   "dep:notify",
-  #"dep:tantivy",
   "dep:tokio-stream",
   "server",
   "text-editor",

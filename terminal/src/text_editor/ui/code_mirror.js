@@ -1,10 +1,12 @@
 class CodeMirrorJsImpl {
+    rootView;
     editorView;
     reloadFromDisk; // Set to true when the file is updated from disk
     basePath;
     fullPath;
     constructor(
         element,
+        original,
         content,
         onchange,
         basePath,
@@ -31,18 +33,67 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
-        const state = JsDeps.EditorState.create({
-            doc: content,
-            tooltips: JsDeps.tooltips({
-                position: "absolute",
-            }),
-            extensions,
-        });
-
-        this.editorView = new JsDeps.EditorView({
-            state,
-            parent: element,
-        });
+        if (original) {
+            const mergePaneExtensions = [
+                JsDeps.EditorView.lineWrapping,
+                JsDeps.EditorView.theme({
+                    "&": {
+                        minWidth: "0",
+                        width: "100%",
+                    },
+                    ".cm-scroller": {
+                        overflowX: "auto",
+                    },
+                    ".cm-content": {
+                        minWidth: "0",
+                    },
+                }),
+            ];
+            this.rootView = new JsDeps.MergeView({
+                a: {
+                    doc: original,
+                    extensions: [
+                        JsDeps.basicSetup,
+                        JsDeps.lintGutter(),
+                        JsDeps.oneDark,
+                        JsDeps.EditorView.editable.of(false),
+                        ...mergePaneExtensions,
+                    ],
+                },
+                b: {
+                    doc: content,
+                    tooltips: JsDeps.tooltips({
+                        position: "absolute",
+                    }),
+                    extensions: [
+                        ...extensions,
+                        ...mergePaneExtensions,
+                    ],
+                },
+                parent: element,
+            });
+            this.rootView.dom.style.overflowX = "auto";
+            this.rootView.dom
+                .querySelectorAll(".cm-mergeViewEditor")
+                .forEach((editor) => {
+                    editor.style.flex = "1 1 0";
+                    editor.style.minWidth = "0";
+                    editor.style.width = "0";
+                });
+            this.editorView = this.rootView.b;
+        } else {
+            this.rootView = new JsDeps.EditorView({
+                state: JsDeps.EditorState.create({
+                    doc: content,
+                    tooltips: JsDeps.tooltips({
+                        position: "absolute",
+                    }),
+                    extensions,
+                }),
+                parent: element,
+            });
+            this.editorView = this.rootView;
+        }
         this.reloadFromDisk = false;
     }
 

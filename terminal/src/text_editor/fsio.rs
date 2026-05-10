@@ -13,6 +13,7 @@ use crate::api::client_address::ClientAddress;
 
 pub mod canonical;
 mod fsmetadata;
+mod git;
 mod remote;
 mod service;
 pub mod ui;
@@ -24,6 +25,7 @@ pub enum File {
     TextFile {
         metadata: Arc<FileMetadata>,
         content: Arc<str>,
+        original: Option<Arc<str>>,
     },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
     PdfFile {

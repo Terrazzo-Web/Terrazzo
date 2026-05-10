@@ -7,6 +7,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { basicSetup } from "codemirror";
 import { EditorState } from '@codemirror/state';
 import { EditorView, tooltips } from "@codemirror/view";
+import { MergeView } from "@codemirror/merge";
 
 import { oneDark } from '@codemirror/theme-one-dark';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
@@ -48,6 +49,7 @@ export {
     basicSetup,
     EditorState,
     EditorView,
+    MergeView,
     tooltips,
 
     oneDark,

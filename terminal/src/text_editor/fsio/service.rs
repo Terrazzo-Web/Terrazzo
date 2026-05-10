@@ -10,12 +10,14 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tonic::Code;
 use tracing::debug;
+use tracing::warn;
 
+use super::File;
+use super::FileMetadata;
+use super::canonical::concat_base_file_path;
+use super::git;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::fsio::File;
-use crate::text_editor::fsio::FileMetadata;
-use crate::text_editor::fsio::canonical::concat_base_file_path;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
@@ -35,8 +37,17 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
             }
             debug!("Loading text file {path:?}");
             let content = std::fs::read_to_string(&path)?.into();
+            let original = git::is_in_git_repo(&path)
+                .then(|| {
+                    git::file_content_at_commit(&path, "HEAD")
+                        .inspect_err(|error| warn!("Failed to load git file: {error}"))
+                        .ok()
+                })
+                .flatten()
+                .map(Arc::from);
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),
+                original,
                 content,
             }));
         }

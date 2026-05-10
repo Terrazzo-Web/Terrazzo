@@ -24,6 +24,7 @@ instant-acme = { workspace = true }
 inventory = { workspace = true }
 jsonwebtoken = { workspace = true }
 libc = { workspace = true }
+lru = { workspace = true }
 mime_guess = { workspace = true }
 nix = { workspace = true, features = ["signal"] }
 notify = { workspace = true }

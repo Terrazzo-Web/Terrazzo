@@ -60,6 +60,7 @@ terrazzo = { workspace = true, optional = true }
 terrazzo-css = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
 thiserror = { workspace = true }
+lru = { workspace = true,optional=true }
 tls-parser = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
 tokio-rustls = { workspace = true, optional = true }
@@ -216,7 +217,7 @@ text-editor-client = [
 text-editor-server = [
   "dep:libc",
   "dep:notify",
-  #"dep:tantivy",
+  "dep:lru",
   "dep:tokio-stream",
   "server",
   "text-editor",

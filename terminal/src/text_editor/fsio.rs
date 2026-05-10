@@ -13,6 +13,7 @@ use crate::api::client_address::ClientAddress;
 
 pub mod canonical;
 mod fsmetadata;
+pub mod git_repos_cache;
 mod remote;
 mod service;
 pub mod ui;

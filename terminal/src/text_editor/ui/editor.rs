@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering::SeqCst;
 
 use scopeguard::guard;
@@ -77,9 +77,9 @@ pub fn editor(
     let EditorDataState { path, .. } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
 
-    // Set to true when there are edits waiting (debounced) to be committed.
-    // This is used to ignored notifications about file changes that would anyway be overwritten.
-    let writing = Arc::new(AtomicBool::new(false));
+    // Count edits waiting (debounced) to be committed. Notifications can arrive
+    // out of causal order, so don't refresh CodeMirror while local edits are pending.
+    let writing = Arc::new(AtomicU32::new(0));
 
     let on_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |content: JsValue| {
         autoclone!(manager, path, writing);
@@ -87,10 +87,10 @@ pub fn editor(
             debug!("Changed content is not a string");
             return;
         };
-        writing.store(true, SeqCst);
+        writing.fetch_add(1, SeqCst);
         let writing_done = guard((), move |()| {
             autoclone!(writing);
-            writing.store(false, SeqCst)
+            writing.fetch_sub(1, SeqCst);
         });
         let write = async move {
             autoclone!(manager, path);
@@ -158,7 +158,7 @@ fn make_edits_notify_handler(
     manager: &Ptr<TextEditorManager>,
     editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: &FilePath<Arc<str>>,
-    writing: &Arc<AtomicBool>,
+    writing: &Arc<AtomicU32>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
         autoclone!(manager, editor_body, path, writing);
@@ -182,7 +182,7 @@ async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: FilePath<Arc<str>>,
-    writing: Arc<AtomicBool>,
+    writing: Arc<AtomicU32>,
 ) {
     debug!("Loading modified file");
     match fsio::ui::load_file(manager.remote.clone(), path.clone()).await {
@@ -195,8 +195,7 @@ async fn notify_edit(
             let Some(editor_body) = &*editor_body.lock().unwrap() else {
                 return;
             };
-            if !writing.load(SeqCst) {
-                // Ignore modifications if we are about to overwrite them anyway
+            if writing.load(SeqCst) == 0 {
                 editor_body.set_content(content.to_string());
             }
         }

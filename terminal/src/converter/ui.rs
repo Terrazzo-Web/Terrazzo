@@ -66,6 +66,7 @@ fn converter_impl(
 fn show_input(#[signal] remote: Remote, conversions: XSignal<Conversions>) -> XElement {
     let element = ElementCapture::<HtmlTextAreaElement>::default();
     tag(
+        #[cfg(not(feature = "client-prod"))]
         class = "converter-input",
         style::flex %= width(RESIZE_MANAGER.delta.clone()),
         before_render = element.capture(),

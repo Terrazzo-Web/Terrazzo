@@ -33,19 +33,7 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
-        if (original == null) {
-            this.rootView = new JsDeps.EditorView({
-                state: JsDeps.EditorState.create({
-                    doc: content,
-                    tooltips: JsDeps.tooltips({
-                        position: "absolute",
-                    }),
-                    extensions,
-                }),
-                parent: element,
-            });
-            this.editorView = this.rootView;
-        } else {
+        if (original) {
             const mergePaneExtensions = [
                 JsDeps.EditorView.lineWrapping,
                 JsDeps.EditorView.theme({
@@ -93,6 +81,18 @@ class CodeMirrorJsImpl {
                     editor.style.width = "0";
                 });
             this.editorView = this.rootView.b;
+        } else {
+            this.rootView = new JsDeps.EditorView({
+                state: JsDeps.EditorState.create({
+                    doc: content,
+                    tooltips: JsDeps.tooltips({
+                        position: "absolute",
+                    }),
+                    extensions,
+                }),
+                parent: element,
+            });
+            this.editorView = this.rootView;
         }
         this.reloadFromDisk = false;
     }

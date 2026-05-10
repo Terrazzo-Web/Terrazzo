@@ -208,7 +208,7 @@ async function closeSideViewFile(page, filePath) {
     const sideViewFile = getSideViewFile(page, filePath);
     await expect(sideViewFile).toBeVisible({ timeout: 30 * SECOND });
     await sideViewFile.hover();
-    await sideViewFile.locator('img').last().click({ force: true });
+    await sideViewFile.locator('img.side-view-close-file').click({ force: true });
     await expect(sideViewFile).toHaveCount(0, { timeout: 30 * SECOND });
 }
 

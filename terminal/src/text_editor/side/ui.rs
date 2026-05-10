@@ -116,6 +116,8 @@ fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
     img(
         src = icons::close_tab(),
         class = format!("{} {}", style::ICON, style::CLOSE),
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view-close-file",
         click = move |_ev| {
             autoclone!(manager, path);
             manager.remove_from_side_view(&path);

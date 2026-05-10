@@ -83,7 +83,8 @@ fn show_side_view_node(
             div(
                 key = "file",
                 class = style::FILE,
-                // TODO: Add a data-file-path attribute with the file path so tests can find the file in the side view panel. The attribute should be guarded by #[cfg(not(feature = "client-prod"))]
+                #[cfg(not(feature = "client-prod"))]
+                data_file_path = path.to_owned_string(),
                 img(src = icons::file(), class = style::ICON),
                 div(
                     class %= selected_item(manager.path.file.clone(), path.clone()),

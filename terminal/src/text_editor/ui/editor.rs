@@ -87,12 +87,23 @@ pub fn editor(
             debug!("Changed content is not a string");
             return;
         };
+        writing.store(true, SeqCst);
+        let writing_done = guard((), move |()| {
+            autoclone!(writing);
+            writing.store(false, SeqCst)
+        });
         let write = async move {
-            autoclone!(manager, path, writing);
-            writing.store(true, SeqCst);
-            let before = guard((), move |()| writing.store(false, SeqCst));
-            let after = SynchronizedState::enqueue(manager.synchronized_state.clone());
-            let () = store_file(manager.remote.clone(), path, content, before, after).await;
+            autoclone!(manager, path);
+            let synchronized_state_done =
+                SynchronizedState::enqueue(manager.synchronized_state.clone());
+            let () = store_file(
+                manager.remote.clone(),
+                path,
+                content,
+                guard((), move |()| ()),
+                (writing_done, synchronized_state_done),
+            )
+            .await;
         };
         spawn_local(write.in_current_span());
     });
@@ -155,12 +166,14 @@ fn make_edits_notify_handler(
         let EventKind::File(FileEventKind::Create | FileEventKind::Modify) = event.kind else {
             return;
         };
-        if writing.load(SeqCst) {
-            // Ignore modifications if we are about to overwrite them anyway
-            return;
-        }
         spawn_local(
-            notify_edit(manager.clone(), editor_body.clone(), path.clone()).in_current_span(),
+            notify_edit(
+                manager.clone(),
+                editor_body.clone(),
+                path.clone(),
+                writing.clone(),
+            )
+            .in_current_span(),
         );
     }
 }
@@ -169,6 +182,7 @@ async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
     path: FilePath<Arc<str>>,
+    writing: Arc<AtomicBool>,
 ) {
     debug!("Loading modified file");
     match fsio::ui::load_file(manager.remote.clone(), path.clone()).await {
@@ -181,7 +195,10 @@ async fn notify_edit(
             let Some(editor_body) = &*editor_body.lock().unwrap() else {
                 return;
             };
-            editor_body.set_content(content.to_string());
+            if !writing.load(SeqCst) {
+                // Ignore modifications if we are about to overwrite them anyway
+                editor_body.set_content(content.to_string());
+            }
         }
         Ok(Some(fsio::File::PdfFile { base64, .. })) => {
             debug!("Loaded modified file");

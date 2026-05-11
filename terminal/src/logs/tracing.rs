@@ -29,14 +29,15 @@ pub fn init_tracing() -> Result<(), EnableTracingError> {
         .with_line_number(cfg!(debug_assertions))
         .with_target(false);
 
-    tracing_subscriber::registry()
-        .with(
-            EnvFilter::new("debug,tower=info,h2=info,hyper_util=info")
-                .add_directive(LevelFilter::DEBUG.into()),
-        )
-        .with(fmt_layer)
-        .with(LogStreamLayer)
-        .try_init()?;
+    let subscriber = tracing_subscriber::registry().with(if !cfg!(feature = "max-level-info") {
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+    } else {
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("debug,tower=info,h2=info,hyper_util=info"))
+            .add_directive(LevelFilter::DEBUG.into())
+    });
+
+    subscriber.with(fmt_layer).with(LogStreamLayer).try_init()?;
 
     std::panic::set_hook(Box::new(|panic_info| {
         let panic_payload: Option<&str> =

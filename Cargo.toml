@@ -109,7 +109,7 @@ libc = { version = "0.2.186" }
 lru = { version = "0.18.0" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
-nix = { version = "0.31.2" }
+nix = { version = "0.31.3" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.79" }

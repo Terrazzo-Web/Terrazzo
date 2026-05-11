@@ -282,11 +282,38 @@ test.describe('Text editor', () => {
         expect(sliderWidth).toBeLessThan(viewerWidth * 0.32);
 
         const initialCssWidth = await renderedCssWidth(firstPage);
-        await selectPdfZoom(page, 150);
-        await expect(zoomValue).toHaveText('150%');
+        const zoomSliderHandle = await zoomSlider.elementHandle();
+        expect(zoomSliderHandle).not.toBeNull();
+        await zoomSliderHandle.evaluate((node) => {
+            node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+            window.__pdfZoomStreamDone = false;
+            window.__pdfZoomStreamTimer = window.setInterval(() => {
+                const zoom = 1 + 0.8 * Math.abs(Math.sin(Date.now() / 200));
+                node.value = `${Math.log10(zoom)}`;
+                node.dispatchEvent(new Event('input', { bubbles: true }));
+            }, 20);
+        });
+        await expect
+            .poll(async () => zoomSliderHandle.evaluate((node, minWidth) => {
+                const canvas = node.ownerDocument.querySelector('.pdf-viewer canvas[data-page-number="1"]');
+                const width = canvas?.getBoundingClientRect().width ?? 0;
+                return !window.__pdfZoomStreamDone && width > minWidth ? width : 0;
+            }, initialCssWidth * 1.15), { timeout: 30 * SECOND })
+            .toBeGreaterThan(0);
+        await zoomSliderHandle.evaluate((node) => {
+            window.clearInterval(window.__pdfZoomStreamTimer);
+            window.__pdfZoomStreamDone = true;
+            node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+        });
+
+        await zoomSliderHandle.evaluate((node) => {
+            node.value = `${Math.log10(2)}`;
+            node.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await expect(zoomValue).toHaveText('200%');
         await expect
             .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
-            .toBeGreaterThan(initialCssWidth * 1.3);
+            .toBeGreaterThan(initialCssWidth * 1.8);
 
         const sliderCssWidth = await renderedCssWidth(getPdfPage(page, 1));
         const box = await firstPage.boundingBox();

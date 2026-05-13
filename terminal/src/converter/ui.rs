@@ -1,7 +1,6 @@
 #![cfg(feature = "client")]
 
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::time::Duration;
 
 use terrazzo::autoclone;
@@ -34,9 +33,10 @@ terrazzo_css::import_style!(pub(super) style, "converter.scss");
 pub fn converter(remote: XSignal<Remote>) -> XElement {
     let conversions = XSignal::new("conversions", Conversions::default());
     let preferred_language = XSignal::new("preferred-language", None);
+    let resize_manager = MousemoveManager::new();
     div(
         class = style::OUTER,
-        converter_impl(remote, conversions, preferred_language),
+        converter_impl(remote, conversions, preferred_language, resize_manager),
     )
 }
 
@@ -46,6 +46,7 @@ fn converter_impl(
     remote: XSignal<Remote>,
     conversions: XSignal<Conversions>,
     preferred_language: XSignal<Option<Language>>,
+    resize_manager: MousemoveManager,
 ) -> XElement {
     div(
         class = style::INNER,
@@ -53,8 +54,8 @@ fn converter_impl(
         div(class = style::HEADER, menu(), show_remote(remote.clone())),
         div(
             class = style::BODY,
-            show_input(remote, conversions.clone()),
-            show_resize_bar(),
+            show_input(remote, conversions.clone(), resize_manager.clone()),
+            show_resize_bar(resize_manager),
             show_conversions(conversions, preferred_language),
         ),
     )
@@ -63,12 +64,16 @@ fn converter_impl(
 #[autoclone]
 #[html]
 #[template(tag = textarea)]
-fn show_input(#[signal] remote: Remote, conversions: XSignal<Conversions>) -> XElement {
+fn show_input(
+    #[signal] remote: Remote,
+    conversions: XSignal<Conversions>,
+    resize_manager: MousemoveManager,
+) -> XElement {
     let element = ElementCapture::<HtmlTextAreaElement>::default();
     tag(
         #[cfg(not(feature = "client-prod"))]
         class = "converter-input",
-        style::flex %= width(RESIZE_MANAGER.delta.clone()),
+        style::flex %= width(resize_manager.delta.clone()),
         before_render = element.capture(),
         input = move |_: web_sys::InputEvent| {
             autoclone!(remote, element, conversions);
@@ -178,13 +183,11 @@ unsafe impl Send for DebouncedGetConversions {}
 unsafe impl Sync for DebouncedGetConversions {}
 
 #[html]
-fn show_resize_bar() -> XElement {
+fn show_resize_bar(resize_manager: MousemoveManager) -> XElement {
     div(
         class = style::RESIZE_BAR,
-        mousedown = RESIZE_MANAGER.mousedown(),
-        dblclick = |_| RESIZE_MANAGER.delta.set(None),
+        mousedown = resize_manager.mousedown(),
+        dblclick = move |_| resize_manager.delta.set(None),
         div(div()),
     )
 }
-
-static RESIZE_MANAGER: LazyLock<MousemoveManager> = LazyLock::new(MousemoveManager::new);

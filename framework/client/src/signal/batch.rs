@@ -32,6 +32,7 @@ use crate::prelude::diagnostics::span::EnteredSpan;
 /// ```
 pub struct Batch {
     prev: Option<BatchedCallbacks>,
+    forget: bool,
     _span: EnteredSpan,
     _not_send: PhantomData<*mut u8>,
 }
@@ -50,6 +51,7 @@ impl Batch {
         WAITING_BATCH.with_borrow_mut(move |batch| {
             let new_batch = Self {
                 prev: batch.take(),
+                forget: false,
                 _span: span,
                 _not_send: PhantomData,
             };
@@ -70,6 +72,14 @@ impl Batch {
             };
         })
     }
+
+    pub fn forget(&mut self) {
+        self.set_forget(true);
+    }
+
+    pub fn set_forget(&mut self, forget: bool) {
+        self.forget = forget;
+    }
 }
 
 #[derive(Debug)]
@@ -78,11 +88,15 @@ pub(super) struct NotBatched(());
 impl Drop for Batch {
     fn drop(&mut self) {
         debug!("Processing batch...");
-        let batch = WAITING_BATCH
+        let callbacks = WAITING_BATCH
             .replace(self.prev.take())
             .or_throw("WAITING_BATCH");
-        for process in batch.0 {
-            process(Version::current());
+        if self.forget {
+            debug!("Processing batch: Skipped");
+            return;
+        }
+        for callback in callbacks.0 {
+            callback(Version::current());
         }
         debug!("Processing batch: DONE");
     }
@@ -135,6 +149,41 @@ mod tests {
 
         Batch::try_push(|| move |_version| panic!("Batch is not active"))
             .expect_err("Batch is not active");
+        assert_eq!(vec!["init", "batched", "batched2"], *v.borrow());
+    }
+
+    #[test]
+    #[autoclone]
+    fn forget() {
+        let v = Ptr::new(RefCell::new(vec![]));
+        v.borrow_mut().push("init");
+
+        {
+            let _batch = Batch::use_batch("First batch");
+            Batch::try_push(|| {
+                move |_version| {
+                    autoclone!(v);
+                    v.borrow_mut().push("batched")
+                }
+            })
+            .unwrap();
+            assert_eq!(vec!["init"], *v.borrow());
+        }
+        assert_eq!(vec!["init", "batched"], *v.borrow());
+
+        {
+            let mut batch = Batch::use_batch("Second batch");
+            Batch::try_push(|| {
+                move |_version| {
+                    autoclone!(v);
+                    v.borrow_mut().push("batched2")
+                }
+            })
+            .unwrap();
+            batch.forget();
+            // TODO: batched2 should be skipped
+            assert_eq!(vec!["init", "batched"], *v.borrow());
+        }
         assert_eq!(vec!["init", "batched", "batched2"], *v.borrow());
     }
 }

@@ -181,7 +181,7 @@ impl EnvelopeVisitor {
                 use super::*;
                 #public_item
             }
-            use #inner::#name;
+            #vis use #inner::#name;
 
             #derives
             #vis struct #name_ptr #generics #where_clause {

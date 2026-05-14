@@ -9,8 +9,8 @@ use std::sync::atomic::AtomicI64;
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TileId(i64);
 
-#[cfg(feature = "server")]
 impl TileId {
+    #[cfg(feature = "server")]
     pub fn new() -> Self {
         static NEXT: AtomicI64 = AtomicI64::new(1);
         Self(NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst))

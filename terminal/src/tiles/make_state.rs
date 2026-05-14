@@ -1,3 +1,4 @@
+// Everywhere make_state is used, it now needs to be per tile.
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     pub mod $name {

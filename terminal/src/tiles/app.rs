@@ -1,5 +1,3 @@
-use super::make_state::make_state;
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum App {
     #[cfg(feature = "terminal")]
@@ -41,5 +39,3 @@ impl std::fmt::Display for App {
         .fmt(f)
     }
 }
-
-make_state!(state, App);

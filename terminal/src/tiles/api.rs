@@ -18,7 +18,33 @@ pub async fn add(
     next_to: TileId,
     side: Side,
 ) -> Result<Arc<TileTree>, ServerFnError> {
-    Ok(super::state::add_node(with_direction, next_to, side))
+    Ok(super::state::add_node(with_direction, next_to, side)?)
+}
+
+#[server]
+pub async fn remove(id: TileId) -> Result<Arc<TileTree>, ServerFnError> {
+    Ok(super::state::remove_node(id)?)
+}
+
+#[server]
+pub async fn set_app(id: TileId, app: App) -> Result<Arc<TileTree>, ServerFnError> {
+    Ok(super::state::mutate_node(id, |tile| Tile {
+        id: tile.id,
+        app,
+        remote: tile.remote.clone(),
+    })?)
+}
+
+#[server]
+pub async fn set_remote(
+    id: TileId,
+    remote: Option<ClientAddress>,
+) -> Result<Arc<TileTree>, ServerFnError> {
+    Ok(super::state::mutate_node(id, |tile| Tile {
+        id: tile.id,
+        app: tile.app,
+        remote,
+    })?)
 }
 
 // Basic
@@ -44,8 +70,9 @@ pub enum Side {
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum TileTree {
-    Node(TileNode),
+    Tile(Tile),
     Array {
+        id: TileId,
         direction: Direction,
         nodes: Vec<Arc<TileTree>>,
     },
@@ -55,7 +82,7 @@ pub enum TileTree {
 #[derive(Debug, PartialEq, Eq)]
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct TileNode {
+pub struct Tile {
     pub id: TileId,
     pub app: App,
     pub remote: Option<ClientAddress>,
@@ -63,10 +90,17 @@ pub struct TileNode {
 
 impl Default for TileTree {
     fn default() -> Self {
-        Self::Node(TileNode {
+        Tile {
             id: TileId::first_tile_id(),
             app: Default::default(),
             remote: Default::default(),
-        })
+        }
+        .into()
+    }
+}
+
+impl From<Tile> for TileTree {
+    fn from(tile: Tile) -> Self {
+        Self::Tile(tile)
     }
 }

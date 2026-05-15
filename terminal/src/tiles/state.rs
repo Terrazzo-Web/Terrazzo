@@ -8,10 +8,10 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 
 use super::id::TileId;
-use crate::tiles::tree::Direction;
-use crate::tiles::tree::Side;
-use crate::tiles::tree::TileNode;
-use crate::tiles::tree::TileTree;
+use crate::tiles::api::Direction;
+use crate::tiles::api::Side;
+use crate::tiles::api::Tile;
+use crate::tiles::api::TileTree;
 
 static STATE: Mutex<Option<HashMap<TileId, Vec<Box<dyn Fn(TileId) + Send + Sync>>>>> =
     Mutex::new(None);
@@ -57,8 +57,8 @@ fn add_node_aux(
     new_id: &mut Option<TileId>,
 ) -> Result<Arc<TileTree>, TilesStateError> {
     Ok(match &*tree {
-        TileTree::Node(node) if node.id == next_to => {
-            let new = Arc::new(TileTree::Node(TileNode {
+        TileTree::Tile(node) if node.id == next_to => {
+            let new = Arc::new(TileTree::Tile(Tile {
                 id: new_id
                     .take()
                     .ok_or_else(|| TilesStateError::DuplicateTileId(next_to))?,
@@ -66,6 +66,7 @@ fn add_node_aux(
                 remote: node.remote.clone(),
             }));
             Arc::new(TileTree::Array {
+                id: TileId::new(),
                 direction: with_direction,
                 nodes: match side {
                     Side::Before => vec![new, tree],
@@ -73,7 +74,11 @@ fn add_node_aux(
                 },
             })
         }
-        TileTree::Array { direction, nodes } if new_id.is_some() => {
+        TileTree::Array {
+            id,
+            direction,
+            nodes,
+        } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
             for node in nodes {
                 nodes2.extend(add_node_flatten(
@@ -86,6 +91,7 @@ fn add_node_aux(
                 )?)
             }
             Arc::new(TileTree::Array {
+                id: *id,
                 direction: *direction,
                 nodes: nodes2,
             })
@@ -106,7 +112,11 @@ fn add_node_flatten(
         return Ok(vec![tree]);
     }
     let tree = add_node_aux(tree, with_direction, next_to, side, new_id)?;
-    if let TileTree::Array { direction, nodes } = &*tree
+    if let TileTree::Array {
+        id: _,
+        direction,
+        nodes,
+    } = &*tree
         && *direction == flatten_direction
     {
         Ok(nodes.clone())
@@ -117,37 +127,49 @@ fn add_node_flatten(
 
 // Remove node
 
-pub fn remove_node(id: TileId) -> Result<Arc<TileTree>, TilesStateError> {
+pub fn remove_node(id_to_remove: TileId) -> Result<Arc<TileTree>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.clone().unwrap_or_default();
-    let mut maybe_id = Some(id);
-    let tree = remove_node_aux(tree, &mut maybe_id).unwrap_or_default();
-    if let Some(id) = maybe_id {
-        return Err(TilesStateError::TileIdNotFound(id));
+    let mut maybe_id_to_remove = Some(id_to_remove);
+    let tree = remove_node_aux(tree, &mut maybe_id_to_remove).unwrap_or_default();
+    if let Some(id_to_remove) = maybe_id_to_remove {
+        return Err(TilesStateError::TileIdNotFound(id_to_remove));
     }
     *lock = tree.clone().into();
     return Ok(tree);
 }
 
-fn remove_node_aux(tree: Arc<TileTree>, maybe_id: &mut Option<TileId>) -> Option<Arc<TileTree>> {
-    let Some(id) = maybe_id else {
+fn remove_node_aux(
+    tree: Arc<TileTree>,
+    maybe_id_to_remove: &mut Option<TileId>,
+) -> Option<Arc<TileTree>> {
+    let Some(id_to_remove) = maybe_id_to_remove else {
         return Some(tree);
     };
     match &*tree {
-        TileTree::Node(node) if node.id == *id => {
-            *maybe_id = None;
+        TileTree::Tile(node) if node.id == *id_to_remove => {
+            *maybe_id_to_remove = None;
             None
         }
-        TileTree::Node { .. } => Some(tree),
-        TileTree::Array { direction, nodes } => {
+        TileTree::Array { id, .. } if *id == *id_to_remove => {
+            *maybe_id_to_remove = None;
+            None
+        }
+        TileTree::Tile { .. } => Some(tree),
+        TileTree::Array {
+            id,
+            direction,
+            nodes,
+        } => {
             let nodes = nodes
                 .iter()
-                .filter_map(|node| remove_node_aux(node.clone(), maybe_id))
+                .filter_map(|node| remove_node_aux(node.clone(), maybe_id_to_remove))
                 .collect::<Vec<_>>();
             if nodes.len() <= 1 {
                 nodes.into_iter().next()
             } else {
                 Some(Arc::new(TileTree::Array {
+                    id: *id,
                     direction: *direction,
                     nodes,
                 }))
@@ -159,15 +181,15 @@ fn remove_node_aux(tree: Arc<TileTree>, maybe_id: &mut Option<TileId>) -> Option
 // Mutate node
 
 pub fn mutate_node(
-    id: TileId,
-    mutation: impl FnOnce(&TileNode) -> TileNode,
+    id_to_mutate: TileId,
+    mutation: impl FnOnce(&Tile) -> Tile,
 ) -> Result<Arc<TileTree>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.take().unwrap_or_default();
     let mut maybe_mutation = Some(mutation);
-    let tree = mutate_node_aux(tree, id, &mut maybe_mutation)?;
+    let tree = mutate_node_aux(tree, id_to_mutate, &mut maybe_mutation)?;
     if maybe_mutation.is_some() {
-        return Err(TilesStateError::TileIdNotFound(id));
+        return Err(TilesStateError::TileIdNotFound(id_to_mutate));
     }
     *lock = tree.clone().into();
     return Ok(tree);
@@ -175,26 +197,31 @@ pub fn mutate_node(
 
 fn mutate_node_aux(
     tree: Arc<TileTree>,
-    id: TileId,
-    maybe_mutation: &mut Option<impl FnOnce(&TileNode) -> TileNode>,
+    id_to_mutate: TileId,
+    maybe_mutation: &mut Option<impl FnOnce(&Tile) -> Tile>,
 ) -> Result<Arc<TileTree>, TilesStateError> {
     if maybe_mutation.is_none() {
         return Ok(tree);
     }
     Ok(match &*tree {
-        TileTree::Node(node) if node.id == id => {
+        TileTree::Tile(node) if node.id == id_to_mutate => {
             let Some(mutation) = maybe_mutation.take() else {
-                return Err(TilesStateError::DuplicateTileId(id));
+                return Err(TilesStateError::DuplicateTileId(id_to_mutate));
             };
-            Arc::new(TileTree::Node(mutation(node)))
+            Arc::new(TileTree::Tile(mutation(node)))
         }
-        TileTree::Node { .. } => tree,
-        TileTree::Array { direction, nodes } => {
+        TileTree::Tile { .. } => tree,
+        TileTree::Array {
+            id,
+            direction,
+            nodes,
+        } => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
             for node in nodes {
-                nodes2.push(mutate_node_aux(node.clone(), id, maybe_mutation)?);
+                nodes2.push(mutate_node_aux(node.clone(), id_to_mutate, maybe_mutation)?);
             }
             Arc::new(TileTree::Array {
+                id: *id,
                 direction: *direction,
                 nodes: nodes2,
             })
@@ -202,9 +229,9 @@ fn mutate_node_aux(
     })
 }
 
-impl Drop for TileNode {
+impl Drop for Tile {
     fn drop(&mut self) {
-        fn aux(this: &mut TileNode) -> Option<()> {
+        fn aux(this: &mut Tile) -> Option<()> {
             let mut state = STATE.lock().unwrap();
             let state = state.as_mut()?;
             let drop_fns = state.remove(&this.id)?;
@@ -221,16 +248,16 @@ impl Drop for TileNode {
 mod tests {
     use std::sync::Arc;
 
+    use crate::tiles::api::Direction;
+    use crate::tiles::api::Side;
+    use crate::tiles::api::Tile;
+    use crate::tiles::api::TileTree;
     use crate::tiles::id::TileId;
-    use crate::tiles::tree::Direction;
-    use crate::tiles::tree::Side;
-    use crate::tiles::tree::TileNode;
-    use crate::tiles::tree::TileTree;
 
     // TODO: finish implementing these tests. Test add vert+horz, remove, mutations
     #[test]
     fn add_remove() {
-        let tree = Arc::new(TileTree::Node(TileNode {
+        let tree = Arc::new(TileTree::Tile(Tile {
             id: TileId::for_test(1),
             app: Default::default(),
             remote: Default::default(),

@@ -26,6 +26,12 @@ impl TileId {
     }
 }
 
+impl std::fmt::Display for TileId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::TileId;

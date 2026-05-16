@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::rc::Rc;
 use std::sync::Arc;
 
 use terrazzo::autoclone;
@@ -10,20 +11,19 @@ use wasm_bindgen_futures::spawn_local;
 
 use super::app::App;
 use crate::tiles::api::Direction;
-use crate::tiles::api::Tile;
-use crate::tiles::api::TileTree;
+use crate::tiles::signals::Tiles;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
 #[autoclone]
 pub fn show_tiles() -> XElement {
-    let tiles = XSignal::new("tiles", Arc::new(TileTree::default()));
+    let tiles = Rc::new(Tiles::default());
     spawn_local(async move {
         autoclone!(tiles);
         let mut batch = Batch::use_batch("load tiles");
         let tree = super::api::get().await.unwrap();
         tiles.update(|tiles| {
-            if **tiles == TileTree::default() {
+            if **tiles == Tiles::default() {
                 Some(tree)
             } else {
                 batch.forget();
@@ -36,34 +36,38 @@ pub fn show_tiles() -> XElement {
 
 #[html]
 #[template(tag = div)]
-fn show_tiles_tree(#[signal] tiles: Arc<TileTree>) -> XElement {
+fn show_tiles_tree(#[signal] tiles: Arc<Tiles>) -> XElement {
     show_tiles_rec(&tiles)
 }
 
 #[html]
-fn show_tiles_rec(tiles: &TileTree) -> XElement {
+fn show_tiles_rec(tiles: &Tiles) -> XElement {
     match tiles {
-        TileTree::Tile(node) => div(
+        Tiles::Tile(node) => div(
             key = node.id.to_string(),
             class = style::APP_TILE,
             show_app(node),
             #[cfg(feature = "logs-panel")]
             crate::logs::panel(node.remote.clone()),
         ),
-        TileTree::Array {
+        Tiles::Array {
             id: _,
             direction,
             nodes,
         } => div(
-            class = match direction {
-                Direction::Vertical => style::HORIZONTAL_TILE,
-                Direction::Horizontal => style::VERTICAL_TILE,
-            },
+            class %= direction_class(direction.clone()),
             nodes.iter().map(|n| n.as_ref()).map(show_tiles_rec)..,
         ),
     }
 }
 
+#[template(wrap = true)]
+pub fn direction_class(#[signal] direction: Direction) -> XAttributeValue {
+    match direction {
+        Direction::Vertical => style::HORIZONTAL_TILE,
+        Direction::Horizontal => style::VERTICAL_TILE,
+    }
+}
 #[html]
 fn show_app(node: &Tile) -> XElement {
     // TODO how to get a signal for the remote of the tile?

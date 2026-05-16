@@ -1,30 +1,26 @@
 #![cfg(feature = "client")]
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::rc::Rc;
 
-use nameth::NamedEnumValues as _;
-use nameth::nameth;
 use terrazzo::envelope;
 use terrazzo::prelude::XSignal;
 
 use super::api::Direction;
 use super::api::Tile as TileDto;
-use super::api::TileTree as TileTreeDto;
+use super::api::Tiles as TilesDto;
 use super::app::App;
 use super::id::TileId;
-use super::visitor::DtoVisitor;
 use super::visitor::TilesTreeVisitor;
 use super::visitor::UiStateVisitor;
 use crate::frontend::remotes::Remote;
 
-pub enum TileTree {
+pub enum Tiles {
     Tile(TilePtr),
     Array {
         id: TileId,
         direction: XSignal<Direction>,
-        nodes: Vec<Rc<TileTree>>,
+        nodes: Vec<Rc<Tiles>>,
     },
 }
 
@@ -35,81 +31,77 @@ pub struct Tile {
     pub remote: XSignal<Remote>,
 }
 
-impl TileTree {
-    pub fn update(&mut self, dto: TileTreeDto) {
-        let mut ids = TileIds::default();
-        ids.visit_node(&dto);
+impl Tiles {
+    pub fn update(&self, tiles: TilesDto) -> Self {
         let mut signals = TileSignals::default();
         signals.visit_node(self);
-        transform(&mut signals, dto);
+        transform(&mut signals, &tiles)
     }
 }
 
-fn transform(
-    signals: &mut TileSignals,
-    tile_tree_dto: &TileTreeDto,
-) -> Result<TileTree, TransformError> {
-    Ok(match tile_tree_dto {
-        TileTreeDto::Tile(TileDto { id, app, remote }) => {
-            let Some(ui_tile) = signals.tile_ids.remove(id) else {
-                return Err(TransformError::TileIdNotFound(*id));
+fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
+    match tile_tree_dto {
+        TilesDto::Tile(TileDto { id, app, remote }) => {
+            let ui_tile = if let Some(ui_tile) = signals.tile_ids.remove(id) {
+                ui_tile.app.set(*app);
+                ui_tile.remote.set(remote.clone());
+                ui_tile
+            } else {
+                Tile {
+                    id: *id,
+                    app: XSignal::new(format!("app-{id}"), *app),
+                    remote: XSignal::new(format!("remote-{id}"), remote.clone()),
+                }
+                .into()
             };
-            ui_tile.app.set(*app);
-            ui_tile.remote.set(remote.clone());
-            TileTree::Tile(ui_tile.into())
+            Tiles::Tile(ui_tile)
         }
-        TileTreeDto::Array {
+        TilesDto::Array {
             id,
             direction,
             nodes,
         } => {
-            let Some(ui_direction) = signals.directions.remove(id) else {
-                return Err(TransformError::TileTreeIdNotFound(*id));
+            let ui_direction = if let Some(ui_direction) = signals.directions.remove(id) {
+                ui_direction.set(*direction);
+                ui_direction
+            } else {
+                XSignal::new(format!("direction-{id}"), *direction)
             };
-            ui_direction.set(*direction);
             let mut ui_nodes = Vec::with_capacity(nodes.len());
             for node in nodes {
-                ui_nodes.push(transform(signals, &node)?.into());
+                ui_nodes.push(transform(signals, &node).into());
             }
-            TileTree::Array {
+            Tiles::Array {
                 id: *id,
                 direction: ui_direction,
                 nodes: ui_nodes,
             }
         }
-    })
+    }
 }
 
-#[nameth]
-#[derive(thiserror::Error, Debug)]
-pub enum TransformError {
-    #[error("[{n}] The tile {0:?} was not found", n = self.name())]
-    TileIdNotFound(TileId),
-
-    #[error("[{n}] The tile tree {0:?} was not found", n = self.name())]
-    TileTreeIdNotFound(TileId),
+impl Default for Tiles {
+    fn default() -> Self {
+        let id = TileId::first_tile_id();
+        Tile {
+            id,
+            app: XSignal::new(format!("app-{id}"), App::default()),
+            remote: XSignal::new(format!("remote-{id}"), Remote::default()),
+        }
+        .into()
+    }
 }
 
-#[derive(Default)]
-struct TileIds {
-    tree_ids: HashSet<TileId>,
-    tile_ids: HashSet<TileId>,
+impl From<Tile> for Tiles {
+    fn from(tile: Tile) -> Self {
+        Self::Tile(tile.into())
+    }
 }
 
 #[derive(Default)]
 struct TileSignals {
     directions: HashMap<TileId, XSignal<Direction>>,
     tile_ids: HashMap<TileId, TilePtr>,
-}
-
-impl<'l> TilesTreeVisitor<DtoVisitor<'l>> for TileIds {
-    fn visit_tree(&mut self, id: TileId, _: Direction) {
-        self.tree_ids.insert(id);
-    }
-
-    fn visit_tile(&mut self, tile: &TileDto) {
-        self.tile_ids.insert(tile.id);
-    }
 }
 
 impl<'l> TilesTreeVisitor<UiStateVisitor<'l>> for TileSignals {

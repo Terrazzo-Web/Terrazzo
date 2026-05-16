@@ -3,11 +3,9 @@ use std::marker::PhantomData;
 use terrazzo::prelude::XSignal;
 
 use super::api::Direction;
-use super::api::Tile as TileDto;
-use super::api::TileTree as TileTreeDto;
 use super::id::TileId;
 use super::signals::TilePtr as UiTilePtr;
-use super::signals::TileTree as UiTileTree;
+use super::signals::Tiles as UiTileTree;
 
 pub trait TilesVisitorKind: Sized {
     type Node;
@@ -28,32 +26,6 @@ pub trait TilesTreeVisitor<K: TilesVisitorKind> {
     ) {
     }
     fn visit_tile(&mut self, #[expect(unused)] tile: K::Tile) {}
-}
-
-pub struct DtoVisitor<'l> {
-    _phantom: PhantomData<&'l ()>,
-}
-
-impl<'l> TilesVisitorKind for DtoVisitor<'l> {
-    type Node = &'l TileTreeDto;
-    type Tile = &'l TileDto;
-    type Direction = Direction;
-
-    fn do_visit_node<V: TilesTreeVisitor<Self> + ?Sized>(visitor: &mut V, tree: Self::Node) {
-        match tree {
-            TileTreeDto::Tile(tile) => visitor.visit_tile(tile),
-            TileTreeDto::Array {
-                id,
-                direction,
-                nodes,
-            } => {
-                visitor.visit_tree(*id, *direction);
-                for node in nodes {
-                    visitor.visit_node(node);
-                }
-            }
-        }
-    }
 }
 
 pub struct UiStateVisitor<'l> {

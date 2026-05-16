@@ -1,5 +1,3 @@
-use std::sync::atomic::AtomicI64;
-
 // Basic
 #[derive(Clone, Copy, Debug)]
 // Serialization-Deserialization support
@@ -12,8 +10,10 @@ pub struct TileId(i64);
 impl TileId {
     #[cfg(feature = "server")]
     pub fn new() -> Self {
+        use std::sync::atomic::AtomicI64;
+        use std::sync::atomic::Ordering;
         static NEXT: AtomicI64 = AtomicI64::new(1);
-        Self(NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst))
+        Self(NEXT.fetch_add(1, Ordering::SeqCst))
     }
 
     pub const fn first_tile_id() -> Self {

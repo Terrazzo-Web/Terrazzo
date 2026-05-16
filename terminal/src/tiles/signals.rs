@@ -1,6 +1,7 @@
 #![cfg(feature = "client")]
 
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use terrazzo::envelope;
@@ -32,10 +33,10 @@ pub struct Tile {
 }
 
 impl Tiles {
-    pub fn update(&self, tiles: TilesDto) -> Self {
+    pub fn update(&self, tiles: &TilesDto) -> Self {
         let mut signals = TileSignals::default();
         signals.visit_node(self);
-        transform(&mut signals, &tiles)
+        transform(&mut signals, tiles)
     }
 }
 
@@ -110,5 +111,62 @@ impl<'l> TilesTreeVisitor<UiStateVisitor<'l>> for TileSignals {
     }
     fn visit_tile(&mut self, tile: &TilePtr) {
         self.tile_ids.insert(tile.id, tile.clone());
+    }
+}
+
+#[derive(Clone)]
+pub struct TilesCmp<T>(T);
+
+impl<T> TilesCmp<T> {
+    pub fn new(t: T) -> Self {
+        Self(t)
+    }
+}
+
+impl<T: AsRef<Tiles>> PartialEq for TilesCmp<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.as_ref(), other.as_ref()) {
+            (Tiles::Tile(a), Tiles::Tile(b)) => a.id == b.id,
+            (
+                Tiles::Array {
+                    id: a_id,
+                    nodes: a_nodes,
+                    ..
+                },
+                Tiles::Array {
+                    id: b_id,
+                    nodes: b_nodes,
+                    ..
+                },
+            ) => {
+                a_id == b_id
+                    && a_nodes.len() == b_nodes.len()
+                    && Iterator::zip(a_nodes.iter(), b_nodes.iter())
+                        .all(|(a, b)| TilesCmp(a) == TilesCmp(b))
+            }
+            _ => false,
+        }
+    }
+}
+
+impl<T: AsRef<Tiles>> Eq for TilesCmp<T> {}
+
+impl<T: AsRef<Tiles>> AsRef<Tiles> for TilesCmp<T> {
+    fn as_ref(&self) -> &Tiles {
+        self.0.as_ref()
+    }
+}
+
+impl<T> Deref for TilesCmp<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> std::fmt::Debug for TilesCmp<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Tiles(...)")
     }
 }

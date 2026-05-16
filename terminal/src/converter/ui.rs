@@ -29,12 +29,12 @@ terrazzo_css::import_style!(pub(super) style, "converter.scss");
 
 /// The UI for the converter app.
 #[html]
-#[template]
+#[template(tag = div)]
 pub fn converter(remote: XSignal<Remote>) -> XElement {
     let conversions = XSignal::new("conversions", Conversions::default());
     let preferred_language = XSignal::new("preferred-language", None);
     let resize_manager = MousemoveManager::new();
-    div(
+    tag(
         class = style::OUTER,
         converter_impl(remote, conversions, preferred_language, resize_manager),
     )

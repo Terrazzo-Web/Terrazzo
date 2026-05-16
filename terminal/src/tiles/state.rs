@@ -12,17 +12,29 @@ macro_rules! make_state {
             pub use super::super::*;
         }
 
-        use crate::api::client_address::ClientAddress;
-
         #[cfg(feature = "server")]
-        static STATE: std::sync::Mutex<Option<ty::Type>> = std::sync::Mutex::new(None);
+        mod state {
+            use std::collections::HashMap;
+            use std::hash::BuildHasherDefault;
+            use std::hash::DefaultHasher;
+            use crate::tiles::id::TileId;
+
+            pub static STATE: std::sync::Mutex<HashMap<Option<TileId>, super::ty::Type, BuildHasherDefault<DefaultHasher>>> =
+                std::sync::Mutex::new(HashMap::with_hasher(BuildHasherDefault::new()));
+        }
+
+        use crate::api::client_address::ClientAddress;
+        use crate::tiles::id::TileId;
 
         #[cfg_attr(feature = "server", allow(unused))]
         #[server(protocol = ::server_fn::Http<::server_fn::codec::Json, ::server_fn::codec::Json>)]
         #[cfg_attr(feature = "server", nameth::nameth)]
-        pub async fn get(remote: Option<ClientAddress>) -> Result<ty::Type, ServerFnError> {
+        pub async fn get(
+            remote: Option<ClientAddress>,
+            tile: Option<TileId>
+        ) -> Result<ty::Type, ServerFnError> {
             Ok(remote::GET_REMOTE_FN
-                .call(remote.unwrap_or_default(), remote::GetRequest {})
+                .call(remote.unwrap_or_default(), remote::GetRequest { tile })
                 .await?)
         }
 
@@ -32,6 +44,7 @@ macro_rules! make_state {
         #[cfg(feature = "client")]
         pub async fn set(
             remote: Remote,
+            tile: Option<TileId>,
             value: ty::Type,
         ) -> Result<(), ServerFnError> {
             use std::pin::Pin;
@@ -41,7 +54,7 @@ macro_rules! make_state {
             use terrazzo::widgets::debounce::DoDebounce as _;
 
             struct ThreadSafe(
-                Box<dyn Fn((Remote, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
+                Box<dyn Fn((Remote, Option<TileId>, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
             );
 
             unsafe impl Send for ThreadSafe {}
@@ -52,8 +65,8 @@ macro_rules! make_state {
 
             let debounced_set = DEBOUNCED_SET.get_or_init(|| {
                 ThreadSafe(Box::new(
-                    STORE_STATE_DEBOUNCE_DELAY.async_debounce(|(remote, value)| async move {
-                        set_impl(remote, value)
+                    STORE_STATE_DEBOUNCE_DELAY.async_debounce(|(remote, tile, value)| async move {
+                        set_impl(remote, tile, value)
                             .await
                             .unwrap_or_else(|error| warn!("Failed to save: {error}"))
                     }),
@@ -61,7 +74,7 @@ macro_rules! make_state {
             });
             let debounced_set = &*debounced_set.0;
 
-            let () = debounced_set((remote, value)).await;
+            let () = debounced_set((remote, tile, value)).await;
             Ok(())
         }
 
@@ -70,10 +83,11 @@ macro_rules! make_state {
         #[cfg_attr(feature = "server", nameth::nameth)]
         async fn set_impl(
             remote: Option<ClientAddress>,
+            tile: Option<TileId>,
             value: ty::Type,
         ) -> Result<(), ServerFnError> {
             Ok(remote::SET_REMOTE_FN
-                .call(remote.unwrap_or_default(), remote::SetRequest { value })
+                .call(remote.unwrap_or_default(), remote::SetRequest { tile, value })
                 .await?)
         }
 
@@ -86,16 +100,23 @@ macro_rules! make_state {
             use serde::Serialize;
 
             use crate::backend::client_service::remote_fn_service;
+            use crate::tiles::id::TileId;
 
             #[derive(Debug, Default, Serialize, Deserialize)]
             #[serde(default)]
-            pub struct GetRequest {}
+            pub struct GetRequest {
+                #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
+                tile: Option<TileId>,
+            }
 
             #[derive(Debug, Default, Serialize, Deserialize)]
             #[serde(default)]
             pub struct SetRequest {
+                #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
+                tile: Option<TileId>,
+
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
-                pub value: super::ty::Type,
+                value: super::ty::Type,
             }
 
             remote_fn_service::unary::declare_remote_fn!(
@@ -103,10 +124,10 @@ macro_rules! make_state {
                 formatcp!("{}-state-{}", super::GET, stringify!($name)),
                 GetRequest,
                 super::ty::Type,
-                |_server, _: GetRequest| {
-                    let state = super::STATE.lock().expect(stringify!($name));
+                |_server, request: GetRequest| {
+                    let state = super::state::STATE.lock().expect(stringify!($name));
                     ready(Ok::<super::ty::Type, StateError>(
-                        state.as_ref().cloned().unwrap_or_default(),
+                        state.get(&request.tile).cloned().unwrap_or_default(),
                     ))
                 }
             );
@@ -116,9 +137,9 @@ macro_rules! make_state {
                 formatcp!("{}-state-{}", super::SET_IMPL, stringify!($name)),
                 SetRequest,
                 (),
-                |_server, arg: SetRequest| {
-                    let mut state = super::STATE.lock().expect(stringify!($name));
-                    *state = Some(arg.value);
+                |_server, request: SetRequest| {
+                    let mut state = super::state::STATE.lock().expect(stringify!($name));
+                    state.insert(request.tile, request.value);
                     ready(Ok::<(), StateError>(()))
                 }
             );

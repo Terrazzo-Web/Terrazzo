@@ -68,7 +68,7 @@ fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
         class = style::APP_CONTENT,
         match app {
             #[cfg(feature = "terminal")]
-            App::Terminal => div(move |t| crate::terminal::terminals(t)),
+            App::Terminal => div(move |t| crate::terminal::terminals(t, tile.remote.clone())),
 
             #[cfg(feature = "text-editor")]
             App::TextEditor => crate::text_editor::ui::text_editor(tile.remote.clone()),

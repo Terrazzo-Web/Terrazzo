@@ -21,6 +21,7 @@ use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 
 pub mod active_challenges;
 pub mod certificate_config;
+mod domains_serde;
 mod environment_serde;
 mod get_certificate;
 mod tests;
@@ -49,12 +50,13 @@ pub struct AcmeConfig {
     /// Use "mailto:email@address.com" format.
     pub contact: String,
 
-    /// The domain name to generate certificate.
+    /// The domain names to generate certificate.
     ///
     /// Routes from [ActiveChallenges](active_challenges::ActiveChallenges)
-    /// must be available under port 80 for this domain name, to prove domain
+    /// must be available under port 80 for these domain names, to prove domain
     /// name ownership.
-    pub domain: String,
+    #[serde(alias = "domain", with = "domains_serde")]
+    pub domains: Vec<String>,
 
     /// The generated certificate.
     pub certificate: Option<CertificateInfo<String>>,
@@ -132,7 +134,7 @@ impl PartialEq for AcmeConfig {
                 | (LetsEncrypt::Staging, LetsEncrypt::Staging)
         ) && credentials_eq(&self.credentials, &other.credentials)
             && self.contact == other.contact
-            && self.domain == other.domain
+            && self.domains == other.domains
             && self.certificate == other.certificate
     }
 }
@@ -159,7 +161,7 @@ impl std::fmt::Debug for AcmeConfig {
             .field("environment", &self.environment)
             .field("credentials", &self.credentials.is_some())
             .field("contact", &self.contact)
-            .field("domain", &self.domain)
+            .field("domains", &self.domains)
             .finish()
     }
 }

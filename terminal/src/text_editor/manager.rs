@@ -17,9 +17,11 @@ use super::side;
 use super::side::SideViewList;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::remotes::Remote;
+use crate::tiles::signals::TilePtr;
 use crate::utils::more_path::MorePath as _;
 
 pub(super) struct TextEditorManager {
+    pub tile: TilePtr,
     pub remote: Remote,
     pub path: FilePath<XSignal<Arc<str>>>,
     pub force_edit_path: XSignal<bool>,

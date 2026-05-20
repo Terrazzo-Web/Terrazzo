@@ -16,10 +16,13 @@ use super::sync_state::SyncState;
 use crate::api::client::remotes_api;
 use crate::api::client_address::ClientAddress;
 use crate::frontend::remotes::Remote;
+use crate::tiles::signals::TilePtr;
 
 /// The manager for the port forward feature.
 #[envelope]
 pub struct ManagerImpl {
+    tile: TilePtr,
+
     /// The port forwards as displayed in the UI.
     ///
     /// It is updated after the state is updated in the backend.
@@ -28,7 +31,6 @@ pub struct ManagerImpl {
     /// The port forwards state. It is set after the backend has processed the update.
     port_forwards: Mutex<Arc<Vec<PortForward>>>,
 
-    remote: XSignal<Remote>,
     remotes: XSignal<Vec<ClientAddress>>,
 }
 
@@ -36,11 +38,11 @@ pub use ManagerImplPtr as Manager;
 
 impl Manager {
     #[autoclone]
-    pub fn new(remote: XSignal<Remote>) -> Self {
+    pub fn new(tile: TilePtr) -> Self {
         let manager = Self::from(ManagerImpl {
+            tile,
             port_forwards_signal: XSignal::new("port-forwards", Default::default()),
             port_forwards: Mutex::default(),
-            remote,
             remotes: XSignal::new("remotes", vec![]),
         });
 
@@ -55,8 +57,8 @@ impl Manager {
         return manager;
     }
 
-    pub fn remote(&self) -> XSignal<Remote> {
-        self.remote.clone()
+    pub fn tile(&self) -> TilePtr {
+        self.tile.clone()
     }
     pub fn remotes(&self) -> XSignal<Vec<ClientAddress>> {
         self.remotes.clone()

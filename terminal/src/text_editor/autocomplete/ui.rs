@@ -18,7 +18,6 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::info;
 use super::server_fn::AutocompleteItem;
 use super::server_fn::autocomplete_path;
-use crate::frontend::menu::before_menu;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::path_selector::schema::PathSelector;
 use crate::text_editor::style;
@@ -80,7 +79,8 @@ pub fn start_autocomplete(
         let input_element_blur = scopeguard::guard(input.clone(), |input| {
             let () = input.get().blur().or_throw("Can't blur() input element");
         });
-        *before_menu() = Some(Box::new(move || drop(input_element_blur)));
+        let before_menu = &manager.tile.menu.before;
+        before_menu.add(move || drop(input_element_blur));
         autocomplete.set(Some(Default::default()));
         do_autocomplete_impl(
             manager.clone(),

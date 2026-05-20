@@ -19,7 +19,7 @@ use crate::assets::icons;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
-use crate::frontend::tile::TilePtr;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "panel.scss");
 

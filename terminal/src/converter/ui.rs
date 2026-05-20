@@ -39,7 +39,6 @@ pub fn converter(tile: TilePtr) -> XElement {
         class = style::OUTER,
         converter_impl(
             tile.clone(),
-            tile.remote.clone(),
             conversions,
             preferred_language,
             resize_manager,
@@ -51,7 +50,6 @@ pub fn converter(tile: TilePtr) -> XElement {
 #[template(tag = div)]
 fn converter_impl(
     tile: TilePtr,
-    remote: XSignal<Remote>,
     conversions: XSignal<Conversions>,
     preferred_language: XSignal<Option<Language>>,
     resize_manager: MousemoveManager,
@@ -59,10 +57,19 @@ fn converter_impl(
     div(
         class = style::INNER,
         key = "converter",
-        div(class = style::HEADER, menu(), show_remote(remote.clone())),
+        div(
+            class = style::HEADER,
+            menu(tile.clone()),
+            show_remote(tile.remote.clone()),
+        ),
         div(
             class = style::BODY,
-            show_input(tile, remote, conversions.clone(), resize_manager.clone()),
+            show_input(
+                tile.clone(),
+                tile.remote.clone(),
+                conversions.clone(),
+                resize_manager.clone(),
+            ),
             show_resize_bar(resize_manager),
             show_conversions(conversions, preferred_language),
         ),
@@ -85,18 +92,17 @@ fn show_input(
         style::flex %= width(resize_manager.delta.clone()),
         before_render = element.capture(),
         input = move |_: web_sys::InputEvent| {
-            autoclone!(remote, element, conversions);
+            autoclone!(tile, remote, element, conversions);
             let value: Arc<str> = element.with(|e| e.value().into());
             spawn_local(async move {
-                autoclone!(remote, value);
+                autoclone!(tile, remote, value);
                 let _set = content_state::set(tile.id.into(), remote.clone(), value.clone()).await;
             });
             get_conversions(remote.clone(), value, conversions.clone());
         },
         after_render = move |_| {
-            autoclone!(remote, element, conversions);
             spawn_local(async move {
-                autoclone!(remote, element, conversions);
+                autoclone!(tile, remote, element, conversions);
                 let Ok(content) = content_state::get(tile.id.into(), remote.clone()).await else {
                     warn!("Failed to load converter content");
                     return;

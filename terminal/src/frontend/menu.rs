@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use terrazzo::autoclone;
 use terrazzo::drop_list::DropListPtr;
-use terrazzo::envelope;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
@@ -11,14 +10,11 @@ use terrazzo::widgets::debounce::DoDebounce as _;
 use web_sys::MouseEvent;
 
 use crate::assets::icons;
-use crate::state::app;
-use crate::state::app::App;
-use crate::tiles::tile::TilePtr;
+use crate::tiles::app::App;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "menu.scss");
 
-#[envelope]
-#[derive(Clone)]
 pub struct MenuState {
     pub show: XSignal<bool>,
     pub before: DropListPtr,
@@ -73,28 +69,28 @@ fn menu_items(
         #[cfg(feature = "terminal")]
         items.push(menu_item(
             App::Terminal,
-            app(tile.clone()),
+            tile.app.clone(),
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));
         #[cfg(feature = "text-editor")]
         items.push(menu_item(
             App::TextEditor,
-            app(tile.clone()),
+            tile.app.clone(),
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));
         #[cfg(feature = "converter")]
         items.push(menu_item(
             App::Converter,
-            app(tile.clone()),
+            tile.app.clone(),
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));
         #[cfg(feature = "port-forward")]
         items.push(menu_item(
             App::PortForward,
-            app(tile.clone()),
+            tile.app.clone(),
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));

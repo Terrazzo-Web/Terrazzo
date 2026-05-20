@@ -39,9 +39,9 @@ fn show_tiles_rec(tiles: &Tiles) -> XElement {
         Tiles::Tile(tile) => div(
             key = tile.id.to_string(),
             class = style::APP_TILE,
-            show_app(tile.clone(), tile.app),
+            show_app(tile.clone(), tile.app.clone()),
             #[cfg(feature = "logs-panel")]
-            crate::logs::panel(tile.remote.clone()),
+            crate::logs::panel(tile.clone()),
         ),
         Tiles::Array {
             id: _,
@@ -68,16 +68,16 @@ fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
         class = style::APP_CONTENT,
         match app {
             #[cfg(feature = "terminal")]
-            App::Terminal => div(move |t| crate::terminal::terminals(t, tile.remote.clone())),
+            App::Terminal => div(move |t| crate::terminal::terminals(t, tile.clone())),
 
             #[cfg(feature = "text-editor")]
-            App::TextEditor => crate::text_editor::ui::text_editor(tile.remote.clone()),
+            App::TextEditor => crate::text_editor::ui::text_editor(tile),
 
             #[cfg(feature = "converter")]
             App::Converter => crate::converter::ui::converter(tile),
 
             #[cfg(feature = "port-forward")]
-            App::PortForward => crate::portforward::ui::port_forward(tile.remote.clone()),
+            App::PortForward => crate::portforward::ui::port_forward(tile),
         },
     )
 }

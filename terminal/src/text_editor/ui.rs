@@ -35,6 +35,8 @@ use crate::frontend::menu::menu;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::text_editor::search::state::EditorSearchState;
+use crate::tiles::id::TileId;
+use crate::tiles::signals::TilePtr;
 
 mod code_mirror;
 mod editor;
@@ -50,18 +52,19 @@ pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions)
 /// The UI for the text editor app.
 #[html]
 #[template(tag = div)]
-pub fn text_editor(remote: XSignal<Remote>) -> XElement {
+pub fn text_editor(tile: TilePtr) -> XElement {
     tag(
         style = "height: 100%;",
-        text_editor_impl(remote.clone(), remote),
+        text_editor_impl(tile.clone(), tile.remote.clone()),
     )
 }
 
 #[html]
 #[template(tag = div)]
-fn text_editor_impl(#[signal] remote: Remote, remote_signal: XSignal<Remote>) -> XElement {
+fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
     let side_view: XSignal<Arc<SideViewList>> = XSignal::new("side-view", Default::default());
     let manager = Ptr::new(TextEditorManager {
+        tile,
         remote: remote.clone(),
         path: FilePath {
             base: XSignal::new("base-path", Arc::default()),
@@ -85,12 +88,12 @@ fn text_editor_impl(#[signal] remote: Remote, remote_signal: XSignal<Remote>) ->
         class = "text-editor-app",
         div(
             class = style::HEADER,
-            menu(),
+            menu(manager.tile.clone()),
             manager.base_path_selector(),
             manager.file_path_selector(),
             manager.search_selector(),
             show_synchronized_state(manager.synchronized_state.clone()),
-            show_remote(remote_signal),
+            show_remote(manager.tile.remote.clone()),
         ),
         editor_body(manager.clone(), manager.editor_state.clone()),
         after_render = move |_| {
@@ -185,12 +188,13 @@ impl TextEditorManager {
                         this.path.file.force(Arc::default());
                     }))
             });
+            let tile_id = this.tile.id;
             let remote: Remote = this.remote.clone();
             let (get_side_view, get_base_path, get_file_path, get_search) = futures::future::join4(
-                state::side_view::get(remote.clone()),
-                state::base_path::get(remote.clone()),
-                state::file_path::get(remote.clone()),
-                state::search::get(remote.clone()),
+                state::side_view::get(Some(tile_id), remote.clone()),
+                state::base_path::get(Some(tile_id), remote.clone()),
+                state::file_path::get(Some(tile_id), remote.clone()),
+                state::search::get(Some(tile_id), remote.clone()),
             )
             .await;
             let batch = Batch::use_batch(Self::RESTORE_PATHS);
@@ -254,16 +258,19 @@ impl TextEditorManager {
     fn save_on_change<T>(
         &self,
         path: XSignal<Arc<T>>,
-        setter: impl AsyncFn(Remote, Arc<T>) -> Result<(), ServerFnError> + Copy + 'static,
+        setter: impl AsyncFn(Option<TileId>, Remote, Arc<T>) -> Result<(), ServerFnError>
+        + Copy
+        + 'static,
     ) -> Consumers
     where
         T: ?Sized + 'static,
     {
+        let tile_id = self.tile.id;
         let remote = self.remote.clone();
         path.add_subscriber(move |p| {
             spawn_local(async move {
                 autoclone!(remote);
-                let () = setter(remote, p)
+                let () = setter(Some(tile_id), remote, p)
                     .await
                     .unwrap_or_else(|error| warn!("Failed to save: {error}"));
             })

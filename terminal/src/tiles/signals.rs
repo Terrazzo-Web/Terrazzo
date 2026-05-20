@@ -14,6 +14,7 @@ use super::app::App;
 use super::id::TileId;
 use super::visitor::TilesTreeVisitor;
 use super::visitor::UiStateVisitor;
+use crate::frontend::menu::MenuState;
 use crate::frontend::remotes::Remote;
 
 pub enum Tiles {
@@ -30,6 +31,7 @@ pub struct Tile {
     pub id: TileId,
     pub app: XSignal<App>,
     pub remote: XSignal<Remote>,
+    pub menu: MenuState,
 }
 
 impl Tiles {
@@ -50,8 +52,9 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             } else {
                 Tile {
                     id: *id,
-                    app: XSignal::new(format!("app-{id}"), *app),
-                    remote: XSignal::new(format!("remote-{id}"), remote.clone()),
+                    app: XSignal::new("app", *app),
+                    remote: XSignal::new("remote", remote.clone()),
+                    menu: MenuState::default(),
                 }
                 .into()
             };
@@ -66,7 +69,7 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
                 ui_direction.set(*direction);
                 ui_direction
             } else {
-                XSignal::new(format!("direction-{id}"), *direction)
+                XSignal::new("direction", *direction)
             };
             let mut ui_nodes = Vec::with_capacity(nodes.len());
             for node in nodes {
@@ -86,8 +89,9 @@ impl Default for Tiles {
         let id = TileId::first_tile_id();
         Tile {
             id,
-            app: XSignal::new(format!("app-{id}"), App::default()),
-            remote: XSignal::new(format!("remote-{id}"), Remote::default()),
+            app: XSignal::new("app", App::default()),
+            remote: XSignal::new("remote", Remote::default()),
+            menu: MenuState::default(),
         }
         .into()
     }

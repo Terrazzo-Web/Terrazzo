@@ -25,6 +25,7 @@ use crate::frontend::menu::menu;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::portforward::schema::PortForwardState;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "port_forward.scss");
 pub use style::TAG;
@@ -32,20 +33,24 @@ pub use style::TAG;
 /// The UI for the port forward app.
 #[html]
 #[template(tag = div)]
-pub fn port_forward(remote: XSignal<Remote>) -> XElement {
-    let manager = Manager::new(remote);
+pub fn port_forward(tile: TilePtr) -> XElement {
+    let manager = Manager::new(tile);
     tag(class = style::OUTER, port_forward_impl(manager))
 }
 
 #[html]
 fn port_forward_impl(manager: Manager) -> XElement {
-    let remote = manager.remote();
+    let tile = manager.tile();
     let port_forwards = manager.port_forwards().clone();
     div(
         class = style::INNER,
         key = "port-forward",
-        div(class = style::HEADER, menu(), show_remote(remote.clone())),
-        show_port_forwards(manager, remote, port_forwards),
+        div(
+            class = style::HEADER,
+            menu(tile.clone()),
+            show_remote(tile.remote.clone()),
+        ),
+        show_port_forwards(manager, tile.remote.clone(), port_forwards),
     )
 }
 

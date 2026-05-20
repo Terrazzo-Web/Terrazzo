@@ -89,7 +89,7 @@ clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }
 darling = { version = "0.23.0" }
-dashmap = { version = "6.1.0" }
+dashmap = { version = "6.2.1" }
 deluxe = { version = "0.5.0" }
 fluent-asserter = { version = "0.1.9" }
 futures = { version = "0.3.32" }
@@ -112,10 +112,10 @@ mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.79" }
+openssl = { version = "0.10.80" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "3.0.6" }
-pin-project = { version = "1.1.12" }
+pin-project = { version = "1.1.13" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.106" }
@@ -161,7 +161,7 @@ tonic = { version = "0.14.6" }
 tonic-prost = { version = "0.14.6" }
 tonic-prost-build = { version = "0.14.6" }
 tower = { version = "0.5.3" }
-tower-http = { version = "0.6.10" }
+tower-http = { version = "0.6.11" }
 tower-layer = { version = "0.3.3" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
@@ -178,7 +178,7 @@ wasm-bindgen-futures = { version = "0.4.71" }
 wasm-bindgen-test = { version = "0.3.71" }
 wasm-streams = { version = "0.5.0" }
 web-sys = { version = "0.3.98" }
-winnow = { version = "1.0.2" }
+winnow = { version = "1.0.3" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

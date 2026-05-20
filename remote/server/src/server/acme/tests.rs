@@ -15,7 +15,7 @@ async fn get_certificate() {
         environment: LetsEncrypt::Staging,
         credentials: None.into(),
         contact: "mailto:info@pavy.one".into(),
-        domain: "pavy.one".into(),
+        domains: vec!["pavy.one".into()],
         certificate: None,
     }
     .get_certificate(&ActiveChallenges::default())
@@ -66,4 +66,38 @@ fn environment_serialize_deserialize() {
             .environment,
         LetsEncrypt::Staging,
     ));
+}
+
+#[test]
+fn domains_serialize_deserialize() {
+    let legacy = serde_json::from_str::<super::AcmeConfig>(
+        r#"{
+            "environment": "Staging",
+            "credentials": null,
+            "contact": "mailto:info@pavy.one",
+            "domain": "pavy.one",
+            "certificate": null
+        }"#,
+    )
+    .unwrap();
+    assert_eq!(vec!["pavy.one"], legacy.domains);
+
+    let config = serde_json::from_str::<super::AcmeConfig>(
+        r#"{
+            "environment": "Staging",
+            "credentials": null,
+            "contact": "mailto:info@pavy.one",
+            "domains": ["pavy.one", "www.pavy.one"],
+            "certificate": null
+        }"#,
+    )
+    .unwrap();
+    assert_eq!(vec!["pavy.one", "www.pavy.one"], config.domains);
+
+    let serialized = serde_json::to_value(config).unwrap();
+    assert_eq!(
+        serde_json::json!(["pavy.one", "www.pavy.one"]),
+        serialized["domains"]
+    );
+    assert!(serialized.get("domain").is_none());
 }

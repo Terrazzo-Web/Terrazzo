@@ -181,9 +181,8 @@ mod tests {
             })
             .unwrap();
             batch.forget();
-            // TODO: batched2 should be skipped
             assert_eq!(vec!["init", "batched"], *v.borrow());
         }
-        assert_eq!(vec!["init", "batched", "batched2"], *v.borrow());
+        assert_eq!(vec!["init", "batched"], *v.borrow());
     }
 }

@@ -71,6 +71,9 @@ rust_rules_matrix(
         "@crates//:mime_guess",
         "@crates//:tracing",
     ],
+    deps_dev = [
+        "@crates//:scopeguard",
+    ],
 )
 
 scss_rule(

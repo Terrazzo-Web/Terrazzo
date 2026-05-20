@@ -31,10 +31,10 @@ pub use style::TAG;
 
 /// The UI for the port forward app.
 #[html]
-#[template]
+#[template(tag = div)]
 pub fn port_forward(remote: XSignal<Remote>) -> XElement {
     let manager = Manager::new(remote);
-    div(class = style::OUTER, port_forward_impl(manager))
+    tag(class = style::OUTER, port_forward_impl(manager))
 }
 
 #[html]

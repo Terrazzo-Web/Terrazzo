@@ -14,36 +14,16 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::info;
 use self::diagnostics::warn;
 use crate::assets::icons;
-use crate::frontend::menu::app;
-use crate::frontend::remotes::Remote;
-use crate::state::app::App;
+use crate::tiles::ui::show_tiles;
 
 terrazzo_css::import_style!(style, "login.scss");
 
 #[autoclone]
 #[html]
 #[template]
-pub fn login(#[signal] mut logged_in: LoggedInStatus, remote: XSignal<Remote>) -> XElement {
-    #[cfg(feature = "logs-panel")]
-    fn maybe_logs_panel(remote: XSignal<Remote>) -> XElement {
-        crate::logs::panel(remote)
-    }
-
-    #[cfg(not(feature = "logs-panel"))]
-    #[html]
-    fn maybe_logs_panel(_remote: XSignal<Remote>) -> XElement {
-        div(style::display = "none")
-    }
-
+pub fn login(#[signal] mut logged_in: LoggedInStatus) -> XElement {
     match logged_in {
-        LoggedInStatus::Login => div(
-            key = "app",
-            div(
-                class = style::APP_SHELL,
-                show_app(app(), remote.clone()),
-                maybe_logs_panel(remote),
-            ),
-        ),
+        LoggedInStatus::Login => show_tiles(),
         LoggedInStatus::Logout => div(
             key = "login",
             class = style::LOGIN,
@@ -104,24 +84,4 @@ pub enum LoggedInStatus {
 
     #[default]
     Unknown,
-}
-
-#[html]
-#[template(tag = div)]
-fn show_app(#[signal] app: App, remote: XSignal<Remote>) -> XElement {
-    tag(
-        class = style::APP_CONTENT,
-        match app {
-            #[cfg(feature = "terminal")]
-            App::Terminal => div(move |t| crate::terminal::terminals(t, remote.clone())),
-            #[cfg(feature = "text-editor")]
-            App::TextEditor => div(move |t| crate::text_editor::ui::text_editor(t, remote.clone())),
-            #[cfg(feature = "converter")]
-            App::Converter => div(move |t| crate::converter::ui::converter(t, remote.clone())),
-            #[cfg(feature = "port-forward")]
-            App::PortForward => {
-                div(move |t| crate::portforward::ui::port_forward(t, remote.clone()))
-            }
-        },
-    )
 }

@@ -6,10 +6,10 @@ mod frontend;
 mod logs;
 mod portforward;
 mod processes;
-mod state;
 mod terminal;
 mod terminal_id;
 mod text_editor;
+mod tiles;
 mod utils;
 
 #[cfg(test)]

@@ -60,9 +60,14 @@ impl AcmeConfig {
 
         info!("Got account ID = {}", account.id());
 
-        let identifier = Identifier::Dns(self.domain.clone());
+        let identifiers = self
+            .domains
+            .iter()
+            .cloned()
+            .map(Identifier::Dns)
+            .collect::<Vec<_>>();
         let mut order = account
-            .new_order(&NewOrder::new(&[identifier]))
+            .new_order(&NewOrder::new(&identifiers))
             .await
             .map_err(AcmeError::NewOrder)?;
 
@@ -110,7 +115,7 @@ impl AcmeConfig {
         // If the order is ready, we can provision the certificate.
         // Use the rcgen library to create a Certificate Signing Request.
 
-        let mut params = CertificateParams::new(vec![self.domain.clone()])?;
+        let mut params = CertificateParams::new(self.domains.clone())?;
         params.distinguished_name = DistinguishedName::new();
         let private_key = KeyPair::generate()?;
         let csr = params.serialize_request(&private_key)?;

@@ -24,25 +24,33 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(pub(super) style, "converter.scss");
 
 /// The UI for the converter app.
 #[html]
 #[template(tag = div)]
-pub fn converter(remote: XSignal<Remote>) -> XElement {
+pub fn converter(tile: TilePtr) -> XElement {
     let conversions = XSignal::new("conversions", Conversions::default());
     let preferred_language = XSignal::new("preferred-language", None);
     let resize_manager = MousemoveManager::new();
     tag(
         class = style::OUTER,
-        converter_impl(remote, conversions, preferred_language, resize_manager),
+        converter_impl(
+            tile.clone(),
+            tile.remote.clone(),
+            conversions,
+            preferred_language,
+            resize_manager,
+        ),
     )
 }
 
 #[html]
 #[template(tag = div)]
 fn converter_impl(
+    tile: TilePtr,
     remote: XSignal<Remote>,
     conversions: XSignal<Conversions>,
     preferred_language: XSignal<Option<Language>>,
@@ -54,7 +62,7 @@ fn converter_impl(
         div(class = style::HEADER, menu(), show_remote(remote.clone())),
         div(
             class = style::BODY,
-            show_input(remote, conversions.clone(), resize_manager.clone()),
+            show_input(tile, remote, conversions.clone(), resize_manager.clone()),
             show_resize_bar(resize_manager),
             show_conversions(conversions, preferred_language),
         ),
@@ -65,6 +73,7 @@ fn converter_impl(
 #[html]
 #[template(tag = textarea)]
 fn show_input(
+    tile: TilePtr,
     #[signal] remote: Remote,
     conversions: XSignal<Conversions>,
     resize_manager: MousemoveManager,
@@ -80,7 +89,7 @@ fn show_input(
             let value: Arc<str> = element.with(|e| e.value().into());
             spawn_local(async move {
                 autoclone!(remote, value);
-                let _set = content_state::set(remote.clone(), value.clone()).await;
+                let _set = content_state::set(tile.id.into(), remote.clone(), value.clone()).await;
             });
             get_conversions(remote.clone(), value, conversions.clone());
         },
@@ -88,7 +97,7 @@ fn show_input(
             autoclone!(remote, element, conversions);
             spawn_local(async move {
                 autoclone!(remote, element, conversions);
-                let Ok(content) = content_state::get(remote.clone()).await else {
+                let Ok(content) = content_state::get(tile.id.into(), remote.clone()).await else {
                     warn!("Failed to load converter content");
                     return;
                 };

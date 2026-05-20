@@ -74,7 +74,7 @@ fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
             App::TextEditor => crate::text_editor::ui::text_editor(tile.remote.clone()),
 
             #[cfg(feature = "converter")]
-            App::Converter => crate::converter::ui::converter(tile.remote.clone()),
+            App::Converter => crate::converter::ui::converter(tile),
 
             #[cfg(feature = "port-forward")]
             App::PortForward => crate::portforward::ui::port_forward(tile.remote.clone()),

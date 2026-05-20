@@ -30,8 +30,8 @@ macro_rules! make_state {
         #[server(protocol = ::server_fn::Http<::server_fn::codec::Json, ::server_fn::codec::Json>)]
         #[cfg_attr(feature = "server", nameth::nameth)]
         pub async fn get(
+            tile: Option<TileId>,
             remote: Option<ClientAddress>,
-            tile: Option<TileId>
         ) -> Result<ty::Type, ServerFnError> {
             Ok(remote::GET_REMOTE_FN
                 .call(remote.unwrap_or_default(), remote::GetRequest { tile })
@@ -43,8 +43,8 @@ macro_rules! make_state {
 
         #[cfg(feature = "client")]
         pub async fn set(
-            remote: Remote,
             tile: Option<TileId>,
+            remote: Remote,
             value: ty::Type,
         ) -> Result<(), ServerFnError> {
             use std::pin::Pin;
@@ -54,7 +54,7 @@ macro_rules! make_state {
             use terrazzo::widgets::debounce::DoDebounce as _;
 
             struct ThreadSafe(
-                Box<dyn Fn((Remote, Option<TileId>, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
+                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
             );
 
             unsafe impl Send for ThreadSafe {}
@@ -65,8 +65,8 @@ macro_rules! make_state {
 
             let debounced_set = DEBOUNCED_SET.get_or_init(|| {
                 ThreadSafe(Box::new(
-                    STORE_STATE_DEBOUNCE_DELAY.async_debounce(|(remote, tile, value)| async move {
-                        set_impl(remote, tile, value)
+                    STORE_STATE_DEBOUNCE_DELAY.async_debounce(|(tile, remote, value)| async move {
+                        set_impl(tile, remote, value)
                             .await
                             .unwrap_or_else(|error| warn!("Failed to save: {error}"))
                     }),
@@ -74,7 +74,7 @@ macro_rules! make_state {
             });
             let debounced_set = &*debounced_set.0;
 
-            let () = debounced_set((remote, tile, value)).await;
+            let () = debounced_set((tile, remote, value)).await;
             Ok(())
         }
 
@@ -82,8 +82,8 @@ macro_rules! make_state {
         #[server(protocol = ::server_fn::Http<::server_fn::codec::Json, ::server_fn::codec::Json>)]
         #[cfg_attr(feature = "server", nameth::nameth)]
         async fn set_impl(
-            remote: Option<ClientAddress>,
             tile: Option<TileId>,
+            remote: Option<ClientAddress>,
             value: ty::Type,
         ) -> Result<(), ServerFnError> {
             Ok(remote::SET_REMOTE_FN

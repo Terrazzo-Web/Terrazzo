@@ -7,27 +7,39 @@ const BASE_URLS = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
   .filter(Boolean);
 const BASE_URL = BASE_URLS[0];
 
+function recordBrowserLogs(page, testInfo) {
+  const browserLogs = [];
+  testInfo.browserLogs = browserLogs;
+
+  page.on('console', async (message) => {
+    if (message.type() !== 'error') {
+      return;
+    }
+
+    const values = await Promise.all(message.args().map(async (arg) => {
+      try {
+        return JSON.stringify(await arg.jsonValue());
+      } catch {
+        return arg.toString();
+      }
+    }));
+    browserLogs.push([
+      `console.${message.type()}: ${message.text()}`,
+      ...values.map((value) => `  ${value}`),
+      message.location().url ? `  at ${message.location().url}:${message.location().lineNumber}` : '',
+    ].filter(Boolean).join('\n'));
+  });
+
+  page.on('pageerror', (error) => {
+    browserLogs.push(`pageerror: ${error.stack ?? error.message}`);
+  });
+}
+
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
   const failureDetails = `status=${response.status()} headers=${JSON.stringify(response.headers())}`;
   expect(response.ok(), `${path} should load successfully (${failureDetails})`).toBeTruthy();
   expect(response.headers()['content-type']).toMatch(contentTypePattern);
-}
-
-async function fetchServerFnFromPage(page, path, payload) {
-  return page.evaluate(async ({ path, payload }) => {
-    const response = await fetch(path, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-      credentials: 'same-origin',
-    });
-    return {
-      status: response.status,
-      contentType: response.headers.get('content-type'),
-      body: await response.text(),
-    };
-  }, { path, payload });
 }
 
 function getConverterInput(page) {
@@ -92,10 +104,16 @@ async function selectRemote(page, name) {
 }
 
 test.describe('Converter', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
+    recordBrowserLogs(page, testInfo);
     await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    const browserLogs = testInfo.browserLogs ?? [];
+    expect(browserLogs, browserLogs.join('\n\n')).toEqual([]);
   });
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
@@ -116,13 +134,11 @@ test.describe('Converter', () => {
   });
 
   test('Invalid server_fn endpoint', async ({ page }) => {
-    const response = await fetchServerFnFromPage(
-      page,
-      '/api/fn/invalid_server_fn_endpoint',
-      { parameter: "abc" },
-    );
-    expect(response.status).toBe(400);
-    expect(response.body).toContain(
+    const response = await page.request.post(`${BASE_URL}/api/fn/invalid_server_fn_endpoint`, {
+      data: { parameter: 'abc' },
+    });
+    expect(response.status()).toBe(400);
+    expect(await response.text()).toContain(
       'Could not find a server function at the route /api/fn/invalid_server_fn_endpoint.',
     );
   });

@@ -1,5 +1,6 @@
 //! Generated HTML elements
 
+use std::cell::RefCell;
 use std::sync::Mutex;
 
 use nameth::nameth;
@@ -8,6 +9,7 @@ use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 use web_sys::Element;
 use web_sys::js_sys::Function;
+use web_sys::window;
 
 use self::template::XTemplate;
 use crate::attribute::XAttribute;
@@ -153,6 +155,33 @@ pub struct XEvent {
     ///
     /// [event]: web_sys::Event
     pub callback: Ptr<dyn ClosureAsFunction>,
+}
+
+impl Drop for XEvent {
+    fn drop(&mut self) {
+        thread_local! {
+            static DROPPED_EVENTS: RefCell<Vec<Ptr<dyn ClosureAsFunction>>> = RefCell::default();
+        }
+
+        DROPPED_EVENTS.with(|dropped_events| {
+            let mut dropped_events = dropped_events.borrow_mut();
+            let schedule_clear = dropped_events.is_empty();
+            dropped_events.push(self.callback.clone());
+            drop(dropped_events);
+
+            if schedule_clear {
+                let clear = Closure::once(|| {
+                    DROPPED_EVENTS.with(|dropped_events| dropped_events.borrow_mut().clear());
+                });
+                let Some(window) = window() else { return };
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    clear.as_ref().unchecked_ref(),
+                    0,
+                );
+                clear.forget();
+            }
+        });
+    }
 }
 
 pub trait ClosureAsFunction: std::fmt::Debug {

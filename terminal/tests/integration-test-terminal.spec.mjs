@@ -6,6 +6,34 @@ const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
   .map((url) => url.trim())
   .filter(Boolean)[0];
 
+function recordBrowserLogs(page, testInfo) {
+  const browserLogs = [];
+  testInfo.browserLogs = browserLogs;
+
+  page.on('console', async (message) => {
+    if (message.type() !== 'error') {
+      return;
+    }
+
+    const values = await Promise.all(message.args().map(async (arg) => {
+      try {
+        return JSON.stringify(await arg.jsonValue());
+      } catch {
+        return arg.toString();
+      }
+    }));
+    browserLogs.push([
+      `console.${message.type()}: ${message.text()}`,
+      ...values.map((value) => `  ${value}`),
+      message.location().url ? `  at ${message.location().url}:${message.location().lineNumber}` : '',
+    ].filter(Boolean).join('\n'));
+  });
+
+  page.on('pageerror', (error) => {
+    browserLogs.push(`pageerror: ${error.stack ?? error.message}`);
+  });
+}
+
 async function expectStaticAssetLoads(request, path, contentTypePattern) {
   const response = await request.get(`${BASE_URL}${path}`);
   const failureDetails = `status=${response.status()} headers=${JSON.stringify(response.headers())}`;
@@ -38,11 +66,32 @@ async function closeTab(tab) {
   await tab.locator('img.close-icon').click();
 }
 
+async function clickLocator(locator) {
+  await locator.click({ force: true });
+}
+
+async function focusTerminal(terminal) {
+  await terminal.evaluate((node) => {
+    const textarea = node.querySelector('textarea');
+    if (textarea) {
+      textarea.focus();
+    } else {
+      node.focus();
+    }
+  });
+}
+
 test.describe('Terminal', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
+    recordBrowserLogs(page, testInfo);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    const browserLogs = testInfo.browserLogs ?? [];
+    expect(browserLogs, browserLogs.join('\n\n')).toEqual([]);
   });
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
@@ -61,7 +110,7 @@ test.describe('Terminal', () => {
     await expect(tabs).toHaveCount(1);
     await expect(activeTerminal).toHaveCount(1);
 
-    await activeTerminal.click();
+    await focusTerminal(activeTerminal);
     await page.keyboard.type('echo $((191*7))');
     await page.keyboard.press('Enter');
     await expect(activeTerminal).toContainText('1337');
@@ -82,21 +131,21 @@ test.describe('Terminal', () => {
     const firstTab = tabs.nth(0);
     const secondTab = tabs.nth(1);
 
-    await firstTab.click();
+    await clickLocator(firstTab);
     await expect(firstTab).toHaveClass(/selected/);
     await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
     const activeTerminal = getActiveTerminal(page);
-    await activeTerminal.click();
+    await focusTerminal(activeTerminal);
     await page.keyboard.type('echo $((191*7))');
     await page.keyboard.press('Enter');
     await expect(activeTerminal).toContainText('1337');
 
-    await secondTab.click();
+    await clickLocator(secondTab);
     await expect(secondTab).toHaveClass(/selected/);
     await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
-    await activeTerminal.click();
+    await focusTerminal(activeTerminal);
     await page.keyboard.type('echo $((191*7*2))');
     await page.keyboard.press('Enter');
     await expect(activeTerminal).toContainText('2674');

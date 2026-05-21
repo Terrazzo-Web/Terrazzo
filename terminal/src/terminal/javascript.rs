@@ -1,7 +1,7 @@
 use wasm_bindgen::JsValue;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
+use web_sys::js_sys::Function;
 
 #[wasm_bindgen(module = "/src/terminal/javascript.js")]
 extern "C" {
@@ -27,13 +27,13 @@ extern "C" {
     pub fn cols(this: &TerminalJs) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "onData")]
-    pub fn on_data(this: &TerminalJs, callback: &Closure<dyn FnMut(JsValue)>);
+    pub fn on_data(this: &TerminalJs, callback: Function);
 
     #[wasm_bindgen(method, js_name = "onResize")]
-    pub fn on_resize(this: &TerminalJs, callback: &Closure<dyn FnMut(JsValue)>);
+    pub fn on_resize(this: &TerminalJs, callback: Function);
 
     #[wasm_bindgen(method, js_name = "onTitleChange")]
-    pub fn on_title_change(this: &TerminalJs, callback: &Closure<dyn FnMut(JsValue)>);
+    pub fn on_title_change(this: &TerminalJs, callback: Function);
 
     #[wasm_bindgen(method)]
     pub async fn send(this: &TerminalJs, data: JsValue);

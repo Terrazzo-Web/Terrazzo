@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use scopeguard::guard;
 use terrazzo::autoclone;
 use terrazzo::html;
+use terrazzo::owned_closure::XOwnedClosure;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen::JsValue;
@@ -81,32 +82,42 @@ pub fn editor(
     // out of causal order, so don't refresh CodeMirror while local edits are pending.
     let writing = Arc::new(AtomicU32::new(0));
 
-    let on_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |content: JsValue| {
-        autoclone!(manager, path, writing);
-        let Some(content) = content.as_string() else {
-            debug!("Changed content is not a string");
-            return;
-        };
-        writing.fetch_add(1, SeqCst);
-        let writing_done = guard((), move |()| {
-            autoclone!(writing);
-            writing.fetch_sub(1, SeqCst);
-        });
-        let write = async move {
-            autoclone!(manager, path);
-            let synchronized_state_done =
-                SynchronizedState::enqueue(manager.synchronized_state.clone());
-            let () = store_file(
-                manager.remote.clone(),
-                path,
-                content,
-                guard((), move |()| ()),
-                (writing_done, synchronized_state_done),
-            )
-            .await;
-        };
-        spawn_local(write.in_current_span());
-    });
+    let on_change_manager = manager.clone();
+    let on_change_path = path.clone();
+    let on_change_writing = writing.clone();
+    let on_change = Ptr::new(XOwnedClosure::new1(move |self_drop| {
+        autoclone!(on_change_manager, on_change_path, on_change_writing);
+        let _self_drop = self_drop;
+        move |content: JsValue| {
+            let _self_drop = &_self_drop;
+            let on_change_manager = on_change_manager.clone();
+            let on_change_path = on_change_path.clone();
+            let on_change_writing = on_change_writing.clone();
+            let Some(content) = content.as_string() else {
+                debug!("Changed content is not a string");
+                return;
+            };
+            on_change_writing.fetch_add(1, SeqCst);
+            let writing_done = guard((), move |()| {
+                autoclone!(on_change_writing);
+                on_change_writing.fetch_sub(1, SeqCst);
+            });
+            let write = async move {
+                autoclone!(on_change_manager, on_change_path);
+                let synchronized_state_done =
+                    SynchronizedState::enqueue(on_change_manager.synchronized_state.clone());
+                let () = store_file(
+                    on_change_manager.remote.clone(),
+                    on_change_path,
+                    content,
+                    guard((), move |()| ()),
+                    (writing_done, synchronized_state_done),
+                )
+                .await;
+            };
+            spawn_local(write.in_current_span());
+        }
+    }));
 
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
 
@@ -142,7 +153,7 @@ pub fn editor(
                         .map(JsValue::from)
                         .unwrap_or(JsValue::null()),
                     content.as_ref().into(),
-                    &on_change,
+                    on_change.clone(),
                     path.base.to_string(),
                     path.as_deref().full_path().to_owned_string(),
                 )),

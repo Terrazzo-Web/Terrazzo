@@ -49,7 +49,8 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
             let Some(current) = terminal_tabs.lookup_tab(&terminal_id) else {
                 return;
             };
-            tile.remote.set(current.address.via.clone());
+            let remote = (!current.address.via.is_empty()).then_some(current.address.via.clone());
+            tile.remote.set(remote);
         },
     ))
 }

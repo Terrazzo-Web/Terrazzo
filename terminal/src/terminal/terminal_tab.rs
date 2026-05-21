@@ -177,9 +177,13 @@ impl TabDescriptor for TerminalTab {
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
         let this = self.clone();
         let state = state.clone();
+        let terminal_key = format!("terminal-item-{}", this.address.id);
         div(
+            key = terminal_key,
             class = style::TERMINAL,
-            div(move |template| attach::attach(template, state.clone(), this.clone())),
+            data_trz_preserve_children = "true",
+            after_render =
+                move |element| attach::attach(element.clone(), state.clone(), this.clone()),
         )
     }
 

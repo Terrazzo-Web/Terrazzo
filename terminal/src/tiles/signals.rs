@@ -73,7 +73,7 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             };
             let mut ui_nodes = Vec::with_capacity(nodes.len());
             for node in nodes {
-                ui_nodes.push(transform(signals, &node).into());
+                ui_nodes.push(transform(signals, node).into());
             }
             Tiles::Array {
                 id: *id,

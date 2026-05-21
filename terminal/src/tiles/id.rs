@@ -22,7 +22,7 @@ impl TileId {
         Self(NonZero::new(1).unwrap())
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "server"))]
     pub const fn for_test(id: i64) -> Self {
         Self(NonZero::new(id).unwrap())
     }

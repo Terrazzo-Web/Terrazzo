@@ -38,7 +38,7 @@ fn add_node_aux(
             let new = Arc::new(Tiles::Tile(Tile {
                 id: new_id
                     .take()
-                    .ok_or_else(|| TilesStateError::DuplicateTileId(next_to))?,
+                    .ok_or(TilesStateError::DuplicateTileId(next_to))?,
                 app: node.app,
                 remote: node.remote.clone(),
             }));

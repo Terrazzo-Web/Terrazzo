@@ -1,7 +1,4 @@
 use std::future::ready;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
 
 use futures::FutureExt as _;
 use futures::SinkExt as _;
@@ -10,12 +7,10 @@ use futures::channel::mpsc;
 use futures::select;
 use scopeguard::defer;
 use scopeguard::guard;
-use terrazzo::owned_closure::XOwnedClosure;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::Element;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
@@ -37,11 +32,12 @@ use crate::api::shared::terminal_schema::TerminalDef;
 const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";
 
-pub fn attach(element: Element, state: TerminalsState, terminal_tab: TerminalTab) {
+pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: TerminalTab) -> Consumers {
     let terminal = terminal_tab.address.to_owned();
     let terminal_id = terminal.id.clone();
     let terminal_def = terminal_tab.to_terminal_def();
     let _span = info_span!("XTermJS", %terminal_id).entered();
+    let element = template.element();
     if let Some(IS_ATTACHED) = element.get_attribute(XTERMJS_ATTR).as_deref() {
         if terminal_tab.selected.get_value_untracked()
             && let Some(xtermjs) = terminal_tab
@@ -54,7 +50,7 @@ pub fn attach(element: Element, state: TerminalsState, terminal_tab: TerminalTab
             xtermjs.focus();
             xtermjs.fit();
         }
-        return;
+        return Consumers::default();
     }
     element
         .set_attribute(XTERMJS_ATTR, IS_ATTACHED)
@@ -92,49 +88,38 @@ pub fn attach(element: Element, state: TerminalsState, terminal_tab: TerminalTab
         info!("Detached XtermJS");
     };
     spawn_local(io.in_current_span());
+    return Consumers::default();
 }
 
 impl TerminalJs {
-    fn do_on_data(
-        &self,
-        input_tx: mpsc::UnboundedSender<String>,
-    ) -> XOwnedClosure<dyn Fn(JsValue)> {
+    fn do_on_data(&self, input_tx: mpsc::UnboundedSender<String>) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
-        let on_data = XOwnedClosure::new1(move |self_drop| {
-            let _self_drop = self_drop;
-            move |data: JsValue| {
-                let _self_drop = &_self_drop;
-                let mut input_tx = input_tx.clone();
-                let data = data.as_string().unwrap_or_default();
-                let send = async move {
-                    let result = input_tx.send(data).await;
-                    // The channel is unbounded, the only possible error is the write_loop has dropped.
-                    return result.unwrap_or_else(|_| info!("Terminal closed"));
-                };
-                spawn_local(send.instrument(span.clone()));
-            }
+        let on_data: Closure<dyn FnMut(JsValue)> = Closure::new(move |data: JsValue| {
+            let mut input_tx = input_tx.clone();
+            let data = data.as_string().unwrap_or_default();
+            let send = async move {
+                let result = input_tx.send(data).await;
+                // The channel is unbounded, the only possible error is the write_loop has dropped.
+                return result.unwrap_or_else(|_| info!("Terminal closed"));
+            };
+            spawn_local(send.instrument(span.clone()));
         });
-        self.on_data(on_data.as_function());
+        self.on_data(&on_data);
         return on_data;
     }
 
-    fn do_on_resize(&self, terminal: TerminalAddress) -> XOwnedClosure<dyn Fn(JsValue)> {
+    fn do_on_resize(&self, terminal: TerminalAddress) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
         let this = self.clone();
-        let first_resize = Arc::new(AtomicBool::new(true));
-        let on_resize = XOwnedClosure::new1(move |self_drop| {
-            let _self_drop = self_drop;
-            let first_resize = first_resize.clone();
-            move |data| {
-                let _self_drop = &_self_drop;
-                let _span = span.enter();
-                let first_resize = first_resize.swap(false, SeqCst);
-                debug!("Resize: {data:?} first_resize:{first_resize}");
-                let resize = this.clone().do_resize(terminal.clone(), first_resize);
-                spawn_local(resize.in_current_span());
-            }
+        let mut first_resize = true;
+        let on_resize: Closure<dyn FnMut(JsValue)> = Closure::new(move |data| {
+            let _span = span.enter();
+            let first_resize = std::mem::replace(&mut first_resize, false);
+            debug!("Resize: {data:?} first_resize:{first_resize}");
+            let resize = this.clone().do_resize(terminal.clone(), first_resize);
+            spawn_local(resize.in_current_span());
         });
-        self.on_resize(on_resize.as_function());
+        self.on_resize(&on_resize);
         return on_resize;
     }
 
@@ -148,26 +133,19 @@ impl TerminalJs {
         }
     }
 
-    fn do_on_title_change(
-        &self,
-        title: XSignal<TabTitle<XString>>,
-    ) -> XOwnedClosure<dyn Fn(JsValue)> {
+    fn do_on_title_change(&self, title: XSignal<TabTitle<XString>>) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
-        let on_title_change = XOwnedClosure::new1(move |self_drop| {
-            let _self_drop = self_drop;
-            move |data: JsValue| {
-                let _self_drop = &_self_drop;
-                let _span = span.enter();
-                info!("Title changed: {data:?}");
-                if let Some(new_title) = data.as_string() {
-                    title.update_mut(|t| TabTitle {
-                        shell_title: new_title.into(),
-                        override_title: t.override_title.take(),
-                    });
-                }
+        let on_title_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |data: JsValue| {
+            let _span = span.enter();
+            info!("Title changed: {data:?}");
+            if let Some(new_title) = data.as_string() {
+                title.update_mut(|t| TabTitle {
+                    shell_title: new_title.into(),
+                    override_title: t.override_title.take(),
+                });
             }
         });
-        self.on_title_change(on_title_change.as_function());
+        self.on_title_change(&on_title_change);
         return on_title_change;
     }
 

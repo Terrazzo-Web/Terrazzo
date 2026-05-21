@@ -107,9 +107,7 @@ fn show_input(
                     warn!("Failed to load converter content");
                     return;
                 };
-                if element.try_with(|e| e.set_value(&content)).is_none() {
-                    return;
-                }
+                element.with(|e| e.set_value(&content));
                 get_conversions(remote.clone(), content, conversions.clone());
             });
         },

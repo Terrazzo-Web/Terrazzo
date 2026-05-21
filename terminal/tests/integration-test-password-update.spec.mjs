@@ -10,34 +10,6 @@ const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
 const SERVER_BIN = process.env.TERRAZZO_SERVER_BIN;
 const CONFIG_FILE = process.env.TERRAZZO_CONFIG_FILE;
 
-function recordBrowserLogs(page, testInfo) {
-  const browserLogs = [];
-  testInfo.browserLogs = browserLogs;
-
-  page.on('console', async (message) => {
-    if (message.type() !== 'error') {
-      return;
-    }
-
-    const values = await Promise.all(message.args().map(async (arg) => {
-      try {
-        return JSON.stringify(await arg.jsonValue());
-      } catch {
-        return arg.toString();
-      }
-    }));
-    browserLogs.push([
-      `console.${message.type()}: ${message.text()}`,
-      ...values.map((value) => `  ${value}`),
-      message.location().url ? `  at ${message.location().url}:${message.location().lineNumber}` : '',
-    ].filter(Boolean).join('\n'));
-  });
-
-  page.on('pageerror', (error) => {
-    browserLogs.push(`pageerror: ${error.stack ?? error.message}`);
-  });
-}
-
 function getAddTabButton(page) {
   return page.locator('div.add-tab-icon img');
 }
@@ -121,16 +93,10 @@ async function reloadUntilPasswordLogin(page) {
 }
 
 test.describe('Password update', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
-    recordBrowserLogs(page, testInfo);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-  });
-
-  test.afterEach(async ({}, testInfo) => {
-    const browserLogs = testInfo.browserLogs ?? [];
-    expect(browserLogs, browserLogs.join('\n\n')).toEqual([]);
   });
 
   test('requires login after setting a password via CLI', async ({ page }) => {

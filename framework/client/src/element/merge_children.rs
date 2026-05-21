@@ -32,9 +32,6 @@ pub fn merge(
     element: &Element,
 ) {
     trace! { new_count = new_nodes.len(), old_count = old_nodes.len(), "Children" };
-    if new_nodes.is_empty() && element.has_attribute("data-trz-preserve-children") {
-        return;
-    }
     let document: Document = window().or_throw("window").document().or_throw("document");
 
     let mut old_elements_map = {

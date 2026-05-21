@@ -7,9 +7,6 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
-use wasm_bindgen::JsCast as _;
-use wasm_bindgen::prelude::Closure;
-use web_sys::window;
 
 use crate::assets::icons;
 use crate::text_editor::manager::TextEditorManager;
@@ -67,12 +64,8 @@ fn show_side_view_node(
                         span(
                             "{name}",
                             click = move |_| {
-                                autoclone!(path, file_path_signal);
-                                let path = path.clone();
-                                let file_path_signal = file_path_signal.clone();
-                                defer_event_update(move || {
-                                    file_path_signal.set(path.to_owned_string());
-                                });
+                                autoclone!(path);
+                                file_path_signal.set(path.to_owned_string())
                             },
                         ),
                     ),
@@ -97,12 +90,8 @@ fn show_side_view_node(
                     class %= selected_item(manager.path.file.clone(), path.clone()),
                     span("{name}"),
                     click = move |_| {
-                        autoclone!(path, file_path_signal);
-                        let path = path.clone();
-                        let file_path_signal = file_path_signal.clone();
-                        defer_event_update(move || {
-                            file_path_signal.set(path.to_owned_string());
-                        });
+                        autoclone!(path);
+                        file_path_signal.set(path.to_owned_string())
                     },
                 ),
                 close_icon(manager, &path),
@@ -131,19 +120,7 @@ fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
         class = "side-view-close-file",
         click = move |_ev| {
             autoclone!(manager, path);
-            let manager = manager.clone();
-            let path = path.clone();
-            defer_event_update(move || {
-                manager.remove_from_side_view(&path);
-            });
+            manager.remove_from_side_view(&path);
         },
     )
-}
-
-fn defer_event_update(update: impl FnOnce() + 'static) {
-    let closure = Closure::once(update);
-    let Some(window) = window() else { return };
-    let _ = window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
-    closure.forget();
 }

@@ -2,12 +2,10 @@ class TerminalJs {
     terminal;
     fitAddon;
     webLinksAddon;
-    disposables;
     constructor() {
         this.terminal = new JsDeps.Terminal({});
         this.fitAddon = new JsDeps.FitAddon();
         this.webLinksAddon = new JsDeps.WebLinksAddon();
-        this.disposables = [];
     }
     open(node) {
         this.terminal.loadAddon(this.fitAddon);
@@ -27,13 +25,13 @@ class TerminalJs {
         return this.terminal.cols;
     }
     onData(callback) {
-        this.disposables.push(this.terminal.onData(callback));
+        this.terminal.onData(callback);
     }
     onResize(callback) {
-        this.disposables.push(this.terminal.onResize(callback));
+        this.terminal.onResize(callback);
     }
     onTitleChange(callback) {
-        this.disposables.push(this.terminal.onTitleChange(callback));
+        this.terminal.onTitleChange(callback);
     }
     async send(data) {
         let terminalJs = this;
@@ -44,9 +42,6 @@ class TerminalJs {
         })
     }
     dispose() {
-        for (const disposable of this.disposables.splice(0)) {
-            disposable.dispose();
-        }
         this.terminal.dispose();
         this.webLinksAddon.dispose();
         this.fitAddon.dispose();

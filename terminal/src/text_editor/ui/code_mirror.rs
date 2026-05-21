@@ -1,14 +1,9 @@
-use terrazzo::owned_closure::XOwnedClosure;
-use terrazzo::prelude::Ptr;
+use terrazzo::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
-use web_sys::js_sys::Function;
 
-pub struct CodeMirrorJs {
-    inner: CodeMirrorJsImpl,
-    _onchange: Ptr<XOwnedClosure<dyn Fn(JsValue)>>,
-}
+pub struct CodeMirrorJs(CodeMirrorJsImpl);
 
 impl Drop for CodeMirrorJs {
     fn drop(&mut self) {
@@ -20,7 +15,7 @@ impl std::ops::Deref for CodeMirrorJs {
     type Target = CodeMirrorJsImpl;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.0
     }
 }
 
@@ -29,30 +24,21 @@ impl CodeMirrorJs {
         element: Element,
         original: JsValue,
         content: JsValue,
-        onchange: Ptr<XOwnedClosure<dyn Fn(JsValue)>>,
+        onchange: &Closure<dyn FnMut(JsValue)>,
         base_path: String,
         full_path: String,
     ) -> Self {
-        let inner = CodeMirrorJsImpl::new(
-            element,
-            original,
-            content,
-            onchange.as_function(),
-            base_path,
-            full_path,
-        );
-        Self {
-            inner,
-            _onchange: onchange,
-        }
+        Self(CodeMirrorJsImpl::new(
+            element, original, content, onchange, base_path, full_path,
+        ))
     }
 
     pub fn set_content(&self, content: String) {
-        self.inner.set_content(content);
+        self.0.set_content(content);
     }
 
     pub fn cargo_check(&self, diagnostics: JsValue) {
-        self.inner.cargo_check(diagnostics);
+        self.0.cargo_check(diagnostics);
     }
 }
 
@@ -66,7 +52,7 @@ extern "C" {
         element: Element,
         original: JsValue,
         content: JsValue,
-        onchange: Function,
+        onchange: &Closure<dyn FnMut(JsValue)>,
         base_path: String,
         full_path: String,
     ) -> CodeMirrorJsImpl;

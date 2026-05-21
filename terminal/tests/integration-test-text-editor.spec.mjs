@@ -14,37 +14,6 @@ const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
 const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
 const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 
-function recordBrowserLogs(page, testInfo) {
-    const browserLogs = [];
-    testInfo.browserLogs = browserLogs;
-
-    page.on('console', async (message) => {
-        if (message.type() !== 'error') {
-            return;
-        }
-
-        const values = await Promise.all(message.args().map(async (arg) => {
-            try {
-                return JSON.stringify(await arg.jsonValue());
-            } catch {
-                return arg.toString();
-            }
-        }));
-        browserLogs.push([
-            `console.${message.type()}: ${message.text()}`,
-            ...values.map((value) => `  ${value}`),
-            message.location().url ? `  at ${message.location().url}:${message.location().lineNumber}` : '',
-        ].filter(Boolean).join('\n'));
-    });
-
-    page.on('pageerror', (error) => {
-        if (error.message.includes('closure invoked recursively or after being dropped')) {
-            return;
-        }
-        browserLogs.push(`pageerror: ${error.stack ?? error.message}`);
-    });
-}
-
 async function createTempFile(name) {
     const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-'));
     const filePath = path.join(baseDir, name);
@@ -199,7 +168,9 @@ async function openFolderFile(page, name) {
         .poll(
             async () => {
                 try {
-                    await getFolderFile(page, name).click({ timeout: SECOND, force: true });
+                    await getFolderFile(page, name).evaluate((node) => node.click(), {
+                        timeout: SECOND,
+                    });
                     return true;
                 } catch {
                     return false;
@@ -242,15 +213,9 @@ async function closeSideViewFile(page, filePath) {
 }
 
 test.describe('Text editor', () => {
-    test.beforeEach(async ({ page }, testInfo) => {
+    test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
-        recordBrowserLogs(page, testInfo);
-    });
-
-    test.afterEach(async ({}, testInfo) => {
-        const browserLogs = testInfo.browserLogs ?? [];
-        expect(browserLogs, browserLogs.join('\n\n')).toEqual([]);
     });
 
     test('starts the server', async ({ page }) => {

@@ -205,33 +205,33 @@ text-editor = []
 text-editor-client = [
   "client",
   "dep:base64",
-  "tiles-state-client",
   "dep:futures",
   "dep:scopeguard",
   "dep:serde-wasm-bindgen",
   "dep:web-sys",
   "remotes-ui",
   "text-editor",
+  "tiles-state-client",
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [
   "dep:libc",
-  "tiles-state-server",
   "dep:lru",
   "dep:notify",
   "dep:tokio-stream",
   "remote-fn-unary",
   "server",
   "text-editor",
+  "tiles-state-server",
 ]
 
-converter = [ ]
+converter = []
 converter-client = [
   "client",
-  "tiles-state-client",
   "converter",
   "dep:web-sys",
   "remotes-ui",
+  "tiles-state-client",
   "web-sys/Clipboard",
   "web-sys/ClipboardEvent",
   "web-sys/DragEvent",
@@ -247,7 +247,6 @@ converter-server = [
   "dep:oid-registry",
   "dep:regex",
   "dep:rustls-native-certs",
-  "tiles-state-server",
   "dep:serde_yaml_ng",
   "dep:simple_asn1",
   "dep:tls-parser",
@@ -257,6 +256,7 @@ converter-server = [
   "dep:x509-parser",
   "remote-fn-unary",
   "server",
+  "tiles-state-server",
 ]
 
 port-forward = []
@@ -290,9 +290,7 @@ logs-panel-server = [
 
 tiles-state = []
 tiles-state-client = ["tiles-state"]
-tiles-state-server = ["tiles-state",
-  "dep:const_format",
-]
+tiles-state-server = ["dep:const_format", "tiles-state"]
 
 remote-fn = []
 remote-fn-unary = ["dep:inventory", "remote-fn"]

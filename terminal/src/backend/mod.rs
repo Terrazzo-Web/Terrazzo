@@ -51,8 +51,6 @@ use self::agent::AgentTunnelConfig;
 use self::auth::AuthConfig;
 use self::cli::Action;
 use self::cli::Cli;
-#[cfg(feature = "remote-fn")]
-use self::client_service::remote_fn_service;
 use self::config::Config;
 use self::config::ConfigFile;
 use self::config::DynConfig;
@@ -203,12 +201,20 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     assets::install::install_assets();
     let config = backend_config.config.clone();
     let (server, server_handle, crash) = Server::run(backend_config).await?;
+
     #[cfg(feature = "remote-fn")]
-    remote_fn_service::set_remote_fn_server(Arc::downgrade(&server));
-    #[cfg(feature = "remote-fn-unary")]
-    remote_fn_service::unary::setup();
-    #[cfg(feature = "remote-fn-streaming")]
-    remote_fn_service::streaming::setup();
+    {
+        use self::client_service::remote_fn_service;
+
+        remote_fn_service::set_remote_fn_server(Arc::downgrade(&server));
+
+        #[cfg(feature = "remote-fn-unary")]
+        remote_fn_service::unary::setup();
+
+        #[cfg(feature = "remote-fn-streaming")]
+        remote_fn_service::streaming::setup();
+    }
+
     let crash = crash
         .then(|crash| {
             let crash = crash

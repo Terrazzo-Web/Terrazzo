@@ -201,10 +201,11 @@ terminal-server = [
   "terminal",
 ]
 
-text-editor = ["tiles-state"]
+text-editor = []
 text-editor-client = [
   "client",
   "dep:base64",
+  "tiles-state-client",
   "dep:futures",
   "dep:scopeguard",
   "dep:serde-wasm-bindgen",
@@ -215,6 +216,7 @@ text-editor-client = [
 ]
 text-editor-server = [
   "dep:libc",
+  "tiles-state-server",
   "dep:lru",
   "dep:notify",
   "dep:tokio-stream",
@@ -223,9 +225,10 @@ text-editor-server = [
   "text-editor",
 ]
 
-converter = ["tiles-state"]
+converter = [ ]
 converter-client = [
   "client",
+  "tiles-state-client",
   "converter",
   "dep:web-sys",
   "remotes-ui",
@@ -244,6 +247,7 @@ converter-server = [
   "dep:oid-registry",
   "dep:regex",
   "dep:rustls-native-certs",
+  "tiles-state-server",
   "dep:serde_yaml_ng",
   "dep:simple_asn1",
   "dep:tls-parser",
@@ -284,7 +288,12 @@ logs-panel-server = [
   "server",
 ]
 
-tiles-state = ["dep:const_format"]
+tiles-state = []
+tiles-state-client = ["tiles-state"]
+tiles-state-server = ["tiles-state",
+  "dep:const_format",
+]
+
 remote-fn = []
 remote-fn-unary = ["dep:inventory", "remote-fn"]
 remote-fn-streaming = ["dep:inventory", "dep:tracing-futures", "remote-fn"]

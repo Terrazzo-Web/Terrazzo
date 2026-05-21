@@ -45,10 +45,7 @@ async fn login(
             (None, _) => debug!("Password not required"),
             (Some(_), None) => {
                 debug!("Password not provided, checking token");
-                if let Err(error) = auth_config.with(|auth_config| auth_config.validate(&headers)) {
-                    debug!("Authentication is required: {error:?}");
-                    return Ok((cookies, "LOGIN_REQUIRED"));
-                }
+                let _ = auth_config.with(|auth_config| auth_config.validate(&headers))?;
             }
             (Some(_), Some(password)) => {
                 debug!("Password provided, verify password");

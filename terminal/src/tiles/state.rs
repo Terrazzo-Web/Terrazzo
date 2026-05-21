@@ -1,3 +1,5 @@
+#![cfg(feature = "tiles-state")]
+
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     pub mod $name {

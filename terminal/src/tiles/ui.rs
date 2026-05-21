@@ -1,14 +1,19 @@
 #![cfg(feature = "client")]
 
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::LazyLock;
 
-use terrazzo::autoclone;
 use terrazzo::html;
+use terrazzo::prelude::diagnostics::warn;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
 use super::api::Direction;
+use super::api::Tiles as TilesDto;
+use super::api::set_app;
+use super::api::set_remote;
 use super::app::App;
 use super::signals::TilePtr;
 use super::signals::Tiles;
@@ -16,16 +21,41 @@ use super::signals::TilesCmp;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
-#[autoclone]
+pub struct RootTree(XSignal<TilesCmp<Rc<Tiles>>>);
+
+pub static ROOT_TREE: LazyLock<RootTree> = LazyLock::new(|| {
+    RootTree(XSignal::new(
+        "tiles",
+        TilesCmp::new(Rc::new(Tiles::default())),
+    ))
+});
+
+unsafe impl Sync for RootTree {}
+unsafe impl Send for RootTree {}
+
+impl RootTree {
+    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display>) {
+        match new {
+            Ok(new) => {
+                let _batch = Batch::use_batch("Update tiles");
+                ROOT_TREE.update(|old| Some(TilesCmp::new(Rc::new(old.update(&new)))));
+            }
+            Err(error) => warn!("Failed to update tiles: {error}"),
+        }
+    }
+}
+
+impl std::ops::Deref for RootTree {
+    type Target = XSignal<TilesCmp<Rc<Tiles>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub fn show_tiles() -> XElement {
-    let tiles = XSignal::new("tiles", TilesCmp::new(Rc::new(Tiles::default())));
-    spawn_local(async move {
-        autoclone!(tiles);
-        let tree = super::api::get().await.unwrap();
-        let _batch = Batch::use_batch("load tiles");
-        tiles.update(|old| Some(TilesCmp::new(Rc::new(old.update(&tree)))));
-    });
-    show_tiles_tree(tiles)
+    spawn_local(async move { RootTree::update(super::api::get().await) });
+    show_tiles_tree(ROOT_TREE.clone())
 }
 
 #[template(tag = div)]
@@ -36,13 +66,26 @@ fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
 #[html]
 fn show_tiles_rec(tiles: &Tiles) -> XElement {
     match tiles {
-        Tiles::Tile(tile) => div(
-            key = tile.id.to_string(),
-            class = style::APP_TILE,
-            show_app(tile.clone(), tile.app.clone()),
-            #[cfg(feature = "logs-panel")]
-            crate::logs::panel(tile.clone()),
-        ),
+        Tiles::Tile(tile) => {
+            let tile_id = tile.id;
+            let update_app = tile.app.add_subscriber(move |app| {
+                spawn_local(async move { RootTree::update(set_app(tile_id, app).await) })
+            });
+            let update_remote = tile.remote.add_subscriber(move |remote| {
+                spawn_local(async move { RootTree::update(set_remote(tile_id, remote).await) })
+            });
+            div(
+                before_render = move |_| {
+                    let _ = &update_app;
+                    let _ = &update_remote;
+                },
+                key = tile.id.to_string(),
+                class = style::APP_TILE,
+                show_app(tile.clone(), tile.app.clone()),
+                #[cfg(feature = "logs-panel")]
+                crate::logs::panel(tile.clone()),
+            )
+        }
         Tiles::Array {
             id: _,
             direction,

@@ -1,4 +1,3 @@
-// Everywhere make_state is used, it now needs to be per tile.
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     pub mod $name {
@@ -106,17 +105,17 @@ macro_rules! make_state {
             #[serde(default)]
             pub struct GetRequest {
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-                tile: Option<TileId>,
+                pub(super) tile: Option<TileId>,
             }
 
             #[derive(Debug, Default, Serialize, Deserialize)]
             #[serde(default)]
             pub struct SetRequest {
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-                tile: Option<TileId>,
+                pub(super) tile: Option<TileId>,
 
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
-                value: super::ty::Type,
+                pub(super) value: super::ty::Type,
             }
 
             remote_fn_service::unary::declare_remote_fn!(

@@ -135,10 +135,8 @@ server = [
   "dep:axum-extra",
   "dep:base64",
   "dep:clap",
-  "dep:const_format",
   "dep:futures",
   "dep:humantime",
-  "dep:inventory",
   "dep:jsonwebtoken",
   "dep:nix",
   "dep:notify",
@@ -203,7 +201,7 @@ terminal-server = [
   "terminal",
 ]
 
-text-editor = []
+text-editor = ["tiles-state"]
 text-editor-client = [
   "client",
   "dep:base64",
@@ -220,11 +218,12 @@ text-editor-server = [
   "dep:lru",
   "dep:notify",
   "dep:tokio-stream",
+  "remote-fn-unary",
   "server",
   "text-editor",
 ]
 
-converter = []
+converter = ["tiles-state"]
 converter-client = [
   "client",
   "converter",
@@ -252,6 +251,7 @@ converter-server = [
   "dep:unescaper",
   "dep:url",
   "dep:x509-parser",
+  "remote-fn-unary",
   "server",
 ]
 
@@ -267,7 +267,7 @@ port-forward-client = [
   "web-sys/HtmlSelectElement",
   "web-sys/KeyboardEvent",
 ]
-port-forward-server = ["port-forward", "server"]
+port-forward-server = ["port-forward", "remote-fn-unary", "server"]
 
 logs-panel = []
 logs-panel-client = [
@@ -280,11 +280,14 @@ logs-panel-client = [
 logs-panel-server = [
   "dep:tracing-subscriber",
   "logs-panel",
+  "remote-fn-streaming",
   "server",
-  "streaming-remote-fn",
 ]
 
-streaming-remote-fn = ["dep:tracing-futures"]
+tiles-state = ["dep:const_format"]
+remote-fn = []
+remote-fn-unary = ["dep:inventory", "remote-fn"]
+remote-fn-streaming = ["dep:inventory", "dep:tracing-futures", "remote-fn"]
 
 [package.metadata.css]
 output_file = "target/css/terrazzo-terminal.scss"

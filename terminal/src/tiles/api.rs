@@ -67,6 +67,7 @@ pub enum Direction {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(not(feature = "server"), allow(dead_code))]
 pub enum Side {
     Before,
     After,

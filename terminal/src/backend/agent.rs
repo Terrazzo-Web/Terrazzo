@@ -21,6 +21,7 @@ use trz_gateway_server::server::Server;
 
 use super::config::mesh::MeshConfig;
 use crate::backend::client_service::ClientServiceImpl;
+#[cfg(feature = "remote-fn-unary")]
 use crate::backend::protos::terrazzo::remotefn::remote_fn_service_server::RemoteFnServiceServer;
 use crate::backend::protos::terrazzo::shared::shared_service_server::SharedServiceServer;
 
@@ -113,10 +114,10 @@ impl TunnelConfig for AgentTunnelConfig {
             info!("Configuring Client gRPC service");
             let client_service =
                 ClientServiceImpl::new(client_name.clone(), gateway_server.clone());
-            let server = server
-                .add_service(SharedServiceServer::new(client_service.clone()))
-                .add_service(RemoteFnServiceServer::new(client_service.clone()));
-            #[cfg(feature = "streaming-remote-fn")]
+            let server = server.add_service(SharedServiceServer::new(client_service.clone()));
+            #[cfg(feature = "remote-fn-unary")]
+            let server = server.add_service(RemoteFnServiceServer::new(client_service.clone()));
+            #[cfg(feature = "remote-fn-streaming")]
             let server = {
                 use crate::backend::protos::terrazzo::remotefn::remote_streaming_fn_service_server::RemoteStreamingFnServiceServer;
                 server.add_service(RemoteStreamingFnServiceServer::new(client_service.clone()))

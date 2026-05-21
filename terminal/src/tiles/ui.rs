@@ -8,11 +8,11 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
+use super::api::Direction;
 use super::app::App;
+use super::signals::TilePtr;
+use super::signals::Tiles;
 use super::signals::TilesCmp;
-use crate::tiles::api::Direction;
-use crate::tiles::signals::TilePtr;
-use crate::tiles::signals::Tiles;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
@@ -21,8 +21,8 @@ pub fn show_tiles() -> XElement {
     let tiles = XSignal::new("tiles", TilesCmp::new(Rc::new(Tiles::default())));
     spawn_local(async move {
         autoclone!(tiles);
-        let _batch = Batch::use_batch("load tiles");
         let tree = super::api::get().await.unwrap();
+        let _batch = Batch::use_batch("load tiles");
         tiles.update(|old| Some(TilesCmp::new(Rc::new(old.update(&tree)))));
     });
     show_tiles_tree(tiles)

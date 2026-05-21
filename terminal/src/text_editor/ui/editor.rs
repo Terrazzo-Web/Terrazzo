@@ -81,33 +81,6 @@ pub fn editor(
     // out of causal order, so don't refresh CodeMirror while local edits are pending.
     let writing = Arc::new(AtomicU32::new(0));
 
-    let on_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |content: JsValue| {
-        autoclone!(manager, path, writing);
-        let Some(content) = content.as_string() else {
-            debug!("Changed content is not a string");
-            return;
-        };
-        writing.fetch_add(1, SeqCst);
-        let writing_done = guard((), move |()| {
-            autoclone!(writing);
-            writing.fetch_sub(1, SeqCst);
-        });
-        let write = async move {
-            autoclone!(manager, path);
-            let synchronized_state_done =
-                SynchronizedState::enqueue(manager.synchronized_state.clone());
-            let () = store_file(
-                manager.remote.clone(),
-                path,
-                content,
-                guard((), move |()| ()),
-                (writing_done, synchronized_state_done),
-            )
-            .await;
-        };
-        spawn_local(write.in_current_span());
-    });
-
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
 
     let edits_notify_registration = manager.notify_service.watch_file(
@@ -131,21 +104,52 @@ pub fn editor(
         #[cfg(not(feature = "client-prod"))]
         class = (!is_pdf).then_some("code-mirror-editor"),
         after_render = move |element| {
-            autoclone!(path);
+            autoclone!(manager, path, writing);
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Box<dyn EditorBody> = match &document {
-                EditorDocument::Text { original, content } => Box::new(CodeMirrorJs::new(
-                    element.clone(),
-                    original
-                        .as_deref()
-                        .map(JsValue::from)
-                        .unwrap_or(JsValue::null()),
-                    content.as_ref().into(),
-                    &on_change,
-                    path.base.to_string(),
-                    path.as_deref().full_path().to_owned_string(),
-                )),
+                EditorDocument::Text { original, content } => {
+                    let on_change: Closure<dyn Fn(JsValue)> = Closure::new({
+                        autoclone!(manager, path, writing);
+                        move |content: JsValue| {
+                            autoclone!(manager, path, writing);
+                            let Some(content) = content.as_string() else {
+                                debug!("Changed content is not a string");
+                                return;
+                            };
+                            writing.fetch_add(1, SeqCst);
+                            let writing_done = guard((), move |()| {
+                                autoclone!(writing);
+                                writing.fetch_sub(1, SeqCst);
+                            });
+                            let write = async move {
+                                autoclone!(manager, path);
+                                let synchronized_state_done =
+                                    SynchronizedState::enqueue(manager.synchronized_state.clone());
+                                let () = store_file(
+                                    manager.remote.clone(),
+                                    path,
+                                    content,
+                                    guard((), move |()| ()),
+                                    (writing_done, synchronized_state_done),
+                                )
+                                .await;
+                            };
+                            spawn_local(write.in_current_span());
+                        }
+                    });
+                    Box::new(CodeMirrorJs::new(
+                        element.clone(),
+                        original
+                            .as_deref()
+                            .map(JsValue::from)
+                            .unwrap_or(JsValue::null()),
+                        content.as_ref().into(),
+                        on_change,
+                        path.base.to_string(),
+                        path.as_deref().full_path().to_owned_string(),
+                    ))
+                }
                 EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), base64)),
             };
             *editor_body.lock().unwrap() = Some(body);

@@ -137,7 +137,7 @@ rustls-native-certs = { version = "0.8.3" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde-wasm-bindgen = { version = "0.6.5" }
-serde_json = { version = "1.0.149" }
+serde_json = { version = "1.0.150" }
 serde_urlencoded = { version = "0.7.1" }
 serde_yaml_ng = { version = "0.10.0" }
 server_fn = { version = "0.8.12", features = ["browser"] }

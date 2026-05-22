@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+use server_fn::Http;
 use server_fn::ServerFnError;
+use server_fn::codec::Json;
 use terrazzo::server;
 
 use super::app::App;
@@ -42,7 +44,7 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
     })?)
 }
 
-#[server]
+#[server(protocol = Http<Json, Json>)]
 pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
@@ -90,6 +92,7 @@ pub enum Tiles {
 pub struct Tile {
     pub id: TileId,
     pub app: App,
+    #[serde(default)]
     pub remote: ClientAddress,
 }
 

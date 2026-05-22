@@ -34,11 +34,11 @@ unsafe impl Sync for RootTree {}
 unsafe impl Send for RootTree {}
 
 impl RootTree {
-    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display>) {
+    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display + std::fmt::Debug>) {
         match new {
             Ok(new) => {
                 let _batch = Batch::use_batch("Update tiles");
-                ROOT_TREE.update(|old| Some(TilesCmp::new(Rc::new(old.update(&new)))));
+                ROOT_TREE.update_ne(|old| Some(TilesCmp::new(Rc::new(old.update(&new)))));
             }
             Err(error) => warn!("Failed to update tiles: {error}"),
         }
@@ -54,12 +54,14 @@ impl std::ops::Deref for RootTree {
 }
 
 pub fn show_tiles() -> XElement {
+    diagnostics::error!("TOPLEVEL SHOW TILES");
     spawn_local(async move { RootTree::update(super::api::get().await) });
     show_tiles_tree(ROOT_TREE.clone())
 }
 
 #[template(tag = div)]
 fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
+    diagnostics::error!("RENDERING TILES");
     show_tiles_rec(&tiles)
 }
 

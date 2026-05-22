@@ -45,6 +45,17 @@ fn add_remove() {
     assert_tree(&tree, Direction::Horizontal, &[3, 1, 4, 2]);
 }
 
+#[test]
+fn missing_remote_defaults_to_local() {
+    let tile = serde_json::from_value::<Tile>(serde_json::json!({
+        "id": 1,
+        "app": App::default(),
+    }))
+    .unwrap();
+
+    assert!(tile.remote.is_empty());
+}
+
 fn assert_tree(tree: &Tiles, expected_direction: Direction, expected_tile_ids: &[i64]) {
     let Tiles::Array {
         direction, nodes, ..

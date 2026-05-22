@@ -16,12 +16,11 @@ pub fn show_remote(#[signal] mut cur_remote: Remote) -> XElement {
     let remotes_state = RemotesState::new();
 
     let cur_remote_name;
-    let cur_remote_name = match &cur_remote {
-        Some(cur_remote) => {
-            cur_remote_name = cur_remote.to_string();
-            &cur_remote_name
-        }
-        None => "Local",
+    let cur_remote_name = if cur_remote.is_empty() {
+        "Local"
+    } else {
+        cur_remote_name = cur_remote.to_string();
+        &cur_remote_name
     };
     tag(
         class = style::REMOTES,
@@ -35,10 +34,12 @@ pub fn show_remote(#[signal] mut cur_remote: Remote) -> XElement {
         mouseleave = remotes_state.mouseleave(),
         remotes_state.show_remotes_dropdown(
             move |remote| {
-                let remote_name = remote
-                    .map(|remote_name| format!("{remote_name} ⏎"))
-                    .unwrap_or_else(|| "Local".into());
-                let remote_class = (cur_remote.as_ref() == remote).then_some(style::CURRENT);
+                let remote_name = if remote.is_empty() {
+                    "Local".into()
+                } else {
+                    format!("{remote} ⏎")
+                };
+                let remote_class = (cur_remote == *remote).then_some(style::CURRENT);
                 (remote_name, remote_class)
             },
             move |_, new_remote| {

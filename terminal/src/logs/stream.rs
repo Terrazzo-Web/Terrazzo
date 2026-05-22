@@ -8,9 +8,7 @@ use terrazzo::server;
 use crate::api::client_address::ClientAddress;
 
 #[server(protocol = Http<Json, StreamingText>)]
-pub async fn stream(
-    remote: Option<ClientAddress>,
-) -> Result<TextStream<ServerFnError>, ServerFnError> {
+pub async fn stream(remote: ClientAddress) -> Result<TextStream<ServerFnError>, ServerFnError> {
     imp::stream_logs(remote).await
 }
 
@@ -33,9 +31,9 @@ mod imp {
 
     #[nameth]
     pub(super) async fn stream_logs(
-        remote: Option<ClientAddress>,
+        remote: ClientAddress,
     ) -> Result<TextStream<ServerFnError>, ServerFnError> {
-        let stream = STREAM_LOGS_FN.call(remote.unwrap_or_default(), ()).await?;
+        let stream = STREAM_LOGS_FN.call(remote, ()).await?;
         let stream = stream.map_ok(|event| serialize_log_event(&event));
         Ok(TextStream::new(stream.map_err(|error| error.into())))
     }
@@ -86,6 +84,7 @@ mod tests {
     use tracing::info;
     use tracing::warn;
 
+    use crate::api::client_address::ClientAddress;
     use crate::logs::stream::stream;
     use crate::logs::tests::TestGuard;
 
@@ -96,7 +95,10 @@ mod tests {
             info!("backlog");
         });
 
-        let mut stream = stream(None).await.expect("stream").into_inner();
+        let mut stream = stream(ClientAddress::default())
+            .await
+            .expect("stream")
+            .into_inner();
         let backlog = stream.next().await.expect("item").expect("data");
         assert!(
             backlog.contains("backlog"),

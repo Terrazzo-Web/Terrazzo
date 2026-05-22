@@ -178,6 +178,24 @@ impl<T: std::fmt::Debug + 'static> XSignal<T> {
         self.update_impl(|t| compute(t))
     }
 
+    /// Updates the signal by computing a new value from the old one if it changed.
+    pub fn update_ne<R, U>(&self, compute: impl FnOnce(&T) -> U) -> R
+    where
+        U: Into<UpdateSignalResult<Option<T>, R>>,
+        T: Eq,
+    {
+        let _span = debug_span!("Update", signal = %self.producer.name()).entered();
+        self.update_impl(|old| {
+            let mut new = compute(old).into();
+            if let Some(new_value) = &new.new_value
+                && new_value == old
+            {
+                new.new_value = None;
+            }
+            return new;
+        })
+    }
+
     /// Updates the signal by computing a new value from the old one.
     ///
     /// The old value is mutable and can be reused to compute the new value.

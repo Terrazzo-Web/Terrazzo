@@ -7,7 +7,6 @@ use terrazzo::widgets;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use self::login::login;
-use self::remotes::Remote;
 
 pub mod login;
 pub mod menu;
@@ -33,7 +32,6 @@ pub fn start() {
 }
 
 fn ui(main: XTemplate) {
-    let remote: XSignal<Remote> = XSignal::new("remote", Remote::default());
-    let consumers = login(main, login::logged_in(), remote);
+    let consumers = login(main, login::logged_in());
     std::mem::forget(consumers);
 }

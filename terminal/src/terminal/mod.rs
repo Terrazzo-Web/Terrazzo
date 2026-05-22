@@ -16,8 +16,8 @@ use self::diagnostics::info;
 use self::diagnostics::warn;
 use self::terminal_tabs::TerminalTabs;
 use crate::api::client::terminal_api;
-use crate::frontend::remotes::Remote;
 use crate::terminal_id::TerminalId;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "terminal.scss");
 
@@ -28,16 +28,18 @@ mod terminal_tabs;
 
 #[derive(Clone)]
 pub struct TerminalsState {
+    pub tile: TilePtr,
     pub selected_tab: XSignal<TerminalId>,
     pub terminal_tabs: XSignal<TerminalTabs>,
 }
 
-pub fn terminals(template: XTemplate, remote: XSignal<Remote>) -> Consumers {
+pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
     let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
     refresh_terminal_tabs(selected_tab.clone(), terminal_tabs.clone());
     let state = TerminalsState {
+        tile: tile.clone(),
         selected_tab: selected_tab.clone(),
         terminal_tabs: terminal_tabs.clone(),
     };
@@ -47,7 +49,9 @@ pub fn terminals(template: XTemplate, remote: XSignal<Remote>) -> Consumers {
             let Some(current) = terminal_tabs.lookup_tab(&terminal_id) else {
                 return;
             };
-            remote.set(current.address.via.clone());
+            let client_address = &current.address.via;
+            tile.remote
+                .set((!client_address.is_empty()).then(|| client_address.clone()))
         },
     ))
 }
@@ -127,6 +131,7 @@ impl TerminalsState {
         debug!("Closing the terminal tab");
         let _batch = Batch::use_batch("close-tab");
         let TerminalsState {
+            tile: _,
             selected_tab,
             terminal_tabs,
         } = self;

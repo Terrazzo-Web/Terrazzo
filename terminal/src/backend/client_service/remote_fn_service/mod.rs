@@ -1,3 +1,5 @@
+#![cfg(feature = "remote-fn")]
+
 use std::sync::Arc;
 use std::sync::Weak;
 
@@ -7,7 +9,10 @@ use trz_gateway_server::server::Server;
 
 use crate::utils::testable_once_lock::TestableOnceLock;
 
+#[cfg(feature = "remote-fn-streaming")]
 pub mod streaming;
+
+#[cfg(feature = "remote-fn-unary")]
 pub mod unary;
 
 /// Records the current [Server] instance.

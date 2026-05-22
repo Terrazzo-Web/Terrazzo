@@ -40,8 +40,8 @@ impl TabsDescriptor for TerminalTabs {
     }
 
     #[html]
-    fn before_titles(&self, _state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
-        Some(menu())
+    fn before_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
+        Some(menu(state.tile.clone()))
     }
 
     #[autoclone]

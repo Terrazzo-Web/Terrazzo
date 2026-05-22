@@ -78,11 +78,13 @@ div.text_editor {
 
         div.editor-container {
             height: 100%;
+            width: 100%;
             min-height: 0;
             flex: 1 1 auto;
 
             div.editor {
                 height: 100%;
+                width: 100%;
                 overflow-y: auto;
             }
         }

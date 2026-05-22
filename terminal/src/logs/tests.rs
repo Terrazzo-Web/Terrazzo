@@ -36,7 +36,6 @@ impl TestGuard<'_> {
         std::mem::forget(dummy_server);
 
         LogState::get().reset_for_tests();
-        remote_fn_service::unary::setup_for_tests();
         remote_fn_service::streaming::setup_for_tests();
         Self(lock)
     }

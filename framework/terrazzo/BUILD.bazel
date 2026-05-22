@@ -51,6 +51,9 @@ rust_rules_matrix(
     ],
     crate_features = ["server"],
     crate_name = "terrazzo",
+    deps_dev = [
+        "@crates//:scopeguard",
+    ],
     deps_proc_macro = [
         "//framework/macro:server",
         "//utils/autoclone/autoclone",

@@ -293,7 +293,7 @@ mod envelope {
             pub(in super::super) b: i32,
         }
     }
-    use my_struct::MyStruct;
+    pub(super) use my_struct::MyStruct;
     pub(super) struct MyStructPtr {
         inner: ::std::sync::Arc<MyStruct>,
     }

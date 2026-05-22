@@ -34,7 +34,7 @@ unsafe impl Sync for RootTree {}
 unsafe impl Send for RootTree {}
 
 impl RootTree {
-    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display + std::fmt::Debug>) {
+    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display + std::fmt::Debug + 'static>) {
         match new {
             Ok(new) => {
                 let _batch = Batch::use_batch("Update tiles");

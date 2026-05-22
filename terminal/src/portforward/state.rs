@@ -12,13 +12,13 @@ use crate::portforward::schema::PortForward;
 #[server(protocol = Http<Json, Json>)]
 #[cfg_attr(feature = "server", nameth::nameth)]
 pub async fn store_port_forwards(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     port_forwards: Arc<Vec<PortForward>>,
 ) -> Result<(), ServerFnError> {
     #[cfg(debug_assertions)]
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     Ok(backend::STORE_PORT_FORWARDS_FN
-        .call(remote.unwrap_or_default(), port_forwards)
+        .call(remote, port_forwards)
         .await?)
 }
 
@@ -26,11 +26,9 @@ pub async fn store_port_forwards(
 #[server(protocol = Http<Json, Json>)]
 #[cfg_attr(feature = "server", nameth::nameth)]
 pub async fn load_port_forwards(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
 ) -> Result<Box<Vec<PortForward>>, ServerFnError> {
-    Ok(backend::LOAD_PORT_FORWARDS_FN
-        .call(remote.unwrap_or_default(), ())
-        .await?)
+    Ok(backend::LOAD_PORT_FORWARDS_FN.call(remote, ()).await?)
 }
 
 #[cfg(feature = "server")]

@@ -435,22 +435,20 @@ fn show_host_port_definition(
 fn show_remote_select(
     tag_id: String,
     #[signal] remotes: Vec<ClientAddress>,
-    selected: Remote,
-    set: impl Fn(Remote) + Clone + 'static,
+    selected: ClientAddress,
+    set: impl Fn(ClientAddress) + Clone + 'static,
 ) -> XElement {
     let mut options = vec![];
     static LOCAL: &str = "Local";
     let mut selected_index = 0;
     options.push(option(value = "", "{LOCAL}"));
     for (i, remote) in remotes.iter().enumerate() {
-        if Some(remote) == selected.as_ref() {
+        if *remote == selected {
             selected_index = options.len(); // Local is index 0
         }
         options.push(option(value = i.to_string(), "{remote}"))
     }
-    if let Some(selected) = &selected
-        && selected_index == 0
-    {
+    if !selected.is_empty() && selected_index == 0 {
         // selected_index is "Local" but non-Local remote is selected
         selected_index = options.len();
         options.push(option(
@@ -469,10 +467,10 @@ fn show_remote_select(
             let select: web_sys::HtmlSelectElement = select.dyn_into().or_throw("remote select");
             let value = select.value();
             if value.is_empty() {
-                set(None);
+                set(ClientAddress::default());
             } else {
                 let value: usize = value.parse().or_throw("remote index");
-                set(Some(remotes[value].clone()));
+                set(remotes[value].clone());
             }
         },
         after_render = move |select| {

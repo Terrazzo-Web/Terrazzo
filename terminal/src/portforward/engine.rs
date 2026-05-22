@@ -33,9 +33,10 @@ use self::protos::PortForwardDataResponse;
 use self::protos::PortForwardEndpoint;
 use self::protos::port_forward_data_request;
 use super::schema::PortForward;
+use crate::api::client_address::ClientAddress;
 use crate::backend::client_service::port_forward_service;
 use crate::backend::protos::terrazzo::portforward as protos;
-use crate::backend::protos::terrazzo::shared::ClientAddress;
+use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;
 use crate::portforward::engine::retry::BindStreamWithRetry;
 use crate::portforward::schema::PortForwardStatus;
 
@@ -159,11 +160,7 @@ async fn get_bind_stream(
     ask: Shared<oneshot::Receiver<()>>,
 ) -> Result<BindStream, BindError> {
     let requests = stream::once(ready(Ok(PortForwardEndpoint {
-        remote: port_forward
-            .from
-            .forwarded_remote
-            .as_deref()
-            .map(ClientAddress::of),
+        remote: remote_proto(&port_forward.from.forwarded_remote),
         host: port_forward.from.host.to_owned(),
         port: port_forward.from.port as i32,
     })))
@@ -233,10 +230,7 @@ async fn run_stream(
     let upload_stream = stream::once(ready(Ok(PortForwardDataRequest {
         kind: Some(port_forward_data_request::Kind::Endpoint(
             PortForwardEndpoint {
-                remote: upload_endpoint
-                    .forwarded_remote
-                    .as_deref()
-                    .map(ClientAddress::of),
+                remote: remote_proto(&upload_endpoint.forwarded_remote),
                 host: upload_endpoint.host.clone(),
                 port: upload_endpoint.port as i32,
             },
@@ -253,10 +247,7 @@ async fn run_stream(
     let download_stream = stream::once(ready(Ok(PortForwardDataRequest {
         kind: Some(port_forward_data_request::Kind::Endpoint(
             PortForwardEndpoint {
-                remote: download_endpoint
-                    .forwarded_remote
-                    .as_deref()
-                    .map(ClientAddress::of),
+                remote: remote_proto(&download_endpoint.forwarded_remote),
                 host: download_endpoint.host.clone(),
                 port: download_endpoint.port as i32,
             },
@@ -286,6 +277,10 @@ async fn run_stream(
         .send(upload_stream)
         .map_err(|_upload_stream| RunStreamError::SetUploadStream)?;
     Ok(())
+}
+
+fn remote_proto(remote: &ClientAddress) -> Option<ClientAddressProto> {
+    (!remote.is_empty()).then(|| ClientAddressProto::of(remote))
 }
 
 #[nameth]

@@ -50,8 +50,7 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
                 return;
             };
             let client_address = &current.address.via;
-            tile.remote
-                .set((!client_address.is_empty()).then(|| client_address.clone()))
+            tile.remote.set(client_address.clone())
         },
     ))
 }
@@ -140,7 +139,8 @@ impl TerminalsState {
         {
             selected_tab.set(next_selected_tab);
         }
-        terminal_tabs.update(|terminal_tabs| Some(terminal_tabs.clone().remove_tab(terminal_id)));
+        terminal_tabs
+            .update_ne(|terminal_tabs| Some(terminal_tabs.clone().remove_tab(terminal_id)));
         if let Some(last_dispatcher) = terminal_api::stream::drop_dispatcher(terminal_id) {
             spawn_local(terminal_api::stream::close_pipe(last_dispatcher).in_current_span());
         }

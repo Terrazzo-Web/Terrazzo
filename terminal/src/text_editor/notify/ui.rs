@@ -139,10 +139,8 @@ impl NotifyServiceImpl {
     fn new(remote: Remote, inner: &Ptr<Mutex<Option<NotifyServiceImpl>>>) -> Self {
         let (request_tx, request_rx) = mpsc::unbounded();
         let handlers = Handlers::default();
-        let request = futures::stream::once(ready(Ok(NotifyRequest::Start {
-            remote: remote.unwrap_or_default(),
-        })))
-        .chain(request_rx);
+        let request =
+            futures::stream::once(ready(Ok(NotifyRequest::Start { remote }))).chain(request_rx);
         #[cfg(debug_assertions)]
         let request = request.inspect(|r| debug!("Notify request: {r:?}"));
         let task = async move {

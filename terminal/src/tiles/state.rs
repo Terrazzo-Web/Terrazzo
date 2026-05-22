@@ -32,10 +32,10 @@ macro_rules! make_state {
         #[cfg_attr(feature = "server", nameth::nameth)]
         pub async fn get(
             tile: Option<TileId>,
-            remote: Option<ClientAddress>,
+            remote: ClientAddress,
         ) -> Result<ty::Type, ServerFnError> {
             Ok(remote::GET_REMOTE_FN
-                .call(remote.unwrap_or_default(), remote::GetRequest { tile })
+                .call(remote, remote::GetRequest { tile })
                 .await?)
         }
 
@@ -84,11 +84,11 @@ macro_rules! make_state {
         #[cfg_attr(feature = "server", nameth::nameth)]
         async fn set_impl(
             tile: Option<TileId>,
-            remote: Option<ClientAddress>,
+            remote: ClientAddress,
             value: ty::Type,
         ) -> Result<(), ServerFnError> {
             Ok(remote::SET_REMOTE_FN
-                .call(remote.unwrap_or_default(), remote::SetRequest { tile, value })
+                .call(remote, remote::SetRequest { tile, value })
                 .await?)
         }
 

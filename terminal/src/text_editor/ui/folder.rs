@@ -8,7 +8,6 @@ use terrazzo::template;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
-use crate::frontend::menu::before_menu;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
@@ -105,9 +104,7 @@ pub fn folder(
             )),
             tbody(
                 mouseover = move |_: MouseEvent| {
-                    if let Some(f) = before_menu().take() {
-                        f()
-                    };
+                    manager.tile.menu.before.reset();
                 },
                 rows..,
             ),

@@ -1,9 +1,9 @@
 #![cfg(any(feature = "converter", feature = "logs-panel"))]
 
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use terrazzo::autoclone;
+use terrazzo::envelope;
 use terrazzo::prelude::Closure;
 use terrazzo::prelude::OrElseLog;
 use terrazzo::prelude::XSignal;
@@ -12,53 +12,55 @@ use web_sys::EventTarget;
 use web_sys::MouseEvent;
 use web_sys::window;
 
-pub struct MousemoveManager {
-    start: Arc<Mutex<Option<Position>>>,
+#[envelope]
+pub struct MousemoveManagerImpl {
+    start: Mutex<Option<Position>>,
     pub delta: XSignal<Option<Position>>,
-    events: Arc<Mutex<Vec<RegisteredEvent<MouseEvent>>>>,
+    events: Mutex<Vec<RegisteredEvent<MouseEvent>>>,
 }
+
+pub use MousemoveManagerImplPtr as MousemoveManager;
 
 unsafe impl Send for MousemoveManager {}
 unsafe impl Sync for MousemoveManager {}
 
 impl MousemoveManager {
     pub fn new() -> Self {
-        Self {
+        MousemoveManagerImpl {
             start: Default::default(),
             delta: XSignal::new("mousemove-delta", Default::default()),
             events: Default::default(),
         }
+        .into()
     }
 
     #[autoclone]
     pub fn mousedown(&self) -> impl Fn(MouseEvent) + 'static {
-        let start = self.start.clone();
-        let delta = self.delta.clone();
-        let events = self.events.clone();
+        let this = self.clone();
         move |ev| {
-            *start.lock().or_throw("start") =
-                Some(Position::from(ev) - delta.get_value_untracked().unwrap_or_default());
-            events.lock().or_throw("events").clear();
+            *this.start.lock().or_throw("start") =
+                Some(Position::from(ev) - this.delta.get_value_untracked().unwrap_or_default());
+            this.events.lock().or_throw("events").clear();
 
             let window = window().or_throw("window");
             let mousemove: Closure<dyn Fn(MouseEvent)> = Closure::new(move |ev: MouseEvent| {
-                autoclone!(start, delta);
-                let Some(start) = &*start.lock().or_throw("start") else {
+                autoclone!(this);
+                let Some(start) = &*this.start.lock().or_throw("start") else {
                     return;
                 };
                 let cur = Position::from(ev);
-                delta.set(Some(cur - *start));
+                this.delta.set(Some(cur - *start));
             });
             let mousemove = RegisteredEvent::register(window.clone(), "mousemove", mousemove);
 
             let mouseup: Closure<dyn Fn(MouseEvent)> = Closure::new(move |_: MouseEvent| {
-                autoclone!(start, events);
-                *start.lock().or_throw("start") = None;
-                events.lock().or_throw("events").clear();
+                autoclone!(this);
+                *this.start.lock().or_throw("start") = None;
+                this.events.lock().or_throw("events").clear();
             });
             let mouseup = RegisteredEvent::register(window.clone(), "mouseup", mouseup);
 
-            let mut events = events.lock().or_throw("events");
+            let mut events = this.events.lock().or_throw("events");
             events.push(mousemove);
             events.push(mouseup);
         }

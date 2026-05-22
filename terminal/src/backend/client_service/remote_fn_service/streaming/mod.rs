@@ -1,4 +1,3 @@
-#![cfg(feature = "streaming-remote-fn")]
 //! Forward [server_fn] calls to mesh clients.
 
 use std::collections::HashMap;

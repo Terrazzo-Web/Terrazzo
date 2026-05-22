@@ -29,6 +29,7 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
 ) {
     assert!(std::mem::needs_drop::<B>());
     assert!(std::mem::needs_drop::<A>());
+    // TODO or must be different per tile? Must be different per tile
     static DEBOUNCED_STORE_FILE_FN: OnceLock<StoreFileFn> = OnceLock::new();
     let debounced_store_file_fn = DEBOUNCED_STORE_FILE_FN.get_or_init(make_debounced_store_file_fn);
     let () = debounced_store_file_fn(StoreFileFnArg {

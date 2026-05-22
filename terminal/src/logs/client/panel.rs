@@ -19,16 +19,17 @@ use crate::assets::icons;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "panel.scss");
 
 #[html]
 #[template(tag = div)]
-pub fn panel(remote: XSignal<Remote>) -> XElement {
+pub fn panel(tile: TilePtr) -> XElement {
     let show_logs_panel = XSignal::new("show-logs-panel", false);
     tag(
         resize_bar(show_logs_panel.clone()),
-        logs_panel(show_logs_panel.clone(), remote),
+        logs_panel(show_logs_panel.clone(), tile.remote.clone()),
     )
 }
 
@@ -164,4 +165,5 @@ pub fn resize_bar_visibility(#[signal] mut show_logs_panel: bool) -> XAttributeV
     (!show_logs_panel).then_some(style::RESIZE_BAR_HIDDEN)
 }
 
+// need a resize manager per tile
 static RESIZE_MANAGER: LazyLock<MousemoveManager> = LazyLock::new(MousemoveManager::new);

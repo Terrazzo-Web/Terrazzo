@@ -1,7 +1,6 @@
 #![cfg(feature = "client")]
 
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::time::Duration;
 
 use terrazzo::autoclone;
@@ -25,36 +24,53 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
+use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(pub(super) style, "converter.scss");
 
 /// The UI for the converter app.
 #[html]
-#[template]
-pub fn converter(remote: XSignal<Remote>) -> XElement {
+#[template(tag = div)]
+pub fn converter(tile: TilePtr) -> XElement {
     let conversions = XSignal::new("conversions", Conversions::default());
     let preferred_language = XSignal::new("preferred-language", None);
-    div(
+    let resize_manager = MousemoveManager::new();
+    tag(
         class = style::OUTER,
-        converter_impl(remote, conversions, preferred_language),
+        converter_impl(
+            tile.clone(),
+            conversions,
+            preferred_language,
+            resize_manager,
+        ),
     )
 }
 
 #[html]
 #[template(tag = div)]
 fn converter_impl(
-    remote: XSignal<Remote>,
+    tile: TilePtr,
     conversions: XSignal<Conversions>,
     preferred_language: XSignal<Option<Language>>,
+    resize_manager: MousemoveManager,
 ) -> XElement {
     div(
         class = style::INNER,
         key = "converter",
-        div(class = style::HEADER, menu(), show_remote(remote.clone())),
+        div(
+            class = style::HEADER,
+            menu(tile.clone()),
+            show_remote(tile.remote.clone()),
+        ),
         div(
             class = style::BODY,
-            show_input(remote, conversions.clone()),
-            show_resize_bar(),
+            show_input(
+                tile.clone(),
+                tile.remote.clone(),
+                conversions.clone(),
+                resize_manager.clone(),
+            ),
+            show_resize_bar(resize_manager),
             show_conversions(conversions, preferred_language),
         ),
     )
@@ -63,27 +79,31 @@ fn converter_impl(
 #[autoclone]
 #[html]
 #[template(tag = textarea)]
-fn show_input(#[signal] remote: Remote, conversions: XSignal<Conversions>) -> XElement {
+fn show_input(
+    tile: TilePtr,
+    #[signal] remote: Remote,
+    conversions: XSignal<Conversions>,
+    resize_manager: MousemoveManager,
+) -> XElement {
     let element = ElementCapture::<HtmlTextAreaElement>::default();
     tag(
         #[cfg(not(feature = "client-prod"))]
         class = "converter-input",
-        style::flex %= width(RESIZE_MANAGER.delta.clone()),
+        style::flex %= width(resize_manager.delta.clone()),
         before_render = element.capture(),
         input = move |_: web_sys::InputEvent| {
-            autoclone!(remote, element, conversions);
+            autoclone!(tile, remote, element, conversions);
             let value: Arc<str> = element.with(|e| e.value().into());
             spawn_local(async move {
-                autoclone!(remote, value);
-                let _set = content_state::set(remote.clone(), value.clone()).await;
+                autoclone!(tile, remote, value);
+                let _set = content_state::set(tile.id.into(), remote.clone(), value.clone()).await;
             });
             get_conversions(remote.clone(), value, conversions.clone());
         },
         after_render = move |_| {
-            autoclone!(remote, element, conversions);
             spawn_local(async move {
-                autoclone!(remote, element, conversions);
-                let Ok(content) = content_state::get(remote.clone()).await else {
+                autoclone!(tile, remote, element, conversions);
+                let Ok(content) = content_state::get(tile.id.into(), remote.clone()).await else {
                     warn!("Failed to load converter content");
                     return;
                 };
@@ -178,13 +198,11 @@ unsafe impl Send for DebouncedGetConversions {}
 unsafe impl Sync for DebouncedGetConversions {}
 
 #[html]
-fn show_resize_bar() -> XElement {
+fn show_resize_bar(resize_manager: MousemoveManager) -> XElement {
     div(
         class = style::RESIZE_BAR,
-        mousedown = RESIZE_MANAGER.mousedown(),
-        dblclick = |_| RESIZE_MANAGER.delta.set(None),
+        mousedown = resize_manager.mousedown(),
+        dblclick = move |_| resize_manager.delta.set(None),
         div(div()),
     )
 }
-
-static RESIZE_MANAGER: LazyLock<MousemoveManager> = LazyLock::new(MousemoveManager::new);

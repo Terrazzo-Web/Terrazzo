@@ -52,13 +52,13 @@ pub struct HostPortDefinition(Arc<HostPortDefinitionImpl>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostPortDefinitionImpl {
-    pub forwarded_remote: Option<ClientAddress>,
+    pub forwarded_remote: ClientAddress,
     pub host: String,
     pub port: u16,
 }
 
 impl HostPortDefinition {
-    pub fn new(forwarded_remote: Option<ClientAddress>, host: String, port: u16) -> Self {
+    pub fn new(forwarded_remote: ClientAddress, host: String, port: u16) -> Self {
         Self(Arc::new(HostPortDefinitionImpl {
             forwarded_remote,
             host,
@@ -110,10 +110,10 @@ mod server {
 
 impl HostPortDefinition {
     fn forwarded_remote(&self) -> String {
-        self.forwarded_remote
-            .as_ref()
-            .filter(|remote| !remote.is_empty())
-            .map(|remote| remote.to_string())
-            .unwrap_or_else(|| "Local".to_string())
+        if self.forwarded_remote.is_empty() {
+            "Local".to_string()
+        } else {
+            self.forwarded_remote.to_string()
+        }
     }
 }

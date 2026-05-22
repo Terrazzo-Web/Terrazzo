@@ -34,11 +34,11 @@ unsafe impl Sync for RootTree {}
 unsafe impl Send for RootTree {}
 
 impl RootTree {
-    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display>) {
+    pub fn update(new: Result<Arc<TilesDto>, impl std::fmt::Display + std::fmt::Debug + 'static>) {
         match new {
             Ok(new) => {
                 let _batch = Batch::use_batch("Update tiles");
-                ROOT_TREE.update(|old| Some(TilesCmp::new(Rc::new(old.update(&new)))));
+                ROOT_TREE.update_ne(|old| Some(TilesCmp::new(Rc::new(old.update(&new)))));
             }
             Err(error) => warn!("Failed to update tiles: {error}"),
         }

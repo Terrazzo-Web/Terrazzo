@@ -25,12 +25,12 @@ pub struct RemotesState {
     hide_remotes: Cancellable<Duration>,
 }
 
-pub type Remote = Option<ClientAddress>;
+pub type Remote = ClientAddress;
 pub type Remotes = Option<Vec<ClientAddress>>;
 
 declare_trait_aliias!(
     DisplayRemoteFn,
-    Fn(Option<&ClientAddress>) -> (String, Option<&'static str>) + Clone + 'static
+    Fn(&ClientAddress) -> (String, Option<&'static str>) + Clone + 'static
 );
 
 declare_trait_aliias!(ClickRemoteFn, Fn(MouseEvent, Remote) + Clone + 'static);
@@ -112,9 +112,9 @@ fn show_remotes_dropdown(
     if let Remotes::Some(remotes) = remotes
         && !remotes.is_empty()
     {
-        let local_and_remotes = once(None).chain(remotes.into_iter().map(Some));
+        let local_and_remotes = once(ClientAddress::default()).chain(remotes);
         let remote_names = local_and_remotes.map(|remote| {
-            let (remote_name, remote_class) = display_remote(remote.as_ref());
+            let (remote_name, remote_class) = display_remote(&remote);
             li(
                 class = remote_class,
                 "{remote_name}",

@@ -5,6 +5,7 @@ pidfile = "~/.terrazzo/terminal-3102.pid"
 private_root_ca = "~/.terrazzo/root_ca"
 token_lifetime = "5m"
 token_refresh = "4m 50s"
+config_file_watcher = true
 certificate_renewal_threshold = "30days"
 
 [server.config_file_poll_strategy]

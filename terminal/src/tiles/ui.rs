@@ -54,14 +54,12 @@ impl std::ops::Deref for RootTree {
 }
 
 pub fn show_tiles() -> XElement {
-    diagnostics::error!("TOPLEVEL SHOW TILES");
     spawn_local(async move { RootTree::update(super::api::get().await) });
     show_tiles_tree(ROOT_TREE.clone())
 }
 
 #[template(tag = div)]
 fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
-    diagnostics::error!("RENDERING TILES");
     show_tiles_rec(&tiles)
 }
 

@@ -9,11 +9,11 @@ use crate::api::client_address::ClientAddress;
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn get_conversions(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     input: Arc<str>,
 ) -> Result<Conversions, ServerFnError> {
     Ok(super::service::GET_CONVERSIONS_FN
-        .call(remote.unwrap_or_default(), ConversionsRequest { input })
+        .call(remote, ConversionsRequest { input })
         .await?)
 }
 

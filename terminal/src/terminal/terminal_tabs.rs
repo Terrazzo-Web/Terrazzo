@@ -65,14 +65,16 @@ impl TabsDescriptor for TerminalTabs {
             mouseleave = remotes_state.mouseleave(),
             remotes_state.show_remotes_dropdown(
                 |remote| {
-                    let remote_name = remote
-                        .map(|remote_name| format!("{remote_name} ⏎"))
-                        .unwrap_or_else(|| "Local".into());
+                    let remote_name = if remote.is_empty() {
+                        "Local".into()
+                    } else {
+                        format!("{remote} ⏎")
+                    };
                     (remote_name, None)
                 },
                 move |_, remote| {
                     autoclone!(state);
-                    create_terminal(state.clone(), remote.unwrap_or_default())
+                    create_terminal(state.clone(), remote)
                 },
             ),
         )]

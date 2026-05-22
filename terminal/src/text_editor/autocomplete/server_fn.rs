@@ -12,7 +12,7 @@ use crate::text_editor::path_selector::schema::PathSelector;
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
 pub(super) async fn autocomplete_path(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     kind: PathSelector,
     prefix: Arc<str>,
     input: String,
@@ -30,7 +30,7 @@ pub(super) async fn autocomplete_path(
             input,
         };
         return Ok(super::remote::AUTOCOMPLETE_PATH_REMOTE_FN
-            .call(remote.unwrap_or_default(), request)
+            .call(remote, request)
             .await?);
     }
     .instrument(debug_span!("Autocomplete"))

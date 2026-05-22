@@ -435,8 +435,8 @@ fn show_host_port_definition(
 fn show_remote_select(
     tag_id: String,
     #[signal] remotes: Vec<ClientAddress>,
-    selected: Remote,
-    set: impl Fn(Remote) + Clone + 'static,
+    selected: Option<ClientAddress>,
+    set: impl Fn(Option<ClientAddress>) + Clone + 'static,
 ) -> XElement {
     let mut options = vec![];
     static LOCAL: &str = "Local";

@@ -50,8 +50,7 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
                 return;
             };
             let client_address = &current.address.via;
-            tile.remote
-                .set((!client_address.is_empty()).then(|| client_address.clone()))
+            tile.remote.set(client_address.clone())
         },
     ))
 }

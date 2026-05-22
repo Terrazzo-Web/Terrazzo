@@ -17,7 +17,7 @@ pub mod synthetic;
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
 async fn cargo_check(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     base_path: Arc<str>,
     features: Vec<String>,
 ) -> Result<Vec<SyntheticDiagnostic>, ServerFnError> {
@@ -32,9 +32,7 @@ async fn cargo_check(
             base_path,
             features,
         };
-        return Ok(remote::CARGO_CHECK_REMOTE_FN
-            .call(remote.unwrap_or_default(), request)
-            .await?);
+        return Ok(remote::CARGO_CHECK_REMOTE_FN.call(remote, request).await?);
     }
     .instrument(debug_span!("CargoCheck"))
     .await

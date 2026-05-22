@@ -76,27 +76,24 @@ impl std::fmt::Debug for File {
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
 async fn load_file(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     path: FilePath<Arc<str>>,
 ) -> Result<Option<File>, ServerFnError> {
     Ok(remote::LOAD_FILE_REMOTE_FN
-        .call(remote.unwrap_or_default(), remote::LoadFileRequest { path })
+        .call(remote, remote::LoadFileRequest { path })
         .await?)
 }
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
 async fn store_file_impl(
-    remote: Option<ClientAddress>,
+    remote: ClientAddress,
     path: FilePath<Arc<str>>,
     content: String,
 ) -> Result<(), ServerFnError> {
     #[cfg(debug_assertions)]
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     Ok(remote::STORE_FILE_REMOTE_FN
-        .call(
-            remote.unwrap_or_default(),
-            remote::StoreFileRequest { path, content },
-        )
+        .call(remote, remote::StoreFileRequest { path, content })
         .await?)
 }

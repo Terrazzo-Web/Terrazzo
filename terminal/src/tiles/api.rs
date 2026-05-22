@@ -43,14 +43,11 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
 }
 
 #[server]
-pub async fn set_remote(
-    id: TileId,
-    remote: Option<ClientAddress>,
-) -> Result<Arc<Tiles>, ServerFnError> {
+pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
-        remote: remote.filter(|remote| !remote.is_empty()),
+        remote: (!remote.is_empty()).then_some(remote),
     })?)
 }
 

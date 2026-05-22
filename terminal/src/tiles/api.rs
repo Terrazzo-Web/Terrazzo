@@ -47,7 +47,7 @@ pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>,
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
-        remote: (!remote.is_empty()).then_some(remote),
+        remote,
     })?)
 }
 
@@ -90,7 +90,7 @@ pub enum Tiles {
 pub struct Tile {
     pub id: TileId,
     pub app: App,
-    pub remote: Option<ClientAddress>,
+    pub remote: ClientAddress,
 }
 
 impl Default for Tiles {

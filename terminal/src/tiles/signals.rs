@@ -45,16 +45,15 @@ impl Tiles {
 fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
     match tile_tree_dto {
         TilesDto::Tile(TileDto { id, app, remote }) => {
-            let remote = remote.clone().unwrap_or_default();
             let ui_tile = if let Some(ui_tile) = signals.tile_ids.remove(id) {
                 ui_tile.app.set(*app);
-                ui_tile.remote.set(remote);
+                ui_tile.remote.set(remote.clone());
                 ui_tile
             } else {
                 Tile {
                     id: *id,
                     app: XSignal::new("app", *app),
-                    remote: XSignal::new("remote", remote),
+                    remote: XSignal::new("remote", remote.clone()),
                     menu: MenuState::default(),
                 }
                 .into()

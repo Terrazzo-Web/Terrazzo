@@ -50,7 +50,7 @@ pub async fn set_remote(
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
-        remote,
+        remote: remote.filter(|remote| !remote.is_empty()),
     })?)
 }
 

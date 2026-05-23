@@ -11,6 +11,7 @@ use autoclone::autoclone;
 use futures::FutureExt;
 use futures::channel::oneshot;
 use futures::future::Shared;
+use pin_project::pin_project;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
 use terrazzo_client::prelude::Ptr;
@@ -42,14 +43,14 @@ pub trait DoDebounce: Copy + 'static {
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: Clone + 'static;
+        R: Clone + Send + Sync + 'static;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
     }
 }
 
-type BoxFuture<R> = Pin<Box<dyn Future<Output = R>>>;
+type BoxFuture<R> = Pin<Box<dyn Future<Output = R> + Send + Sync>>;
 
 /// Advanced usage for [DoDebounce].
 #[derive(Clone, Copy)]
@@ -78,7 +79,7 @@ impl DoDebounce for Duration {
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: Clone + 'static,
+        R: Clone + Send + Sync + 'static,
     {
         Debounce {
             delay: self,
@@ -137,11 +138,11 @@ impl DoDebounce for Debounce {
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: Clone + 'static,
+        R: Clone + Send + Sync + 'static,
     {
         let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
         let user_callback = Arc::new(user_callback);
-        let debounced_callback = ThreadSafeCallback(self.debounce(move |a| {
+        let debounced_callback = ThreadSafe(self.debounce(move |a| {
             autoclone!(async_state);
             wasm_bindgen_futures::spawn_local(async move {
                 autoclone!(async_state);
@@ -217,10 +218,10 @@ impl DoDebounce for () {
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: Clone + 'static,
+        R: Clone + Send + Sync + 'static,
     {
         move |a| {
-            let result: BoxFuture<R> = Box::pin(callback(a));
+            let result: BoxFuture<R> = Box::pin(ThreadSafe(callback(a)));
             return result.shared();
         }
     }
@@ -258,18 +259,30 @@ impl<T> std::fmt::Debug for DebounceState<T> {
     }
 }
 
-struct ThreadSafeCallback<T>(T);
+#[pin_project]
+struct ThreadSafe<T>(#[pin] T);
 
 /// Safe because Javascript is single-threaded.
-unsafe impl<T> Send for ThreadSafeCallback<T> {}
+unsafe impl<T> Send for ThreadSafe<T> {}
 
 /// Safe because Javascript is single-threaded.
-unsafe impl<T> Sync for ThreadSafeCallback<T> {}
+unsafe impl<T> Sync for ThreadSafe<T> {}
 
-impl<T> std::ops::Deref for ThreadSafeCallback<T> {
+impl<T> std::ops::Deref for ThreadSafe<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<F: Future> Future for ThreadSafe<F> {
+    type Output = F::Output;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        self.project().0.poll(cx)
     }
 }

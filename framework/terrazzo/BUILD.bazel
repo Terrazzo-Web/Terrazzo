@@ -34,6 +34,7 @@ rust_rules_matrix(
         "//utils/nameth/nameth",
         "@crates//:futures",
         "@crates//:scopeguard",
+        "@crates//:pin-project",
         "@crates//:thiserror",
         "@crates//:wasm-bindgen",
         "@crates//:wasm-bindgen-futures",

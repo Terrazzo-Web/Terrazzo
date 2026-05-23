@@ -56,7 +56,7 @@ macro_rules! make_state {
             use terrazzo::widgets::debounce::DoDebounce as _;
 
             struct ThreadSafe(
-                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Shared<Pin<Box<dyn Future<Output = ()>>>>>,
+                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>>,
             );
 
             unsafe impl Send for ThreadSafe {}

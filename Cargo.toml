@@ -127,7 +127,7 @@ regex = { version = "1.12.3" }
 reqwest = { version = "0.13.3" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
-rpassword = { version = "7.5.2" }
+rpassword = { version = "7.5.3" }
 rsass = { version = "0.29.2" }
 rsass-macros = { version = "0.29.0" }
 runfiles = { version = "0.2.0" }

@@ -58,7 +58,12 @@ fn make_debounced_store_file_fn() -> StoreFileFn {
             drop(after);
         },
     );
-    return Box::new(debounced);
+    return Box::new(move |arg| {
+        let debounced = debounced(arg);
+        Box::pin(async move {
+            debounced.await;
+        })
+    });
 }
 
 type StoreFileFn = Box<dyn Fn(StoreFileFnArg) -> BoxFuture + Send + Sync>;

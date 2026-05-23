@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+use futures::future::Shared;
 use server_fn::ServerFnError;
 use terrazzo::prelude::diagnostics;
 use terrazzo::widgets::debounce::DoDebounce;
@@ -61,8 +62,8 @@ fn make_debounced_store_file_fn() -> StoreFileFn {
     return Box::new(debounced);
 }
 
-type StoreFileFn = Box<dyn Fn(StoreFileFnArg) -> BoxFuture + Send + Sync>;
-type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
+type StoreFileFn = Box<dyn Fn(StoreFileFnArg) -> Shared<BoxFuture> + Send + Sync>;
+type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 
 struct StoreFileFnArg {
     remote: Remote,

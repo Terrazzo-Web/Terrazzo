@@ -4447,6 +4447,7 @@ dependencies = [
  "mime",
  "mime_guess",
  "nameth",
+ "pin-project",
  "rsass",
  "rsass-macros",
  "scopeguard",

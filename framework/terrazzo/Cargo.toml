@@ -50,6 +50,9 @@ web-sys = { workspace = true, optional = true, features = [
   "Window",
 ] }
 
+[dev-dependencies]
+scopeguard = { workspace = true }
+
 [build-dependencies]
 scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }

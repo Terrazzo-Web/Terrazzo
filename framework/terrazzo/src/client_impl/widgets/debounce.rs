@@ -38,12 +38,12 @@ static PERFORMANCE: LazyLock<Performance> =
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: 'static;
+        R: Clone + 'static;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
@@ -74,12 +74,12 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: 'static,
+        R: Clone + 'static,
     {
         Debounce {
             delay: self,
@@ -133,12 +133,12 @@ impl DoDebounce for Debounce {
     }
 
     #[autoclone]
-    fn async_debounce<T, F, FR, R>(self, user_callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
+    fn async_debounce<T, F, FR, R>(self, user_callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: 'static,
+        R: Clone + 'static,
     {
         let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
         let user_callback = Rc::new(user_callback);
@@ -165,10 +165,8 @@ impl DoDebounce for Debounce {
             let future_result = match &mut *async_state {
                 AsyncState::NotRunning => {
                     let (tx, rx) = oneshot::channel();
-                    let future_result: BoxFuture<Rc<R>> = Box::pin(async move {
-                        let result = rx.await.or_throw("Async debounce state canceled!");
-                        Rc::new(result)
-                    });
+                    let future_result: BoxFuture<R> =
+                        Box::pin(rx.map(|r| r.or_throw("Async debounce state canceled!")));
                     let future_result = future_result.shared();
                     *async_state = AsyncState::Running {
                         tx,
@@ -197,7 +195,7 @@ enum AsyncState<R> {
     NotRunning,
     Running {
         tx: oneshot::Sender<R>,
-        rx: Shared<BoxFuture<Rc<R>>>,
+        rx: Shared<BoxFuture<R>>,
     },
 }
 
@@ -215,15 +213,15 @@ impl DoDebounce for () {
         f
     }
 
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
-        R: 'static,
+        R: Clone + 'static,
     {
         move |a| {
-            let result: BoxFuture<Rc<R>> = Box::pin(callback(a).map(Rc::new));
+            let result: BoxFuture<R> = Box::pin(callback(a));
             return result.shared();
         }
     }

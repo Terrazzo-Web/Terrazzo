@@ -109,7 +109,7 @@ pub fn editor(
             let _moved = &diagnostics_notify_registration;
             let body: Box<dyn EditorBody> = match &document {
                 EditorDocument::Text { original, content } => {
-                    let on_change = make_on_change();
+                    let on_change = make_on_change(&manager, &path, &writing);
                     Box::new(CodeMirrorJs::new(
                         element.clone(),
                         original
@@ -117,7 +117,7 @@ pub fn editor(
                             .map(JsValue::from)
                             .unwrap_or(JsValue::null()),
                         content.as_ref().into(),
-                        &on_change,
+                        on_change,
                         path.base.to_string(),
                         path.as_deref().full_path().to_owned_string(),
                     ))
@@ -129,7 +129,12 @@ pub fn editor(
     )
 }
 
-fn make_on_change() -> Closure<dyn FnMut(JsValue)> {
+#[autoclone]
+fn make_on_change(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<str>>,
+    writing: &Arc<AtomicU32>,
+) -> Closure<dyn FnMut(JsValue)> {
     Closure::new(move |content: JsValue| {
         autoclone!(manager, path, writing);
         let Some(content) = content.as_string() else {

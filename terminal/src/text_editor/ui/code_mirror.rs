@@ -31,9 +31,10 @@ impl CodeMirrorJs {
         base_path: String,
         full_path: String,
     ) -> Self {
-        let inner = CodeMirrorJsImpl::new(element, original, content, &onchange, base_path, full_path);
         Self {
-            inner,
+            inner: CodeMirrorJsImpl::new(
+                element, original, content, &onchange, base_path, full_path,
+            ),
             _onchange: onchange,
         }
     }

@@ -51,11 +51,12 @@ macro_rules! make_state {
             use std::pin::Pin;
             use std::sync::OnceLock;
             use std::time::Duration;
+            use futures::future::Shared;
             use terrazzo::prelude::diagnostics::warn;
             use terrazzo::widgets::debounce::DoDebounce as _;
 
             struct ThreadSafe(
-                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
+                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Shared<Pin<Box<dyn Future<Output = ()>>>>>,
             );
 
             unsafe impl Send for ThreadSafe {}

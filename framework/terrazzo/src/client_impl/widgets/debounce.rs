@@ -2,7 +2,6 @@
 
 use std::cell::Cell;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -141,7 +140,7 @@ impl DoDebounce for Debounce {
         R: Clone + 'static,
     {
         let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
-        let user_callback = Rc::new(user_callback);
+        let user_callback = Arc::new(user_callback);
         let debounced_callback = ThreadSafeCallback(self.debounce(move |a| {
             autoclone!(async_state);
             wasm_bindgen_futures::spawn_local(async move {

@@ -15,15 +15,11 @@ use futures::future::Shared;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
 use terrazzo_client::prelude::Ptr;
-use terrazzo_client::prelude::diagnostics::debug;
 use terrazzo_client::prelude::diagnostics::warn;
-use tracing::error;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
 use web_sys::Performance;
 use web_sys::Window;
-
-use crate::declare_trait_aliias;
 
 use super::cancellable::Cancellable;
 
@@ -42,7 +38,7 @@ static PERFORMANCE: LazyLock<Performance> =
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
@@ -78,7 +74,7 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
@@ -104,7 +100,6 @@ impl DoDebounce for Debounce {
     #[autoclone]
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         let state = Ptr::new(Cell::new(DebounceState::default()));
-        let delay_millis = self.delay.as_secs_f64() * 1000.;
         let max_delay_millis = self.max_delay.map(|d| d.as_secs_f64() * 1000.);
         let closure: Closure<dyn Fn()> = Closure::new(move || {
             autoclone!(state);
@@ -138,7 +133,7 @@ impl DoDebounce for Debounce {
     }
 
     #[autoclone]
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
+    fn async_debounce<T, F, FR, R>(self, user_callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
@@ -146,30 +141,45 @@ impl DoDebounce for Debounce {
         R: 'static,
     {
         let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
-        let callback = ThreadSafeCallback(Arc::new(self.debounce(move |a| {
+        let user_callback = Rc::new(user_callback);
+        let debounced_callback = ThreadSafeCallback(self.debounce(move |a| {
             autoclone!(async_state);
-            let (tx, rx) = oneshot::channel();
-            {
-                let mut async_state = async_state.lock().or_throw("async_state 1");
-                let (tx, rx) = oneshot::channel();
-                let rx = async move {
-                    let result = rx.await.or_throw("Async debounce state canceled!");
-                    Rc::new(result)
-                }
-                .shared();
-                *async_state = AsyncState::Running(rx);
-            }
-            debug!("Spawning the async debounced callback");
-            let result: BoxFuture<R> = Box::pin(callback(a));
-            wasm_bindgen_futures::spawn_local(complete_async_debounce(tx, result));
-        })));
-        move |arg| {
-            let () = callback(arg);
+            wasm_bindgen_futures::spawn_local(async move {
+                autoclone!(async_state);
+                autoclone!(user_callback);
+                let result = user_callback(a).await;
+                let mut async_state = async_state.lock().or_throw("async_state lock 1");
+                let AsyncState::Running { tx, rx: _ } = std::mem::take(&mut *async_state) else {
+                    warn!("Expected the async debounce callback to be running");
+                    panic!("Expected the async debounce callback to be running");
+                };
+                let Ok(()) = tx.send(result) else {
+                    warn!("Failed to send debounced async callback completion");
+                    return;
+                };
+            });
+        }));
+        move |a| {
+            autoclone!(async_state);
             let mut async_state = async_state.lock().or_throw("async_state 1");
-            match &mut *async_state {
-                AsyncState::NotRunning => panic!("Async state should not be empty!"),
-                AsyncState::Running(future_result) => Box::pin(future_result.clone()),
-            }
+            let future_result = match &mut *async_state {
+                AsyncState::NotRunning => {
+                    let (tx, rx) = oneshot::channel();
+                    let future_result: BoxFuture<Rc<R>> = Box::pin(async move {
+                        let result = rx.await.or_throw("Async debounce state canceled!");
+                        Rc::new(result)
+                    });
+                    let future_result = future_result.shared();
+                    *async_state = AsyncState::Running {
+                        tx,
+                        rx: future_result.clone(),
+                    };
+                    future_result
+                }
+                AsyncState::Running { tx: _, rx } => rx.clone(),
+            };
+            debounced_callback(a);
+            future_result
         }
     }
 
@@ -181,19 +191,14 @@ impl DoDebounce for Debounce {
     }
 }
 
-async fn complete_async_debounce<R>(tx: oneshot::Sender<R>, result: BoxFuture<R>) {
-    let result = result.await;
-    let Ok(()) = tx.send(result) else {
-        warn!("Failed to send debounced async callback completion");
-        return;
-    };
-}
-
 #[derive(Default)]
 enum AsyncState<R> {
     #[default]
     NotRunning,
-    Running(R),
+    Running {
+        tx: oneshot::Sender<R>,
+        rx: Shared<BoxFuture<Rc<R>>>,
+    },
 }
 
 impl<R> std::fmt::Debug for AsyncState<R> {
@@ -210,14 +215,17 @@ impl DoDebounce for () {
         f
     }
 
-    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<Rc<R>>>
     where
         T: 'static,
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
         R: 'static,
     {
-        move |a| Box::pin(callback(a).map(Rc::new))
+        move |a| {
+            let result: BoxFuture<Rc<R>> = Box::pin(callback(a).map(Rc::new));
+            return result.shared();
+        }
     }
 
     fn with_max_delay(self) -> impl DoDebounce {

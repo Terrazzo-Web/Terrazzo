@@ -289,10 +289,7 @@ logs-panel-server = [
 ]
 
 tiles-state = []
-tiles-state-client = ["tiles-state",
-
-  "dep:futures",
-]
+tiles-state-client = ["dep:futures", "tiles-state"]
 tiles-state-server = ["dep:const_format", "tiles-state"]
 
 remote-fn = []

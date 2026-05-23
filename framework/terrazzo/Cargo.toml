@@ -25,9 +25,9 @@ futures = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 include_directory = { workspace = true, optional = true }
 mime = { workspace = true, optional = true }
-pin-project = { workspace = true, optional = true }
 mime_guess = { workspace = true, optional = true }
 nameth = { workspace = true, optional = true }
+pin-project = { workspace = true, optional = true }
 rsass = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
@@ -58,10 +58,10 @@ terrazzo-build = { workspace = true }
 client = [
   "dep:futures",
   "dep:nameth",
+  "dep:pin-project",
   "dep:scopeguard",
   "dep:terrazzo-client",
   "dep:terrazzo-css",
-  "dep:pin-project",
   "dep:thiserror",
   "dep:wasm-bindgen",
   "dep:wasm-bindgen-futures",

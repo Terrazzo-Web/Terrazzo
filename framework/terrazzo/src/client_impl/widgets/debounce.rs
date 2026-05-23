@@ -2,21 +2,34 @@
 
 use std::cell::Cell;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
 
 use autoclone::autoclone;
+use futures::FutureExt;
 use futures::channel::oneshot;
+use futures::future::Shared;
 use scopeguard::guard;
 use terrazzo_client::prelude::OrElseLog as _;
 use terrazzo_client::prelude::Ptr;
 use terrazzo_client::prelude::diagnostics::debug;
 use terrazzo_client::prelude::diagnostics::warn;
+use tracing::error;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::Closure;
+use web_sys::Performance;
+use web_sys::Window;
+
+use crate::declare_trait_aliias;
 
 use super::cancellable::Cancellable;
+
+static WINDOW: LazyLock<Window> = LazyLock::new(|| web_sys::window().or_throw("window"));
+static PERFORMANCE: LazyLock<Performance> =
+    LazyLock::new(|| WINDOW.performance().or_throw("performance"));
 
 /// Avoids executing a function too often.
 /// Goal is to avoid flickering and improve UI performance.
@@ -29,18 +42,19 @@ use super::cancellable::Cancellable;
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
     where
         T: 'static,
-        F: Fn(T) -> R + 'static,
-        R: Future<Output = ()> + 'static;
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: 'static;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
     }
 }
 
-type BoxFuture = Pin<Box<dyn Future<Output = ()>>>;
+type BoxFuture<R> = Pin<Box<dyn Future<Output = R>>>;
 
 /// Advanced usage for [DoDebounce].
 #[derive(Clone, Copy)]
@@ -64,11 +78,12 @@ impl DoDebounce for Duration {
         .debounce(f)
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
     where
         T: 'static,
-        F: Fn(T) -> R + 'static,
-        R: Future<Output = ()> + 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: 'static,
     {
         Debounce {
             delay: self,
@@ -86,26 +101,22 @@ impl DoDebounce for Duration {
 }
 
 impl DoDebounce for Debounce {
+    #[autoclone]
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
-        let window = web_sys::window().or_throw("window");
-        let performance = window.performance().or_throw("performance");
         let state = Ptr::new(Cell::new(DebounceState::default()));
         let delay_millis = self.delay.as_secs_f64() * 1000.;
         let max_delay_millis = self.max_delay.map(|d| d.as_secs_f64() * 1000.);
-        let closure: Closure<dyn Fn()> = Closure::new({
-            let state = state.clone();
-            let performance = performance.clone();
-            move || {
-                let mut state = guard(state.take(), |new_state| state.set(new_state));
-                f(state.scheduled_run.take().or_throw("scheduled_run").arg);
-                state.last_run = performance.now();
-            }
+        let closure: Closure<dyn Fn()> = Closure::new(move || {
+            autoclone!(state);
+            let mut state = guard(state.take(), |new_state| state.set(new_state));
+            f(state.scheduled_run.take().or_throw("scheduled_run").arg);
+            state.last_run = PERFORMANCE.now();
         });
         move |arg| {
-            let now = performance.now();
+            let now = PERFORMANCE.now();
             let mut state = guard(state.take(), |new_state| state.set(new_state));
             if let Some(max_delay_millis) = max_delay_millis
-                && now - state.last_run - delay_millis > max_delay_millis
+                && now - state.last_run  > max_delay_millis
                 // If max delay is exceeded and there is already a task running, let it run.
                 && let Some(scheduled_run) = &mut state.scheduled_run
             {
@@ -114,9 +125,9 @@ impl DoDebounce for Debounce {
             }
 
             if let Some(ScheduledRun { timeout_id, .. }) = state.scheduled_run {
-                window.clear_timeout_with_handle(timeout_id);
+                WINDOW.clear_timeout_with_handle(timeout_id);
             }
-            let timeout_id = window
+            let timeout_id = WINDOW
                 .set_timeout_with_callback_and_timeout_and_arguments_0(
                     closure.as_ref().unchecked_ref(),
                     (self.delay.as_secs_f64() * 1000.) as i32,
@@ -127,32 +138,39 @@ impl DoDebounce for Debounce {
     }
 
     #[autoclone]
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
     where
         T: 'static,
-        F: Fn(T) -> R + 'static,
-        R: Future<Output = ()> + 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: 'static,
     {
-        let async_state: Arc<Mutex<AsyncState<T>>> = Arc::default();
-        let async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>> = Arc::default();
-
-        // The callback is debounced.
-        // When the callback is actually executed, the result is populated.
+        let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
         let callback = ThreadSafeCallback(Arc::new(self.debounce(move |a| {
-            autoclone!(async_result);
+            autoclone!(async_state);
             let (tx, rx) = oneshot::channel();
             {
-                let mut async_result = async_result.lock().or_throw("async_result 1");
-                if async_result.is_some() {
-                    warn!("The debounced async result was not awaited");
+                let mut async_state = async_state.lock().or_throw("async_state 1");
+                let (tx, rx) = oneshot::channel();
+                let rx = async move {
+                    let result = rx.await.or_throw("Async debounce state canceled!");
+                    Rc::new(result)
                 }
-                *async_result = Some(rx);
+                .shared();
+                *async_state = AsyncState::Running(rx);
             }
             debug!("Spawning the async debounced callback");
-            let result: BoxFuture = Box::pin(callback(a));
+            let result: BoxFuture<R> = Box::pin(callback(a));
             wasm_bindgen_futures::spawn_local(complete_async_debounce(tx, result));
         })));
-        return make_async_debounced(async_state, async_result, callback);
+        move |arg| {
+            let () = callback(arg);
+            let mut async_state = async_state.lock().or_throw("async_state 1");
+            match &mut *async_state {
+                AsyncState::NotRunning => panic!("Async state should not be empty!"),
+                AsyncState::Running(future_result) => Box::pin(future_result.clone()),
+            }
+        }
     }
 
     fn with_max_delay(self) -> impl DoDebounce {
@@ -163,100 +181,26 @@ impl DoDebounce for Debounce {
     }
 }
 
-#[autoclone]
-fn make_async_debounced<T: 'static>(
-    async_state: Arc<Mutex<AsyncState<T>>>,
-    async_result: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
-    callback: ThreadSafeCallback<Arc<impl Fn(T) + 'static>>,
-) -> impl Fn(T) -> BoxFuture {
-    move |arg| {
-        Box::pin(async move {
-            autoclone!(async_state, async_result, callback);
-            {
-                let mut async_state = async_state.lock().or_throw("async_state 1");
-                match &*async_state {
-                    AsyncState::NotRunning => {
-                        debug!("At call time: Not running");
-                        *async_state = AsyncState::Running
-                    }
-                    AsyncState::Running => {
-                        debug!("At call time: Running");
-                        *async_state = AsyncState::CallAgain(arg);
-                        return;
-                    }
-                    AsyncState::CallAgain { .. } => {
-                        debug!("At call time: Call again");
-                        *async_state = AsyncState::CallAgain(arg);
-                        return;
-                    }
-                }
-            }
-
-            let mut arg = arg;
-            loop {
-                debug!("Calling the sync debounced callback");
-                callback(arg);
-                {
-                    let async_result = async_result.lock().or_throw("async_result 2").take();
-                    if let Some(async_result) = async_result {
-                        debug!("The debounced async callback was executed");
-                        let () = async_result.await.unwrap_or_else(|_| {
-                            warn!("The debounced async callback was dropped");
-                        });
-                    } else {
-                        debug!(
-                            "The debounced async callback was not executed: AsyncState={:?}",
-                            async_state.lock().or_throw("async_state 2")
-                        );
-                    }
-                }
-
-                {
-                    let mut lock = async_state.lock().or_throw("async_state 3");
-                    match std::mem::take(&mut *lock) {
-                        AsyncState::NotRunning => {
-                            debug!("Impossible state");
-                            panic!("Impossible state");
-                        }
-                        AsyncState::Running => {
-                            debug!("At return time: Running => NotRunning");
-                            *lock = AsyncState::NotRunning;
-                            return;
-                        }
-                        AsyncState::CallAgain(arg_again) => {
-                            debug!("At return time: CallAgain => Running and calling it again");
-                            *lock = AsyncState::Running;
-                            arg = arg_again;
-                        }
-                    }
-                }
-            }
-        })
-    }
-}
-
-async fn complete_async_debounce(tx: oneshot::Sender<()>, result: BoxFuture) {
-    let () = result.await;
-    let Ok(()) = tx.send(()) else {
+async fn complete_async_debounce<R>(tx: oneshot::Sender<R>, result: BoxFuture<R>) {
+    let result = result.await;
+    let Ok(()) = tx.send(result) else {
         warn!("Failed to send debounced async callback completion");
         return;
     };
 }
 
 #[derive(Default)]
-enum AsyncState<T> {
+enum AsyncState<R> {
     #[default]
     NotRunning,
-    Running,
-    CallAgain(T),
+    Running(R),
 }
 
-impl<T> std::fmt::Debug for AsyncState<T> {
+impl<R> std::fmt::Debug for AsyncState<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotRunning => write!(f, "NotRunning"),
-            Self::Running => write!(f, "Running"),
-            Self::CallAgain { .. } => write!(f, "CallAgain"),
+            Self::Running { .. } => write!(f, "Running"),
         }
     }
 }
@@ -266,13 +210,14 @@ impl DoDebounce for () {
         f
     }
 
-    fn async_debounce<T, F, R>(self, callback: F) -> impl Fn(T) -> BoxFuture
+    fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> BoxFuture<Rc<R>>
     where
         T: 'static,
-        F: Fn(T) -> R + 'static,
-        R: Future<Output = ()> + 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: 'static,
     {
-        move |a| Box::pin(callback(a))
+        move |a| Box::pin(callback(a).map(Rc::new))
     }
 
     fn with_max_delay(self) -> impl DoDebounce {

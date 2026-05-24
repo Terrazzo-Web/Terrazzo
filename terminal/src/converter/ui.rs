@@ -24,7 +24,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
-use crate::frontend::resize_bar::resize_bar;
+use crate::frontend::resize_bar::resize_bar_horz;
 use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(pub(super) style, "converter.scss");
@@ -71,7 +71,7 @@ fn converter_impl(
                 conversions.clone(),
                 resize_manager.clone(),
             ),
-            resize_bar(resize_manager),
+            resize_bar_horz(resize_manager),
             show_conversions(conversions, preferred_language),
         ),
     )

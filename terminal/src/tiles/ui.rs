@@ -20,7 +20,7 @@ use super::signals::Tiles;
 use super::signals::TilesCmp;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
-use crate::frontend::resize_bar::resize_bar;
+use crate::frontend::resize_bar::resize_bar_horz;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
@@ -130,7 +130,7 @@ fn show_tiles_rec(
                     return vec![node];
                 }
                 resize_managers.push(resize_manager.clone());
-                let sep = resize_bar(resize_manager);
+                let sep = resize_bar_horz(resize_manager);
                 vec![node, sep]
             });
             div(

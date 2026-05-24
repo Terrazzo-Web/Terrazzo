@@ -78,8 +78,8 @@ pub struct Position {
 impl Position {
     pub fn get(&self, direction: Direction) -> i32 {
         match direction {
-            Direction::Horizontal => self.x,
-            Direction::Vertical => self.y,
+            Direction::Horizontal => self.y,
+            Direction::Vertical => self.x,
         }
     }
 }

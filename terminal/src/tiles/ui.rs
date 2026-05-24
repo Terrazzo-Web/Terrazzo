@@ -10,10 +10,6 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
-use crate::frontend::mousemove::MousemoveManager;
-use crate::frontend::mousemove::Position;
-use crate::frontend::resize_bar::resize_bar;
-
 use super::api::Direction;
 use super::api::Tiles as TilesDto;
 use super::api::set_app;
@@ -22,6 +18,9 @@ use super::app::App;
 use super::signals::TilePtr;
 use super::signals::Tiles;
 use super::signals::TilesCmp;
+use crate::frontend::mousemove::MousemoveManager;
+use crate::frontend::mousemove::Position;
+use crate::frontend::resize_bar::resize_bar;
 
 terrazzo_css::import_style!(style, "ui.scss");
 

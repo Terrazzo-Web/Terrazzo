@@ -110,7 +110,7 @@ fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
     tag(
         class = style::APP_CONTENT,
         match app {
-            App::Default => div(),
+            App::Default => div(crate::frontend::menu::menu(tile.clone())),
 
             #[cfg(feature = "terminal")]
             App::Terminal => div(move |t| crate::terminal::terminals(t, tile.clone())),

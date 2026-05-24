@@ -3,6 +3,8 @@
 ASSETS = [
     "assets/bootstrap.js",
     "assets/icons/add-port-forward.svg",
+    "assets/icons/arrows-expand-vertical.svg",
+    "assets/icons/arrows-expand.svg",
     "assets/icons/chevron-bar-down.svg",
     "assets/icons/chevron-bar-up.svg",
     "assets/icons/chevron-double-right.svg",
@@ -23,6 +25,7 @@ ASSETS = [
     "assets/icons/signpost-split.svg",
     "assets/icons/slash.svg",
     "assets/icons/terminal-dash.svg",
+    "assets/icons/trash3-fill.svg",
     "assets/icons/trash3.svg",
     "assets/icons/x-lg.svg",
     "assets/images/favicon.ico",

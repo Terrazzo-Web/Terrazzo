@@ -15,24 +15,23 @@ div.app-content {
     min-height: 0;
 }
 
-div.horizontal-tile {
+
+div.horizontal-tile,
+div.vertical-tile {
     display: flex;
+    position: relative;
+
+    .app-tile {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 0;
+    }
+}
+
+div.horizontal-tile {
     flex-direction: row;
 }
 
 div.vertical-tile {
-    display: flex;
     flex-direction: column;
-}
-
-div.horizontal-tile > .app-tile,
-div.vertical-tile > .app-tile {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 0;
-}
-
-div.horizontal-tile > :global(.resize-bar),
-div.vertical-tile > :global(.resize-bar) {
-    flex: 0 0 auto;
 }

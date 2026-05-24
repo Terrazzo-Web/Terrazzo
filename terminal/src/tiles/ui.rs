@@ -68,6 +68,7 @@ fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
         1,
         MousemoveManager::new(),
         XSignal::new("direction0", Direction::Horizontal),
+        vec![],
     )
 }
 
@@ -77,6 +78,7 @@ fn show_tiles_rec(
     siblings: usize,
     parent_resize_manager: MousemoveManager,
     parent_direction: XSignal<Direction>,
+    previous_resize_managers: Vec<MousemoveManager>,
 ) -> XElement {
     match tiles {
         Tiles::Tile(tile) => {
@@ -101,6 +103,7 @@ fn show_tiles_rec(
                     parent_resize_manager.delta.clone(),
                     siblings,
                     parent_direction,
+                    Rc::new(previous_resize_managers),
                 ),
                 show_app(tile.clone(), tile.app.clone()),
                 #[cfg(feature = "logs-panel")]
@@ -113,6 +116,7 @@ fn show_tiles_rec(
             nodes,
         } => {
             let count = nodes.len();
+            let mut resize_managers: Vec<MousemoveManager> = vec![];
             let nodes = nodes.iter().enumerate().flat_map(|(i, node)| {
                 let resize_manager = MousemoveManager::new();
                 let node = show_tiles_rec(
@@ -120,10 +124,12 @@ fn show_tiles_rec(
                     nodes.len(),
                     resize_manager.clone(),
                     direction.clone(),
+                    resize_managers.clone(),
                 );
                 if i == count - 1 {
                     return vec![node];
                 }
+                resize_managers.push(resize_manager.clone());
                 let sep = resize_bar(resize_manager);
                 vec![node, sep]
             });
@@ -135,6 +141,7 @@ fn show_tiles_rec(
                     parent_resize_manager.delta.clone(),
                     siblings,
                     parent_direction,
+                    Rc::new(previous_resize_managers),
                 ),
                 nodes..,
             )
@@ -177,8 +184,18 @@ fn size(
     #[signal] mut position: Option<Position>,
     siblings: usize,
     #[signal] direction: Direction,
+    previous_resize_managers: Rc<Vec<MousemoveManager>>,
 ) -> XAttributeValue {
     let base = 100 / siblings;
-    let px = position.map(|p| p.get(direction)).unwrap_or_default();
-    format!("0 0 calc({base}% + {px}px)")
+    for previous_resize_manager in &*previous_resize_managers {
+        previous_resize_manager.delta.update(|old| {
+            if old.is_some() {
+                return None;
+            }
+            return Some(Some(Position::default()));
+        })
+    }
+    position
+        .map(|p| p.get(direction))
+        .map(|px| format!("0 0 calc({base}% + {px}px)"))
 }

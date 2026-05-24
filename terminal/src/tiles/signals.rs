@@ -6,13 +6,16 @@ use std::rc::Rc;
 
 use terrazzo::envelope;
 use terrazzo::prelude::XSignal;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 
 use super::api::Direction;
+use super::api::Side;
 use super::api::Tile as TileDto;
 use super::api::Tiles as TilesDto;
 use super::app::App;
 use super::id::TileId;
+use super::ui::RootTree;
 use super::visitor::TilesTreeVisitor;
 use super::visitor::UiStateVisitor;
 use crate::frontend::menu::MenuState;
@@ -178,11 +181,22 @@ impl<T> std::fmt::Debug for TilesCmp<T> {
 
 impl Tile {
     pub fn split_horz(&self) -> impl Fn(MouseEvent) + 'static {
-        |_| todo!()
+        self.split(Direction::Horizontal)
     }
+
     pub fn split_vert(&self) -> impl Fn(MouseEvent) + 'static {
-        |_| todo!()
+        self.split(Direction::Vertical)
     }
+
+    fn split(&self, direction: Direction) -> impl Fn(MouseEvent) + 'static {
+        let tile_id = self.id;
+        move |_| {
+            spawn_local(async move {
+                RootTree::update(super::api::add(direction, tile_id, Side::After).await)
+            })
+        }
+    }
+
     pub fn close(&self) -> impl Fn(MouseEvent) + 'static {
         |_| todo!()
     }

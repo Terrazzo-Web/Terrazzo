@@ -8,6 +8,7 @@ use super::Tile;
 use super::Tiles;
 use super::state::TREE;
 use super::state::TilesStateError;
+use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 
 pub fn add_node(
@@ -39,7 +40,7 @@ fn add_node_aux(
                 id: new_id
                     .take()
                     .ok_or(TilesStateError::DuplicateTileId(next_to))?,
-                app: node.app,
+                app: App::Default,
                 remote: node.remote.clone(),
             }));
             Arc::new(Tiles::Array {

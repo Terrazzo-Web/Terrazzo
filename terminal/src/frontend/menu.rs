@@ -108,7 +108,7 @@ fn menu_items(
             )),
             div(img(
                 class = style::SPLIT_ICON,
-                src = icons::trash(),
+                src = icons::close_app(),
                 click = tile.close(),
             )),
         ));

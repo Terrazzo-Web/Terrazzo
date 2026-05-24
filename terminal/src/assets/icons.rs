@@ -54,4 +54,5 @@ declare_icon!(search, "/icons/search.svg"; feature = "text-editor");
 declare_icon!(slash, "/icons/slash.svg"; feature = "text-editor");
 declare_icon!(terminal, "/icons/terminal-dash.svg"; feature = "terminal");
 declare_icon!(text_editor, "/icons/layout-text-sidebar-reverse.svg"; feature = "text-editor");
-declare_icon!(trash, "/icons/trash3.svg");
+declare_icon!(trash, "/icons/trash3.svg"; feature = "port-forward");
+declare_icon!(close_app, "/icons/trash3-fill.svg");

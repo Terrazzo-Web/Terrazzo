@@ -31,3 +31,37 @@
         }
     }
 }
+
+.resize-bar-vert {
+    position: relative;
+
+    height: 0;
+    width: 100%;
+    z-index: 100;
+
+    >div {
+        --padding: 3px;
+        --height: 5px;
+        position: absolute;
+        padding-top: var(--padding);
+        padding-bottom: var(--padding);
+        width: 100%;
+        top: calc(-1 * var(--padding));
+        cursor: row-resize;
+
+        >div {
+            position: absolute;
+            height: 0;
+            width: 100%;
+            top: 50%;
+            transform: translateY(-50%) scaleY(1);
+            transform-origin: center;
+            transition-duration: 0.2s;
+        }
+
+        &:hover>div {
+            height: var(--height);
+            background-color: var(--color);
+        }
+    }
+}

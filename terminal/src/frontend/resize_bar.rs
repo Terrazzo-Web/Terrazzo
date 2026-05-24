@@ -14,3 +14,13 @@ pub fn resize_bar_horz(resize_manager: MousemoveManager) -> XElement {
         div(div()),
     )
 }
+
+#[html]
+pub fn resize_bar_vert(resize_manager: MousemoveManager) -> XElement {
+    div(
+        class = style::RESIZE_BAR_VERT,
+        mousedown = resize_manager.mousedown(),
+        dblclick = move |_| resize_manager.delta.set(None),
+        div(div()),
+    )
+}

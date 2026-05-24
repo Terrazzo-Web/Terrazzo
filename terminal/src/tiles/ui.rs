@@ -21,6 +21,7 @@ use super::signals::TilesCmp;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::resize_bar::resize_bar_horz;
+use crate::frontend::resize_bar::resize_bar_vert;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
@@ -130,7 +131,7 @@ fn show_tiles_rec(
                     return vec![node];
                 }
                 resize_managers.push(resize_manager.clone());
-                let sep = resize_bar_horz(resize_manager);
+                let sep = resize_bar(resize_manager, direction.clone());
                 vec![node, sep]
             });
             div(
@@ -156,6 +157,7 @@ pub fn direction_class(#[signal] direction: Direction) -> XAttributeValue {
         Direction::Vertical => style::VERTICAL_TILE,
     }
 }
+
 #[html]
 #[template(tag = div)]
 fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
@@ -198,4 +200,13 @@ fn size(
     position
         .map(|p| p.get(direction))
         .map(|px| format!("0 0 calc({base}% + {px}px)"))
+}
+
+#[html]
+#[template(tag = div)]
+pub fn resize_bar(resize_manager: MousemoveManager, #[signal] direction: Direction) -> XElement {
+    match direction {
+        Direction::Horizontal => resize_bar_horz(resize_manager),
+        Direction::Vertical => resize_bar_vert(resize_manager),
+    }
 }

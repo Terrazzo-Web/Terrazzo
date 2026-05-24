@@ -188,15 +188,17 @@ fn size(
     #[signal] direction: Direction,
     previous_resize_managers: Rc<Vec<MousemoveManager>>,
 ) -> XAttributeValue {
-    let base = 100 / siblings;
-    for previous_resize_manager in &*previous_resize_managers {
-        previous_resize_manager.delta.update(|old| {
-            if old.is_some() {
-                return None;
-            }
-            return Some(Some(Position::default()));
-        })
+    if position.is_some() {
+        for previous_resize_manager in &*previous_resize_managers {
+            previous_resize_manager.delta.update(|old| {
+                if old.is_some() {
+                    return None;
+                }
+                return Some(Some(Position::default()));
+            })
+        }
     }
+    let base = 100 / siblings;
     position
         .map(|p| p.get(direction))
         .map(|px| format!("0 0 calc({base}% + {px}px)"))

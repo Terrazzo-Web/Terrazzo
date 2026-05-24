@@ -1,18 +1,18 @@
 .resize-bar {
-    --padding: 3px;
-    --width: 5px;
-
     position: relative;
 
-    width: calc(var(--padding) + var(--padding));
-    margin-left: calc(-1 * var(--padding));
-    margin-right: calc(-1 * var(--padding));
+    width: 0;
     height: 100%;
     z-index: 100;
 
     >div {
+        --padding: 3px;
+        --width: 5px;
         position: absolute;
-        inset: 0;
+        padding-left: var(--padding);
+        padding-right: var(--padding);
+        height: 100%;
+        left: calc(-1 * var(--padding));
         cursor: col-resize;
 
         >div {

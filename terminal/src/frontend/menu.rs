@@ -96,8 +96,21 @@ fn menu_items(
         ));
         items.push(li(
             class = style::SPLITS,
-            div(img(class = style::APP_ICON, src = icons::split_horz())),
-            div(img(class = style::APP_ICON, src = icons::split_vert())),
+            div(img(
+                class = style::SPLIT_ICON,
+                src = icons::split_horz(),
+                click = tile.split_horz(),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                src = icons::split_vert(),
+                click = tile.split_vert(),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                src = icons::trash(),
+                click = tile.close(),
+            )),
         ));
         tag(
             class = style::MENU_ITEMS,
@@ -140,6 +153,7 @@ fn menu_item(
 impl App {
     pub fn icon(&self) -> icons::Icon {
         match self {
+            App::Default => icons::menu(),
             #[cfg(feature = "terminal")]
             App::Terminal => icons::terminal(),
             #[cfg(feature = "text-editor")]

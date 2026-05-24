@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use terrazzo::envelope;
 use terrazzo::prelude::XSignal;
+use web_sys::MouseEvent;
 
 use super::api::Direction;
 use super::api::Tile as TileDto;
@@ -172,5 +173,17 @@ impl<T> Deref for TilesCmp<T> {
 impl<T> std::fmt::Debug for TilesCmp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Tiles(...)")
+    }
+}
+
+impl Tile {
+    pub fn split_horz(&self) -> impl Fn(MouseEvent) + 'static {
+        |_| todo!()
+    }
+    pub fn split_vert(&self) -> impl Fn(MouseEvent) + 'static {
+        |_| todo!()
+    }
+    pub fn close(&self) -> impl Fn(MouseEvent) + 'static {
+        |_| todo!()
     }
 }

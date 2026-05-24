@@ -38,6 +38,18 @@ function getConverterOutput(page) {
   return page.locator('pre.converter-output').first();
 }
 
+function getConverterResizeBar(page) {
+  return page.locator('textarea.converter-input + .resize-bar').first();
+}
+
+function getTileResizeBars(page) {
+  return page.locator('.tile-array > .resize-bar');
+}
+
+function getTiles(page) {
+  return page.locator('.tile-array > .app-tile');
+}
+
 function waitForConversionsResponse(page) {
   return page.waitForResponse((response) =>
     response.request().method() === 'POST' &&
@@ -58,6 +70,11 @@ async function openConverter(page) {
   await expect(input).toBeVisible();
   await page.waitForTimeout(500);
   return input;
+}
+
+async function clickVerticalSplitter(page) {
+  await page.locator('.app-menu-trigger').first().hover();
+  await page.locator('img.split-vertical').first().click();
 }
 
 async function setConverterInput(page, value) {
@@ -89,6 +106,61 @@ async function selectRemote(page, name) {
   const conversionsResponse = waitForConversionsResponse(page);
   await options.filter({ hasText: optionText }).click();
   await expectConversionsResponse(await conversionsResponse);
+}
+
+async function getResizeBarStyles(resizeBar) {
+  return resizeBar.evaluate((bar) => {
+    const grip = bar.firstElementChild;
+    const line = grip?.firstElementChild;
+    const gripStyle = window.getComputedStyle(grip);
+    const lineStyle = window.getComputedStyle(line);
+    return {
+      barPosition: window.getComputedStyle(bar).position,
+      barWidth: window.getComputedStyle(bar).width,
+      cursor: gripStyle.cursor,
+      paddingLeft: gripStyle.paddingLeft,
+      paddingRight: gripStyle.paddingRight,
+      linePosition: lineStyle.position,
+      lineTransformOrigin: lineStyle.transformOrigin,
+      lineTransitionDuration: lineStyle.transitionDuration,
+    };
+  });
+}
+
+async function getResizeBarHoverPoint(resizeBar) {
+  const box = await getBoundingBox(resizeBar);
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  };
+}
+
+async function expectResizeBarCanBeHitAt(page, resizeBar, point) {
+  await expect(
+    resizeBar.evaluate((bar, { x, y }) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit === bar || bar.contains(hit);
+    }, point),
+  ).resolves.toBe(true);
+}
+
+async function getResizeBarHoverStyles(page, resizeBar) {
+  const point = await getResizeBarHoverPoint(resizeBar);
+  await page.mouse.move(point.x, point.y);
+  return resizeBar.evaluate((bar) => {
+    const line = bar.firstElementChild?.firstElementChild;
+    const lineStyle = window.getComputedStyle(line);
+    return {
+      lineBackgroundColor: lineStyle.backgroundColor,
+      lineWidth: lineStyle.width,
+    };
+  });
+}
+
+async function getBoundingBox(locator) {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return box;
 }
 
 test.describe('Converter', () => {
@@ -176,5 +248,51 @@ test.describe('Converter', () => {
 
     await selectRemote(page, 'test-client');
     await expect(getConverterOutput(page)).toHaveText(JSON.stringify(helloWorld, null, 2));
+  });
+
+  test('vertical tile splitter reuses converter separator styling and resizes with the mouse', async ({ page }) => {
+    await openConverter(page);
+
+    const converterResizeBar = getConverterResizeBar(page);
+    await expect(converterResizeBar).toBeVisible();
+    const converterResizeBarStyles = await getResizeBarStyles(converterResizeBar);
+    const converterResizeBarHoverStyles = await getResizeBarHoverStyles(page, converterResizeBar);
+
+    await clickVerticalSplitter(page);
+
+    const tiles = getTiles(page);
+    const tileResizeBars = getTileResizeBars(page);
+    const tileResizeBar = tileResizeBars.first();
+    await expect(tiles).toHaveCount(2);
+    await expect(tileResizeBar).toBeVisible();
+    await expect(tileResizeBars).toHaveCount(1);
+    await expect(getConverterInput(page)).toHaveCount(1);
+
+    await expect(
+      await getResizeBarStyles(tileResizeBar),
+    ).toEqual(converterResizeBarStyles);
+    await expect(
+      await getResizeBarHoverStyles(page, tileResizeBar),
+    ).toEqual(converterResizeBarHoverStyles);
+
+    const leftTile = tiles.first();
+    const beforeDrag = await getBoundingBox(leftTile);
+    const dragStart = await getResizeBarHoverPoint(tileResizeBar);
+    await expectResizeBarCanBeHitAt(page, tileResizeBar, dragStart);
+    const dragDistance = 120;
+
+    await page.mouse.move(dragStart.x, dragStart.y);
+    await page.mouse.down();
+    await page.mouse.move(
+      dragStart.x + dragDistance,
+      dragStart.y,
+      { steps: 6 },
+    );
+    await page.mouse.up();
+
+    await expect.poll(async () => {
+      const box = await getBoundingBox(leftTile);
+      return Math.round(box.width - beforeDrag.width);
+    }).toBeGreaterThan(90);
   });
 });

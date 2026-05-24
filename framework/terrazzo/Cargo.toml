@@ -27,6 +27,7 @@ include_directory = { workspace = true, optional = true }
 mime = { workspace = true, optional = true }
 mime_guess = { workspace = true, optional = true }
 nameth = { workspace = true, optional = true }
+pin-project = { workspace = true, optional = true }
 rsass = { workspace = true, optional = true }
 rsass-macros = { workspace = true, optional = true }
 scopeguard = { workspace = true, optional = true }
@@ -49,6 +50,9 @@ web-sys = { workspace = true, optional = true, features = [
   "Window",
 ] }
 
+[dev-dependencies]
+scopeguard = { workspace = true }
+
 [build-dependencies]
 scopeguard = { workspace = true }
 terrazzo-build = { workspace = true }
@@ -57,6 +61,7 @@ terrazzo-build = { workspace = true }
 client = [
   "dep:futures",
   "dep:nameth",
+  "dep:pin-project",
   "dep:scopeguard",
   "dep:terrazzo-client",
   "dep:terrazzo-css",

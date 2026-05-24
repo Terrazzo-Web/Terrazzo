@@ -95,6 +95,8 @@ fn show_tiles_rec(
                 },
                 key = tile.id.to_string(),
                 class = style::APP_TILE,
+                #[cfg(not(feature = "client-prod"))]
+                class = "app-tile",
                 style::flex %= size(
                     parent_resize_manager.delta.clone(),
                     siblings,
@@ -127,6 +129,8 @@ fn show_tiles_rec(
             });
             div(
                 class %= direction_class(direction.clone()),
+                #[cfg(not(feature = "client-prod"))]
+                class = "tile-array",
                 style::flex %= size(
                     parent_resize_manager.delta.clone(),
                     siblings,

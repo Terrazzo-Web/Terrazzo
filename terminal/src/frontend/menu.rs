@@ -98,16 +98,22 @@ fn menu_items(
             class = style::SPLITS,
             div(img(
                 class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "split-horizontal",
                 src = icons::split_horz(),
                 click = tile.split_horz(),
             )),
             div(img(
                 class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "split-vertical",
                 src = icons::split_vert(),
                 click = tile.split_vert(),
             )),
             div(img(
                 class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "tile-close",
                 src = icons::close_app(),
                 click = tile.close(),
             )),

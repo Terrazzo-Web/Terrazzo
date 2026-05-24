@@ -145,8 +145,8 @@ fn show_tiles_rec(
 #[template(wrap = true)]
 pub fn direction_class(#[signal] direction: Direction) -> XAttributeValue {
     match direction {
-        Direction::Vertical => style::HORIZONTAL_TILE,
-        Direction::Horizontal => style::VERTICAL_TILE,
+        Direction::Horizontal => style::HORIZONTAL_TILE,
+        Direction::Vertical => style::VERTICAL_TILE,
     }
 }
 #[html]
@@ -179,7 +179,6 @@ fn size(
     #[signal] direction: Direction,
 ) -> XAttributeValue {
     let base = 100 / siblings;
-    position
-        .map(|p| p.get(direction))
-        .map(|px| format!("0 0 calc({base}% + {px}px)"))
+    let px = position.map(|p| p.get(direction)).unwrap_or_default();
+    format!("0 0 calc({base}% + {px}px)")
 }

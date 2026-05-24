@@ -21,6 +21,8 @@ pub struct MousemoveManagerImpl {
 
 pub use MousemoveManagerImplPtr as MousemoveManager;
 
+use crate::tiles::api::Direction;
+
 unsafe impl Send for MousemoveManager {}
 unsafe impl Sync for MousemoveManager {}
 
@@ -71,6 +73,15 @@ impl MousemoveManager {
 pub struct Position {
     pub x: i32,
     pub y: i32,
+}
+
+impl Position {
+    pub fn get(&self, direction: Direction) -> i32 {
+        match direction {
+            Direction::Horizontal => self.x,
+            Direction::Vertical => self.y,
+        }
+    }
 }
 
 impl From<MouseEvent> for Position {

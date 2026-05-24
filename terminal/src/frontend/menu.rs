@@ -94,6 +94,11 @@ fn menu_items(
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));
+        items.push(li(
+            class = style::SPLITS,
+            div(img(class = style::APP_ICON, src = icons::split_horz())),
+            div(img(class = style::APP_ICON, src = icons::split_vert())),
+        ));
         tag(
             class = style::MENU_ITEMS,
             mouseover = move |_: MouseEvent| {

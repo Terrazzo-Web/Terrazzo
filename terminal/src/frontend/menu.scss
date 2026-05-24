@@ -54,3 +54,15 @@ ul.menu-items:not(:hover) {
         }
     }
 }
+
+li.splits {
+    display: flex;
+    flex-direction: row;
+
+    >div {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}

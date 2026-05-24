@@ -76,6 +76,9 @@ fn install_icons() {
         install_icon(super::icons::chevron_bar_up());
         install_icon(super::icons::chevron_bar_down());
     }
+
+    install_icon(super::icons::split_horz());
+    install_icon(super::icons::split_vert());
 }
 
 fn install_xterm() {

@@ -1,10 +1,9 @@
 use std::process::ExitCode;
 
-#[cfg(not(feature = "bazel"))]
 use clap as _;
-#[cfg(not(feature = "bazel"))]
+#[cfg(feature = "bazel")]
 use runfiles as _;
-#[cfg(not(feature = "bazel"))]
+use terrazzo_synctex as _;
 use thiserror as _;
 
 fn main() -> ExitCode {

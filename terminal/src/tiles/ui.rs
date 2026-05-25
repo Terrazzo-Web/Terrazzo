@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::ops::ControlFlow;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -46,6 +47,26 @@ impl RootTree {
             }
             Err(error) => warn!("Failed to update tiles: {error}"),
         }
+    }
+
+    #[cfg_attr(not(feature = "terminal"), expect(unused))]
+    pub fn foreach(mut f: impl FnMut(&TilePtr) -> ControlFlow<()>) -> ControlFlow<()> {
+        fn aux(tiles: &Tiles, f: &mut impl FnMut(&TilePtr) -> ControlFlow<()>) -> ControlFlow<()> {
+            match tiles {
+                Tiles::Tile(tile) => f(tile),
+                Tiles::Array { nodes, .. } => {
+                    for node in nodes {
+                        match aux(node, f) {
+                            ControlFlow::Continue(()) => (),
+                            ControlFlow::Break(()) => break,
+                        }
+                    }
+                    ControlFlow::Continue(())
+                }
+            }
+        }
+
+        aux(&ROOT_TREE.get_value_untracked(), &mut f)
     }
 }
 

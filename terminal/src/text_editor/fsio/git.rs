@@ -17,7 +17,6 @@ pub fn is_in_git_repo(path: impl AsRef<Path>) -> bool {
     GIT_REPOS.is_in_git_repo(path.as_ref())
 }
 
-#[allow(dead_code)]
 pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::Result<String> {
     let path = path.as_ref().canonicalize()?;
     let parent = path.parent().ok_or_else(|| {
@@ -42,7 +41,6 @@ pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::
     git_output(&repo_root, ["show", object.as_str()])
 }
 
-#[allow(dead_code)]
 fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<String> {
     let output = Command::new("git").args(args).current_dir(cwd).output()?;
     if !output.status.success() {

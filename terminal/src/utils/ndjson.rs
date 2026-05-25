@@ -1,13 +1,10 @@
-#![cfg(feature = "logs-panel")]
-
 use std::marker::PhantomData;
 
-#[cfg(any(feature = "server", test))]
+#[cfg(test)]
 pub fn serialize_line<T: serde::Serialize>(value: &T) -> Result<String, serde_json::Error> {
     serde_json::to_string(value).map(|json| json + "\n")
 }
 
-#[allow(dead_code)]
 pub struct NdjsonBuffer<T> {
     pending: String,
     _phantom: PhantomData<fn() -> T>,

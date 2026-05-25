@@ -13,14 +13,12 @@ pub struct FilePath<BASE, FILE = BASE> {
 }
 
 impl<B: AsRef<Path>, F: AsRef<Path>> FilePath<B, F> {
-    #[allow(unused)]
     pub fn full_path(&self) -> PathBuf {
         self.base.as_ref().join(self.file.as_ref())
     }
 }
 
 impl<B, F> FilePath<B, F> {
-    #[allow(unused)]
     pub fn as_ref(&self) -> FilePath<&B, &F> where {
         FilePath {
             base: &self.base,
@@ -30,7 +28,6 @@ impl<B, F> FilePath<B, F> {
 }
 
 impl<B: Deref, F: Deref> FilePath<B, F> {
-    #[allow(unused)]
     pub fn as_deref(&self) -> FilePath<&B::Target, &F::Target> where {
         FilePath {
             base: &self.base,
@@ -40,14 +37,12 @@ impl<B: Deref, F: Deref> FilePath<B, F> {
 }
 
 impl<T> FilePath<T> {
-    #[allow(unused)]
     pub fn map<U>(self, f: impl Fn(T) -> U) -> FilePath<U> {
         self.map2(&f, &f)
     }
 }
 
 impl<B, F> FilePath<B, F> {
-    #[allow(unused)]
     pub fn map2<BB, FF>(
         self,
         b: impl FnOnce(B) -> BB,

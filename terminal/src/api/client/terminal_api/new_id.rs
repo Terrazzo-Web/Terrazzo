@@ -9,14 +9,16 @@ use crate::api::client::request::send_request;
 use crate::api::client::request::set_json_body;
 use crate::api::client::terminal_api::BASE_TERMINAL_URL;
 use crate::api::client_address::ClientAddress;
+use crate::api::shared::terminal_schema::NewTerminalRequest;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::tiles::id::TileId;
 
 #[nameth]
-pub async fn new_id(address: ClientAddress) -> Result<TerminalDef, NewIdError> {
+pub async fn new_id(address: ClientAddress, tile: TileId) -> Result<TerminalDef, NewIdError> {
     let response: Response = send_request(
         Method::POST,
         format!("{BASE_TERMINAL_URL}/{NEW_ID}"),
-        set_json_body(&address)?,
+        set_json_body(&NewTerminalRequest { address, tile })?,
     )
     .await?;
     let result = response

@@ -238,6 +238,14 @@ impl TextEditorManager {
                     .unwrap_or_else(|error| Some(fsio::File::Error(error.to_string())))
                     .map(Arc::new);
 
+                if this.path.base.get_value_untracked() != path.base
+                    || this.path.file.get_value_untracked() != path.file
+                {
+                    debug!("Ignoring stale file load for {:?}", path);
+                    drop(loading);
+                    return;
+                }
+
                 if let Some(fsio::File::TextFile { metadata, .. }) = data.as_deref() {
                     this.add_to_side_view(metadata, &path);
                 }

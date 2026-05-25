@@ -183,15 +183,15 @@ _EXCLUSION_MAP = [
     {"feature": "tiles-state-client", "delta": []},
     {"feature": "tiles-state-server", "delta": []},
     {"feature": "remote-fn-streaming", "delta": [150, 9]},
-    {"feature": "remote-fn", "delta": [168, 6, 505]},
-    {"feature": "remote-fn-unary", "delta": [-503, -166, 9]},
+    {"feature": "remote-fn", "delta": [168, 6, 507]},
+    {"feature": "remote-fn-unary", "delta": [-505, -166, 9]},
     {"feature": "converter", "delta": [-178, 6, 246, 2, 252, 15]},
-    {"feature": "logs-panel", "delta": [-280, 15, -248, 2, 306, 4, 316, 5]},
-    {"feature": "port-forward", "delta": [-324, 5, -312, 4, 134, 4, 144, 2, 326, 3, 334, 4]},
+    {"feature": "logs-panel", "delta": [-280, 15, -248, 2, 306, 4, 316, 5, 502, 2]},
+    {"feature": "port-forward", "delta": [-504, 2, -324, 5, -312, 4, 134, 4, 144, 2, 326, 3, 334, 4]},
     {"feature": "text-editor", "delta": [-340, 4, -330, 3, -146, 2, -140, 4, 112, 4, 122, 6, 298, 3, 376, 14, 406, 15, 440, 14]},
-    {"feature": "client", "delta": [-458, 10, -434, 15, -402, 14, -132, 6, -118, 4, 3, 6, 17, 282, 2, 288, 5, 307, 311, 360, 2, 366, 4]},
-    {"feature": "terminal", "delta": [-466, 4, -309, -305, -302, 8, -284, 2, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 342, 3, 350, 4]},
-    {"feature": "server", "delta": [-372, 4, -362, 2, -38, 13, -9, 46, 4, 57, 94, 47, 199, 212, 11, 236, 5, 254, 13, 329]},
+    {"feature": "client", "delta": [-458, 10, -434, 15, -402, 14, -132, 6, -118, 4, 3, 6, 17, 282, 2, 288, 5, 307, 311, 360, 2, 366, 4, 503]},
+    {"feature": "terminal", "delta": [-501, -466, 4, -309, -305, -302, 8, -284, 2, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 342, 3, 350, 4]},
+    {"feature": "server", "delta": [-372, 4, -362, 2, -38, 13, -9, 46, 4, 57, 94, 47, 199, 212, 11, 236, 5, 254, 13, 329, 505]},
 ]
 
 def compute_srcs(features):

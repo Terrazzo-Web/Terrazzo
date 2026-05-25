@@ -39,7 +39,6 @@ impl<T: AsRef<JsValue>> ElementCapture<T> {
         self.try_with(f).or_throw("Element was not set")
     }
 
-    #[allow(unused)]
     pub fn get(&self) -> T
     where
         T: Clone,

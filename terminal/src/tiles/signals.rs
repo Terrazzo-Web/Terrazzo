@@ -198,6 +198,7 @@ impl Tile {
     }
 
     pub fn close(&self) -> impl Fn(MouseEvent) + 'static {
-        |_| todo!()
+        let tile_id = self.id;
+        move |_| spawn_local(async move { RootTree::update(super::api::remove(tile_id).await) })
     }
 }

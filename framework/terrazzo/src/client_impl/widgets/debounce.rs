@@ -100,6 +100,7 @@ impl DoDebounce for Debounce {
     #[autoclone]
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         let state = Ptr::new(Cell::new(DebounceState::default()));
+        let clear_timeout_on_drop = ClearDebounceOnDrop(state.clone());
         let max_delay_millis = self.max_delay.map(|d| d.as_secs_f64() * 1000.);
         let closure: Closure<dyn Fn()> = Closure::new(move || {
             autoclone!(state);
@@ -108,6 +109,7 @@ impl DoDebounce for Debounce {
             state.last_run = PERFORMANCE.now();
         });
         move |arg| {
+            let _ = &clear_timeout_on_drop;
             let now = PERFORMANCE.now();
             let mut state = guard(state.take(), |new_state| state.set(new_state));
             if let Some(max_delay_millis) = max_delay_millis
@@ -185,6 +187,16 @@ impl DoDebounce for Debounce {
         Debounce {
             delay: self.delay,
             max_delay: Some(self.delay),
+        }
+    }
+}
+
+struct ClearDebounceOnDrop<T>(Ptr<Cell<DebounceState<T>>>);
+
+impl<T> Drop for ClearDebounceOnDrop<T> {
+    fn drop(&mut self) {
+        if let Some(ScheduledRun { timeout_id, .. }) = self.0.take().scheduled_run {
+            WINDOW.clear_timeout_with_handle(timeout_id);
         }
     }
 }

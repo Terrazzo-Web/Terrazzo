@@ -55,6 +55,7 @@ impl TerminalTab {
             address,
             title,
             order,
+            tile,
         } = terminal_definition;
         let terminal_id = &address.id;
         let selected = {
@@ -108,6 +109,7 @@ impl TerminalTab {
                 address,
                 title,
                 order,
+                tile,
             },
             selected,
             xtermjs: Mutex::new(None),
@@ -210,6 +212,7 @@ impl TerminalTabInner {
             address: self.address.clone(),
             title: self.title.get_value_untracked().map(|t| t.to_string()),
             order: self.order,
+            tile: self.tile,
         }
     }
 }

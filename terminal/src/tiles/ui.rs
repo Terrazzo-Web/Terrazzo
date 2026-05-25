@@ -1,5 +1,7 @@
 #![cfg(feature = "client")]
 
+use std::ops::ControlFlow;
+use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -47,6 +49,26 @@ impl RootTree {
             Err(error) => warn!("Failed to update tiles: {error}"),
         }
     }
+
+    #[cfg_attr(not(feature = "terminal"), expect(unused))]
+    pub fn foreach(mut f: impl FnMut(&TilePtr) -> ControlFlow<()>) -> ControlFlow<()> {
+        fn aux(tiles: &Tiles, f: &mut impl FnMut(&TilePtr) -> ControlFlow<()>) -> ControlFlow<()> {
+            match tiles {
+                Tiles::Tile(tile) => f(tile),
+                Tiles::Array { nodes, .. } => {
+                    for node in nodes {
+                        match aux(node, f) {
+                            ControlFlow::Continue(()) => (),
+                            ControlFlow::Break(()) => break,
+                        }
+                    }
+                    ControlFlow::Continue(())
+                }
+            }
+        }
+
+        aux(&ROOT_TREE.get_value_untracked(), &mut f)
+    }
 }
 
 impl std::ops::Deref for RootTree {
@@ -69,7 +91,7 @@ fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
         1,
         MousemoveManager::new(),
         XSignal::new("direction0", Direction::Horizontal),
-        vec![],
+        RcSlice::new(Rc::default(), 0..0),
     )
 }
 
@@ -79,7 +101,7 @@ fn show_tiles_rec(
     siblings: usize,
     parent_resize_manager: MousemoveManager,
     parent_direction: XSignal<Direction>,
-    previous_resize_managers: Vec<MousemoveManager>,
+    previous_resize_managers: RcSlice<MousemoveManager>,
 ) -> XElement {
     match tiles {
         Tiles::Tile(tile) => {
@@ -104,7 +126,7 @@ fn show_tiles_rec(
                     parent_resize_manager.delta.clone(),
                     siblings,
                     parent_direction,
-                    Rc::new(previous_resize_managers),
+                    previous_resize_managers,
                 ),
                 show_app(tile.clone(), tile.app.clone()),
                 #[cfg(feature = "logs-panel")]
@@ -117,21 +139,21 @@ fn show_tiles_rec(
             nodes,
         } => {
             let count = nodes.len();
-            let mut resize_managers: Vec<MousemoveManager> = vec![];
+            let resize_managers: Rc<[MousemoveManager]> =
+                (0..count).map(|_| MousemoveManager::new()).collect();
             let nodes = nodes.iter().enumerate().flat_map(|(i, node)| {
-                let resize_manager = MousemoveManager::new();
+                let resize_manager = &resize_managers[i];
                 let node = show_tiles_rec(
                     node.as_ref(),
                     nodes.len(),
                     resize_manager.clone(),
                     direction.clone(),
-                    resize_managers.clone(),
+                    RcSlice::new(resize_managers.clone(), 0..i),
                 );
                 if i == count - 1 {
                     return vec![node];
                 }
-                resize_managers.push(resize_manager.clone());
-                let sep = resize_bar(resize_manager, direction.clone());
+                let sep = resize_bar(resize_manager.clone(), direction.clone());
                 vec![node, sep]
             });
             div(
@@ -142,11 +164,28 @@ fn show_tiles_rec(
                     parent_resize_manager.delta.clone(),
                     siblings,
                     parent_direction,
-                    Rc::new(previous_resize_managers),
+                    previous_resize_managers,
                 ),
                 nodes..,
             )
         }
+    }
+}
+
+#[derive(Clone)]
+struct RcSlice<T> {
+    data: Rc<[T]>,
+    range: Range<usize>,
+}
+
+impl<T> RcSlice<T> {
+    fn new(data: Rc<[T]>, range: Range<usize>) -> Self {
+        assert!(range.end <= data.len());
+        Self { data, range }
+    }
+
+    fn as_slice(&self) -> &[T] {
+        &self.data[self.range.clone()]
     }
 }
 
@@ -186,10 +225,10 @@ fn size(
     #[signal] mut position: Option<Position>,
     siblings: usize,
     #[signal] direction: Direction,
-    previous_resize_managers: Rc<Vec<MousemoveManager>>,
+    previous_resize_managers: RcSlice<MousemoveManager>,
 ) -> XAttributeValue {
     if position.is_some() {
-        for previous_resize_manager in &*previous_resize_managers {
+        for previous_resize_manager in previous_resize_managers.as_slice() {
             previous_resize_manager.delta.update(|old| {
                 if old.is_some() {
                     return None;

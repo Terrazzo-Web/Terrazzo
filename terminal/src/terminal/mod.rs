@@ -1,6 +1,9 @@
 #![cfg(feature = "client")]
 #![cfg(feature = "terminal")]
 
+use std::collections::HashSet;
+use std::ops::ControlFlow;
+
 use terminal_tab::TerminalTab;
 use terrazzo::html;
 use terrazzo::prelude::*;
@@ -17,7 +20,10 @@ use self::diagnostics::warn;
 use self::terminal_tabs::TerminalTabs;
 use crate::api::client::terminal_api;
 use crate::terminal_id::TerminalId;
+use crate::tiles::app::App;
+use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
+use crate::tiles::ui::RootTree;
 
 terrazzo_css::import_style!(style, "terminal.scss");
 
@@ -37,7 +43,7 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
     let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
-    refresh_terminal_tabs(selected_tab.clone(), terminal_tabs.clone());
+    refresh_terminal_tabs(tile.id, selected_tab.clone(), terminal_tabs.clone());
     let state = TerminalsState {
         tile: tile.clone(),
         selected_tab: selected_tab.clone(),
@@ -94,7 +100,11 @@ fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString>
     return format!("{name} {class}");
 }
 
-fn refresh_terminal_tabs(selected_tab: XSignal<TerminalId>, terminal_tabs: XSignal<TerminalTabs>) {
+fn refresh_terminal_tabs(
+    tile: TileId,
+    selected_tab: XSignal<TerminalId>,
+    terminal_tabs: XSignal<TerminalTabs>,
+) {
     let refresh_terminal_tabs_task = async move {
         let terminal_defs = match terminal_api::list::list().await {
             Ok(terminal_defs) => terminal_defs,
@@ -103,6 +113,35 @@ fn refresh_terminal_tabs(selected_tab: XSignal<TerminalId>, terminal_tabs: XSign
                 return;
             }
         };
+        let mut all_tile_ids: Option<HashSet<TileId>> = None;
+        let _: ControlFlow<()> = RootTree::foreach(|t| {
+            if t.app.get_value_untracked() != App::Terminal {
+                return ControlFlow::Continue(());
+            }
+            if let Some(all_tile_ids) = &mut all_tile_ids {
+                all_tile_ids.insert(t.id);
+                ControlFlow::Continue(())
+            } else {
+                // This is the first Terminal tile
+                if t.id != tile {
+                    ControlFlow::Break(())
+                } else {
+                    all_tile_ids = Some([tile].into());
+                    ControlFlow::Continue(())
+                }
+            }
+        });
+        let terminal_defs = terminal_defs
+            .into_iter()
+            .filter(|def| {
+                def.tile == tile
+                    || if let Some(all_tile_ids) = &all_tile_ids {
+                        !all_tile_ids.contains(&def.tile)
+                    } else {
+                        false
+                    }
+            })
+            .collect::<Vec<_>>();
         let batch = Batch::use_batch("refresh_terminal_tabs");
         if let Some(first_terminal) = terminal_defs.first() {
             let selected_tab_value = selected_tab.get_value_untracked();

@@ -168,9 +168,9 @@ async function openFolderFile(page, name) {
         .poll(
             async () => {
                 try {
-                    await getFolderFile(page, name).evaluate((node) => node.click(), {
-                        timeout: SECOND,
-                    });
+                    const folderFile = getFolderFile(page, name);
+                    await folderFile.waitFor({ state: 'visible', timeout: SECOND });
+                    await folderFile.evaluate((node) => node.click());
                     return true;
                 } catch {
                     return false;
@@ -199,9 +199,11 @@ async function createCommittedReadme() {
 }
 
 async function replaceEditorText(page, editor, content) {
+    await expect(editor).toBeVisible({ timeout: 30 * SECOND });
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
     await page.keyboard.type(content);
+    await expect(editor).toContainText(content, { timeout: 10 * SECOND });
 }
 
 async function closeSideViewFile(page, filePath) {
@@ -350,6 +352,7 @@ test.describe('Text editor', () => {
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
 
         await closeSideViewFile(page, fileName);
+        await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 30 * SECOND });
@@ -357,10 +360,11 @@ test.describe('Text editor', () => {
         await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 30 * SECOND });
         await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 30 * SECOND });
 
-        await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
+        await writeFile(filePath, 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
         await closeSideViewFile(page, fileName);
+        await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });

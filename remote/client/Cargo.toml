@@ -41,7 +41,6 @@ uuid = { workspace = true }
 terrazzo-fixture = { workspace = true }
 trz-gateway-server = { workspace = true }
 
-portpicker = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

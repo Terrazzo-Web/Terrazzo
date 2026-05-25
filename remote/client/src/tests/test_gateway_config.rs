@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -42,11 +43,16 @@ impl TestGatewayConfig {
         let root_ca = make_root_ca().expect("test_root_ca()");
         let tls_config = make_tls_config().expect("tls_config()");
         Arc::new(Self {
-            port: portpicker::pick_unused_port().expect("pick_unused_port()"),
+            port: pick_unused_port().expect("pick_unused_port()"),
             root_ca,
             tls_config,
         })
     }
+}
+
+fn pick_unused_port() -> std::io::Result<u16> {
+    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+    Ok(listener.local_addr()?.port())
 }
 
 impl GatewayConfig for TestGatewayConfig {

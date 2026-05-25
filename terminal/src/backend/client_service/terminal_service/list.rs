@@ -24,6 +24,7 @@ pub async fn list_terminals(server: &Server, visited: Vec<String>) -> Vec<Termin
                 shell_title: title.shell_title.clone(),
                 override_title: title.override_title.clone().map(|s| MaybeString { s }),
                 order: terminal.order,
+                tile: terminal.tile.into(),
             }
         }));
         for client_name in server.connections().clients() {

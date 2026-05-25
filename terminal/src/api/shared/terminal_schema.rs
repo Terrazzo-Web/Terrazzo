@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use crate::api::client_address::ClientAddress;
 use crate::terminal_id::TerminalId;
+use crate::tiles::id::TileId;
 
 pub const STREAMING_WINDOW_SIZE: usize = 200 * 1000;
 
@@ -50,6 +51,8 @@ pub struct TerminalDefImpl<T> {
     pub title: T,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "o"))]
     pub order: i32,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
+    pub tile: TileId,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -71,6 +74,14 @@ impl<T> TabTitle<T> {
 }
 
 pub type TerminalDef = TerminalDefImpl<TabTitle<String>>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewTerminalRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "a"))]
+    pub address: ClientAddress,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
+    pub tile: TileId,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RegisterTerminalRequest {

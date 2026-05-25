@@ -1,3 +1,4 @@
+use tracing::warn;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
@@ -23,7 +24,10 @@ impl From<TerminalDefProto> for TerminalDef {
                 override_title: proto.override_title.map(|s| s.s),
             },
             order: proto.order,
-            tile: TileId::from_i64(proto.tile).unwrap_or_else(TileId::first_tile_id),
+            tile: TileId::try_from(proto.tile).unwrap_or_else(|error| {
+                warn!("{error}");
+                TileId::first_tile_id()
+            }),
         }
     }
 }

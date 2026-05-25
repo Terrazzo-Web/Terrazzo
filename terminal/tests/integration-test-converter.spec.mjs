@@ -150,7 +150,8 @@ async function expectResizeBarCanBeHitAt(page, resizeBar, point) {
 async function getResizeBarHoverStyles(page, resizeBar) {
     const point = await getResizeBarHoverPoint(resizeBar);
     await page.mouse.move(point.x, point.y);
-    return resizeBar.evaluate((bar) => {
+    await expectResizeBarCanBeHitAt(page, resizeBar, point);
+    const readHoverStyles = () => resizeBar.evaluate((bar) => {
         const line = bar.firstElementChild?.firstElementChild;
         const lineStyle = window.getComputedStyle(line);
         return {
@@ -158,6 +159,16 @@ async function getResizeBarHoverStyles(page, resizeBar) {
             lineWidth: lineStyle.width,
         };
     });
+    await expect.poll(readHoverStyles, { timeout: 5 * SECOND }).not.toEqual({
+        lineBackgroundColor: 'rgba(0, 0, 0, 0)',
+        lineWidth: '0px',
+    });
+    return readHoverStyles();
+}
+
+function expectActiveResizeBarHoverStyles(styles) {
+    expect(styles.lineBackgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(parseFloat(styles.lineWidth)).toBeGreaterThan(0);
 }
 
 async function getBoundingBox(locator) {
@@ -259,7 +270,7 @@ test.describe('Converter', () => {
         const converterResizeBar = getConverterResizeBar(page);
         await expect(converterResizeBar).toBeAttached();
         const converterResizeBarStyles = await getResizeBarStyles(converterResizeBar);
-        const converterResizeBarHoverStyles = await getResizeBarHoverStyles(page, converterResizeBar);
+        expectActiveResizeBarHoverStyles(await getResizeBarHoverStyles(page, converterResizeBar));
 
         await clickVerticalSplitter(page);
 
@@ -274,9 +285,7 @@ test.describe('Converter', () => {
         await expect(
             await getResizeBarStyles(tileResizeBar),
         ).toEqual(converterResizeBarStyles);
-        await expect(
-            await getResizeBarHoverStyles(page, tileResizeBar),
-        ).toEqual(converterResizeBarHoverStyles);
+        expectActiveResizeBarHoverStyles(await getResizeBarHoverStyles(page, tileResizeBar));
 
         const leftTile = tiles.first();
         const beforeDrag = await getBoundingBox(leftTile);

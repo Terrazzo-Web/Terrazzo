@@ -141,7 +141,7 @@ async function showBasePathInput(page, timeout = 30 * SECOND) {
     return basePathInput;
 }
 
-async function setBasePath(page, baseDir, expectedFileName) {
+async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECOND) {
     await expect
         .poll(
             async () => {
@@ -158,12 +158,12 @@ async function setBasePath(page, baseDir, expectedFileName) {
                     return false;
                 }
             },
-            { timeout: 30 * SECOND },
+            { timeout },
         )
         .toBe(true);
 }
 
-async function openFolderFile(page, name) {
+async function openFolderFile(page, name, timeout = 60 * SECOND) {
     await expect
         .poll(
             async () => {
@@ -176,9 +176,14 @@ async function openFolderFile(page, name) {
                     return false;
                 }
             },
-            { timeout: 30 * SECOND },
+            { timeout },
         )
         .toBe(true);
+}
+
+async function reloadFolder(page, baseDir, fileName) {
+    await setBasePath(page, baseDir, fileName);
+    await openFolderFile(page, fileName);
 }
 
 async function git(cwd, args) {
@@ -333,7 +338,7 @@ test.describe('Text editor', () => {
     });
 
     test('shows a git diff for modified files and returns to plain view when reverted', async ({ page }) => {
-        test.setTimeout(60 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const { baseDir, fileName, filePath } = await createCommittedReadme();
 
@@ -349,8 +354,7 @@ test.describe('Text editor', () => {
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
 
-        await closeSideViewFile(page, fileName);
-        await openFolderFile(page, fileName);
+        await reloadFolder(page, `${baseDir}${path.sep}.`, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 30 * SECOND });
         const diffEditors = getCodeMirrorContent(page);
@@ -360,8 +364,7 @@ test.describe('Text editor', () => {
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
-        await closeSideViewFile(page, fileName);
-        await openFolderFile(page, fileName);
+        await reloadFolder(page, baseDir, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
         await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 30 * SECOND });

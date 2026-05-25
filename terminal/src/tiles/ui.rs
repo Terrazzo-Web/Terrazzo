@@ -139,10 +139,8 @@ fn show_tiles_rec(
             nodes,
         } => {
             let count = nodes.len();
-            let resize_managers: Rc<[MousemoveManager]> = (0..count)
-                .into_iter()
-                .map(|_| MousemoveManager::new())
-                .collect();
+            let resize_managers: Rc<[MousemoveManager]> =
+                (0..count).map(|_| MousemoveManager::new()).collect();
             let nodes = nodes.iter().enumerate().flat_map(|(i, node)| {
                 let resize_manager = &resize_managers[i];
                 let node = show_tiles_rec(

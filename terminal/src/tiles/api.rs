@@ -58,8 +58,10 @@ pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>,
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum Direction {
-    Vertical,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "H"))]
     Horizontal,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "V"))]
+    Vertical,
 }
 
 // Basic

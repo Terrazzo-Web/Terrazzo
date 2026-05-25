@@ -76,6 +76,10 @@ fn install_icons() {
         install_icon(super::icons::chevron_bar_up());
         install_icon(super::icons::chevron_bar_down());
     }
+
+    install_icon(super::icons::split_horz());
+    install_icon(super::icons::split_vert());
+    install_icon(super::icons::close_app());
 }
 
 fn install_xterm() {

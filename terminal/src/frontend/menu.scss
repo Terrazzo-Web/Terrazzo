@@ -45,12 +45,35 @@ ul.menu-items {
             margin-right: var(--padding);
         }
     }
+
+    &:not(:hover) {
+        >li {
+            &.active {
+                background-color: var(--link-color);
+            }
+        }
+    }
 }
 
-ul.menu-items:not(:hover) {
-    >li {
-        &.active {
+div.menu>ul.menu-items>li.splits {
+    background-color: var(--background-color);
+    cursor: default;
+
+    .split-icon {
+        @include trz-icon;
+        padding: 2px;
+
+        &:hover {
+            filter: invert(0);
             background-color: var(--link-color);
+            cursor: pointer;
         }
+    }
+
+    >div {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }

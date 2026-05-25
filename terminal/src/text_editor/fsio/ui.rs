@@ -37,46 +37,46 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
     assert!(std::mem::needs_drop::<B>());
     assert!(std::mem::needs_drop::<A>());
     let debounced_store_file_fn = &*DEBOUNCED_STORE_FILE_FN;
-    let store_file_state = &*STORE_FILE_STATE;
-    while let Some(done) = pending_different_file(&remote, &path) {
-        done.await;
-    }
-
-    let (done_tx, done_rx) = oneshot::channel();
-    let done = {
-        let done: BoxFuture = Box::pin(done_rx.map(|_result: Result<(), oneshot::Canceled>| ()));
-        done.shared()
-    };
-    {
-        let mut store_file_state = store_file_state.lock().expect("store_file_state");
-        store_file_state.pending = Some(PendingStoreFile {
-            remote: remote.clone(),
-            path: path.clone(),
-            done,
-        });
-    }
+    let done = wait_for_pending_store_file(&remote, &path).await;
     debounced_store_file_fn(StoreFileFnArg {
         remote,
         path,
         content,
         before: Box::new(before),
         after: Box::new(after),
-        done: done_tx,
+        done,
     })
     .await;
 }
 
-fn pending_different_file(remote: &Remote, path: &FilePath<Arc<str>>) -> Option<Shared<BoxFuture>> {
-    let store_file_state = STORE_FILE_STATE.lock().expect("store_file_state");
-    let Some(PendingStoreFile {
-        remote: pending_remote,
-        path: pending_path,
-        done,
-    }) = &store_file_state.pending
-    else {
-        return None;
-    };
-    (pending_remote != remote || pending_path != path).then(|| done.clone())
+async fn wait_for_pending_store_file(
+    remote: &Remote,
+    path: &FilePath<Arc<str>>,
+) -> oneshot::Sender<()> {
+    loop {
+        let done = {
+            let mut store_file_state = STORE_FILE_STATE.lock().expect("store_file_state");
+            match &store_file_state.pending {
+                Some(PendingStoreFile {
+                    remote: pending_remote,
+                    path: pending_path,
+                    done,
+                }) if pending_remote != remote || pending_path != path => done.clone(),
+                _ => {
+                    let (done_tx, done_rx) = oneshot::channel();
+                    let done: BoxFuture =
+                        Box::pin(done_rx.map(|_result: Result<(), oneshot::Canceled>| ()));
+                    store_file_state.pending = Some(PendingStoreFile {
+                        remote: remote.clone(),
+                        path: path.clone(),
+                        done: done.shared(),
+                    });
+                    return done_tx;
+                }
+            }
+        };
+        done.await;
+    }
 }
 
 fn make_debounced_store_file_fn() -> StoreFileFn {

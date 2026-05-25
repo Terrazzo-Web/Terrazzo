@@ -5228,7 +5228,6 @@ dependencies = [
  "nameth",
  "openssl",
  "pin-project",
- "portpicker",
  "prost-types",
  "reqwest",
  "scopeguard",

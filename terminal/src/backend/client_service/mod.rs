@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::Server;
 
 use super::config::DynConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 
 pub mod convert;
 pub mod grpc_error;

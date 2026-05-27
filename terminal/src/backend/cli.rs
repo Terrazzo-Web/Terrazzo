@@ -30,6 +30,10 @@ pub struct Cli {
     #[arg(long)]
     pub ports: Vec<u16>,
 
+    /// The shell command to run for new terminals.
+    #[arg(long)]
+    pub terminal_shell: Option<String>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,

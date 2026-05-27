@@ -56,6 +56,7 @@ impl TerminalService for ClientServiceImpl {
         use self::terminal_service::register::register;
         let stream = register(
             Some(self.client_name.clone()),
+            self.config.clone(),
             &self.server,
             request.into_inner(),
         )

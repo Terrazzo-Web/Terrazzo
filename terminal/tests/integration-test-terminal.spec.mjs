@@ -61,6 +61,7 @@ test.describe('Terminal', () => {
     await expect(tabs).toHaveCount(1);
     await expect(activeTerminal).toHaveCount(1);
 
+    await expect(activeTerminal).toContainText('Welcome to Test Environment');
     await activeTerminal.click();
     await page.keyboard.type('echo $((191*7))');
     await page.keyboard.press('Enter');

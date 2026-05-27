@@ -8,6 +8,7 @@ use terrazzo::http::StatusCode;
 use tracing::debug;
 use tracing::warn;
 use tracing_futures as _;
+use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::Server;
@@ -16,11 +17,13 @@ use super::registration::Registration;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::backend::client_service::terminal_service;
+use crate::backend::config::DynConfig;
 use crate::processes;
 use crate::processes::io::LocalReader;
 
 pub async fn register(
     my_client_name: Option<ClientName>,
+    config: DiffArc<DynConfig>,
     server: &Arc<Server>,
     request: RegisterTerminalRequest,
 ) -> Result<(), RegisterStreamError> {
@@ -28,9 +31,13 @@ pub async fn register(
     debug!("Start");
     async {
         let terminal_address = request.def.address.clone();
-        let stream =
-            self::terminal_service::register::register(my_client_name, server, request.into())
-                .await?;
+        let stream = self::terminal_service::register::register(
+            my_client_name,
+            config,
+            server,
+            request.into(),
+        )
+        .await?;
         let stream = LocalReader(stream);
         push_lease(terminal_address, stream)?;
         Ok(())

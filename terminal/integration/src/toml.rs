@@ -6,6 +6,7 @@ pub fn server_toml(pid_file: &Path, _port: u16, root_ca: &Path) -> String {
 [server]
 host = "localhost"
 ports = [0, 0]
+terminal-shell = "echo \"Welcome to Test Environment\"; exec /bin/bash -i"
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"

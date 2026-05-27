@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use terrazzo::axum::Json;
 use tracing::Instrument as _;
 use tracing::debug_span;
-use trz_gateway_server::server::Server;
 
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::backend::client_service::terminal_service;

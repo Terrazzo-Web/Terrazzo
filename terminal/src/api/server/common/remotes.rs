@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use terrazzo::autoclone;
 use terrazzo::axum::Json;
 use terrazzo::axum::Router;
@@ -8,7 +9,6 @@ use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::client_address::ClientAddress;
 use crate::backend::auth::AuthConfig;

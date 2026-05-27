@@ -4,6 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Duration;
 
+use crate::backend::Server;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::stream::once;
@@ -22,7 +23,6 @@ use tracing::info_span;
 use tracing::trace;
 use tracing_futures::Instrument as _;
 use trz_gateway_common::http_error::HttpError;
-use trz_gateway_server::server::Server;
 
 use super::registration::PingTimeoutError;
 use super::registration::Registration;

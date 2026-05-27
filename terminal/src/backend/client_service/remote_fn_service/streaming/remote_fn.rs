@@ -2,13 +2,13 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use crate::backend::Server;
 use futures::Stream;
 use futures::StreamExt;
 use scopeguard::defer;
 use tracing::debug;
 use tracing::debug_span;
 use tracing_futures::Instrument as _;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 use super::dispatch::remote_fn_dispatch;

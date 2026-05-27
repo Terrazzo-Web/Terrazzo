@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
@@ -14,17 +15,14 @@ use tonic::transport::Body;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;
-use crate::backend::config::DynConfig;
 use crate::backend::protos::terrazzo::shared::ClientAddress;
 use crate::backend::protos::terrazzo::terminal::RegisterTerminalRequest;
 use crate::backend::protos::terrazzo::terminal::terminal_service_client::TerminalServiceClient;
@@ -34,7 +32,6 @@ use crate::processes::io::HybridReader;
 
 pub async fn register(
     my_client_name: Option<ClientName>,
-    config: DiffArc<DynConfig>,
     server: &Arc<Server>,
     mut request: RegisterTerminalRequest,
 ) -> Result<HybridReader, RegisterStreamError> {
@@ -44,8 +41,7 @@ pub async fn register(
         info!("Start");
         defer!(info!("Done"));
         let stream =
-            RegisterCallback::process(server, &client_address, (my_client_name, config, request))
-                .await;
+            RegisterCallback::process(server, &client_address, (my_client_name, request)).await;
         let stream = stream.map_err(|error| error.map_local(Box::new))?;
         Ok(stream)
     }
@@ -56,22 +52,14 @@ pub async fn register(
 struct RegisterCallback;
 
 impl DistributedCallback for RegisterCallback {
-    type Request = (
-        Option<ClientName>,
-        DiffArc<DynConfig>,
-        RegisterTerminalRequest,
-    );
+    type Request = (Option<ClientName>, RegisterTerminalRequest);
     type Response = HybridReader;
     type LocalError = RegisterStreamError;
     type RemoteError = tonic::Status;
 
     async fn local(
         server: Option<&Arc<Server>>,
-        (my_client_name, config, request): (
-            Option<ClientName>,
-            DiffArc<DynConfig>,
-            RegisterTerminalRequest,
-        ),
+        (my_client_name, request): (Option<ClientName>, RegisterTerminalRequest),
     ) -> Result<HybridReader, RegisterStreamError> {
         let server =
             server.ok_or_else(|| RegisterStreamError::Grpc(tonic::Status::internal("server")))?;
@@ -88,7 +76,8 @@ impl DistributedCallback for RegisterCallback {
             |_| async move {
                 match mode {
                     RegisterTerminalMode::Create => {
-                        let terminal_shell = config
+                        let terminal_shell = server
+                            .config()
                             .server
                             .with(|server_config| server_config.terminal_shell.clone());
                         ProcessIO::open(
@@ -111,11 +100,7 @@ impl DistributedCallback for RegisterCallback {
     async fn remote<T>(
         channel: T,
         client_address: &[impl AsRef<str>],
-        (_, _, mut request): (
-            Option<ClientName>,
-            DiffArc<DynConfig>,
-            RegisterTerminalRequest,
-        ),
+        (_, mut request): (Option<ClientName>, RegisterTerminalRequest),
     ) -> Result<HybridReader, tonic::Status>
     where
         T: GrpcService<BoxBody>,

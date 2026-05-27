@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use terrazzo::axum::extract::Json;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 use uuid::Uuid;
 
 use crate::api::shared::terminal_schema::NewTerminalRequest;

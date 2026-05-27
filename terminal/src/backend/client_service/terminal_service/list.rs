@@ -1,10 +1,10 @@
+use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use crate::backend::protos::terrazzo::terminal::ListTerminalsRequest;
 use crate::backend::protos::terrazzo::terminal::MaybeString;

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use futures::Stream;
 use futures::TryFutureExt as _;
 use nameth::NamedEnumValues as _;
@@ -14,7 +15,6 @@ use tonic::transport::Body;
 use tracing::Instrument as _;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use super::RequestDataStream;
 use super::listeners::EndpointId;

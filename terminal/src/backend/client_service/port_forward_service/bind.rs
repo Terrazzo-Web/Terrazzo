@@ -9,6 +9,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
+use crate::backend::Server;
 use futures::Stream;
 use futures::StreamExt as _;
 use nameth::NamedEnumValues as _;
@@ -36,7 +37,6 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::handle::ServerHandle;
-use trz_gateway_server::server::Server;
 
 use crate::backend::client_service::port_forward_service::listeners::EndpointId;
 use crate::backend::client_service::routing::DistributedCallback;

@@ -1,6 +1,7 @@
 #![cfg(feature = "server")]
 
 use std::future::ready;
+use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -43,7 +44,7 @@ use trz_gateway_common::security_configuration::either::EitherConfig;
 use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
 use trz_gateway_common::x509::time::asn1_to_system_time;
 use trz_gateway_server::server::GatewayError;
-use trz_gateway_server::server::Server;
+use trz_gateway_server::server::Server as GatewayServer;
 use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
 use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 
@@ -85,6 +86,29 @@ const MIN_CERTIFICATE_RENEWAL_DELAY: Duration = if cfg!(debug_assertions) {
 } else {
     Duration::from_secs(60 * 5)
 };
+
+pub struct Server {
+    gateway: Arc<GatewayServer>,
+    config: DiffArc<DynConfig>,
+}
+
+impl Server {
+    pub fn new(gateway: Arc<GatewayServer>, config: DiffArc<DynConfig>) -> Self {
+        Self { gateway, config }
+    }
+
+    pub fn config(&self) -> &DiffArc<DynConfig> {
+        &self.config
+    }
+}
+
+impl Deref for Server {
+    type Target = GatewayServer;
+
+    fn deref(&self) -> &Self::Target {
+        &self.gateway
+    }
+}
 
 pub fn run_server() -> Result<(), RunServerError> {
     crypto_provider();
@@ -200,7 +224,8 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
 
     assets::install::install_assets();
     let config = backend_config.config.clone();
-    let (server, server_handle, crash) = Server::run(backend_config).await?;
+    let (server, server_handle, crash) = GatewayServer::run(backend_config).await?;
+    let server = Arc::new(Server::new(server, config.clone()));
 
     #[cfg(feature = "remote-fn")]
     {
@@ -320,19 +345,16 @@ async fn run_client_async(
     let terminated_all_tx = Arc::new(terminated_all_tx);
 
     let dynamic_mesh_config = config.mesh.clone();
-    let terminal_config = config.clone();
     let dynamic_client = config.mesh.view(move |mesh| {
         debug!("Refresh mesh config");
         if let Some(mesh) = (**mesh).clone() {
             let auth_code = Arc::new(Mutex::new(auth_code.clone()));
-            let terminal_config = terminal_config.clone();
 
             let (abort_client_tx, abort_client_rx) = oneshot::channel();
             let abort_client_rx = abort_client_rx.shared();
             let client_task = async move {
                 autoclone!(server, terminated_all_tx, dynamic_mesh_config);
-                let Some(agent_config) =
-                    AgentTunnelConfig::new(auth_code, &mesh, &terminal_config, &server).await
+                let Some(agent_config) = AgentTunnelConfig::new(auth_code, &mesh, &server).await
                 else {
                     info!("Gateway client disabled");
                     return Err(RunClientError::ClientNotEnabled);

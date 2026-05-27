@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use terrazzo::autoclone;
 use terrazzo::axum::Router;
 use terrazzo::axum::routing::get;
@@ -8,7 +9,6 @@ use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::server::terminal_api::new_id;
 use crate::api::server::terminal_api::resize;
@@ -74,8 +74,8 @@ pub fn terminal_api_routes(
             .route(
                 "/stream/register",
                 post(|request| {
-                    autoclone!(client_name, config, server);
-                    stream::register(client_name, config, server, request)
+                    autoclone!(client_name, server);
+                    stream::register(client_name, server, request)
                 }),
             )
             .route(

@@ -6,6 +6,7 @@ use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::backend::Server;
 use futures::FutureExt;
 use futures::Stream;
 use futures::StreamExt as _;
@@ -16,7 +17,6 @@ use tokio::time::error::Elapsed;
 use tracing::debug;
 use tracing::warn;
 use trz_gateway_common::retry_strategy::RetryStrategy;
-use trz_gateway_server::server::Server;
 
 use self::port_forward_service::bind::BindError;
 use self::port_forward_service::bind::BindStream;

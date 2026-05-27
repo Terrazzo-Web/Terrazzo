@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::future::ready;
 use std::sync::Arc;
 
+use crate::backend::Server;
 use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::TryFutureExt as _;
@@ -19,7 +20,6 @@ use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use self::port_forward_service::bind::BindError;
 use self::port_forward_service::bind::BindStream;

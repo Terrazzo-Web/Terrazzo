@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::debug_span;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 use super::callback::DistributedFn;

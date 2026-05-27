@@ -2,11 +2,11 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::debug_span;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 use super::dispatch::remote_fn_dispatch;

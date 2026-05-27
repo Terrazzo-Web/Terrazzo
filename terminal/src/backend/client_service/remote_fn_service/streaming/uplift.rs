@@ -4,10 +4,10 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::ready;
 
+use crate::backend::Server;
 use futures::Stream;
 use pin_project::pin_project;
 use tonic::Result;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 

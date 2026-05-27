@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use futures::TryStreamExt;
 use server_fn::ServerFnError;
 use tonic::body::Body as BoxBody;
@@ -8,7 +9,6 @@ use tonic::codegen::Bytes;
 use tonic::codegen::StdError;
 use tonic::transport::Body;
 use tracing::debug;
-use trz_gateway_server::server::Server;
 
 use super::REMOTE_FNS;
 use super::RemoteFnError;

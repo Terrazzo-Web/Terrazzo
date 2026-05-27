@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use futures::TryFutureExt as _;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -12,7 +13,6 @@ use tonic::transport::Body;
 use tracing::warn;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 pub trait DistributedCallback {
     type Request;

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::backend::Server;
 use terrazzo::axum::Json;
 use trz_gateway_common::http_error::HttpError;
-use trz_gateway_server::server::Server;
 
 use crate::api::shared::terminal_schema::AckRequest;
 use crate::backend::client_service::terminal_service;

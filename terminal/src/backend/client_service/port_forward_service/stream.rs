@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 
+use crate::backend::Server;
 use futures::AsyncWriteExt as _;
 use futures::SinkExt as _;
 use futures::Stream;
@@ -31,7 +32,6 @@ use tracing::debug;
 use tracing::debug_span;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use super::RequestDataStream;
 use super::listeners::EndpointId;

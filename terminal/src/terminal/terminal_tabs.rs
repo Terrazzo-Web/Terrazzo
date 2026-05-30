@@ -111,6 +111,6 @@ impl TabsState for TerminalsState {
     }
 
     fn zone_id(&self) -> Option<String> {
-        self.tile.id.to_string().into()
+        format!("tile_id:{}", self.tile.id).into()
     }
 }

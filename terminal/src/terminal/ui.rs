@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ops::ControlFlow;
+use std::sync::LazyLock;
 
 use terrazzo::autoclone;
 use terrazzo::html;
@@ -35,6 +36,9 @@ pub struct TerminalsState {
     pub terminal_tabs: XSignal<TerminalTabs>,
 }
 
+static REFRESH: LazyLock<XSignal<()>> = LazyLock::new(|| XSignal::new("refresh-terminal-tabs", ()));
+
+#[autoclone]
 pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
@@ -45,16 +49,18 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
         terminal_tabs,
     };
     refresh_terminal_tabs(state.clone());
-    render_terminals(template, state.clone(), state.terminal_tabs.clone()).append(
-        state.selected_tab.add_subscriber(move |terminal_id| {
+
+    render_terminals(template, state.clone(), state.terminal_tabs.clone())
+        .append(state.selected_tab.add_subscriber(move |terminal_id| {
+            autoclone!(state);
             let terminal_tabs = state.terminal_tabs.get_value_untracked();
             let Some(current) = terminal_tabs.lookup_tab(&terminal_id) else {
                 return;
             };
             let client_address = &current.address.via;
             state.tile.remote.set(client_address.clone())
-        }),
-    )
+        }))
+        .append(REFRESH.add_subscriber(move |()| refresh_terminal_tabs(state.clone())))
 }
 
 #[autoclone]
@@ -143,7 +149,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                         return;
                     }
                     state.selected_tab.force(terminal_id);
-                    refresh_terminal_tabs(state);
+                    REFRESH.force(());
                 });
             },
         ),

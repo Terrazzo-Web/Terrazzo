@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::axum::Json;
 use trz_gateway_common::http_error::HttpError;
 
 use crate::api::shared::terminal_schema::SetTitleRequest;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 use crate::backend::protos::terrazzo::terminal::MaybeString;
 use crate::backend::protos::terrazzo::terminal::SetTitleRequest as SetTitleRequestProto;

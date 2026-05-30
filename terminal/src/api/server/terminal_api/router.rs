@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::autoclone;
 use terrazzo::axum::Router;
 use terrazzo::axum::routing::get;
@@ -17,6 +16,7 @@ use crate::api::server::terminal_api::set_title;
 use crate::api::server::terminal_api::stream;
 use crate::api::server::terminal_api::terminals;
 use crate::api::server::terminal_api::write;
+use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::config::DynConfig;

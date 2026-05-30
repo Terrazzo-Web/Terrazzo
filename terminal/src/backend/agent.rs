@@ -2,7 +2,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::backend::Server;
 use nameth::nameth;
 use tracing::Instrument as _;
 use tracing::info;
@@ -20,6 +19,7 @@ use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrus
 use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStore;
 
 use super::config::mesh::MeshConfig;
+use crate::backend::Server;
 use crate::backend::client_service::ClientServiceImpl;
 use crate::backend::protos::terrazzo::shared::shared_service_server::SharedServiceServer;
 

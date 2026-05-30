@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;
 use tonic::codegen::Bytes;
@@ -10,6 +9,7 @@ use tracing::debug;
 
 use super::REMOTE_FNS;
 use super::RemoteFnError;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;

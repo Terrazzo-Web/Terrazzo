@@ -3,10 +3,10 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use crate::backend::Server;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 
+use crate::backend::Server;
 use crate::utils::testable_once_lock::TestableOnceLock;
 
 #[cfg(feature = "remote-fn-streaming")]

@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
@@ -11,6 +10,7 @@ use tracing::debug_span;
 use super::RemoteFnError;
 use super::dispatch::remote_fn_dispatch;
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service::remote_fn_server;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 

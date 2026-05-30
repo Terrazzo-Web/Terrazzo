@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 
-use crate::backend::Server;
 use futures::FutureExt as _;
 use tokio::time::Duration;
 use tracing::debug;
@@ -19,6 +18,7 @@ use tracing_subscriber::Registry;
 use tracing_subscriber::layer::SubscriberExt as _;
 
 use super::tracing::LogStreamLayer;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service;
 use crate::backend::client_service::remote_fn_service::set_remote_fn_server;
 use crate::logs::state::LogState;

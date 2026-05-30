@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::hash_map;
 
-use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
@@ -9,6 +8,7 @@ use tracing::debug_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientName;
 
+use crate::backend::Server;
 use crate::backend::protos::terrazzo::shared::ClientAddress;
 use crate::backend::protos::terrazzo::shared::ListRemotesRequest;
 use crate::backend::protos::terrazzo::shared::shared_service_client::SharedServiceClient;

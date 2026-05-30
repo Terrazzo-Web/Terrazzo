@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
@@ -21,6 +20,7 @@ use trz_gateway_common::id::ClientName;
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;
 use crate::backend::protos::terrazzo::shared::ClientAddress;

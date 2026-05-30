@@ -1,7 +1,6 @@
 use std::future::ready;
 use std::sync::Arc;
 
-use crate::backend::Server;
 use futures::StreamExt as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
@@ -11,6 +10,7 @@ use tonic::codegen::Bytes;
 use tonic::codegen::StdError;
 use tonic::transport::Body;
 
+use crate::backend::Server;
 use crate::backend::client_service::notify_service::request::HybridRequestStream;
 use crate::backend::client_service::notify_service::request::remote::RemoteRequestStream;
 use crate::backend::client_service::notify_service::response::HybridResponseStream;

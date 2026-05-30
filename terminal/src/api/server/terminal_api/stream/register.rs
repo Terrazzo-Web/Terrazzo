@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use futures::channel::mpsc;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -15,6 +14,7 @@ use trz_gateway_common::id::ClientName;
 use super::registration::Registration;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 use crate::processes;
 use crate::processes::io::LocalReader;

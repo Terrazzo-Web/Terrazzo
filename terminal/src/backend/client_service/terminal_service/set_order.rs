@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::hash_map::Entry::Vacant;
 
-use crate::backend::Server;
 use scopeguard::defer;
 use tonic::Request;
 use tracing::Instrument as _;
@@ -11,6 +10,7 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 
+use crate::backend::Server;
 use crate::backend::protos::terrazzo::shared::Empty;
 use crate::backend::protos::terrazzo::terminal::OrderedTerminal;
 use crate::backend::protos::terrazzo::terminal::SetOrderRequest;

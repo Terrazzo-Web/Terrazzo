@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::backend::Server;
 use futures::Stream;
 use futures::StreamExt;
 use scopeguard::defer;
@@ -14,6 +13,7 @@ use super::RemoteFnError;
 use super::dispatch::remote_fn_dispatch;
 use super::response::local::LocalResponseStream;
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service::remote_fn_server;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 

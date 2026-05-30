@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
@@ -8,6 +7,7 @@ use tracing::debug_span;
 
 use super::RemoteFnError;
 use super::callback::DistributedFn;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback as _;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 

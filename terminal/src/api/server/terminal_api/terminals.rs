@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::axum::Json;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 
 pub async fn list(

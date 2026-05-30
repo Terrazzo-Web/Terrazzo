@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use futures::TryStreamExt;
 use server_fn::ServerFnError;
 use tonic::body::Body as BoxBody;
@@ -13,6 +12,7 @@ use tracing::debug;
 use super::REMOTE_FNS;
 use super::RemoteFnError;
 use super::response::HybridResponseStream;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;

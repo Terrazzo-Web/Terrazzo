@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
@@ -15,6 +14,7 @@ use tracing::debug;
 use tracing::info_span;
 use trz_gateway_common::http_error::IsHttpError;
 
+use crate::backend::Server;
 use crate::backend::client_service::convert::Impossible;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;

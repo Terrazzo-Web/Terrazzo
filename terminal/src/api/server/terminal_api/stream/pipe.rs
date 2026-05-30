@@ -4,7 +4,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Duration;
 
-use crate::backend::Server;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::stream::once;
@@ -30,6 +29,7 @@ use crate::api::KEEPALIVE_TTL_HEADER;
 use crate::api::NEWLINE;
 use crate::api::server::correlation_id::CorrelationId;
 use crate::api::shared::terminal_schema::Chunk;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 
 pub const PIPE_TTL: Duration = if cfg!(feature = "concise-traces") {

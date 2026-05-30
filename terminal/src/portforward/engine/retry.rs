@@ -6,7 +6,6 @@ use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::backend::Server;
 use futures::FutureExt;
 use futures::Stream;
 use futures::StreamExt as _;
@@ -21,6 +20,7 @@ use trz_gateway_common::retry_strategy::RetryStrategy;
 use self::port_forward_service::bind::BindError;
 use self::port_forward_service::bind::BindStream;
 use self::protos::PortForwardAcceptResponse;
+use crate::backend::Server;
 use crate::backend::client_service::port_forward_service;
 use crate::backend::protos::terrazzo::portforward as protos;
 use crate::portforward::schema::PortForward;

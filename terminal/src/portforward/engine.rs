@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use std::future::ready;
 use std::sync::Arc;
 
-use crate::backend::Server;
 use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::TryFutureExt as _;
@@ -34,6 +33,7 @@ use self::protos::PortForwardEndpoint;
 use self::protos::port_forward_data_request;
 use super::schema::PortForward;
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::client_service::port_forward_service;
 use crate::backend::protos::terrazzo::portforward as protos;
 use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;

@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::axum::Router;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
@@ -10,6 +9,7 @@ use trz_gateway_common::dynamic_config::mode;
 
 use crate::api::server::common::login::login_routes;
 use crate::api::server::common::remotes::remotes_routes;
+use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 

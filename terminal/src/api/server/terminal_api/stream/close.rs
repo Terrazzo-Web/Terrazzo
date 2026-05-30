@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::axum::Json;
 use trz_gateway_common::http_error::HttpError;
 
 use crate::api::shared::terminal_schema::TerminalAddress;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 
 pub async fn close(

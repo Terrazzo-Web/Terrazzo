@@ -4,11 +4,11 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::ready;
 
-use crate::backend::Server;
 use pin_project::pin_project;
 use tonic::Result;
 
 use super::RemoteFnError;
+use crate::backend::Server;
 
 /// Helper to uplift a remote function into a String -> String server_fn.
 pub const fn uplift<Req, F, Res, E>(

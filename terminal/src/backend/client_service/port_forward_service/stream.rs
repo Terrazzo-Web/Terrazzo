@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 
-use crate::backend::Server;
 use futures::AsyncWriteExt as _;
 use futures::SinkExt as _;
 use futures::Stream;
@@ -35,6 +34,7 @@ use tracing::warn;
 
 use super::RequestDataStream;
 use super::listeners::EndpointId;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;
 use crate::backend::protos::terrazzo::portforward::PortForwardDataRequest;

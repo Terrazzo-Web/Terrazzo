@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::axum::Json;
 use terrazzo::axum::response::IntoResponse;
 use tracing::Instrument as _;
@@ -11,6 +10,7 @@ use trz_gateway_common::id::ClientName;
 use self::register::RegisterStreamError;
 use crate::api::server::correlation_id::CorrelationId;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
+use crate::backend::Server;
 
 mod ack;
 mod close;

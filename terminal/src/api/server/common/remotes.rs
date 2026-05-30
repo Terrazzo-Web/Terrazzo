@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::backend::Server;
 use terrazzo::autoclone;
 use terrazzo::axum::Json;
 use terrazzo::axum::Router;
@@ -11,6 +10,7 @@ use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::shared_service::remotes::list_remotes;

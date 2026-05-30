@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::ops::ControlFlow;
 
+use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
@@ -56,6 +57,7 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     ))
 }
 
+#[autoclone]
 #[html]
 #[template]
 pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: TerminalTabs) -> XElement {
@@ -81,6 +83,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                 }),
             ),
             dragover = move |ev: web_sys::DragEvent| {
+                autoclone!(state);
                 let is_from_other_tile = || {
                     let zone_id = state.zone_id()?;
                     let dt = ev.data_transfer()?;
@@ -104,12 +107,44 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                 }
             },
             drop = move |ev: web_sys::DragEvent| {
-                let terminal_id = ev
-                    .data_transfer()
-                    .unwrap()
-                    .get_data(TerminalsState::drag_key())
-                    .unwrap();
-                dbg!(terminal_id)
+                ev.prevent_default();
+                ev.stop_propagation();
+                let Some(data_transfer) = ev.data_transfer() else {
+                    return;
+                };
+                let Ok(terminal_id) = data_transfer.get_data(TerminalsState::drag_key()) else {
+                    return;
+                };
+                let terminal_id = TerminalId::from(terminal_id);
+                spawn_local(async move {
+                    autoclone!(state);
+                    let terminal_defs = match terminal_api::list::list().await {
+                        Ok(terminal_defs) => terminal_defs,
+                        Err(error) => {
+                            warn!("Failed to load terminal definitions: {error}");
+                            return;
+                        }
+                    };
+                    let Some(terminal_def) = terminal_defs
+                        .into_iter()
+                        .find(|def| def.address.id == terminal_id)
+                    else {
+                        warn!("Terminal '{terminal_id}' not found");
+                        return;
+                    };
+                    if let Err(error) = super::api::set_tile_id(
+                        terminal_def.address.via,
+                        terminal_id.clone(),
+                        state.tile.id,
+                    )
+                    .await
+                    {
+                        warn!("Failed to set terminal tile: {error}");
+                        return;
+                    }
+                    state.selected_tab.force(terminal_id);
+                    refresh_terminal_tabs(state.tile.id, state.selected_tab, state.terminal_tabs);
+                });
             },
         ),
     )

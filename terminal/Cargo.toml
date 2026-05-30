@@ -197,6 +197,7 @@ terminal-server = [
   "dep:static_assertions",
   "dep:terrazzo-pty",
   "dep:tracing-futures",
+  "remote-fn-unary",
   "server",
   "terminal",
 ]

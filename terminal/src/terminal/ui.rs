@@ -39,22 +39,22 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
     let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
-    refresh_terminal_tabs(tile.id, selected_tab.clone(), terminal_tabs.clone());
     let state = TerminalsState {
-        tile: tile.clone(),
-        selected_tab: selected_tab.clone(),
-        terminal_tabs: terminal_tabs.clone(),
+        tile,
+        selected_tab,
+        terminal_tabs,
     };
-    render_terminals(template, state, terminal_tabs.clone()).append(selected_tab.add_subscriber(
-        move |terminal_id| {
-            let terminal_tabs = terminal_tabs.get_value_untracked();
+    refresh_terminal_tabs(state.clone());
+    render_terminals(template, state.clone(), state.terminal_tabs.clone()).append(
+        state.selected_tab.add_subscriber(move |terminal_id| {
+            let terminal_tabs = state.terminal_tabs.get_value_untracked();
             let Some(current) = terminal_tabs.lookup_tab(&terminal_id) else {
                 return;
             };
             let client_address = &current.address.via;
-            tile.remote.set(client_address.clone())
-        },
-    ))
+            state.tile.remote.set(client_address.clone())
+        }),
+    )
 }
 
 #[autoclone]
@@ -143,7 +143,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                         return;
                     }
                     state.selected_tab.force(terminal_id);
-                    refresh_terminal_tabs(state.tile.id, state.selected_tab, state.terminal_tabs);
+                    refresh_terminal_tabs(state);
                 });
             },
         ),
@@ -161,11 +161,7 @@ fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString>
     return format!("{name} {class}");
 }
 
-fn refresh_terminal_tabs(
-    tile: TileId,
-    selected_tab: XSignal<TerminalId>,
-    terminal_tabs: XSignal<TerminalTabs>,
-) {
+fn refresh_terminal_tabs(state: TerminalsState) {
     let refresh_terminal_tabs_task = async move {
         let terminal_defs = match terminal_api::list::list().await {
             Ok(terminal_defs) => terminal_defs,
@@ -184,10 +180,10 @@ fn refresh_terminal_tabs(
                 ControlFlow::Continue(())
             } else {
                 // This is the first Terminal tile
-                if t.id != tile {
+                if t.id != state.tile.id {
                     ControlFlow::Break(())
                 } else {
-                    all_tile_ids = Some([tile].into());
+                    all_tile_ids = Some([state.tile.id].into());
                     ControlFlow::Continue(())
                 }
             }
@@ -195,7 +191,7 @@ fn refresh_terminal_tabs(
         let terminal_defs = terminal_defs
             .into_iter()
             .filter(|def| {
-                def.tile == tile
+                def.tile == state.tile.id
                     || if let Some(all_tile_ids) = &all_tile_ids {
                         !all_tile_ids.contains(&def.tile)
                     } else {
@@ -205,18 +201,18 @@ fn refresh_terminal_tabs(
             .collect::<Vec<_>>();
         let batch = Batch::use_batch("refresh_terminal_tabs");
         if let Some(first_terminal) = terminal_defs.first() {
-            let selected_tab_value = selected_tab.get_value_untracked();
+            let selected_tab_value = state.selected_tab.get_value_untracked();
             if !terminal_defs
                 .iter()
                 .any(|def| def.address.id == selected_tab_value)
             {
-                selected_tab.force(first_terminal.address.id.clone());
+                state.selected_tab.force(first_terminal.address.id.clone());
             }
         }
-        terminal_tabs.set(TerminalTabs::from(Ptr::new(
+        state.terminal_tabs.set(TerminalTabs::from(Ptr::new(
             terminal_defs
                 .into_iter()
-                .map(|def| TerminalTab::of(def, &selected_tab))
+                .map(|def| TerminalTab::of(def, &state.selected_tab))
                 .collect::<Vec<_>>(),
         )));
         drop(batch);

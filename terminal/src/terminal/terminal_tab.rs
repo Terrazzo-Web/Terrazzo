@@ -176,17 +176,21 @@ impl TabDescriptor for TerminalTab {
         div([title_link, close_button]..)
     }
 
+    #[autoclone]
     #[html]
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
         let this = self.clone();
         let state = state.clone();
-        let keydown_tab = this.clone();
         div(
             class = style::TERMINAL,
             keydown = move |ev: KeyboardEvent| {
-                keydown_tab.clone().keydown(ev);
+                autoclone!(this);
+                this.keydown(ev);
             },
-            div(move |template| attach::attach(template, state.clone(), this.clone())),
+            div(move |template| {
+                autoclone!(this);
+                attach::attach(template, state.clone(), this.clone())
+            }),
         )
     }
 
@@ -196,25 +200,34 @@ impl TabDescriptor for TerminalTab {
 }
 
 impl TerminalTab {
-    fn keydown(self, ev: KeyboardEvent) {
+    fn keydown(&self, ev: KeyboardEvent) {
         if !ev.ctrl_key() || ev.alt_key() || ev.meta_key() {
+            debug!("!ev.ctrl_key() || ev.alt_key() || ev.meta_key()");
             return;
         }
         let Some(xtermjs) = self.xtermjs.lock().or_throw("xtermjs.lock()").clone() else {
+            debug!("xtermjs is None!");
             return;
         };
         match ev.key().as_str() {
             "c" | "C" if xtermjs.has_selection() => {
+                debug!("Intercept Ctrl+C to copy selection");
                 ev.prevent_default();
                 ev.stop_propagation();
                 spawn_local(async move { xtermjs.copy_selection().await }.in_current_span());
             }
+            "c" | "C" => {
+                debug!("Ctrl+C passed through, no selection");
+            }
             "v" | "V" => {
+                debug!("Intercept Ctrl+V to paste selection");
                 ev.prevent_default();
                 ev.stop_propagation();
                 spawn_local(async move { xtermjs.paste_clipboard().await }.in_current_span());
             }
-            _ => {}
+            key => {
+                debug!("Unhandled keystroke: {key:?}");
+            }
         }
     }
 }

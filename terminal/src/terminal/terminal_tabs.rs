@@ -6,8 +6,8 @@ use terrazzo::prelude::*;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsState;
 
-use super::TerminalsState;
 use super::terminal_tab::TerminalTab;
+use super::ui::TerminalsState;
 use crate::api::client_address::ClientAddress;
 use crate::assets::icons;
 use crate::frontend::menu::menu;

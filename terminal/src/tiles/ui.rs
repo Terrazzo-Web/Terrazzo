@@ -208,7 +208,7 @@ fn show_app(tile: TilePtr, #[signal] app: App) -> XElement {
             App::Default => div(crate::frontend::menu::menu(tile.clone())),
 
             #[cfg(feature = "terminal")]
-            App::Terminal => div(move |t| crate::terminal::terminals(t, tile.clone())),
+            App::Terminal => div(move |t| crate::terminal::ui::terminals(t, tile.clone())),
 
             #[cfg(feature = "text-editor")]
             App::TextEditor => crate::text_editor::ui::text_editor(tile),

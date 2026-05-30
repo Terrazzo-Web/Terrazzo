@@ -60,7 +60,7 @@ impl RootTree {
                     for node in nodes {
                         match aux(node, f) {
                             ControlFlow::Continue(()) => (),
-                            ControlFlow::Break(()) => break,
+                            ControlFlow::Break(()) => return ControlFlow::Break(()),
                         }
                     }
                     ControlFlow::Continue(())

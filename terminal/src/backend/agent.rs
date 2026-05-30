@@ -17,9 +17,9 @@ use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStore;
-use trz_gateway_server::server::Server;
 
 use super::config::mesh::MeshConfig;
+use crate::backend::Server;
 use crate::backend::client_service::ClientServiceImpl;
 use crate::backend::protos::terrazzo::shared::shared_service_server::SharedServiceServer;
 

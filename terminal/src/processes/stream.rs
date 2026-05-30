@@ -4,10 +4,10 @@ use terrazzo_pty::lease::LeaseProcessOutputError;
 use terrazzo_pty::lease::ProcessIoEntry;
 use terrazzo_pty::lease::ProcessOutputLease;
 use tracing::info;
-use trz_gateway_server::server::Server;
 
 use super::get_processes;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::terminal_id::TerminalId;
 
 pub async fn open_stream<F>(

@@ -19,7 +19,6 @@ use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use self::port_forward_service::bind::BindError;
 use self::port_forward_service::bind::BindStream;
@@ -34,6 +33,7 @@ use self::protos::PortForwardEndpoint;
 use self::protos::port_forward_data_request;
 use super::schema::PortForward;
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::client_service::port_forward_service;
 use crate::backend::protos::terrazzo::portforward as protos;
 use crate::backend::protos::terrazzo::shared::ClientAddress as ClientAddressProto;

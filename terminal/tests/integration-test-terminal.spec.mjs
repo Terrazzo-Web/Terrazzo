@@ -34,8 +34,29 @@ function getCloseIcons(tabs) {
 }
 
 async function closeTab(tab) {
-  await tab.hover();
-  await tab.locator('img.close-icon').click();
+  await tab.locator('img.close-icon').click({ force: true, timeout: SECOND });
+}
+
+async function closeAllTabs(page) {
+  for (let attempt = 0; attempt < 10 && await getTabs(page).count() > 0; attempt++) {
+    await closeTab(getTabs(page).first()).catch(() => {});
+    await page.waitForTimeout(100);
+  }
+}
+
+async function selectTerminalText(page, text) {
+  const row = page.locator('.xterm-rows > div')
+    .filter({ hasText: text })
+    .first();
+  await expect(row).toBeVisible();
+  const box = await row.boundingBox();
+  if (!box) {
+    throw new Error(`Could not find terminal text: ${text}`);
+  }
+  await page.mouse.move(box.x + 1, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 20 });
+  await page.mouse.up();
 }
 
 test.describe('Terminal', () => {
@@ -43,6 +64,12 @@ test.describe('Terminal', () => {
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await getAddTabButton(page).waitFor({ timeout: 30 * SECOND });
+    await closeAllTabs(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await closeAllTabs(page);
   });
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
@@ -69,6 +96,32 @@ test.describe('Terminal', () => {
 
     await closeTab(tabs);
     await expect(tabs).toHaveCount(0);
+  });
+
+  test('copies selected terminal text and pastes clipboard text', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE_URL });
+
+    const addTabButton = getAddTabButton(page);
+    await addTabButton.waitFor({ timeout: 30 * SECOND });
+    await addTabButton.click();
+
+    const activeTerminal = getActiveTerminal(page);
+    await expect(activeTerminal).toContainText('Welcome to Test Environment');
+    await activeTerminal.click();
+    await selectTerminalText(page, 'Welcome to Test Environment');
+
+    await page.keyboard.press('Control+C');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe('Welcome to Test Environment');
+
+    await activeTerminal.click();
+    await page.keyboard.type('echo ');
+    await page.keyboard.press('Control+V');
+    await expect(activeTerminal).toContainText('echo Welcome to Test Environment');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => activeTerminal.evaluate((terminal) => (
+      terminal.textContent.match(/Welcome to Test Environment/g) ?? []
+    ).length)).toBeGreaterThanOrEqual(3);
   });
 
   test('two terminals', async ({ page }) => {

@@ -17,6 +17,7 @@ pub struct MousemoveManagerImpl {
     start: Mutex<Option<Position>>,
     pub delta: XSignal<Option<Position>>,
     events: Mutex<Vec<RegisteredEvent<MouseEvent>>>,
+    mouseup: Option<Box<dyn Fn()>>,
 }
 
 pub use MousemoveManagerImplPtr as MousemoveManager;
@@ -32,6 +33,17 @@ impl MousemoveManager {
             start: Default::default(),
             delta: XSignal::new("mousemove-delta", Default::default()),
             events: Default::default(),
+            mouseup: None,
+        }
+        .into()
+    }
+
+    pub fn new2(mouseup: impl Fn() + 'static) -> Self {
+        MousemoveManagerImpl {
+            start: Default::default(),
+            delta: XSignal::new("mousemove-delta", Default::default()),
+            events: Default::default(),
+            mouseup: Some(Box::new(mouseup)),
         }
         .into()
     }
@@ -59,6 +71,9 @@ impl MousemoveManager {
                 autoclone!(this);
                 *this.start.lock().or_throw("start") = None;
                 this.events.lock().or_throw("events").clear();
+                if let Some(mouseup) = &this.mouseup {
+                    mouseup()
+                }
             });
             let mouseup = RegisteredEvent::register(window.clone(), "mouseup", mouseup);
 

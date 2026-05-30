@@ -109,4 +109,8 @@ impl TabsState for TerminalsState {
     fn drag_key() -> &'static str {
         "terminal_id"
     }
+
+    fn zone_id(&self) -> Option<String> {
+        self.tile.id.to_string().into()
+    }
 }

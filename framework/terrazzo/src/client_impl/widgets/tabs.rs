@@ -36,6 +36,9 @@ pub trait TabsState: Clone + 'static {
     fn drag_key() -> &'static str {
         "tab_id"
     }
+    fn zone_id(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Describes a single tab.
@@ -265,8 +268,13 @@ fn tab_title<T: TabDescriptor + 'static>(
         dragstart = move |ev: web_sys::DragEvent| {
             autoclone!(is_dragging);
             let dt = ev.data_transfer().or_throw("data_transfer");
-            dt.set_data(T::State::drag_key(), &key)
-                .or_throw("Set DRAG_KEY");
+            let drag_key = T::State::drag_key();
+            dt.set_data(drag_key, &key)
+                .or_else_throw(|e| format!("Set drag_key={drag_key}: {e:?}"));
+            if let Some(zone_id) = state.zone_id() {
+                dt.set_data(&zone_id, "1")
+                    .or_else_throw(|e| format!("Set zone_id={zone_id}: {e:?}"));
+            }
             dt.set_effect_allowed("move");
             is_dragging.set(true);
         },

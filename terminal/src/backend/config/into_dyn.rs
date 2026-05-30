@@ -313,6 +313,11 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
             let result = get_or_init(old, &mut result);
             result.config_file_poll_strategy = new.config_file_poll_strategy.clone();
         }
+        if new.terminal_shell != old.terminal_shell {
+            info!("Changed: terminal_shell");
+            let result = get_or_init(old, &mut result);
+            result.terminal_shell = new.terminal_shell.clone();
+        }
 
         return result.map(DiffArc::from);
     });

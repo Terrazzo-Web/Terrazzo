@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
+
+use crate::backend::Server;
 
 pub mod convert;
 pub mod grpc_error;

@@ -58,11 +58,19 @@ impl ProcessIO {
     pub async fn open(
         client_name: Option<impl AsRef<str>>,
         scrollback: usize,
+        terminal_shell: Option<String>,
     ) -> Result<Self, OpenProcessError> {
         let pty = Pty::new()?;
-        let mut command =
-            std::env::var("SHELL").map_or_else(|_| Command::new("/bin/bash"), Command::new);
-        command.arg("-i");
+        let mut command = if let Some(terminal_shell) = terminal_shell {
+            let mut command = Command::new("/bin/bash");
+            command.arg("-lc").arg(terminal_shell);
+            command
+        } else {
+            let mut command =
+                std::env::var("SHELL").map_or_else(|_| Command::new("/bin/bash"), Command::new);
+            command.arg("-i");
+            command
+        };
         if let Some(client_name) = client_name {
             command.env(TERRAZZO_CLIENT_NAME, client_name.as_ref());
         }
@@ -146,7 +154,7 @@ impl Stream for ProcessOutput {
 mod tests {
     #[tokio::test]
     async fn open() {
-        super::ProcessIO::open(Option::<String>::None, 1000)
+        super::ProcessIO::open(Option::<String>::None, 1000, None)
             .await
             .unwrap();
     }

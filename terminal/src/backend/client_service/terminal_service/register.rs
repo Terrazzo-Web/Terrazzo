@@ -16,11 +16,11 @@ use tracing::info;
 use tracing::info_span;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;
 use crate::backend::protos::terrazzo::shared::ClientAddress;
@@ -76,9 +76,14 @@ impl DistributedCallback for RegisterCallback {
             |_| async move {
                 match mode {
                     RegisterTerminalMode::Create => {
+                        let terminal_shell = server
+                            .config()
+                            .server
+                            .with(|server_config| server_config.terminal_shell.clone());
                         ProcessIO::open(
                             my_client_name.map(|s| s.to_string()),
                             STREAMING_WINDOW_SIZE,
+                            terminal_shell,
                         )
                         .await
                     }

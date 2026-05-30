@@ -6,11 +6,11 @@ use tracing::Instrument as _;
 use tracing::info_span;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use self::register::RegisterStreamError;
 use crate::api::server::correlation_id::CorrelationId;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
+use crate::backend::Server;
 
 mod ack;
 mod close;

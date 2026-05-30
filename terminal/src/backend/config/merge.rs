@@ -43,6 +43,7 @@ impl Config {
             server: DiffArc::from(ServerConfig {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
+                terminal_shell: server.terminal_shell.clone(),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -91,6 +92,10 @@ fn merge_server_config(
             host.unwrap_or(HOST).to_owned()
         },
         ports,
+        terminal_shell: cli
+            .terminal_shell
+            .clone()
+            .or_else(|| server.terminal_shell.clone()),
         set_current_endpoint: cli.set_current_endpoint.clone(),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
@@ -233,6 +238,7 @@ mod tests {
             server: DiffArc::from(ServerConfig::<RuntimeTypes> {
                 host: "localhost".into(),
                 ports: vec![3000],
+                terminal_shell: Some("echo test; exec /bin/bash -i".into()),
                 set_current_endpoint: None,
                 pidfile: terrazzo_home().join("test.pid"),
                 private_root_ca: terrazzo_home().join("root_ca"),
@@ -249,6 +255,10 @@ mod tests {
 
         let round_trip = config.to_config_file().merge(&Default::default());
 
+        assert_eq!(
+            round_trip.server.terminal_shell.as_deref(),
+            Some("echo test; exec /bin/bash -i")
+        );
         assert!(!round_trip.server.config_file_watcher);
         assert_eq!(
             round_trip.server.config_file_poll_strategy,

@@ -31,10 +31,10 @@ use tracing::debug;
 use tracing::debug_span;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use super::RequestDataStream;
 use super::listeners::EndpointId;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;
 use crate::backend::protos::terrazzo::portforward::PortForwardDataRequest;

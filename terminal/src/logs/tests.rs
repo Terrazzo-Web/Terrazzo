@@ -16,9 +16,9 @@ use tracing::info_span;
 use tracing::warn;
 use tracing_subscriber::Registry;
 use tracing_subscriber::layer::SubscriberExt as _;
-use trz_gateway_server::server::Server;
 
 use super::tracing::LogStreamLayer;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service;
 use crate::backend::client_service::remote_fn_service::set_remote_fn_server;
 use crate::logs::state::LogState;

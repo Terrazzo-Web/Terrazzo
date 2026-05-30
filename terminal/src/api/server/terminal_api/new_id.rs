@@ -3,13 +3,13 @@ use std::sync::Arc;
 use terrazzo::axum::extract::Json;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 use uuid::Uuid;
 
 use crate::api::shared::terminal_schema::NewTerminalRequest;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 
 pub async fn new_id(

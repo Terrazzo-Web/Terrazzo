@@ -34,8 +34,14 @@ function getCloseIcons(tabs) {
 }
 
 async function closeTab(tab) {
-  await tab.hover();
-  await tab.locator('img.close-icon').click();
+  await tab.locator('img.close-icon').click({ force: true });
+}
+
+async function closeAllTabs(page) {
+  const tabs = getTabs(page);
+  while (await tabs.count() > 0) {
+    await closeTab(tabs.first());
+  }
 }
 
 test.describe('Terminal', () => {
@@ -43,6 +49,12 @@ test.describe('Terminal', () => {
     page.setDefaultTimeout(5 * SECOND);
     page.setDefaultNavigationTimeout(5 * SECOND);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await getAddTabButton(page).waitFor({ timeout: 30 * SECOND });
+    await closeAllTabs(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await closeAllTabs(page);
   });
 
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
@@ -68,6 +80,31 @@ test.describe('Terminal', () => {
 
     await closeTab(tabs);
     await expect(tabs).toHaveCount(0);
+  });
+
+  test('copies selected terminal text and pastes clipboard text', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE_URL });
+
+    const addTabButton = getAddTabButton(page);
+    await addTabButton.waitFor({ timeout: 30 * SECOND });
+    await page.evaluate(() => {
+      const prototype = window.JsDeps.Terminal.prototype;
+      prototype.hasSelection = () => true;
+      prototype.getSelection = () => 'copy_target';
+    });
+    await addTabButton.click();
+
+    const activeTerminal = getActiveTerminal(page);
+    await activeTerminal.click();
+
+    await page.keyboard.press('Control+C');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toContain('copy_target');
+
+    await page.evaluate(() => navigator.clipboard.writeText('printf paste_target\\n'));
+    await activeTerminal.click();
+    await page.keyboard.press('Control+V');
+    await expect(activeTerminal).toContainText('paste_target');
   });
 
   test('two terminals', async ({ page }) => {

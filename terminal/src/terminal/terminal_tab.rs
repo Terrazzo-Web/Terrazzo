@@ -14,6 +14,7 @@ use terrazzo::widgets::debounce::DoDebounce;
 use terrazzo::widgets::editable::editable;
 use terrazzo::widgets::tabs::TabDescriptor;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::KeyboardEvent;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::Level;
@@ -179,14 +180,42 @@ impl TabDescriptor for TerminalTab {
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
         let this = self.clone();
         let state = state.clone();
+        let keydown_tab = this.clone();
         div(
             class = style::TERMINAL,
+            keydown = move |ev: KeyboardEvent| {
+                keydown_tab.clone().keydown(ev);
+            },
             div(move |template| attach::attach(template, state.clone(), this.clone())),
         )
     }
 
     fn selected(&self, _state: &TerminalsState) -> XSignal<bool> {
         self.selected.clone()
+    }
+}
+
+impl TerminalTab {
+    fn keydown(self, ev: KeyboardEvent) {
+        if !ev.ctrl_key() || ev.alt_key() || ev.meta_key() {
+            return;
+        }
+        let Some(xtermjs) = self.xtermjs.lock().or_throw("xtermjs.lock()").clone() else {
+            return;
+        };
+        match ev.key().as_str() {
+            "c" | "C" if xtermjs.has_selection() => {
+                ev.prevent_default();
+                ev.stop_propagation();
+                spawn_local(async move { xtermjs.copy_selection().await }.in_current_span());
+            }
+            "v" | "V" => {
+                ev.prevent_default();
+                ev.stop_propagation();
+                spawn_local(async move { xtermjs.paste_clipboard().await }.in_current_span());
+            }
+            _ => {}
+        }
     }
 }
 

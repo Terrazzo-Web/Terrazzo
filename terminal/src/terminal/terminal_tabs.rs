@@ -105,4 +105,8 @@ impl TabsState for TerminalsState {
     fn move_tab(&self, after_tab: Option<TerminalTab>, moved_tab_key: String) {
         move_tab::move_tab(self.clone(), after_tab, moved_tab_key)
     }
+
+    fn drag_key() -> &'static str {
+        "terminal_id"
+    }
 }

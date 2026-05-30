@@ -190,7 +190,6 @@ terminal-client = [
   "dep:wasm-streams",
   "dep:web-sys",
   "terminal",
-  "web-sys/KeyboardEvent",
 ]
 terminal-server = [
   "dep:dashmap",

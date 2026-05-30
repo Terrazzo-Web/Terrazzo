@@ -12,21 +12,23 @@ class TerminalJs {
         if (event.type !== "keydown" || !event.ctrlKey || event.altKey || event.metaKey) {
             return true;
         }
-        switch (event.key.toLowerCase()) {
-            case "c":
-                if (!this.terminal.hasSelection()) {
-                    return true;
-                }
-                event.preventDefault();
-                this.copySelection();
-                return false;
-            case "v":
-                event.preventDefault();
-                navigator.clipboard.readText().then((text) => this.terminal.paste(text));
-                return false;
-            default:
+        if (this.isShortcut(event, "c", "KeyC")) {
+            if (!this.terminal.hasSelection()) {
                 return true;
+            }
+            event.preventDefault();
+            void this.copySelection();
+            return false;
         }
+        if (this.isShortcut(event, "v", "KeyV")) {
+            event.preventDefault();
+            navigator.clipboard.readText().then((text) => this.terminal.paste(text));
+            return false;
+        }
+        return true;
+    }
+    isShortcut(event, key, code) {
+        return event.key?.toLowerCase() === key || event.code === code;
     }
     open(node) {
         this.terminal.loadAddon(this.fitAddon);
@@ -39,16 +41,16 @@ class TerminalJs {
     focus() {
         this.terminal.focus();
     }
-    hasSelection() {
-        return this.terminal.hasSelection();
-    }
     async copySelection() {
-        if (!this.terminal.hasSelection()) {
-            return false;
+        try {
+            if (!this.terminal.hasSelection()) {
+                return false;
+            }
+            await navigator.clipboard.writeText(this.terminal.getSelection());
+            return true;
+        } finally {
+            this.terminal.clearSelection();
         }
-        await navigator.clipboard.writeText(this.terminal.getSelection());
-        this.terminal.clearSelection();
-        return true;
     }
     async pasteClipboard() {
         this.terminal.paste(await navigator.clipboard.readText());

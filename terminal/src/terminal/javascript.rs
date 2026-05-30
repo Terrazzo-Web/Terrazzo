@@ -20,15 +20,6 @@ extern "C" {
     #[wasm_bindgen(method)]
     pub fn focus(this: &TerminalJs);
 
-    #[wasm_bindgen(method, js_name = "hasSelection")]
-    pub fn has_selection(this: &TerminalJs) -> bool;
-
-    #[wasm_bindgen(method, js_name = "copySelection")]
-    pub async fn copy_selection(this: &TerminalJs);
-
-    #[wasm_bindgen(method, js_name = "pasteClipboard")]
-    pub async fn paste_clipboard(this: &TerminalJs);
-
     #[wasm_bindgen(method)]
     pub fn rows(this: &TerminalJs) -> JsValue;
 

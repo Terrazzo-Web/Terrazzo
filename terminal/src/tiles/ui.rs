@@ -10,6 +10,7 @@ use terrazzo::html;
 use terrazzo::prelude::diagnostics::warn;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::resize_event::ResizeEvent;
 use wasm_bindgen_futures::spawn_local;
 
 use super::api::Direction;
@@ -139,8 +140,9 @@ fn show_tiles_rec(
             nodes,
         } => {
             let count = nodes.len();
-            let resize_managers: Rc<[MousemoveManager]> =
-                (0..count).map(|_| MousemoveManager::new()).collect();
+            let resize_managers: Rc<[MousemoveManager]> = (0..count)
+                .map(|_| MousemoveManager::new2(|| ResizeEvent::signal().force(())))
+                .collect();
             let nodes = nodes.iter().enumerate().flat_map(|(i, node)| {
                 let resize_manager = &resize_managers[i];
                 let node = show_tiles_rec(

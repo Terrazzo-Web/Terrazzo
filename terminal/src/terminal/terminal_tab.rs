@@ -175,13 +175,17 @@ impl TabDescriptor for TerminalTab {
         div([title_link, close_button]..)
     }
 
+    #[autoclone]
     #[html]
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
         let this = self.clone();
         let state = state.clone();
         div(
             class = style::TERMINAL,
-            div(move |template| attach::attach(template, state.clone(), this.clone())),
+            div(move |template| {
+                autoclone!(this);
+                attach::attach(template, state.clone(), this.clone())
+            }),
         )
     }
 

@@ -36,8 +36,8 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::handle::ServerHandle;
-use trz_gateway_server::server::Server;
 
+use crate::backend::Server;
 use crate::backend::client_service::port_forward_service::listeners::EndpointId;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::client_service::routing::DistributedCallbackError;

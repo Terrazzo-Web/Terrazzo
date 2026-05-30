@@ -10,11 +10,11 @@ use tracing::warn;
 use tracing_futures as _;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use super::registration::Registration;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 use crate::processes;
 use crate::processes::io::LocalReader;

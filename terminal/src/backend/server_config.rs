@@ -20,13 +20,14 @@ use trz_gateway_common::security_configuration::certificate::cache::CachedCertif
 use trz_gateway_common::security_configuration::certificate::dynamic::DynamicCertificate;
 use trz_gateway_common::security_configuration::either::EitherConfig;
 use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
-use trz_gateway_server::server::Server;
+use trz_gateway_server::server::Server as GatewayServer;
 use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
 use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 use trz_gateway_server::server::gateway_config::Ports;
 use trz_gateway_server::server::gateway_config::app_config::AppConfig;
 
+use super::Server;
 use super::auth::AuthConfig;
 use super::auth::layer::AuthLayer;
 use super::config::DynConfig;
@@ -104,7 +105,8 @@ impl GatewayConfig for TerminalBackendServer {
         let config = self.config.clone();
         let auth_config = self.auth_config.clone();
         let active_challenges = self.active_challenges.clone();
-        move |server: Arc<Server>, router: Router| {
+        move |server: Arc<GatewayServer>, router: Router| {
+            let server = Arc::new(Server::new(server, config.clone()));
             let router = router
                 .route("/", get(|| static_assets::get("index.html")))
                 .route(

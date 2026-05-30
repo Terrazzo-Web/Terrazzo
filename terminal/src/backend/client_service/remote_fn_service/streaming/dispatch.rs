@@ -4,11 +4,11 @@ use scopeguard::defer;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::debug_span;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
 use super::callback::DistributedFn;
 use super::response::HybridResponseStream;
+use crate::backend::Server;
 use crate::backend::client_service::routing::DistributedCallback as _;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;
 

@@ -12,7 +12,8 @@ use tonic::transport::Body;
 use tracing::warn;
 use trz_gateway_common::http_error::IsHttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
+
+use crate::backend::Server;
 
 pub trait DistributedCallback {
     type Request;

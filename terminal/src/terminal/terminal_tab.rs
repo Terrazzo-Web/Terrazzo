@@ -20,16 +20,16 @@ use self::diagnostics::Level;
 use self::diagnostics::debug;
 use self::diagnostics::enabled;
 use self::diagnostics::warn;
-use super::TerminalsState;
 use super::attach;
 use super::javascript::TerminalJs;
-use super::style;
+use super::ui::TerminalsState;
 use crate::api::client::terminal_api;
 use crate::api::client::terminal_api::LiveTerminalDef;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
+use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
 
 #[nameth]
@@ -156,7 +156,7 @@ impl TabDescriptor for TerminalTab {
         });
         let close_button = img(
             key = "close-icon",
-            class = super::style::CLOSE_ICON,
+            class = style::CLOSE_ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "close-icon",
             src = icons::close_tab(),
@@ -273,7 +273,7 @@ impl std::fmt::Debug for TerminalTab {
 
 impl PartialEq for TerminalTabInner {
     fn eq(&self, other: &Self) -> bool {
-        self.address.id == other.address.id
+        self.address.id == other.address.id && self.tile == other.tile
     }
 }
 

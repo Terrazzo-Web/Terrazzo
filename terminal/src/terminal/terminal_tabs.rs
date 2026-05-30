@@ -6,8 +6,8 @@ use terrazzo::prelude::*;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsState;
 
-use super::TerminalsState;
 use super::terminal_tab::TerminalTab;
+use super::ui::TerminalsState;
 use crate::api::client_address::ClientAddress;
 use crate::assets::icons;
 use crate::frontend::menu::menu;
@@ -104,5 +104,13 @@ impl TabsState for TerminalsState {
 
     fn move_tab(&self, after_tab: Option<TerminalTab>, moved_tab_key: String) {
         move_tab::move_tab(self.clone(), after_tab, moved_tab_key)
+    }
+
+    fn drag_key() -> &'static str {
+        "terminal_id"
+    }
+
+    fn zone_id(&self) -> Option<String> {
+        format!("tile_id:{}", self.tile.id).into()
     }
 }

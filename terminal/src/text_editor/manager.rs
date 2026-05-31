@@ -18,6 +18,9 @@ use super::side::SideViewList;
 use super::side::UiStatus;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::remotes::Remote;
+use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SideViewNodeItem;
+use crate::text_editor::side::SideViewNodeProps;
 use crate::tiles::signals::TilePtr;
 use crate::utils::more_path::MorePath as _;
 
@@ -70,11 +73,15 @@ impl TextEditorManager {
             Some(side::mutation::add_file(
                 tree.clone(),
                 file_path.as_slice(),
-                super::side::SideViewNode::file(
-                    metadata.clone(),
-                    notify_registration.into(),
-                    UiStatus::Opened,
-                ),
+                SideViewNode {
+                    properties: SideViewNodeProps {
+                        status: UiStatus::Opened,
+                    },
+                    item: SideViewNodeItem::File {
+                        metadata: metadata.clone(),
+                        notify_registration: notify_registration.into(),
+                    },
+                },
             ))
         });
         self.force_edit_path.set(false);

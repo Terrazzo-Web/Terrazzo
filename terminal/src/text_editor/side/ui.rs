@@ -41,7 +41,7 @@ pub fn show_side_view(
         root.into(),
         SideViewNode {
             properties: SideViewNodeProps {
-                ui_status: UiStatus::Opened,
+                status: UiStatus::Opened,
             },
             item: SideViewNodeItem::Folder(side_view),
         }
@@ -89,7 +89,7 @@ fn show_side_view_node(
             let file_path_signal = manager.path.file.clone();
             let has_displayed_children = children
                 .values()
-                .any(|child| child.properties.ui_status == UiStatus::Displayed);
+                .any(|child| child.properties.status == UiStatus::Displayed);
             div(
                 key = "folder",
                 #[cfg(not(feature = "client-prod"))]

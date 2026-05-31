@@ -19,7 +19,7 @@ pub struct SideViewNode {
 #[cfg_attr(feature = "server", allow(dead_code))]
 pub struct SideViewNodeProps {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
-    pub ui_status: UiStatus,
+    pub status: UiStatus,
 }
 
 #[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -43,31 +43,6 @@ pub enum SideViewNodeItem {
         #[serde(skip)]
         notify_registration: opqaue::OpaqueNotifyRegistration,
     },
-}
-
-impl SideViewNode {
-    #[cfg(feature = "client")]
-    pub fn folder(children: Arc<SideViewList>, ui_status: UiStatus) -> Self {
-        Self {
-            properties: SideViewNodeProps { ui_status },
-            item: SideViewNodeItem::Folder(children),
-        }
-    }
-
-    #[cfg(feature = "client")]
-    pub fn file(
-        metadata: Arc<FileMetadata>,
-        notify_registration: opqaue::OpaqueNotifyRegistration,
-        ui_status: UiStatus,
-    ) -> Self {
-        Self {
-            properties: SideViewNodeProps { ui_status },
-            item: SideViewNodeItem::File {
-                metadata,
-                notify_registration,
-            },
-        }
-    }
 }
 
 pub mod opqaue {

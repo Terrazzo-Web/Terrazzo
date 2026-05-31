@@ -40,6 +40,7 @@ declare_icon!(converter, "/icons/regex.svg"; feature = "converter");
 declare_icon!(copy, "/icons/copy.svg"; feature = "converter");
 declare_icon!(done, "/icons/done.svg"; any(feature = "converter", feature = "text-editor"));
 declare_icon!(split_horz, "/icons/arrows-expand-vertical.svg");
+declare_icon!(collapse_vert, "/icons/arrows-collapse.svg"; feature = "text-editor");
 declare_icon!(split_vert, "/icons/arrows-expand.svg");
 declare_icon!(file, "/icons/file-earmark-text.svg"; feature = "text-editor");
 declare_icon!(folder, "/icons/folder2-open.svg"; feature = "text-editor");

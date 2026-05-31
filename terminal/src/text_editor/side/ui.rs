@@ -108,9 +108,15 @@ fn show_side_view_node(
                             },
                         ),
                     ),
-                    folder_arrow(manager, &path, has_displayed_children),
-                    close_icon(manager, &path),
-                    (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
+                    (*path != "".as_ref())
+                        .then(|| {
+                            [
+                                folder_expand_icon(manager, &path, has_displayed_children),
+                                close_icon(manager, &path),
+                            ]
+                        })
+                        .into_iter()
+                        .flatten()..,
                 ),
                 div(
                     class = style::SUB_FOLDER,
@@ -153,7 +159,7 @@ fn selected_item(#[signal] file_path: Arc<str>, path: Arc<Path>) -> XAttributeVa
 
 #[autoclone]
 #[html]
-fn folder_arrow(
+fn folder_expand_icon(
     manager: &Ptr<TextEditorManager>,
     path: &Arc<Path>,
     has_displayed_children: bool,
@@ -181,6 +187,7 @@ fn folder_arrow(
     img(
         src = icons::split_vert(),
         class = style::ICON,
+        class = style::HOVER_IMG,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-expand-folder",
         click = move |_ev| {
@@ -222,7 +229,8 @@ fn path_vec(path: &Path) -> Vec<Arc<str>> {
 fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
     img(
         src = icons::close_tab(),
-        class = format!("{} {}", style::ICON, style::CLOSE),
+        class = style::ICON,
+        class = style::HOVER_IMG,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-close-file",
         click = move |_ev| {

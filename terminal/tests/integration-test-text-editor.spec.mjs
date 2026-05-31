@@ -37,6 +37,14 @@ function getCodeMirrorContent(page) {
     return page.locator('.code-mirror-editor .cm-content');
 }
 
+function getCodeMirrorSearchPanel(page) {
+    return page.locator('.code-mirror-editor .cm-search');
+}
+
+function editorFindShortcut() {
+    return process.platform === 'darwin' ? 'Meta+F' : 'Control+F';
+}
+
 function getSideViewFile(page, filePath) {
     return page.locator(`.side-view [data-file-path="${filePath}"]`);
 }
@@ -246,6 +254,37 @@ test.describe('Text editor', () => {
         await expect
             .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
             .toBe('Hello, world!');
+    });
+
+    test('finds text in the editor and selects the matching row', async ({ page }) => {
+        const fileName = 'hello.txt';
+        const { baseDir, filePath } = await createTempFile(fileName);
+        const content = Array.from({ length: 10 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+
+        await openFolderFile(page, fileName);
+
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
+        await replaceEditorText(page, editor, content);
+
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
+
+        await page.keyboard.press(editorFindShortcut());
+
+        const searchPanel = getCodeMirrorSearchPanel(page);
+        await expect(searchPanel).toBeVisible({ timeout: 30 * SECOND });
+        await searchPanel.locator('input[name="search"]').click();
+        await page.keyboard.type('! 8');
+        await page.keyboard.press('Enter');
+
+        const selectedSearchMatchLine = getCodeMirrorContent(page).locator('.cm-line', {
+            has: page.locator('.cm-searchMatch-selected'),
+        });
+        await expect(selectedSearchMatchLine).toHaveText('Hello, World! 8', { timeout: 10 * SECOND });
     });
 
     test('renders a PDF file', async ({ page }) => {

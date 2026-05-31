@@ -38,7 +38,7 @@ pub enum File {
     Error(String),
 }
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct FileMetadata {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: Arc<str>,
@@ -81,6 +81,17 @@ async fn load_file(
 ) -> Result<Option<File>, ServerFnError> {
     Ok(remote::LOAD_FILE_REMOTE_FN
         .call(remote, remote::LoadFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn list_folder(
+    remote: ClientAddress,
+    path: FilePath<Arc<str>>,
+) -> Result<Option<Arc<Vec<FileMetadata>>>, ServerFnError> {
+    Ok(remote::LIST_FOLDER_REMOTE_FN
+        .call(remote, remote::ListFolderRequest { path })
         .await?)
 }
 

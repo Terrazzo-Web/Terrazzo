@@ -77,6 +77,13 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
     Ok(None)
 }
 
+pub fn list_folder(path: FilePath<Arc<str>>) -> Result<Option<Arc<Vec<FileMetadata>>>, FsioError> {
+    match load_file(path)? {
+        Some(File::Folder(list)) => Ok(Some(list)),
+        _ => Ok(None),
+    }
+}
+
 pub fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     return if path.exists() {

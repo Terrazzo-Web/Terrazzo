@@ -15,6 +15,12 @@ pub struct LoadFileRequest {
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct ListFolderRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<str>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct StoreFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
     pub path: FilePath<Arc<str>>,
@@ -29,6 +35,17 @@ remote_fn_service::unary::declare_remote_fn!(
     Option<File>,
     |_server, arg: LoadFileRequest| {
         let result = super::service::load_file(arg.path);
+        ready(result.map_err(GrpcError::from))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    LIST_FOLDER_REMOTE_FN,
+    super::LIST_FOLDER,
+    ListFolderRequest,
+    Option<Arc<Vec<super::FileMetadata>>>,
+    |_server, arg: ListFolderRequest| {
+        let result = super::service::list_folder(arg.path);
         ready(result.map_err(GrpcError::from))
     }
 );

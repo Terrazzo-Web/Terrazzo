@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execFile } from 'node:child_process';
-import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -29,16 +29,16 @@ function getBasePathDisplay(page) {
     return page.locator('.base-path-selector-display');
 }
 
-function getFolderFile(page, name) {
-    return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
-}
-
 function getCodeMirrorContent(page) {
     return page.locator('.code-mirror-editor .cm-content');
 }
 
 function getCodeMirrorSearchPanel(page) {
     return page.locator('.code-mirror-editor .cm-search');
+}
+
+function getMergeViewEditors(page) {
+    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
 }
 
 function editorFindShortcut() {
@@ -49,8 +49,12 @@ function getSideViewFile(page, filePath) {
     return page.locator(`.side-view [data-file-path="${filePath}"]`);
 }
 
-function getMergeViewEditors(page) {
-    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
+function getSideViewFolder(page, folderPath) {
+    return page.locator(`.side-view [data-folder-path="${folderPath}"] .side-view-folder-row`);
+}
+
+function getFolderFile(page, name) {
+    return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
 }
 
 function getPdfPage(page, pageNumber) {
@@ -211,18 +215,20 @@ async function createCommittedReadme() {
     return { baseDir, fileName, filePath };
 }
 
+async function createFolderTree() {
+    const root = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-tree-'));
+    await mkdir(path.join(root, 'a', 'c'), { recursive: true });
+    await mkdir(path.join(root, 'b'), { recursive: true });
+    await writeFile(path.join(root, 'a', 'a1.txt'), 'I am Alice');
+    await writeFile(path.join(root, 'a', 'a2.txt'), 'I am Bob');
+    await writeFile(path.join(root, 'a', 'c', 'c.txt'), 'I am Charlie');
+    return root;
+}
+
 async function replaceEditorText(page, editor, content) {
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
     await page.keyboard.type(content);
-}
-
-async function closeSideViewFile(page, filePath) {
-    const sideViewFile = getSideViewFile(page, filePath);
-    await expect(sideViewFile).toBeVisible({ timeout: 30 * SECOND });
-    await sideViewFile.hover();
-    await sideViewFile.locator('img.side-view-close-file').click({ force: true });
-    await expect(sideViewFile).toHaveCount(0, { timeout: 30 * SECOND });
 }
 
 test.describe('Text editor', () => {
@@ -408,5 +414,33 @@ test.describe('Text editor', () => {
         await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
         await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 30 * SECOND });
         await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 30 * SECOND });
+    });
+
+    test('expands and collapses side-view folder nodes', async ({ page }) => {
+        const root = await createFolderTree();
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, root, 'a');
+        await openFolderFile(page, 'a/');
+        await openFolderFile(page, 'a2.txt');
+
+        await expect(getCodeMirrorContent(page)).toContainText('I am Bob', { timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'a/a2.txt')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0);
+
+        const folderA = getSideViewFolder(page, 'a');
+        await expect(folderA).toBeVisible({ timeout: 30 * SECOND });
+        await folderA.hover();
+        await folderA.locator('.side-view-expand-folder').click();
+
+        await expect(getSideViewFile(page, 'a/a1.txt')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFolder(page, 'a/c')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'a/c/c.txt')).toHaveCount(0);
+
+        await folderA.locator('.side-view-collapse-folder').click();
+
+        await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 30 * SECOND });
     });
 });

@@ -24,6 +24,7 @@ class CodeMirrorJsImpl {
 
         let extensions = [
             JsDeps.basicSetup,
+            JsDeps.search({ top: true }),
             JsDeps.lintGutter(),
             JsDeps.oneDark,
             updateListener,

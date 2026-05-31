@@ -29,16 +29,20 @@ function getBasePathDisplay(page) {
     return page.locator('.base-path-selector-display');
 }
 
-function getFolderFile(page, name) {
-    return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
-}
-
 function getCodeMirrorContent(page) {
     return page.locator('.code-mirror-editor .cm-content');
 }
 
+function getCodeMirrorSearchPanel(page) {
+    return page.locator('.code-mirror-editor .cm-search');
+}
+
 function getMergeViewEditors(page) {
     return page.locator('.code-mirror-editor .cm-mergeViewEditor');
+}
+
+function editorFindShortcut() {
+    return process.platform === 'darwin' ? 'Meta+F' : 'Control+F';
 }
 
 function getSideViewFile(page, filePath) {
@@ -47,6 +51,10 @@ function getSideViewFile(page, filePath) {
 
 function getSideViewFolder(page, folderPath) {
     return page.locator(`.side-view [data-folder-path="${folderPath}"] .side-view-folder-row`);
+}
+
+function getFolderFile(page, name) {
+    return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
 }
 
 function getPdfPage(page, pageNumber) {
@@ -220,7 +228,7 @@ async function createFolderTree() {
 async function replaceEditorText(page, editor, content) {
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
-    await page.keyboard.type(content);
+    await page.keyboard.insertText(content);
 }
 
 test.describe('Text editor', () => {
@@ -252,6 +260,37 @@ test.describe('Text editor', () => {
         await expect
             .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
             .toBe('Hello, world!');
+    });
+
+    test('finds text in the editor and selects the matching row', async ({ page }) => {
+        const fileName = 'hello.txt';
+        const { baseDir, filePath } = await createTempFile(fileName);
+        const content = Array.from({ length: 300 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+
+        await openFolderFile(page, fileName);
+
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
+        await replaceEditorText(page, editor, content);
+
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
+
+        await page.keyboard.press(editorFindShortcut());
+
+        const searchPanel = getCodeMirrorSearchPanel(page);
+        await expect(searchPanel).toBeVisible({ timeout: 30 * SECOND });
+        await searchPanel.locator('input[name="search"]').click();
+        await page.keyboard.type('! 8');
+        await page.keyboard.press('Enter');
+
+        const selectedSearchMatchLine = getCodeMirrorContent(page).locator('.cm-line', {
+            has: page.locator('.cm-searchMatch-selected'),
+        });
+        await expect(selectedSearchMatchLine).toHaveText('Hello, World! 8', { timeout: 10 * SECOND });
     });
 
     test('renders a PDF file', async ({ page }) => {

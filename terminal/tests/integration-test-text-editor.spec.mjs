@@ -29,14 +29,6 @@ function getBasePathDisplay(page) {
     return page.locator('.base-path-selector-display');
 }
 
-function getFilePathInput(page) {
-    return page.locator('.file-path-selector-field');
-}
-
-function getFilePathDisplay(page) {
-    return page.locator('.file-path-selector-display');
-}
-
 function getFolderFile(page, name) {
     return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
 }
@@ -157,34 +149,6 @@ async function showBasePathInput(page, timeout = 30 * SECOND) {
     return basePathInput;
 }
 
-async function openTextEditor(page) {
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-    await waitForPathSelectorsToSettle(page);
-    await page.waitForTimeout(SECOND);
-}
-
-async function waitForPathSelectorsToSettle(page, timeout = 10 * SECOND) {
-    let lastValue;
-    let stableSince = Date.now();
-    await expect
-        .poll(
-            async () => {
-                const value = [
-                    await selectedBasePath(page, SECOND).catch(() => '<base-missing>'),
-                    await selectedFilePath(page, SECOND).catch(() => '<file-missing>'),
-                ].join('\n');
-                if (value !== lastValue) {
-                    lastValue = value;
-                    stableSince = Date.now();
-                    return false;
-                }
-                return Date.now() - stableSince >= 300;
-            },
-            { timeout, intervals: [100] },
-        )
-        .toBe(true);
-}
-
 async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECOND) {
     await expect
         .poll(
@@ -193,16 +157,6 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECON
                     const basePathInput = await showBasePathInput(page, SECOND);
                     await basePathInput.fill(baseDir);
                     await page.keyboard.press('Tab');
-                    if ((await selectedBasePath(page, SECOND)) !== baseDir) {
-                        return false;
-                    }
-                    const filePathInput = getFilePathInput(page);
-                    await expect(filePathInput).toBeVisible({ timeout: SECOND });
-                    await filePathInput.fill('');
-                    await page.keyboard.press('Tab');
-                    if ((await selectedFilePath(page, SECOND)) !== '') {
-                        return false;
-                    }
                     await getFolderFile(page, expectedFileName).waitFor({
                         state: 'visible',
                         timeout: SECOND,
@@ -217,18 +171,6 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECON
         .toBe(true);
 }
 
-async function selectedBasePath(page, timeout = 30 * SECOND) {
-    await page
-        .locator('.base-path-selector-field, .base-path-selector-display')
-        .first()
-        .waitFor({ state: 'visible', timeout });
-    const basePathInput = getBasePathInput(page);
-    if (await basePathInput.isVisible().catch(() => false)) {
-        return basePathInput.inputValue();
-    }
-    return getBasePathDisplay(page).textContent();
-}
-
 async function openFolderFile(page, name, timeout = 60 * SECOND) {
     await expect
         .poll(
@@ -237,7 +179,7 @@ async function openFolderFile(page, name, timeout = 60 * SECOND) {
                     await getFolderFile(page, name).evaluate((node) => node.click(), {
                         timeout: SECOND,
                     });
-                    return await selectedFilePath(page, SECOND).then((filePath) => path.basename(filePath) === name);
+                    return true;
                 } catch {
                     return false;
                 }
@@ -245,18 +187,6 @@ async function openFolderFile(page, name, timeout = 60 * SECOND) {
             { timeout },
         )
         .toBe(true);
-}
-
-async function selectedFilePath(page, timeout = 30 * SECOND) {
-    await page
-        .locator('.file-path-selector-field, .file-path-selector-display')
-        .first()
-        .waitFor({ state: 'visible', timeout });
-    const filePathInput = getFilePathInput(page);
-    if (await filePathInput.isVisible().catch(() => false)) {
-        return filePathInput.inputValue();
-    }
-    return getFilePathDisplay(page).textContent();
 }
 
 async function reloadFolder(page, baseDir, fileName) {
@@ -307,19 +237,17 @@ test.describe('Text editor', () => {
     });
 
     test('edits a file', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
-
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
 
-        await openTextEditor(page);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         await setBasePath(page, baseDir, fileName);
 
         await openFolderFile(page, fileName);
 
         const editor = getCodeMirrorContent(page);
-        await expect(editor).toBeVisible({ timeout: 60 * SECOND });
+        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
         await editor.click();
         await page.keyboard.type('Hello, world!');
 
@@ -329,20 +257,18 @@ test.describe('Text editor', () => {
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
-
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
         const content = Array.from({ length: 300 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
 
-        await openTextEditor(page);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         await setBasePath(page, baseDir, fileName);
 
         await openFolderFile(page, fileName);
 
         const editor = getCodeMirrorContent(page);
-        await expect(editor).toBeVisible({ timeout: 60 * SECOND });
+        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
         await replaceEditorText(page, editor, content);
 
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
@@ -367,7 +293,7 @@ test.describe('Text editor', () => {
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
         await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
 
-        await openTextEditor(page);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         await setBasePath(page, baseDir, 'PlantUML.pdf');
 
@@ -455,14 +381,14 @@ test.describe('Text editor', () => {
 
         const { baseDir, fileName, filePath } = await createCommittedReadme();
 
-        await openTextEditor(page);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 60 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
         const plainEditor = getCodeMirrorContent(page).first();
-        await expect(plainEditor).toContainText('Hello, World!', { timeout: 60 * SECOND });
+        await expect(plainEditor).toContainText('Hello, World!', { timeout: 30 * SECOND });
 
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');

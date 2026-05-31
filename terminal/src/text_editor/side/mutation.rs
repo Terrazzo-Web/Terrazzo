@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
@@ -10,6 +11,10 @@ use self::diagnostics::debug;
 use self::diagnostics::warn;
 use super::SideViewList;
 use super::SideViewNode;
+use super::SvnItem;
+use super::SvnProperties;
+use super::SvnStatus;
+use crate::text_editor::fsio::FileMetadata;
 
 pub fn add_file(
     tree: Arc<SideViewList>,
@@ -22,9 +27,9 @@ pub fn add_file(
             #[cfg(debug_assertions)]
             #[cfg(debug_assertions)]
             match tree.get(child_name) {
-                Some(child) => match &**child {
-                    SideViewNode::Folder { .. } => warn!("Replace folder {child_name}"),
-                    SideViewNode::File { .. } => debug!("Replace file {child_name}"),
+                Some(child) => match &child.item {
+                    SvnItem::Folder(..) => warn!("Replace folder {child_name}"),
+                    SvnItem::File { .. } => debug!("Replace file {child_name}"),
                 },
                 None => debug!("Add new file {child_name}"),
             }
@@ -34,12 +39,12 @@ pub fn add_file(
         }
         [folder_name, rest @ ..] => {
             let children = match tree.get(folder_name) {
-                Some(child) => match &**child {
-                    SideViewNode::Folder(children) => {
+                Some(child) => match &child.item {
+                    SvnItem::Folder(children) => {
                         debug!("Adding to folder {folder_name}");
                         children.clone()
                     }
-                    SideViewNode::File { .. } => {
+                    SvnItem::File { .. } => {
                         warn!("Replace file {folder_name}");
                         Arc::default()
                     }
@@ -51,7 +56,17 @@ pub fn add_file(
             };
             let mut new_tree = (*tree).clone();
             let rec = add_file(children, rest, node);
-            new_tree.insert((*folder_name).clone(), Arc::new(SideViewNode::Folder(rec)));
+            new_tree.insert(
+                (*folder_name).clone(),
+                Arc::new({
+                    SideViewNode {
+                        properties: SvnProperties {
+                            status: SvnStatus::Opened,
+                        },
+                        item: SvnItem::Folder(rec),
+                    }
+                }),
+            );
             Arc::new(new_tree)
         }
     }
@@ -63,49 +78,169 @@ pub fn remove_file(
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
     match relative_path {
         [] => remove_file(tree, &["/".into()]),
-        [child_name] => {
-            #[cfg(debug_assertions)]
-            match tree.get(child_name) {
-                Some(child) => match &**child {
-                    SideViewNode::Folder { .. } => debug!("Remove folder {child_name}"),
-                    SideViewNode::File { .. } => debug!("Remove file {child_name}"),
-                },
-                None => {
-                    debug!("The file wasn't here {child_name}");
-                    return Err(RemoveFileError::FileNotFound);
-                }
-            }
-            let mut new_tree = (*tree).clone();
-            new_tree.remove(child_name);
-            Ok(Arc::new(new_tree))
+        [child_name] => remove_aux_file(&tree, child_name),
+        [folder_name, rest @ ..] => remove_aux_folder(tree, folder_name, rest),
+    }
+}
+
+fn remove_aux_file(
+    tree: &Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>,
+    child_name: &Arc<str>,
+) -> Result<Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>, RemoveFileError> {
+    #[cfg(debug_assertions)]
+    match tree.get(child_name) {
+        Some(child) => match &child.item {
+            SvnItem::Folder(..) => debug!("Remove folder {child_name}"),
+            SvnItem::File { .. } => debug!("Remove file {child_name}"),
+        },
+        None => {
+            debug!("The file wasn't here {child_name}");
+            return Err(RemoveFileError::FileNotFound);
         }
-        [folder_name, rest @ ..] => {
-            let children = match tree.get(folder_name) {
-                Some(child) => match &**child {
-                    SideViewNode::Folder(children) => {
-                        debug!("Removing from folder {folder_name}");
-                        children.clone()
-                    }
-                    SideViewNode::File {
-                        metadata: expected_folder,
-                        ..
-                    } => {
-                        return Err(RemoveFileError::ExpectedFolder(
-                            expected_folder.name.clone(),
-                        ));
-                    }
-                },
-                None => {
-                    return Err(RemoveFileError::ParentNotFound(folder_name.clone()));
+    }
+    let mut new_tree = (**tree).clone();
+    new_tree.remove(child_name);
+    Ok(Arc::new(new_tree))
+}
+
+fn remove_aux_folder(
+    tree: Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>,
+    folder_name: &Arc<str>,
+    rest: &[Arc<str>],
+) -> Result<Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>, RemoveFileError> {
+    let children = match tree.get(folder_name) {
+        Some(child) => match &child.item {
+            SvnItem::Folder(children) => {
+                debug!("Removing from folder {folder_name}");
+                children.clone()
+            }
+            SvnItem::File {
+                metadata: expected_folder,
+                ..
+            } => {
+                return Err(RemoveFileError::ExpectedFolder(
+                    expected_folder.name.clone(),
+                ));
+            }
+        },
+        None => {
+            return Err(RemoveFileError::ParentNotFound(folder_name.clone()));
+        }
+    };
+    let mut new_tree = (*tree).clone();
+    let new_children = remove_file(children, rest)?;
+    new_tree.insert(
+        folder_name.clone(),
+        Arc::new(SideViewNode {
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
+            },
+            item: SvnItem::Folder(new_children),
+        }),
+    );
+    Ok(Arc::new(new_tree))
+}
+
+pub fn add_displayed_folder_content(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+    folder_content: &[FileMetadata],
+) -> Arc<SideViewList> {
+    update_folder(tree, relative_path, &|children| {
+        let mut new_children = (*children).clone();
+        for metadata in folder_content {
+            if new_children.contains_key(&metadata.name) {
+                continue;
+            }
+            let node = if metadata.is_dir {
+                SideViewNode {
+                    properties: SvnProperties {
+                        status: SvnStatus::Displayed,
+                    },
+                    item: SvnItem::Folder(Arc::default()),
+                }
+            } else {
+                SideViewNode {
+                    properties: SvnProperties {
+                        status: SvnStatus::Displayed,
+                    },
+                    item: SvnItem::File {
+                        metadata: Arc::new(metadata.clone()),
+                        notify_registration: Default::default(),
+                    },
                 }
             };
+            new_children.insert(metadata.name.clone(), Arc::new(node));
+        }
+        Arc::new(new_children)
+    })
+}
+
+pub fn collapse_displayed_children(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+) -> Arc<SideViewList> {
+    update_folder(tree, relative_path, &|children| {
+        let mut new_children = SideViewList::default();
+        for (name, child) in children.iter() {
+            if child.properties.status == SvnStatus::Displayed {
+                continue;
+            }
+            let child = match &child.item {
+                SvnItem::Folder(grandchildren) => Arc::new(SideViewNode {
+                    properties: child.properties.clone(),
+                    item: SvnItem::Folder(remove_displayed(grandchildren.clone())),
+                }),
+                SvnItem::File { .. } => child.clone(),
+            };
+            new_children.insert(name.clone(), child);
+        }
+        Arc::new(new_children)
+    })
+}
+
+fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
+    let mut new_tree = SideViewList::default();
+    for (name, child) in tree.iter() {
+        if child.properties.status == SvnStatus::Displayed {
+            continue;
+        }
+        let child = match &child.item {
+            SvnItem::Folder(children) => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::Folder(remove_displayed(children.clone())),
+            }),
+            SvnItem::File { .. } => child.clone(),
+        };
+        new_tree.insert(name.clone(), child);
+    }
+    Arc::new(new_tree)
+}
+
+fn update_folder(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+    update: &impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,
+) -> Arc<SideViewList> {
+    match relative_path {
+        [] => update(tree),
+        [folder_name, rest @ ..] => {
+            let Some(child) = tree.get(folder_name) else {
+                return tree;
+            };
+            let SvnItem::Folder(children) = &child.item else {
+                return tree;
+            };
+            let updated_children = update_folder(children.clone(), rest, update);
             let mut new_tree = (*tree).clone();
-            let new_children = remove_file(children, rest)?;
             new_tree.insert(
                 folder_name.clone(),
-                Arc::new(SideViewNode::Folder(new_children)),
+                Arc::new(SideViewNode {
+                    properties: child.properties.clone(),
+                    item: SvnItem::Folder(updated_children),
+                }),
             );
-            Ok(Arc::new(new_tree))
+            Arc::new(new_tree)
         }
     }
 }
@@ -132,24 +267,32 @@ mod tests {
 
     use super::SideViewList;
     use super::SideViewNode;
+    use super::SvnStatus;
     use crate::text_editor::fsio::FileMetadata;
+    use crate::text_editor::side::SvnItem;
+    use crate::text_editor::side::SvnProperties;
 
     #[test]
     fn add_file() {
         let tree = Arc::<SideViewList>::default();
-        let make_file = |name: &str| SideViewNode::File {
-            metadata: Arc::new(FileMetadata {
-                name: Arc::from(name),
-                size: Some(12),
-                is_dir: false,
-                created: None,
-                accessed: None,
-                modified: None,
-                mode: None,
-                user: None,
-                group: None,
-            }),
-            notify_registration: Default::default(),
+        let make_file = |name: &str| SideViewNode {
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
+            },
+            item: SvnItem::File {
+                metadata: Arc::new(FileMetadata {
+                    name: Arc::from(name),
+                    size: Some(12),
+                    is_dir: false,
+                    created: None,
+                    accessed: None,
+                    modified: None,
+                    mode: None,
+                    user: None,
+                    group: None,
+                }),
+                notify_registration: Default::default(),
+            },
         };
         let tree = super::add_file(
             tree,
@@ -300,19 +443,24 @@ mod tests {
     #[test]
     fn remove_file() {
         let tree = Arc::<SideViewList>::default();
-        let make_file = |name: &str| SideViewNode::File {
-            metadata: Arc::new(FileMetadata {
-                name: Arc::from(name),
-                size: Some(12),
-                is_dir: false,
-                created: None,
-                accessed: None,
-                modified: None,
-                mode: None,
-                user: None,
-                group: None,
-            }),
-            notify_registration: Default::default(),
+        let make_file = |name: &str| SideViewNode {
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
+            },
+            item: SvnItem::File {
+                metadata: Arc::new(FileMetadata {
+                    name: Arc::from(name),
+                    size: Some(12),
+                    is_dir: false,
+                    created: None,
+                    accessed: None,
+                    modified: None,
+                    mode: None,
+                    user: None,
+                    group: None,
+                }),
+                notify_registration: Default::default(),
+            },
         };
         let tree = super::add_file(
             tree,

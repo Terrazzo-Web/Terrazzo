@@ -8,7 +8,33 @@ pub mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
-pub enum SideViewNode {
+pub struct SideViewNode {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub properties: SvnProperties,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
+    pub item: SvnItem,
+}
+
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub struct SvnProperties {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
+    pub status: SvnStatus,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub enum SvnStatus {
+    #[default]
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "O"))]
+    Opened,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "D"))]
+    Displayed,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub enum SvnItem {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "D"))]
     Folder(Arc<SideViewList>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
@@ -53,9 +79,9 @@ pub type SideViewList = BTreeMap<Arc<str>, Arc<SideViewNode>>;
 
 impl std::fmt::Debug for SideViewNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Folder(children) => f.debug_tuple("Folder").field(children).finish(),
-            Self::File {
+        match &self.item {
+            SvnItem::Folder(children) => f.debug_tuple("Folder").field(children).finish(),
+            SvnItem::File {
                 metadata,
                 notify_registration,
             } => {

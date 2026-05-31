@@ -22,12 +22,12 @@ div.side {
         display: flex;
         flex-direction: row;
 
-        img.close {
+        img.hover-img {
             @include trz-icon($display: none);
             visibility: hidden;
         }
 
-        &:hover img.close {
+        &:hover img.hover-img {
             display: block;
             visibility: visible;
 

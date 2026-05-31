@@ -15,12 +15,12 @@ use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side;
 use super::side::SideViewList;
-use super::side::UiStatus;
+use super::side::SvnStatus;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::remotes::Remote;
 use crate::text_editor::side::SideViewNode;
-use crate::text_editor::side::SideViewNodeItem;
-use crate::text_editor::side::SideViewNodeProps;
+use crate::text_editor::side::SvnItem;
+use crate::text_editor::side::SvnProperties;
 use crate::tiles::signals::TilePtr;
 use crate::utils::more_path::MorePath as _;
 
@@ -74,10 +74,10 @@ impl TextEditorManager {
                 tree.clone(),
                 file_path.as_slice(),
                 SideViewNode {
-                    properties: SideViewNodeProps {
-                        status: UiStatus::Opened,
+                    properties: SvnProperties {
+                        status: SvnStatus::Opened,
                     },
-                    item: SideViewNodeItem::File {
+                    item: SvnItem::File {
                         metadata: metadata.clone(),
                         notify_registration: notify_registration.into(),
                     },

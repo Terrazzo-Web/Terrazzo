@@ -3,22 +3,22 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use self::diagnostics::error;
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
+use self::diagnostics::error;
 use crate::assets::icons;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::ui::list_folder;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
-use crate::text_editor::side::SideViewNodeItem;
-use crate::text_editor::side::SideViewNodeProps;
-use crate::text_editor::side::UiStatus;
+use crate::text_editor::side::SvnItem;
+use crate::text_editor::side::SvnProperties;
+use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::mutation::add_displayed_folder_content;
 use crate::text_editor::side::mutation::collapse_displayed_children;
 use crate::utils::more_path::MorePath as _;
@@ -40,10 +40,10 @@ pub fn show_side_view(
     let side_view = [(
         root.into(),
         SideViewNode {
-            properties: SideViewNodeProps {
-                status: UiStatus::Opened,
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
             },
-            item: SideViewNodeItem::Folder(side_view),
+            item: SvnItem::Folder(side_view),
         }
         .into(),
     )]
@@ -85,11 +85,11 @@ fn show_side_view_node(
         Arc::from(path.join(name.as_ref()))
     };
     li(match &side_view.item {
-        SideViewNodeItem::Folder(children) => {
+        SvnItem::Folder(children) => {
             let file_path_signal = manager.path.file.clone();
             let has_displayed_children = children
                 .values()
-                .any(|child| child.properties.status == UiStatus::Displayed);
+                .any(|child| child.properties.status == SvnStatus::Displayed);
             div(
                 key = "folder",
                 #[cfg(not(feature = "client-prod"))]
@@ -118,7 +118,7 @@ fn show_side_view_node(
                 ),
             )
         }
-        SideViewNodeItem::File { metadata, .. } => {
+        SvnItem::File { metadata, .. } => {
             let name = &metadata.name;
             let file_path_signal = manager.path.file.clone();
             div(

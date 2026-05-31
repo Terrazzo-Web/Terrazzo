@@ -10,9 +10,9 @@ use self::diagnostics::debug;
 use self::diagnostics::warn;
 use super::SideViewList;
 use super::SideViewNode;
-use super::SideViewNodeItem;
-use super::SideViewNodeProps;
-use super::UiStatus;
+use super::SvnItem;
+use super::SvnProperties;
+use super::SvnStatus;
 use crate::text_editor::fsio::FileMetadata;
 
 pub fn add_file(
@@ -28,11 +28,11 @@ pub fn add_file(
             match tree.get(child_name) {
                 Some(child) => match &**child {
                     SideViewNode {
-                        item: SideViewNodeItem::Folder(..),
+                        item: SvnItem::Folder(..),
                         ..
                     } => warn!("Replace folder {child_name}"),
                     SideViewNode {
-                        item: SideViewNodeItem::File { .. },
+                        item: SvnItem::File { .. },
                         ..
                     } => debug!("Replace file {child_name}"),
                 },
@@ -46,14 +46,14 @@ pub fn add_file(
             let children = match tree.get(folder_name) {
                 Some(child) => match &**child {
                     SideViewNode {
-                        item: SideViewNodeItem::Folder(children),
+                        item: SvnItem::Folder(children),
                         ..
                     } => {
                         debug!("Adding to folder {folder_name}");
                         children.clone()
                     }
                     SideViewNode {
-                        item: SideViewNodeItem::File { .. },
+                        item: SvnItem::File { .. },
                         ..
                     } => {
                         warn!("Replace file {folder_name}");
@@ -71,10 +71,10 @@ pub fn add_file(
                 (*folder_name).clone(),
                 Arc::new({
                     SideViewNode {
-                        properties: SideViewNodeProps {
-                            status: UiStatus::Opened,
+                        properties: SvnProperties {
+                            status: SvnStatus::Opened,
                         },
-                        item: SideViewNodeItem::Folder(rec),
+                        item: SvnItem::Folder(rec),
                     }
                 }),
             );
@@ -94,11 +94,11 @@ pub fn remove_file(
             match tree.get(child_name) {
                 Some(child) => match &**child {
                     SideViewNode {
-                        item: SideViewNodeItem::Folder(..),
+                        item: SvnItem::Folder(..),
                         ..
                     } => debug!("Remove folder {child_name}"),
                     SideViewNode {
-                        item: SideViewNodeItem::File { .. },
+                        item: SvnItem::File { .. },
                         ..
                     } => debug!("Remove file {child_name}"),
                 },
@@ -115,7 +115,7 @@ pub fn remove_file(
             let children = match tree.get(folder_name) {
                 Some(child) => match &**child {
                     SideViewNode {
-                        item: SideViewNodeItem::Folder(children),
+                        item: SvnItem::Folder(children),
                         ..
                     } => {
                         debug!("Removing from folder {folder_name}");
@@ -123,7 +123,7 @@ pub fn remove_file(
                     }
                     SideViewNode {
                         item:
-                            SideViewNodeItem::File {
+                            SvnItem::File {
                                 metadata: expected_folder,
                                 ..
                             },
@@ -142,13 +142,11 @@ pub fn remove_file(
             let new_children = remove_file(children, rest)?;
             new_tree.insert(
                 folder_name.clone(),
-                Arc::new({
-                    SideViewNode {
-                        properties: SideViewNodeProps {
-                            status: UiStatus::Opened,
-                        },
-                        item: SideViewNodeItem::Folder(new_children),
-                    }
+                Arc::new(SideViewNode {
+                    properties: SvnProperties {
+                        status: SvnStatus::Opened,
+                    },
+                    item: SvnItem::Folder(new_children),
                 }),
             );
             Ok(Arc::new(new_tree))
@@ -169,17 +167,17 @@ pub fn add_displayed_folder_content(
             }
             let node = if metadata.is_dir {
                 SideViewNode {
-                    properties: SideViewNodeProps {
-                        status: UiStatus::Displayed,
+                    properties: SvnProperties {
+                        status: SvnStatus::Displayed,
                     },
-                    item: SideViewNodeItem::Folder(Arc::default()),
+                    item: SvnItem::Folder(Arc::default()),
                 }
             } else {
                 SideViewNode {
-                    properties: SideViewNodeProps {
-                        status: UiStatus::Displayed,
+                    properties: SvnProperties {
+                        status: SvnStatus::Displayed,
                     },
-                    item: SideViewNodeItem::File {
+                    item: SvnItem::File {
                         metadata: Arc::new(metadata.clone()),
                         notify_registration: Default::default(),
                     },
@@ -198,15 +196,15 @@ pub fn collapse_displayed_children(
     update_folder(tree, relative_path, &|children| {
         let mut new_children = SideViewList::default();
         for (name, child) in children.iter() {
-            if child.properties.status == UiStatus::Displayed {
+            if child.properties.status == SvnStatus::Displayed {
                 continue;
             }
             let child = match &child.item {
-                SideViewNodeItem::Folder(grandchildren) => Arc::new(SideViewNode {
+                SvnItem::Folder(grandchildren) => Arc::new(SideViewNode {
                     properties: child.properties.clone(),
-                    item: SideViewNodeItem::Folder(remove_displayed(grandchildren.clone())),
+                    item: SvnItem::Folder(remove_displayed(grandchildren.clone())),
                 }),
-                SideViewNodeItem::File { .. } => child.clone(),
+                SvnItem::File { .. } => child.clone(),
             };
             new_children.insert(name.clone(), child);
         }
@@ -217,15 +215,15 @@ pub fn collapse_displayed_children(
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     let mut new_tree = SideViewList::default();
     for (name, child) in tree.iter() {
-        if child.properties.status == UiStatus::Displayed {
+        if child.properties.status == SvnStatus::Displayed {
             continue;
         }
         let child = match &child.item {
-            SideViewNodeItem::Folder(children) => Arc::new(SideViewNode {
+            SvnItem::Folder(children) => Arc::new(SideViewNode {
                 properties: child.properties.clone(),
-                item: SideViewNodeItem::Folder(remove_displayed(children.clone())),
+                item: SvnItem::Folder(remove_displayed(children.clone())),
             }),
-            SideViewNodeItem::File { .. } => child.clone(),
+            SvnItem::File { .. } => child.clone(),
         };
         new_tree.insert(name.clone(), child);
     }
@@ -243,7 +241,7 @@ fn update_folder(
             let Some(child) = tree.get(folder_name) else {
                 return tree;
             };
-            let SideViewNodeItem::Folder(children) = &child.item else {
+            let SvnItem::Folder(children) = &child.item else {
                 return tree;
             };
             let updated_children = update_folder(children.clone(), rest, update);
@@ -252,7 +250,7 @@ fn update_folder(
                 folder_name.clone(),
                 Arc::new(SideViewNode {
                     properties: child.properties.clone(),
-                    item: SideViewNodeItem::Folder(updated_children),
+                    item: SvnItem::Folder(updated_children),
                 }),
             );
             Arc::new(new_tree)
@@ -282,19 +280,19 @@ mod tests {
 
     use super::SideViewList;
     use super::SideViewNode;
-    use super::UiStatus;
+    use super::SvnStatus;
     use crate::text_editor::fsio::FileMetadata;
-    use crate::text_editor::side::SideViewNodeItem;
-    use crate::text_editor::side::SideViewNodeProps;
+    use crate::text_editor::side::SvnItem;
+    use crate::text_editor::side::SvnProperties;
 
     #[test]
     fn add_file() {
         let tree = Arc::<SideViewList>::default();
         let make_file = |name: &str| SideViewNode {
-            properties: SideViewNodeProps {
-                status: UiStatus::Opened,
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
             },
-            item: SideViewNodeItem::File {
+            item: SvnItem::File {
                 metadata: Arc::new(FileMetadata {
                     name: Arc::from(name),
                     size: Some(12),
@@ -459,10 +457,10 @@ mod tests {
     fn remove_file() {
         let tree = Arc::<SideViewList>::default();
         let make_file = |name: &str| SideViewNode {
-            properties: SideViewNodeProps {
-                status: UiStatus::Opened,
+            properties: SvnProperties {
+                status: SvnStatus::Opened,
             },
-            item: SideViewNodeItem::File {
+            item: SvnItem::File {
                 metadata: Arc::new(FileMetadata {
                     name: Arc::from(name),
                     size: Some(12),

@@ -110,6 +110,47 @@ fn selected_item(#[signal] file_path: Arc<str>, path: Arc<Path>) -> XAttributeVa
     }
 }
 
+/*
+TODO:
+- add icons terminal/assets/icons/arrows-expand.svg and terminal/assets/icons/arrows-collapse.svg before the close-icon of folder nodes.
+- add an enum UiStatus Opened/Displayed on SideViewNode
+- refactor SideViewNode to
+  - struct SideViewNode { properties, item}
+  - struct SideViewNodeProps { ui_status }
+  - enum SideViewNodeItem { Folder(...), File(...) }
+- when clicking on arrows-expand.svg, expand the folder by
+  - fetch the folder content from server usig add a #[server(protocol = Http<Json, Json>)] list_folder() API to terminal/src/text_editor/fsio.rs.
+  - update the folder of the arrows-expand.svg by adding missing elements with UiStatus=Displayed, exising elements are kept as-is.
+- when clicking on arrows-collapse.svg, remove all child elements with UiStatus=Displayed
+- add integration tests that create a folder tree in a temp folder with some files and check that opening files adds nodes that show in the side panel, clicking expand shows all the files in the folder, and clicking collapse removes from the side panel all the items that were not open.
+  - folder structure:
+    - root/
+      - a/
+        - a1.txt <- file content is "I am Alice"
+        - a2.txt <- file content is "I am Bob"
+        - c/
+         - c.txt <- file content "I am Charlie"
+      - b/
+  - test scenario:
+    - open text editor on base path root
+    - search for a/a2.txt, open it
+    - editor shows a file with content "I am Bob"
+    - check that side view panel shows root/a/a2.txt
+    - check that side view panel does **not** show root/a/a1.txt
+    - click expand on root/a
+    - check that side view panel **does** show root/a/a1.txt
+    - check that side view panel **does** show root/a/c
+    - check that side view panel does **not** show root/a/c/c.txt
+    - click collapse on root/a
+    - check that side view panel does **not** show root/a/a1.txt
+    - check that side view panel does **not** show root/a/c
+  - Consider adding classes to nodes to help the unit test navigate:
+    ```
+    #[cfg(not(feature = "client-prod"))]
+    class = "<class name>",
+    ```
+*/
+
 #[autoclone]
 #[html]
 fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {

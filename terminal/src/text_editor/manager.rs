@@ -15,6 +15,7 @@ use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side;
 use super::side::SideViewList;
+use super::side::UiStatus;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::remotes::Remote;
 use crate::tiles::signals::TilePtr;
@@ -69,10 +70,11 @@ impl TextEditorManager {
             Some(side::mutation::add_file(
                 tree.clone(),
                 file_path.as_slice(),
-                super::side::SideViewNode::File {
-                    metadata: metadata.clone(),
-                    notify_registration: notify_registration.into(),
-                },
+                super::side::SideViewNode::file(
+                    metadata.clone(),
+                    notify_registration.into(),
+                    UiStatus::Opened,
+                ),
             ))
         });
         self.force_edit_path.set(false);

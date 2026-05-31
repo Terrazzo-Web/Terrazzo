@@ -8,7 +8,33 @@ pub mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
-pub enum SideViewNode {
+pub struct SideViewNode {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub properties: SideViewNodeProps,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
+    pub item: SideViewNodeItem,
+}
+
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub struct SideViewNodeProps {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
+    pub ui_status: UiStatus,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub enum UiStatus {
+    #[default]
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "O"))]
+    Opened,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "D"))]
+    Displayed,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", allow(dead_code))]
+pub enum SideViewNodeItem {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "D"))]
     Folder(Arc<SideViewList>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
@@ -17,6 +43,29 @@ pub enum SideViewNode {
         #[serde(skip)]
         notify_registration: opqaue::OpaqueNotifyRegistration,
     },
+}
+
+impl SideViewNode {
+    pub fn folder(children: Arc<SideViewList>, ui_status: UiStatus) -> Self {
+        Self {
+            properties: SideViewNodeProps { ui_status },
+            item: SideViewNodeItem::Folder(children),
+        }
+    }
+
+    pub fn file(
+        metadata: Arc<FileMetadata>,
+        notify_registration: opqaue::OpaqueNotifyRegistration,
+        ui_status: UiStatus,
+    ) -> Self {
+        Self {
+            properties: SideViewNodeProps { ui_status },
+            item: SideViewNodeItem::File {
+                metadata,
+                notify_registration,
+            },
+        }
+    }
 }
 
 pub mod opqaue {
@@ -53,9 +102,9 @@ pub type SideViewList = BTreeMap<Arc<str>, Arc<SideViewNode>>;
 
 impl std::fmt::Debug for SideViewNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Folder(children) => f.debug_tuple("Folder").field(children).finish(),
-            Self::File {
+        match &self.item {
+            SideViewNodeItem::Folder(children) => f.debug_tuple("Folder").field(children).finish(),
+            SideViewNodeItem::File {
                 metadata,
                 notify_registration,
             } => {

@@ -24,6 +24,13 @@ pub async fn load_file(
     super::load_file(remote, path).await
 }
 
+pub async fn list_folder(
+    remote: Remote,
+    path: FilePath<Arc<str>>,
+) -> Result<Option<Arc<Vec<super::FileMetadata>>>, ServerFnError> {
+    super::list_folder(remote, path).await
+}
+
 static DEBOUNCED_STORE_FILE_FN: LazyLock<StoreFileFn> = LazyLock::new(make_debounced_store_file_fn);
 static STORE_FILE_STATE: LazyLock<Mutex<StoreFileState>> = LazyLock::new(Mutex::default);
 

@@ -43,6 +43,8 @@ fn install_icons() {
 
     #[cfg(feature = "text-editor")]
     {
+        install_icon(super::icons::arrows_collapse());
+        install_icon(super::icons::arrows_expand());
         install_icon(super::icons::chevron_double_right());
         install_icon(super::icons::file());
         install_icon(super::icons::folder());

@@ -10,6 +10,9 @@ use self::diagnostics::debug;
 use self::diagnostics::warn;
 use super::SideViewList;
 use super::SideViewNode;
+use super::SideViewNodeItem;
+use super::UiStatus;
+use crate::text_editor::fsio::FileMetadata;
 
 pub fn add_file(
     tree: Arc<SideViewList>,
@@ -23,8 +26,14 @@ pub fn add_file(
             #[cfg(debug_assertions)]
             match tree.get(child_name) {
                 Some(child) => match &**child {
-                    SideViewNode::Folder { .. } => warn!("Replace folder {child_name}"),
-                    SideViewNode::File { .. } => debug!("Replace file {child_name}"),
+                    SideViewNode {
+                        item: SideViewNodeItem::Folder(..),
+                        ..
+                    } => warn!("Replace folder {child_name}"),
+                    SideViewNode {
+                        item: SideViewNodeItem::File { .. },
+                        ..
+                    } => debug!("Replace file {child_name}"),
                 },
                 None => debug!("Add new file {child_name}"),
             }
@@ -35,11 +44,17 @@ pub fn add_file(
         [folder_name, rest @ ..] => {
             let children = match tree.get(folder_name) {
                 Some(child) => match &**child {
-                    SideViewNode::Folder(children) => {
+                    SideViewNode {
+                        item: SideViewNodeItem::Folder(children),
+                        ..
+                    } => {
                         debug!("Adding to folder {folder_name}");
                         children.clone()
                     }
-                    SideViewNode::File { .. } => {
+                    SideViewNode {
+                        item: SideViewNodeItem::File { .. },
+                        ..
+                    } => {
                         warn!("Replace file {folder_name}");
                         Arc::default()
                     }
@@ -51,7 +66,10 @@ pub fn add_file(
             };
             let mut new_tree = (*tree).clone();
             let rec = add_file(children, rest, node);
-            new_tree.insert((*folder_name).clone(), Arc::new(SideViewNode::Folder(rec)));
+            new_tree.insert(
+                (*folder_name).clone(),
+                Arc::new(SideViewNode::folder(rec, UiStatus::Opened)),
+            );
             Arc::new(new_tree)
         }
     }
@@ -67,8 +85,14 @@ pub fn remove_file(
             #[cfg(debug_assertions)]
             match tree.get(child_name) {
                 Some(child) => match &**child {
-                    SideViewNode::Folder { .. } => debug!("Remove folder {child_name}"),
-                    SideViewNode::File { .. } => debug!("Remove file {child_name}"),
+                    SideViewNode {
+                        item: SideViewNodeItem::Folder(..),
+                        ..
+                    } => debug!("Remove folder {child_name}"),
+                    SideViewNode {
+                        item: SideViewNodeItem::File { .. },
+                        ..
+                    } => debug!("Remove file {child_name}"),
                 },
                 None => {
                     debug!("The file wasn't here {child_name}");
@@ -82,12 +106,19 @@ pub fn remove_file(
         [folder_name, rest @ ..] => {
             let children = match tree.get(folder_name) {
                 Some(child) => match &**child {
-                    SideViewNode::Folder(children) => {
+                    SideViewNode {
+                        item: SideViewNodeItem::Folder(children),
+                        ..
+                    } => {
                         debug!("Removing from folder {folder_name}");
                         children.clone()
                     }
-                    SideViewNode::File {
-                        metadata: expected_folder,
+                    SideViewNode {
+                        item:
+                            SideViewNodeItem::File {
+                                metadata: expected_folder,
+                                ..
+                            },
                         ..
                     } => {
                         return Err(RemoveFileError::ExpectedFolder(
@@ -103,9 +134,114 @@ pub fn remove_file(
             let new_children = remove_file(children, rest)?;
             new_tree.insert(
                 folder_name.clone(),
-                Arc::new(SideViewNode::Folder(new_children)),
+                Arc::new(SideViewNode::folder(new_children, UiStatus::Opened)),
             );
             Ok(Arc::new(new_tree))
+        }
+    }
+}
+
+pub fn add_displayed_folder_content(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+    folder_content: &[FileMetadata],
+) -> Arc<SideViewList> {
+    update_folder(tree, relative_path, &|children| {
+        let mut new_children = (*children).clone();
+        for metadata in folder_content {
+            if new_children.contains_key(&metadata.name) {
+                continue;
+            }
+            let node = if metadata.is_dir {
+                SideViewNode::folder(Arc::default(), UiStatus::Displayed)
+            } else {
+                SideViewNode::file(
+                    Arc::new(FileMetadata {
+                        name: metadata.name.clone(),
+                        size: metadata.size,
+                        is_dir: metadata.is_dir,
+                        created: metadata.created,
+                        accessed: metadata.accessed,
+                        modified: metadata.modified,
+                        mode: metadata.mode,
+                        user: metadata.user.clone(),
+                        group: metadata.group.clone(),
+                    }),
+                    Default::default(),
+                    UiStatus::Displayed,
+                )
+            };
+            new_children.insert(metadata.name.clone(), Arc::new(node));
+        }
+        Arc::new(new_children)
+    })
+}
+
+pub fn collapse_displayed_children(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+) -> Arc<SideViewList> {
+    update_folder(tree, relative_path, &|children| {
+        let mut new_children = SideViewList::default();
+        for (name, child) in children.iter() {
+            if child.properties.ui_status == UiStatus::Displayed {
+                continue;
+            }
+            let child = match &child.item {
+                SideViewNodeItem::Folder(grandchildren) => Arc::new(SideViewNode {
+                    properties: child.properties.clone(),
+                    item: SideViewNodeItem::Folder(remove_displayed(grandchildren.clone())),
+                }),
+                SideViewNodeItem::File { .. } => child.clone(),
+            };
+            new_children.insert(name.clone(), child);
+        }
+        Arc::new(new_children)
+    })
+}
+
+fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
+    let mut new_tree = SideViewList::default();
+    for (name, child) in tree.iter() {
+        if child.properties.ui_status == UiStatus::Displayed {
+            continue;
+        }
+        let child = match &child.item {
+            SideViewNodeItem::Folder(children) => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SideViewNodeItem::Folder(remove_displayed(children.clone())),
+            }),
+            SideViewNodeItem::File { .. } => child.clone(),
+        };
+        new_tree.insert(name.clone(), child);
+    }
+    Arc::new(new_tree)
+}
+
+fn update_folder(
+    tree: Arc<SideViewList>,
+    relative_path: &[Arc<str>],
+    update: &impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,
+) -> Arc<SideViewList> {
+    match relative_path {
+        [] => update(tree),
+        [folder_name, rest @ ..] => {
+            let Some(child) = tree.get(folder_name) else {
+                return tree;
+            };
+            let SideViewNodeItem::Folder(children) = &child.item else {
+                return tree;
+            };
+            let updated_children = update_folder(children.clone(), rest, update);
+            let mut new_tree = (*tree).clone();
+            new_tree.insert(
+                folder_name.clone(),
+                Arc::new(SideViewNode {
+                    properties: child.properties.clone(),
+                    item: SideViewNodeItem::Folder(updated_children),
+                }),
+            );
+            Arc::new(new_tree)
         }
     }
 }
@@ -132,24 +268,28 @@ mod tests {
 
     use super::SideViewList;
     use super::SideViewNode;
+    use super::UiStatus;
     use crate::text_editor::fsio::FileMetadata;
 
     #[test]
     fn add_file() {
         let tree = Arc::<SideViewList>::default();
-        let make_file = |name: &str| SideViewNode::File {
-            metadata: Arc::new(FileMetadata {
-                name: Arc::from(name),
-                size: Some(12),
-                is_dir: false,
-                created: None,
-                accessed: None,
-                modified: None,
-                mode: None,
-                user: None,
-                group: None,
-            }),
-            notify_registration: Default::default(),
+        let make_file = |name: &str| {
+            SideViewNode::file(
+                Arc::new(FileMetadata {
+                    name: Arc::from(name),
+                    size: Some(12),
+                    is_dir: false,
+                    created: None,
+                    accessed: None,
+                    modified: None,
+                    mode: None,
+                    user: None,
+                    group: None,
+                }),
+                Default::default(),
+                UiStatus::Opened,
+            )
         };
         let tree = super::add_file(
             tree,
@@ -300,19 +440,22 @@ mod tests {
     #[test]
     fn remove_file() {
         let tree = Arc::<SideViewList>::default();
-        let make_file = |name: &str| SideViewNode::File {
-            metadata: Arc::new(FileMetadata {
-                name: Arc::from(name),
-                size: Some(12),
-                is_dir: false,
-                created: None,
-                accessed: None,
-                modified: None,
-                mode: None,
-                user: None,
-                group: None,
-            }),
-            notify_registration: Default::default(),
+        let make_file = |name: &str| {
+            SideViewNode::file(
+                Arc::new(FileMetadata {
+                    name: Arc::from(name),
+                    size: Some(12),
+                    is_dir: false,
+                    created: None,
+                    accessed: None,
+                    modified: None,
+                    mode: None,
+                    user: None,
+                    group: None,
+                }),
+                Default::default(),
+                UiStatus::Opened,
+            )
         };
         let tree = super::add_file(
             tree,

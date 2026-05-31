@@ -7,11 +7,15 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use wasm_bindgen_futures::spawn_local;
 
 use crate::assets::icons;
+use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SideViewNodeItem;
+use crate::text_editor::side::UiStatus;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
@@ -51,11 +55,18 @@ fn show_side_view_node(
     side_view: &Arc<SideViewNode>,
 ) -> XElement {
     let path: Arc<Path> = Arc::from(path.join(name.as_ref()));
-    li(match &**side_view {
-        SideViewNode::Folder(children) => {
+    li(match &side_view.item {
+        SideViewNodeItem::Folder(children) => {
             let file_path_signal = manager.path.file.clone();
+            let has_displayed_children = children
+                .values()
+                .any(|child| child.properties.ui_status == UiStatus::Displayed);
             div(
                 key = "folder",
+                #[cfg(not(feature = "client-prod"))]
+                class = "side-view-folder",
+                #[cfg(not(feature = "client-prod"))]
+                data_folder_path = path.to_owned_string(),
                 div(
                     class = style::FOLDER,
                     img(src = icons::folder(), class = style::ICON),
@@ -69,6 +80,7 @@ fn show_side_view_node(
                             },
                         ),
                     ),
+                    folder_arrow(manager, &path, has_displayed_children),
                     close_icon(manager, &path),
                 ),
                 div(
@@ -77,7 +89,7 @@ fn show_side_view_node(
                 ),
             )
         }
-        SideViewNode::File { metadata, .. } => {
+        SideViewNodeItem::File { metadata, .. } => {
             let name = &metadata.name;
             let file_path_signal = manager.path.file.clone();
             div(
@@ -110,46 +122,70 @@ fn selected_item(#[signal] file_path: Arc<str>, path: Arc<Path>) -> XAttributeVa
     }
 }
 
-/*
-TODO:
-- add icons terminal/assets/icons/arrows-expand.svg and terminal/assets/icons/arrows-collapse.svg before the close-icon of folder nodes.
-- add an enum UiStatus Opened/Displayed on SideViewNode
-- refactor SideViewNode to
-  - struct SideViewNode { properties, item}
-  - struct SideViewNodeProps { ui_status }
-  - enum SideViewNodeItem { Folder(...), File(...) }
-- when clicking on arrows-expand.svg, expand the folder by
-  - fetch the folder content from server usig add a #[server(protocol = Http<Json, Json>)] list_folder() API to terminal/src/text_editor/fsio.rs.
-  - update the folder of the arrows-expand.svg by adding missing elements with UiStatus=Displayed, exising elements are kept as-is.
-- when clicking on arrows-collapse.svg, remove all child elements with UiStatus=Displayed
-- add integration tests that create a folder tree in a temp folder with some files and check that opening files adds nodes that show in the side panel, clicking expand shows all the files in the folder, and clicking collapse removes from the side panel all the items that were not open.
-  - folder structure:
-    - root/
-      - a/
-        - a1.txt <- file content is "I am Alice"
-        - a2.txt <- file content is "I am Bob"
-        - c/
-         - c.txt <- file content "I am Charlie"
-      - b/
-  - test scenario:
-    - open text editor on base path root
-    - search for a/a2.txt, open it
-    - editor shows a file with content "I am Bob"
-    - check that side view panel shows root/a/a2.txt
-    - check that side view panel does **not** show root/a/a1.txt
-    - click expand on root/a
-    - check that side view panel **does** show root/a/a1.txt
-    - check that side view panel **does** show root/a/c
-    - check that side view panel does **not** show root/a/c/c.txt
-    - click collapse on root/a
-    - check that side view panel does **not** show root/a/a1.txt
-    - check that side view panel does **not** show root/a/c
-  - Consider adding classes to nodes to help the unit test navigate:
-    ```
-    #[cfg(not(feature = "client-prod"))]
-    class = "<class name>",
-    ```
-*/
+#[autoclone]
+#[html]
+fn folder_arrow(
+    manager: &Ptr<TextEditorManager>,
+    path: &Arc<Path>,
+    has_displayed_children: bool,
+) -> XElement {
+    if has_displayed_children {
+        return img(
+            src = icons::arrows_collapse(),
+            class = style::ICON,
+            #[cfg(not(feature = "client-prod"))]
+            class = "side-view-collapse-folder",
+            click = move |_ev| {
+                autoclone!(manager, path);
+                let path_vec = path_vec(&path);
+                manager.side_view.update(|side_view| {
+                    Some(crate::text_editor::side::mutation::collapse_displayed_children(
+                        side_view.clone(),
+                        &path_vec,
+                    ))
+                });
+            },
+        );
+    }
+    img(
+        src = icons::arrows_expand(),
+        class = style::ICON,
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view-expand-folder",
+        click = move |_ev| {
+            autoclone!(manager, path);
+            let path_vec = path_vec(&path);
+            let folder_path: Arc<str> = path.to_owned_string().into();
+            let manager_for_task = manager.clone();
+            spawn_local(async move {
+                let content = crate::text_editor::fsio::ui::list_folder(
+                    manager_for_task.remote.clone(),
+                    FilePath {
+                        base: manager_for_task.path.base.get_value_untracked(),
+                        file: folder_path,
+                    },
+                )
+                .await;
+                let Ok(Some(content)) = content else {
+                    return;
+                };
+                manager_for_task.side_view.update(|side_view| {
+                    Some(crate::text_editor::side::mutation::add_displayed_folder_content(
+                        side_view.clone(),
+                        &path_vec,
+                        content.as_ref(),
+                    ))
+                });
+            });
+        },
+    )
+}
+
+fn path_vec(path: &Path) -> Vec<Arc<str>> {
+    path.iter()
+        .map(|leg| Arc::from(leg.to_owned_string()))
+        .collect()
+}
 
 #[autoclone]
 #[html]

@@ -32,6 +32,8 @@ pub type Icon = &'static str;
 
 declare_icon!(add_port_forward,"/icons/add-port-forward.svg"; feature = "port-forward");
 declare_icon!(add_tab, "/icons/plus-square.svg"; feature = "terminal");
+declare_icon!(arrows_collapse, "/icons/arrows-collapse.svg"; feature = "text-editor");
+declare_icon!(arrows_expand, "/icons/arrows-expand.svg"; feature = "text-editor");
 declare_icon!(chevron_bar_down, "/icons/chevron-bar-down.svg"; feature = "logs-panel");
 declare_icon!(chevron_bar_up, "/icons/chevron-bar-up.svg"; feature = "logs-panel");
 declare_icon!(chevron_double_right, "/icons/chevron-double-right.svg"; feature = "text-editor");

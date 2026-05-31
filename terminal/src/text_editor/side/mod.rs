@@ -46,6 +46,7 @@ pub enum SideViewNodeItem {
 }
 
 impl SideViewNode {
+    #[cfg(feature = "client")]
     pub fn folder(children: Arc<SideViewList>, ui_status: UiStatus) -> Self {
         Self {
             properties: SideViewNodeProps { ui_status },
@@ -53,6 +54,7 @@ impl SideViewNode {
         }
     }
 
+    #[cfg(feature = "client")]
     pub fn file(
         metadata: Arc<FileMetadata>,
         notify_registration: opqaue::OpaqueNotifyRegistration,

@@ -43,15 +43,14 @@ fn install_icons() {
 
     #[cfg(feature = "text-editor")]
     {
-        install_icon(super::icons::arrows_collapse());
-        install_icon(super::icons::arrows_expand());
         install_icon(super::icons::chevron_double_right());
+        install_icon(super::icons::collapse_vert());
         install_icon(super::icons::file());
         install_icon(super::icons::folder());
         install_icon(super::icons::loading());
+        install_icon(super::icons::search());
         install_icon(super::icons::slash());
         install_icon(super::icons::text_editor());
-        install_icon(super::icons::search());
     }
 
     #[cfg(feature = "converter")]

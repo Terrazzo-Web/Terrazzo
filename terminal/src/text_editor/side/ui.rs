@@ -3,6 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use self::diagnostics::error;
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
@@ -11,12 +12,14 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::assets::icons;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio::ui::list_folder;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SideViewNodeItem;
 use crate::text_editor::side::SideViewNodeProps;
 use crate::text_editor::side::UiStatus;
+use crate::text_editor::side::mutation::add_displayed_folder_content;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
@@ -157,7 +160,7 @@ fn folder_arrow(
 ) -> XElement {
     if has_displayed_children {
         return img(
-            src = icons::arrows_collapse(),
+            src = icons::collapse_vert(),
             class = style::ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-collapse-folder",
@@ -176,7 +179,7 @@ fn folder_arrow(
         );
     }
     img(
-        src = icons::arrows_expand(),
+        src = icons::split_vert(),
         class = style::ICON,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-expand-folder",
@@ -186,25 +189,22 @@ fn folder_arrow(
             let folder_path: Arc<str> = path.to_owned_string().into();
             let manager_for_task = manager.clone();
             spawn_local(async move {
-                let content = crate::text_editor::fsio::ui::list_folder(
-                    manager_for_task.remote.clone(),
-                    FilePath {
-                        base: manager_for_task.path.base.get_value_untracked(),
-                        file: folder_path,
-                    },
-                )
-                .await;
+                let path = FilePath {
+                    base: manager_for_task.path.base.get_value_untracked(),
+                    file: folder_path,
+                };
+                let content = list_folder(manager_for_task.remote.clone(), path.clone())
+                    .await
+                    .inspect_err(|error| error!("Failed to load folder {path:?}: {error}"));
                 let Ok(Some(content)) = content else {
                     return;
                 };
                 manager_for_task.side_view.update(|side_view| {
-                    Some(
-                        crate::text_editor::side::mutation::add_displayed_folder_content(
-                            side_view.clone(),
-                            &path_vec,
-                            content.as_ref(),
-                        ),
-                    )
+                    Some(add_displayed_folder_content(
+                        side_view.clone(),
+                        &path_vec,
+                        content.as_ref(),
+                    ))
                 });
             });
         },

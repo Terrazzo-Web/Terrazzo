@@ -228,7 +228,7 @@ async function createFolderTree() {
 async function replaceEditorText(page, editor, content) {
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
-    await page.keyboard.type(content);
+    await page.keyboard.insertText(content);
 }
 
 test.describe('Text editor', () => {

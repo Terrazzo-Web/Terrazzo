@@ -15,6 +15,7 @@ use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SideViewNodeItem;
+use crate::text_editor::side::SideViewNodeProps;
 use crate::text_editor::side::UiStatus;
 use crate::utils::more_path::MorePath as _;
 
@@ -26,11 +27,29 @@ pub fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] side_view: Arc<SideViewList>,
 ) -> XElement {
+    let base = manager.path.base.get_value_untracked();
+    let base = Path::new(base.as_ref());
+    let root = base
+        .file_name()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "/".to_owned());
+    let side_view = [(
+        root.into(),
+        SideViewNode {
+            properties: SideViewNodeProps {
+                ui_status: UiStatus::Opened,
+            },
+            item: SideViewNodeItem::Folder(side_view),
+        }
+        .into(),
+    )]
+    .into_iter()
+    .collect();
     tag(
         class = style::SIDE,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
-        show_side_view_list(&manager, "".as_ref(), side_view),
+        show_side_view_list(&manager, "".as_ref(), Arc::new(side_view), true),
     )
 }
 
@@ -39,10 +58,11 @@ fn show_side_view_list(
     manager: &Ptr<TextEditorManager>,
     path: &Path,
     side_view: Arc<SideViewList>,
+    root: bool,
 ) -> XElement {
     ul(side_view
         .iter()
-        .map(|(name, child)| show_side_view_node(manager, path, name, child))
+        .map(|(name, child)| show_side_view_node(manager, path, name, child, root))
         .collect::<Vec<_>>()..)
 }
 
@@ -53,8 +73,13 @@ fn show_side_view_node(
     path: &Path,
     name: &Arc<str>,
     side_view: &Arc<SideViewNode>,
+    root: bool,
 ) -> XElement {
-    let path: Arc<Path> = Arc::from(path.join(name.as_ref()));
+    let path: Arc<Path> = if root {
+        path.into()
+    } else {
+        Arc::from(path.join(name.as_ref()))
+    };
     li(match &side_view.item {
         SideViewNodeItem::Folder(children) => {
             let file_path_signal = manager.path.file.clone();
@@ -82,10 +107,11 @@ fn show_side_view_node(
                     ),
                     folder_arrow(manager, &path, has_displayed_children),
                     close_icon(manager, &path),
+                    (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
                 ),
                 div(
                     class = style::SUB_FOLDER,
-                    show_side_view_list(manager, &path, children.clone()),
+                    show_side_view_list(manager, &path, children.clone(), false),
                 ),
             )
         }
@@ -139,10 +165,12 @@ fn folder_arrow(
                 autoclone!(manager, path);
                 let path_vec = path_vec(&path);
                 manager.side_view.update(|side_view| {
-                    Some(crate::text_editor::side::mutation::collapse_displayed_children(
-                        side_view.clone(),
-                        &path_vec,
-                    ))
+                    Some(
+                        crate::text_editor::side::mutation::collapse_displayed_children(
+                            side_view.clone(),
+                            &path_vec,
+                        ),
+                    )
                 });
             },
         );
@@ -170,11 +198,13 @@ fn folder_arrow(
                     return;
                 };
                 manager_for_task.side_view.update(|side_view| {
-                    Some(crate::text_editor::side::mutation::add_displayed_folder_content(
-                        side_view.clone(),
-                        &path_vec,
-                        content.as_ref(),
-                    ))
+                    Some(
+                        crate::text_editor::side::mutation::add_displayed_folder_content(
+                            side_view.clone(),
+                            &path_vec,
+                            content.as_ref(),
+                        ),
+                    )
                 });
             });
         },

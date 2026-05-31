@@ -98,6 +98,8 @@ fn show_side_view_node(
                 data_folder_path = path.to_owned_string(),
                 div(
                     class = style::FOLDER,
+                    #[cfg(not(feature = "client-prod"))]
+                    class = "side-view-folder-row",
                     img(src = icons::folder(), class = style::ICON),
                     div(
                         class %= selected_item(manager.path.file.clone(), path.clone()),

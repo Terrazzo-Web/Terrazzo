@@ -37,16 +37,16 @@ function getCodeMirrorContent(page) {
     return page.locator('.code-mirror-editor .cm-content');
 }
 
+function getMergeViewEditors(page) {
+    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
+}
+
 function getSideViewFile(page, filePath) {
     return page.locator(`.side-view [data-file-path="${filePath}"]`);
 }
 
 function getSideViewFolder(page, folderPath) {
-    return page.locator(`.side-view [data-folder-path="${folderPath}"]`);
-}
-
-function getMergeViewEditors(page) {
-    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
+    return page.locator(`.side-view [data-folder-path="${folderPath}"] .side-view-folder-row`);
 }
 
 function getPdfPage(page, pageNumber) {
@@ -223,14 +223,6 @@ async function replaceEditorText(page, editor, content) {
     await page.keyboard.type(content);
 }
 
-async function closeSideViewFile(page, filePath) {
-    const sideViewFile = getSideViewFile(page, filePath);
-    await expect(sideViewFile).toBeVisible({ timeout: 30 * SECOND });
-    await sideViewFile.hover();
-    await sideViewFile.locator('img.side-view-close-file').click({ force: true });
-    await expect(sideViewFile).toHaveCount(0, { timeout: 30 * SECOND });
-}
-
 test.describe('Text editor', () => {
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
@@ -400,6 +392,7 @@ test.describe('Text editor', () => {
 
         const folderA = getSideViewFolder(page, 'a');
         await expect(folderA).toBeVisible({ timeout: 30 * SECOND });
+        await folderA.hover();
         await folderA.locator('.side-view-expand-folder').click();
 
         await expect(getSideViewFile(page, 'a/a1.txt')).toBeVisible({ timeout: 30 * SECOND });

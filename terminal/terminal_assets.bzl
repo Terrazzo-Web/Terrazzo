@@ -3,6 +3,7 @@
 ASSETS = [
     "assets/bootstrap.js",
     "assets/icons/add-port-forward.svg",
+    "assets/icons/arrows-collapse.svg",
     "assets/icons/arrows-expand-vertical.svg",
     "assets/icons/arrows-expand.svg",
     "assets/icons/chevron-bar-down.svg",

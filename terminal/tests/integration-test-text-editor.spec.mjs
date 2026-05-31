@@ -259,7 +259,7 @@ test.describe('Text editor', () => {
     test('finds text in the editor and selects the matching row', async ({ page }) => {
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
-        const content = Array.from({ length: 10 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
+        const content = Array.from({ length: 300 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
 
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 

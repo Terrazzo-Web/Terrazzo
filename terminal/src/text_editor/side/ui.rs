@@ -20,6 +20,7 @@ use crate::text_editor::side::SideViewNodeItem;
 use crate::text_editor::side::SideViewNodeProps;
 use crate::text_editor::side::UiStatus;
 use crate::text_editor::side::mutation::add_displayed_folder_content;
+use crate::text_editor::side::mutation::collapse_displayed_children;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
@@ -108,15 +109,8 @@ fn show_side_view_node(
                             },
                         ),
                     ),
-                    (*path != "".as_ref())
-                        .then(|| {
-                            [
-                                folder_expand_icon(manager, &path, has_displayed_children),
-                                close_icon(manager, &path),
-                            ]
-                        })
-                        .into_iter()
-                        .flatten()..,
+                    folder_expand_icon(manager, &path, has_displayed_children),
+                    (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
                 ),
                 div(
                     class = style::SUB_FOLDER,
@@ -174,12 +168,7 @@ fn folder_expand_icon(
                 autoclone!(manager, path);
                 let path_vec = path_vec(&path);
                 manager.side_view.update(|side_view| {
-                    Some(
-                        crate::text_editor::side::mutation::collapse_displayed_children(
-                            side_view.clone(),
-                            &path_vec,
-                        ),
-                    )
+                    Some(collapse_displayed_children(side_view.clone(), &path_vec))
                 });
             },
         );

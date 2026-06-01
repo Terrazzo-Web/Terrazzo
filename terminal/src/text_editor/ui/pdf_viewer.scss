@@ -82,6 +82,20 @@ div.pdf-viewer {
                 background: transparent;
             }
         }
+
+        [data-layer="annotations"] {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+
+            a {
+                position: absolute;
+                display: block;
+                pointer-events: auto;
+                cursor: pointer;
+            }
+        }
     }
 
     > [data-control="zoom"] {

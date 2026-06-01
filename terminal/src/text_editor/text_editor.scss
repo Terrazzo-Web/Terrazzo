@@ -65,6 +65,19 @@ div.text_editor {
             margin-left: var(--padding);
             margin-right: var(--padding);
         }
+
+        img.refresh-editor {
+            @include trz-icon;
+            margin-left: var(--padding);
+            margin-right: var(--padding);
+            padding: 3px;
+
+            &:hover {
+                filter: invert(0);
+                background-color: var(--link-color);
+                cursor: pointer;
+            }
+        }
     }
 
     div.body {
@@ -85,7 +98,18 @@ div.text_editor {
             div.editor {
                 height: 100%;
                 width: 100%;
-                overflow-y: auto;
+                min-height: 0;
+                overflow: hidden;
+
+                :global(.cm-editor),
+                :global(.cm-mergeView) {
+                    height: 100%;
+                    min-height: 0;
+                }
+
+                :global(.cm-scroller) {
+                    overflow: auto;
+                }
             }
         }
     }

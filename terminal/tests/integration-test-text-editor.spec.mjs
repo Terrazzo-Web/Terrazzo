@@ -65,6 +65,12 @@ function getPdfTextLayer(page, pageNumber) {
     return page.locator(`.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="text"]`);
 }
 
+function getPdfAnnotationLayer(page, pageNumber) {
+    return page.locator(
+        `.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="annotations"]`,
+    );
+}
+
 function getPdfZoomSlider(page) {
     return page.locator('.pdf-viewer [data-control="zoom"] input[type="range"]');
 }
@@ -305,6 +311,8 @@ test.describe('Text editor', () => {
 
         await openFolderFile(page, 'PlantUML.pdf');
 
+        await expect(getSideViewFile(page, 'PlantUML.pdf')).toBeVisible({ timeout: 30 * SECOND });
+
         const firstPage = await expectPdfPage(page, 1);
         await expect
             .poll(async () => (await renderedPixelCount(firstPage)).paintedPixels, {
@@ -319,6 +327,21 @@ test.describe('Text editor', () => {
         const firstPageTextLayer = getPdfTextLayer(page, 1);
         await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 30 * SECOND });
         await expect.poll(() => selectedPdfText(page, 1), { timeout: 30 * SECOND }).not.toBe('');
+
+        const firstPageLinks = getPdfAnnotationLayer(page, 1).locator('a');
+        await expect(firstPageLinks).not.toHaveCount(0, { timeout: 30 * SECOND });
+        const firstLink = firstPageLinks.first();
+        await expect(firstLink).toHaveAttribute('href', /.+/);
+        const firstLinkBox = await firstLink.boundingBox();
+        expect(firstLinkBox?.width).toBeGreaterThan(0);
+        expect(firstLinkBox?.height).toBeGreaterThan(0);
+        await expect(firstLink).not.toHaveAttribute('target', '_blank');
+        const pdfPages = page.locator('.pdf-viewer [data-layer="pages"]');
+        const initialPdfScrollTop = await pdfPages.evaluate((node) => node.scrollTop);
+        await firstLink.click();
+        await expect
+            .poll(async () => pdfPages.evaluate((node) => node.scrollTop), { timeout: 10 * SECOND })
+            .toBeGreaterThan(initialPdfScrollTop);
 
         const zoomSlider = getPdfZoomSlider(page);
         const zoomValue = getPdfZoomValue(page);

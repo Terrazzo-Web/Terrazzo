@@ -191,7 +191,8 @@ class PdfJsImpl {
                 continue;
             }
 
-            const href = annotation.url ?? annotation.unsafeUrl ?? this.destinationHref(annotation.dest);
+            const externalHref = annotation.url ?? annotation.unsafeUrl;
+            const href = externalHref ?? this.destinationHref(annotation.dest);
             if (!href) {
                 continue;
             }
@@ -212,12 +213,66 @@ class PdfJsImpl {
             link.style.top = `${top}px`;
             link.style.width = `${width}px`;
             link.style.height = `${height}px`;
-            if (annotation.url || annotation.unsafeUrl) {
+            if (externalHref) {
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
+            } else {
+                link.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    this.scrollToDestination(annotation.dest);
+                });
             }
             layerElement.appendChild(link);
         }
+    }
+
+    async scrollToDestination(destination) {
+        const explicitDestination = typeof destination === "string"
+            ? await this.pdf.getDestination(destination)
+            : destination;
+        if (!explicitDestination?.length) {
+            return;
+        }
+
+        const pageNumber = await this.destinationPageNumber(explicitDestination[0]);
+        if (!pageNumber) {
+            return;
+        }
+
+        const pageElement = this.documentElement?.querySelector(`div[data-page-number="${pageNumber}"]`);
+        if (!pageElement) {
+            return;
+        }
+
+        const scrollTop = await this.destinationScrollTop(pageElement, pageNumber, explicitDestination);
+        this.scrollElement.scrollTo({ top: scrollTop, behavior: "smooth" });
+    }
+
+    async destinationPageNumber(pageReference) {
+        if (Number.isInteger(pageReference)) {
+            return pageReference + 1;
+        }
+
+        try {
+            return await this.pdf.getPageIndex(pageReference) + 1;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async destinationScrollTop(pageElement, pageNumber, explicitDestination) {
+        const destinationKind = explicitDestination[1]?.name;
+        const destinationTop = explicitDestination[3];
+        if ((destinationKind !== "XYZ" && destinationKind !== "FitH" && destinationKind !== "FitBH")
+            || typeof destinationTop !== "number") {
+            return pageElement.offsetTop;
+        }
+
+        const page = await this.pdf.getPage(pageNumber);
+        const unscaledViewport = page.getViewport({ scale: 1 });
+        const scale = pageElement.getBoundingClientRect().width / unscaledViewport.width;
+        const viewport = page.getViewport({ scale });
+        return pageElement.offsetTop + viewport.convertToViewportPoint(0, destinationTop)[1];
     }
 
     destinationHref(destination) {

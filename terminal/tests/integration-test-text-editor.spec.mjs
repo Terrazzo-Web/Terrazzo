@@ -333,6 +333,13 @@ test.describe('Text editor', () => {
         const firstLinkBox = await firstLink.boundingBox();
         expect(firstLinkBox?.width).toBeGreaterThan(0);
         expect(firstLinkBox?.height).toBeGreaterThan(0);
+        await expect(firstLink).not.toHaveAttribute('target', '_blank');
+        const pdfPages = page.locator('.pdf-viewer [data-layer="pages"]');
+        const initialPdfScrollTop = await pdfPages.evaluate((node) => node.scrollTop);
+        await firstLink.click();
+        await expect
+            .poll(async () => pdfPages.evaluate((node) => node.scrollTop), { timeout: 10 * SECOND })
+            .toBeGreaterThan(initialPdfScrollTop);
 
         const zoomSlider = getPdfZoomSlider(page);
         const zoomValue = getPdfZoomValue(page);

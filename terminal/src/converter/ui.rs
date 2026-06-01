@@ -71,7 +71,7 @@ fn converter_impl(
                 conversions.clone(),
                 resize_manager.clone(),
             ),
-            resize_bar_horz(resize_manager),
+            resize_bar_horz(resize_manager, || ()),
             show_conversions(conversions, preferred_language),
         ),
     )

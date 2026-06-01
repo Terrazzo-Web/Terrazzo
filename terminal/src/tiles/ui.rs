@@ -155,7 +155,9 @@ fn show_tiles_rec(
                 if i == count - 1 {
                     return vec![node];
                 }
-                let sep = resize_bar(resize_manager.clone(), direction.clone());
+                let sep = resize_bar(resize_manager.clone(), direction.clone(), || {
+                    ResizeEvent::signal().force(())
+                });
                 vec![node, sep]
             });
             div(
@@ -247,9 +249,13 @@ fn size(
 
 #[html]
 #[template(tag = div)]
-pub fn resize_bar(resize_manager: MousemoveManager, #[signal] direction: Direction) -> XElement {
+pub fn resize_bar(
+    resize_manager: MousemoveManager,
+    #[signal] direction: Direction,
+    on_dblclick: impl Fn() + Clone + 'static,
+) -> XElement {
     match direction {
-        Direction::Horizontal => resize_bar_horz(resize_manager),
-        Direction::Vertical => resize_bar_vert(resize_manager),
+        Direction::Horizontal => resize_bar_horz(resize_manager, on_dblclick),
+        Direction::Vertical => resize_bar_vert(resize_manager, on_dblclick),
     }
 }

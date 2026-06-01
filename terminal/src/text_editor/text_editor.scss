@@ -65,6 +65,19 @@ div.text_editor {
             margin-left: var(--padding);
             margin-right: var(--padding);
         }
+
+        img.refresh-editor {
+            @include trz-icon;
+            margin-left: var(--padding);
+            margin-right: var(--padding);
+            padding: 3px;
+
+            &:hover {
+                filter: invert(0);
+                background-color: var(--link-color);
+                cursor: pointer;
+            }
+        }
     }
 
     div.body {

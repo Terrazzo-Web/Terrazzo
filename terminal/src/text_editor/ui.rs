@@ -31,10 +31,12 @@ use super::state;
 use super::style;
 use super::synchronized_state::SynchronizedState;
 use super::synchronized_state::show_synchronized_state;
+use crate::assets::icons;
 use crate::frontend::menu::menu;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::text_editor::search::state::EditorSearchState;
+use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
 
@@ -92,6 +94,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.base_path_selector(),
             manager.file_path_selector(),
             manager.search_selector(),
+            manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
@@ -100,6 +103,21 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             let _moved = &consumers;
         },
     )
+}
+
+impl TextEditorManager {
+    #[html]
+    fn refresh_editor(&self) -> XElement {
+        let tile = self.tile.clone();
+        img(
+            class = style::REFRESH_EDITOR,
+            #[cfg(not(feature = "client-prod"))]
+            class = "refresh-editor",
+            src = icons::refresh(),
+            title = "Refresh editor",
+            click = move |_| tile.app.force(App::TextEditor),
+        )
+    }
 }
 
 #[html]
@@ -247,8 +265,7 @@ impl TextEditorManager {
                 }
 
                 if let Some(
-                    fsio::File::TextFile { metadata, .. }
-                    | fsio::File::PdfFile { metadata, .. },
+                    fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
                 ) = data.as_deref()
                 {
                     this.add_to_side_view(metadata, &path);

@@ -65,6 +65,12 @@ function getPdfTextLayer(page, pageNumber) {
     return page.locator(`.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="text"]`);
 }
 
+function getPdfAnnotationLayer(page, pageNumber) {
+    return page.locator(
+        `.pdf-viewer [data-layer="pages"] > div[data-page-number="${pageNumber}"] [data-layer="annotations"]`,
+    );
+}
+
 function getPdfZoomSlider(page) {
     return page.locator('.pdf-viewer [data-control="zoom"] input[type="range"]');
 }
@@ -319,6 +325,14 @@ test.describe('Text editor', () => {
         const firstPageTextLayer = getPdfTextLayer(page, 1);
         await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 30 * SECOND });
         await expect.poll(() => selectedPdfText(page, 1), { timeout: 30 * SECOND }).not.toBe('');
+
+        const firstPageLinks = getPdfAnnotationLayer(page, 1).locator('a');
+        await expect(firstPageLinks).not.toHaveCount(0, { timeout: 30 * SECOND });
+        const firstLink = firstPageLinks.first();
+        await expect(firstLink).toHaveAttribute('href', /.+/);
+        const firstLinkBox = await firstLink.boundingBox();
+        expect(firstLinkBox?.width).toBeGreaterThan(0);
+        expect(firstLinkBox?.height).toBeGreaterThan(0);
 
         const zoomSlider = getPdfZoomSlider(page);
         const zoomValue = getPdfZoomValue(page);

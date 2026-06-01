@@ -311,6 +311,8 @@ test.describe('Text editor', () => {
 
         await openFolderFile(page, 'PlantUML.pdf');
 
+        await expect(getSideViewFile(page, 'PlantUML.pdf')).toBeVisible({ timeout: 30 * SECOND });
+
         const firstPage = await expectPdfPage(page, 1);
         await expect
             .poll(async () => (await renderedPixelCount(firstPage)).paintedPixels, {

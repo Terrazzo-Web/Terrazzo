@@ -246,7 +246,11 @@ impl TextEditorManager {
                     return;
                 }
 
-                if let Some(fsio::File::TextFile { metadata, .. }) = data.as_deref() {
+                if let Some(
+                    fsio::File::TextFile { metadata, .. }
+                    | fsio::File::PdfFile { metadata, .. },
+                ) = data.as_deref()
+                {
                     this.add_to_side_view(metadata, &path);
                 }
 

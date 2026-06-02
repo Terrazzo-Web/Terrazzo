@@ -92,8 +92,11 @@ remote_fn_service::unary::declare_remote_fn!(
     DeleteFileRequest,
     (),
     |server, arg: DeleteFileRequest| {
-        let trash = server.config().server.with(|server| server.trash.clone());
-        let result = super::service::delete_file(arg.path, trash);
+        let (trash, git_trash) = server
+            .config()
+            .server
+            .with(|server| (server.trash.clone(), server.git_trash.clone()));
+        let result = super::service::delete_file(arg.path, trash, git_trash);
         ready(result.map_err(GrpcError::from))
     }
 );

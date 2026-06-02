@@ -43,7 +43,8 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
             }
             debug!("Loading text file {path:?}");
             let content: Arc<str> = std::fs::read_to_string(&path)?.into();
-            let original = git::is_in_git_repo(&path)
+            let original = git::git_repo_root(&path)
+                .is_some()
                 .then(|| {
                     git::file_content_at_commit(&path, "HEAD")
                         .inspect_err(|error| warn!("Failed to load git file: {error}"))
@@ -114,7 +115,11 @@ pub fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioE
     Ok(())
 }
 
-pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<(), FsioError> {
+pub fn delete_file(
+    path: FilePath<Arc<str>>,
+    trash: impl AsRef<Path>,
+    git_trash: Option<impl AsRef<Path>>,
+) -> Result<(), FsioError> {
     let source = concat_base_file_path(path.base, path.file);
     if !source.exists() {
         return Err(FsioError::PathNotFound { path: source });
@@ -123,7 +128,11 @@ pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<
         return Err(FsioError::MissingFileName { path: source });
     };
 
-    let trash = trash.as_ref();
+    let trash = delete_trash_path(
+        &source,
+        trash.as_ref(),
+        git_trash.as_ref().map(AsRef::as_ref),
+    );
     std::fs::create_dir_all(&trash)?;
     let destination = trash.join(file_name);
     if destination.exists() {
@@ -138,6 +147,15 @@ pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<
         std::fs::rename(source, destination)?;
     }
     Ok(())
+}
+
+fn delete_trash_path(source: &Path, trash: &Path, git_trash: Option<&Path>) -> PathBuf {
+    if let Some(git_trash) = git_trash
+        && let Some(repo_root) = git::git_repo_root(source)
+    {
+        return repo_root.join(git_trash);
+    }
+    trash.to_owned()
 }
 
 fn create_entry_path(path: FilePath<Arc<str>>, name: &str) -> Result<PathBuf, FsioError> {
@@ -236,8 +254,10 @@ fn check_option_order() {
 
 #[cfg(test)]
 mod tests {
-    use crate::text_editor::file_path::FilePath;
+    use std::path::Path;
     use std::sync::Arc;
+
+    use crate::text_editor::file_path::FilePath;
 
     #[test]
     fn create_file_in_folder() {
@@ -323,7 +343,7 @@ mod tests {
             file: Arc::from("file.tar.gz"),
         };
 
-        super::delete_file(path, trash.clone()).unwrap();
+        super::delete_file(path, trash.clone(), None::<&Path>).unwrap();
 
         assert!(!source.join("file.tar.gz").exists());
         assert_eq!(
@@ -344,5 +364,33 @@ mod tests {
         );
         assert_eq!(super::split_archive_extension("file"), ("file", ""));
         assert_eq!(super::split_archive_extension(".env"), (".env", ""));
+    }
+
+    #[test]
+    fn git_file_deletes_to_repo_relative_trash() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let repo = tempdir.path().join("repo");
+        let fallback_trash = tempdir.path().join("fallback-trash");
+        std::fs::create_dir(&repo).unwrap();
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(&repo)
+            .status()
+            .unwrap();
+        std::fs::write(repo.join("file.txt"), "deleted").unwrap();
+
+        let path = FilePath {
+            base: Arc::from(repo.to_string_lossy().to_string()),
+            file: Arc::from("file.txt"),
+        };
+
+        super::delete_file(path, &fallback_trash, Some(Path::new(".trash"))).unwrap();
+
+        assert!(!repo.join("file.txt").exists());
+        assert!(!fallback_trash.exists());
+        assert_eq!(
+            std::fs::read_to_string(repo.join(".trash/file.txt")).unwrap(),
+            "deleted"
+        );
     }
 }

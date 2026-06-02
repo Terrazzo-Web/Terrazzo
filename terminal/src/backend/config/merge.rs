@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use tracing::warn;
@@ -45,6 +46,7 @@ impl Config {
                 ports: server.ports.clone(),
                 terminal_shell: server.terminal_shell.clone(),
                 trash: Some(collapse_tilde(&server.trash)),
+                git_trash: server.git_trash.as_ref().map(collapse_tilde),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -101,20 +103,28 @@ fn merge_server_config(
             let trash = cli.trash.as_deref();
             let trash = trash.or(server.trash.as_deref()).map(expand_tilde);
             trash.unwrap_or_else(|| terrazzo_home().join("trash"))
-        },
-        set_current_endpoint: cli.set_current_endpoint.clone(),
+        }
+        .into(),
+        git_trash: {
+            let git_trash = cli.git_trash.as_deref();
+            git_trash.or(server.git_trash.as_deref()).map(expand_tilde)
+        }
+        .map(Arc::from),
+        set_current_endpoint: cli.set_current_endpoint.as_deref().map(Arc::from),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
             let pidfile = pidfile.or(server.pidfile.as_deref()).map(expand_tilde);
             pidfile.unwrap_or_else(|| terrazzo_home().join(format!("terminal-{port}.pid")))
-        },
+        }
+        .into(),
         private_root_ca: {
             let private_root_ca = cli.private_root_ca.as_deref();
             let private_root_ca = private_root_ca
                 .or(server.private_root_ca.as_deref())
                 .map(expand_tilde);
             private_root_ca.unwrap_or_else(|| terrazzo_home().join("root_ca"))
-        },
+        }
+        .into(),
         password: server.password.clone(),
         token_lifetime: parse_duration(server.token_lifetime.as_deref())
             .unwrap_or(DEFAULT_TOKEN_LIFETIME),
@@ -143,18 +153,20 @@ fn merge_mesh_config(
 ) -> Option<DiffArc<MeshConfig<RuntimeTypes>>> {
     let client_name = cli.client_name.as_ref().cloned();
     let gateway_url = cli.gateway_url.as_ref().cloned();
-    let gateway_pki = cli.gateway_pki.as_ref().cloned();
-    let client_certificate = cli.client_certificate.as_ref().cloned();
+    let gateway_pki = cli.gateway_pki.as_deref();
+    let client_certificate = cli.client_certificate.as_deref();
     Some(DiffArc::from(MeshConfig {
         client_name: client_name.or(mesh.and_then(|m| m.client_name.to_owned()))?,
         gateway_url: gateway_url.or(mesh.and_then(|m| m.gateway_url.to_owned()))?,
         gateway_pki: gateway_pki
-            .or(mesh.and_then(|m| m.gateway_pki.to_owned()))
-            .map(expand_tilde),
-        client_certificate: client_certificate
-            .or(mesh.and_then(|m| m.client_certificate.to_owned()))
             .map(expand_tilde)
-            .unwrap_or_else(|| terrazzo_home().join("client_certificate")),
+            .or_else(|| mesh.and_then(|m| m.gateway_pki.as_deref().map(expand_tilde)))
+            .map(Arc::from),
+        client_certificate: client_certificate
+            .map(expand_tilde)
+            .or_else(|| mesh.and_then(|m| m.client_certificate.as_deref().map(expand_tilde)))
+            .unwrap_or_else(|| terrazzo_home().join("client_certificate"))
+            .into(),
         retry_strategy: mesh
             .and_then(|mesh| mesh.retry_strategy.clone())
             .unwrap_or_default(),
@@ -172,12 +184,12 @@ fn expand_tilde(path: impl AsRef<Path>) -> PathBuf {
     path.to_owned()
 }
 
-fn collapse_tilde(path: impl AsRef<Path>) -> PathBuf {
+fn collapse_tilde(path: impl AsRef<Path>) -> Arc<Path> {
     let path = path.as_ref();
-    return path
-        .strip_prefix(home())
+    path.strip_prefix(home())
         .map(|p| [Path::new("~"), p].into_iter().collect())
-        .unwrap_or_else(|_error: std::path::StripPrefixError| path.to_owned());
+        .unwrap_or_else(|_error: std::path::StripPrefixError| path.to_owned())
+        .into()
 }
 
 #[cfg(test)]
@@ -245,10 +257,11 @@ mod tests {
                 host: "localhost".into(),
                 ports: vec![3000],
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),
-                trash: terrazzo_home().join("trash"),
+                trash: terrazzo_home().join("trash").into(),
+                git_trash: Some(Path::new(".trash").into()),
                 set_current_endpoint: None,
-                pidfile: terrazzo_home().join("test.pid"),
-                private_root_ca: terrazzo_home().join("root_ca"),
+                pidfile: terrazzo_home().join("test.pid").into(),
+                private_root_ca: terrazzo_home().join("root_ca").into(),
                 password: None,
                 token_lifetime: parse_duration(Some("5m")).unwrap(),
                 token_refresh: parse_duration(Some("4m 50s")).unwrap(),
@@ -266,7 +279,11 @@ mod tests {
             round_trip.server.terminal_shell.as_deref(),
             Some("echo test; exec /bin/bash -i")
         );
-        assert_eq!(round_trip.server.trash, terrazzo_home().join("trash"));
+        assert_eq!(&*round_trip.server.trash, terrazzo_home().join("trash"));
+        assert_eq!(
+            round_trip.server.git_trash.as_deref(),
+            Some(Path::new(".trash"))
+        );
         assert!(!round_trip.server.config_file_watcher);
         assert_eq!(
             round_trip.server.config_file_poll_strategy,

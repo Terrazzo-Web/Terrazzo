@@ -3,6 +3,7 @@ host = "localhost"
 ports = [3100]
 terminal-shell = 'echo "Welcome to Test Environment"; exec /bin/bash -i'
 trash = "~/.terrazzo/trash"
+git-trash = ".trash"
 pidfile = "~/.terrazzo/terminal-3001.pid"
 private_root_ca = "~/.terrazzo/root_ca"
 token_lifetime = "5m"

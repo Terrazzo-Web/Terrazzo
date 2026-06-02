@@ -323,6 +323,11 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
             let result = get_or_init(old, &mut result);
             result.trash = new.trash.clone();
         }
+        if new.git_trash != old.git_trash {
+            info!("Changed: git_trash");
+            let result = get_or_init(old, &mut result);
+            result.git_trash = new.git_trash.clone();
+        }
 
         return result.map(DiffArc::from);
     });

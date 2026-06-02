@@ -538,7 +538,8 @@ test.describe('Text editor', () => {
         await getCreateEntryField(page).press('Enter');
 
         await expect.poll(async () => (await stat(path.join(baseDir, 'drafts'))).isDirectory()).toBe(true);
-        await setBasePath(page, `${baseDir}${path.sep}.`, 'drafts/');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'drafts/');
         await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
     });
 

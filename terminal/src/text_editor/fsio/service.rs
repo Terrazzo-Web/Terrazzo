@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::SystemTime;
 
 use base64::Engine as _;
 use base64::prelude::BASE64_STANDARD;
@@ -110,6 +112,31 @@ pub fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioE
     Ok(())
 }
 
+pub fn delete_file(path: FilePath<Arc<str>>, trash: PathBuf) -> Result<(), FsioError> {
+    let source = concat_base_file_path(path.base, path.file);
+    if !source.exists() {
+        return Err(FsioError::InvalidPath);
+    }
+    let Some(file_name) = source.file_name() else {
+        return Err(FsioError::InvalidPath);
+    };
+
+    std::fs::create_dir_all(&trash)?;
+    let destination = trash.join(file_name);
+    if destination.exists() {
+        let metadata = destination.metadata()?;
+        let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        let renamed_destination = available_trash_path(&trash, file_name, modified)?;
+        std::fs::rename(&destination, renamed_destination)?;
+
+        let new_destination = available_trash_path(&trash, file_name, SystemTime::now())?;
+        std::fs::rename(source, new_destination)?;
+    } else {
+        std::fs::rename(source, destination)?;
+    }
+    Ok(())
+}
+
 fn create_entry_path(path: FilePath<Arc<str>>, name: &str) -> Result<PathBuf, FsioError> {
     let name = name.trim();
     if name.is_empty() || Path::new(name).components().count() != 1 {
@@ -122,6 +149,63 @@ fn create_entry_path(path: FilePath<Arc<str>>, name: &str) -> Result<PathBuf, Fs
     } else {
         Err(FsioError::InvalidPath)
     }
+}
+
+fn available_trash_path(
+    trash: &Path,
+    file_name: &std::ffi::OsStr,
+    time: SystemTime,
+) -> Result<PathBuf, FsioError> {
+    let file_name = file_name.to_str().ok_or(FsioError::InvalidPath)?;
+    let date = system_time_date(time);
+    let (name, extension) = split_archive_extension(file_name);
+    for suffix in std::iter::once(String::new()).chain((1..).map(|index| format!("-{index}"))) {
+        let candidate = if extension.is_empty() {
+            format!("{name}_{date}{suffix}")
+        } else {
+            format!("{name}_{date}{suffix}.{extension}")
+        };
+        let candidate = trash.join(candidate);
+        if !candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    unreachable!()
+}
+
+fn split_archive_extension(file_name: &str) -> (&str, &str) {
+    match file_name
+        .char_indices()
+        .find(|(index, c)| *index > 0 && *c == '.')
+    {
+        Some((index, _)) => (&file_name[..index], &file_name[index + 1..]),
+        None => (file_name, ""),
+    }
+}
+
+fn system_time_date(time: SystemTime) -> String {
+    let days = time
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO)
+        .as_secs()
+        / 86_400;
+    let (year, month, day) = civil_from_days(days as i64);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn civil_from_days(days_since_unix_epoch: i64) -> (i32, u32, u32) {
+    let z = days_since_unix_epoch + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let day_of_era = z - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    (year as i32, month as u32, day as u32)
 }
 
 #[nameth]
@@ -153,6 +237,7 @@ fn check_option_order() {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::time::SystemTime;
 
     use crate::text_editor::file_path::FilePath;
 
@@ -193,5 +278,46 @@ mod tests {
         let error = super::create_file(path, "a/b.txt".to_owned()).unwrap_err();
 
         assert!(matches!(error, super::FsioError::InvalidPath));
+    }
+
+    #[test]
+    fn trash_conflicts_date_existing_and_new_entries() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let source = tempdir.path().join("source");
+        let trash = tempdir.path().join("trash");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::create_dir(&trash).unwrap();
+        std::fs::write(source.join("file.tar.gz"), "new").unwrap();
+        std::fs::write(trash.join("file.tar.gz"), "old").unwrap();
+
+        let today = super::system_time_date(SystemTime::now());
+        std::fs::write(trash.join(format!("file_{today}.tar.gz")), "first").unwrap();
+
+        let path = FilePath {
+            base: Arc::from(source.to_string_lossy().to_string()),
+            file: Arc::from("file.tar.gz"),
+        };
+
+        super::delete_file(path, trash.clone()).unwrap();
+
+        assert!(!source.join("file.tar.gz").exists());
+        assert_eq!(
+            std::fs::read_to_string(trash.join(format!("file_{today}-1.tar.gz"))).unwrap(),
+            "old"
+        );
+        assert_eq!(
+            std::fs::read_to_string(trash.join(format!("file_{today}-2.tar.gz"))).unwrap(),
+            "new"
+        );
+    }
+
+    #[test]
+    fn split_archive_extension_keeps_tar_gz_together() {
+        assert_eq!(
+            super::split_archive_extension("file.tar.gz"),
+            ("file", "tar.gz")
+        );
+        assert_eq!(super::split_archive_extension("file"), ("file", ""));
+        assert_eq!(super::split_archive_extension(".env"), (".env", ""));
     }
 }

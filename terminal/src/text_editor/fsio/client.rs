@@ -47,6 +47,10 @@ pub async fn create_folder(
     super::create_folder(remote, path, name).await
 }
 
+pub async fn delete_file(remote: Remote, path: FilePath<Arc<str>>) -> Result<(), ServerFnError> {
+    super::delete_file(remote, path).await
+}
+
 static DEBOUNCED_STORE_FILE_FN: LazyLock<StoreFileFn> = LazyLock::new(make_debounced_store_file_fn);
 static STORE_FILE_STATE: LazyLock<Mutex<StoreFileState>> = LazyLock::new(Mutex::default);
 

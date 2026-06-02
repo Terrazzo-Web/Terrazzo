@@ -22,6 +22,9 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     #[serde(rename = "terminal-shell", alias = "terminal_shell")]
     pub terminal_shell: Option<String>,
 
+    /// The folder where deleted text-editor files are moved.
+    pub trash: T::Path,
+
     pub set_current_endpoint: T::MaybePath,
 
     /// The file to store the pid of the daemon while it is running,

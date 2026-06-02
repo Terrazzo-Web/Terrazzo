@@ -5,9 +5,12 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
+use self::diagnostics::warn;
+use crate::assets::icons;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
@@ -67,16 +70,7 @@ pub fn folder(
             class = "folder-row",
             click = move |_| {
                 autoclone!(manager, file_path, name);
-                let file_path = &*file_path;
-                let file_path = file_path.trim_start_matches('/');
-                let file = if &*name == ".." {
-                    Path::new(file_path)
-                        .parent()
-                        .map(Path::to_owned)
-                        .unwrap_or_default()
-                } else {
-                    Path::new(file_path).join(&*name)
-                };
+                let file = folder_entry_path(&file_path, &name);
                 manager.path.file.set(file.to_owned_string())
             },
             td(
@@ -89,6 +83,10 @@ pub fn folder(
             td("{user}"),
             td("{group}"),
             td("{permissions}"),
+            td(
+                class = style::FOLDER_ACTIONS,
+                trash_action(manager.clone(), file_path.clone(), name.clone()),
+            ),
         ));
     }
     tag(
@@ -101,6 +99,7 @@ pub fn folder(
                 th("User"),
                 th("Group"),
                 th("Permissions"),
+                th(""),
             )),
             tbody(
                 mouseover = move |_: MouseEvent| {
@@ -113,6 +112,65 @@ pub fn folder(
             let _moved = &notify_registration;
         },
     )
+}
+
+#[autoclone]
+#[html]
+fn trash_action(
+    manager: Ptr<TextEditorManager>,
+    folder_path: Arc<str>,
+    name: Arc<str>,
+) -> XElement {
+    if &*name == ".." {
+        return span();
+    }
+    img(
+        class = style::TRASH_ACTION,
+        #[cfg(not(feature = "client-prod"))]
+        class = "folder-trash-icon",
+        src = icons::trash(),
+        title = "Move to trash",
+        click = move |event: MouseEvent| {
+            autoclone!(manager, folder_path, name);
+            event.stop_propagation();
+            let path = crate::text_editor::file_path::FilePath {
+                base: manager.path.base.get_value_untracked(),
+                file: folder_entry_path(&folder_path, &name)
+                    .to_owned_string()
+                    .into(),
+            };
+            spawn_local(delete_file(manager.clone(), folder_path.clone(), path));
+        },
+    )
+}
+
+async fn delete_file(
+    manager: Ptr<TextEditorManager>,
+    folder_path: Arc<str>,
+    path: crate::text_editor::file_path::FilePath<Arc<str>>,
+) {
+    let result = crate::text_editor::fsio::client::delete_file(manager.remote.clone(), path).await;
+    if let Err(error) = result {
+        warn!("Failed to move entry to trash: {error}");
+        return;
+    }
+    if manager.path.file.get_value_untracked() == folder_path {
+        manager.path.file.force(folder_path);
+    } else {
+        manager.tile.app.force(crate::tiles::app::App::TextEditor);
+    }
+}
+
+fn folder_entry_path(folder_path: &str, name: &str) -> std::path::PathBuf {
+    let folder_path = folder_path.trim_start_matches('/');
+    if name == ".." {
+        Path::new(folder_path)
+            .parent()
+            .map(Path::to_owned)
+            .unwrap_or_default()
+    } else {
+        Path::new(folder_path).join(name)
+    }
 }
 
 #[derive(Default)]

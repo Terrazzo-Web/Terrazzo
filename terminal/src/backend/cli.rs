@@ -34,6 +34,10 @@ pub struct Cli {
     #[arg(long)]
     pub terminal_shell: Option<String>,
 
+    /// The folder where deleted text-editor files are moved.
+    #[arg(long)]
+    pub trash: Option<PathBuf>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,

@@ -44,6 +44,7 @@ impl Config {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
                 terminal_shell: server.terminal_shell.clone(),
+                trash: Some(collapse_tilde(&server.trash)),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -96,6 +97,11 @@ fn merge_server_config(
             .terminal_shell
             .clone()
             .or_else(|| server.terminal_shell.clone()),
+        trash: {
+            let trash = cli.trash.as_deref();
+            let trash = trash.or(server.trash.as_deref()).map(expand_tilde);
+            trash.unwrap_or_else(|| terrazzo_home().join("trash"))
+        },
         set_current_endpoint: cli.set_current_endpoint.clone(),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
@@ -239,6 +245,7 @@ mod tests {
                 host: "localhost".into(),
                 ports: vec![3000],
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),
+                trash: terrazzo_home().join("trash"),
                 set_current_endpoint: None,
                 pidfile: terrazzo_home().join("test.pid"),
                 private_root_ca: terrazzo_home().join("root_ca"),
@@ -259,6 +266,7 @@ mod tests {
             round_trip.server.terminal_shell.as_deref(),
             Some("echo test; exec /bin/bash -i")
         );
+        assert_eq!(round_trip.server.trash, terrazzo_home().join("trash"));
         assert!(!round_trip.server.config_file_watcher);
         assert_eq!(
             round_trip.server.config_file_poll_strategy,

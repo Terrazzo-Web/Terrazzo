@@ -1,6 +1,7 @@
 #![cfg(feature = "server")]
 
 use std::future::ready;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::File;
@@ -34,6 +35,12 @@ pub struct CreateEntryRequest {
     pub path: FilePath<Arc<str>>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: String,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct DeleteFileRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<str>>,
 }
 
 remote_fn_service::unary::declare_remote_fn!(
@@ -76,6 +83,18 @@ remote_fn_service::unary::declare_remote_fn!(
     (),
     |_server, arg: CreateEntryRequest| {
         let result = super::service::create_folder(arg.path, arg.name);
+        ready(result.map_err(GrpcError::from))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    DELETE_FILE_REMOTE_FN,
+    super::DELETE_FILE,
+    DeleteFileRequest,
+    (),
+    |server, arg: DeleteFileRequest| {
+        let trash: PathBuf = server.config().server.with(|server| server.trash.clone());
+        let result = super::service::delete_file(arg.path, trash);
         ready(result.map_err(GrpcError::from))
     }
 );

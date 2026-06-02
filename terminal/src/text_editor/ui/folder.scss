@@ -35,6 +35,22 @@ div.folder {
                 padding: var(--padding);
                 border-bottom: 1px solid rgb(96, 96, 96);
             }
+
+            td.folder-actions {
+                width: 1%;
+                white-space: nowrap;
+                text-align: center;
+            }
+
+            img.trash-action {
+                width: 1rem;
+                height: 1rem;
+                opacity: 0.75;
+
+                &:hover {
+                    opacity: 1;
+                }
+            }
         }
     }
 }

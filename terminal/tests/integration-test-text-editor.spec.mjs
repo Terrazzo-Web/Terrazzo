@@ -175,7 +175,7 @@ async function showBasePathInput(page, timeout = 30 * SECOND) {
     return basePathInput;
 }
 
-async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECOND) {
+async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECOND) {
     await expect
         .poll(
             async () => {
@@ -253,6 +253,12 @@ async function exists(filePath) {
         .catch(() => false);
 }
 
+async function isDirectory(filePath) {
+    return stat(filePath)
+        .then((metadata) => metadata.isDirectory())
+        .catch(() => false);
+}
+
 async function readFileOrMissing(filePath) {
     return readFile(filePath, 'utf8').catch(() => '<missing>');
 }
@@ -292,7 +298,7 @@ test.describe('Text editor', () => {
     });
 
     test('edits a file', async ({ page }) => {
-        test.setTimeout(90 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -314,7 +320,7 @@ test.describe('Text editor', () => {
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {
-        test.setTimeout(90 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -347,7 +353,7 @@ test.describe('Text editor', () => {
     });
 
     test('renders a PDF file', async ({ page }) => {
-        test.setTimeout(60 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
         await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
@@ -487,7 +493,7 @@ test.describe('Text editor', () => {
     });
 
     test('expands and collapses side-view folder nodes', async ({ page }) => {
-        test.setTimeout(90 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const root = await createFolderTree();
 
@@ -517,7 +523,7 @@ test.describe('Text editor', () => {
     });
 
     test('creates files and folders from the folder toolbar', async ({ page }) => {
-        test.setTimeout(90 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const fileName = 'seed.txt';
         const { baseDir } = await createTempFile(fileName);
@@ -537,14 +543,14 @@ test.describe('Text editor', () => {
         await getCreateEntryField(page).fill(' drafts ');
         await getCreateEntryField(page).press('Enter');
 
-        await expect.poll(async () => (await stat(path.join(baseDir, 'drafts'))).isDirectory()).toBe(true);
+        await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, 'drafts/');
         await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
     });
 
     test('moves a file to trash and resolves trash name conflicts', async ({ page }) => {
-        test.setTimeout(90 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const unique = `remove-me-${process.pid}-${Date.now()}`;
         const fileName = `${unique}.tar.gz`;

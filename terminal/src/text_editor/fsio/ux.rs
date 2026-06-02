@@ -207,15 +207,21 @@ async fn create_entry(
 
     let result = match kind {
         CreateEntryKind::File => {
-            super::client::create_file(manager.remote.clone(), path, name).await
+            super::client::create_file(manager.remote.clone(), path.clone(), name).await
         }
         CreateEntryKind::Folder => {
-            super::client::create_folder(manager.remote.clone(), path, name).await
+            super::client::create_folder(manager.remote.clone(), path.clone(), name).await
         }
     };
     if let Err(error) = result {
         warn!("Failed to create entry: {error}");
         return;
     }
-    manager.tile.app.force(App::TextEditor);
+    if manager.path.base.get_value_untracked() == path.base
+        && manager.path.file.get_value_untracked() == path.file
+    {
+        manager.path.file.force(path.file);
+    } else {
+        manager.tile.app.force(App::TextEditor);
+    }
 }

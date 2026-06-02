@@ -23,6 +23,7 @@ use super::signals::Tiles;
 use super::signals::TilesCmp;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
+use crate::frontend::resize_bar::ResizeBarProperties;
 use crate::frontend::resize_bar::resize_bar_horz;
 use crate::frontend::resize_bar::resize_bar_vert;
 
@@ -155,9 +156,7 @@ fn show_tiles_rec(
                 if i == count - 1 {
                     return vec![node];
                 }
-                let sep = resize_bar(resize_manager.clone(), direction.clone(), || {
-                    ResizeEvent::signal().force(())
-                });
+                let sep = resize_bar(resize_manager.clone(), direction.clone());
                 vec![node, sep]
             });
             div(
@@ -249,13 +248,21 @@ fn size(
 
 #[html]
 #[template(tag = div)]
-pub fn resize_bar(
-    resize_manager: MousemoveManager,
-    #[signal] direction: Direction,
-    on_dblclick: impl Fn() + Clone + 'static,
-) -> XElement {
+pub fn resize_bar(resize_manager: MousemoveManager, #[signal] direction: Direction) -> XElement {
     match direction {
-        Direction::Horizontal => resize_bar_horz(resize_manager, on_dblclick),
-        Direction::Vertical => resize_bar_vert(resize_manager, on_dblclick),
+        Direction::Horizontal => resize_bar_horz(
+            resize_manager,
+            ResizeBarProperties {
+                dblclick: Rc::new(|| ResizeEvent::signal().force(())),
+                class: Some(style::RESIZE_BAR_HORIZONTAL),
+            },
+        ),
+        Direction::Vertical => resize_bar_vert(
+            resize_manager,
+            ResizeBarProperties {
+                dblclick: Rc::new(|| ResizeEvent::signal().force(())),
+                class: Some(style::RESIZE_BAR_VERTICAL),
+            },
+        ),
     }
 }

@@ -34,7 +34,8 @@ impl TextEditorManager {
             class = style::PATH_SELECTOR,
             style::flex_basis %= flex_basis(is_active.clone()),
             img(
-                class = format!("{} {}", style::PATH_SELECTOR_ICON, style::SEARCH_ICON),
+                class = style::PATH_SELECTOR_ICON,
+                class = style::SEARCH_ICON,
                 src = icons::search(),
                 click = move |_| {
                     autoclone!(is_active, input);

@@ -33,8 +33,11 @@ use super::synchronized_state::SynchronizedState;
 use super::synchronized_state::show_synchronized_state;
 use crate::assets::icons;
 use crate::frontend::menu::menu;
+use crate::frontend::mousemove::MousemoveManager;
+use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
+use crate::frontend::resize_bar::resize_bar_horz;
 use crate::text_editor::search::state::EditorSearchState;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
@@ -82,6 +85,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
 
     let consumers = Arc::default();
     manager.restore_paths(&consumers);
+    let side_view_resize_manager = MousemoveManager::new();
 
     div(
         key = "text-editor",
@@ -94,11 +98,16 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.base_path_selector(),
             manager.file_path_selector(),
             manager.search_selector(),
+            fsio::ux::create_entry_controls(manager.clone(), manager.editor_state.clone()),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
-        editor_body(manager.clone(), manager.editor_state.clone()),
+        editor_body(
+            manager.clone(),
+            manager.editor_state.clone(),
+            side_view_resize_manager,
+        ),
         after_render = move |_| {
             let _moved = &consumers;
         },
@@ -121,14 +130,29 @@ impl TextEditorManager {
 }
 
 #[html]
-fn editor_body(manager: Ptr<TextEditorManager>, editor_state: XSignal<EditorState>) -> XElement {
+fn editor_body(
+    manager: Ptr<TextEditorManager>,
+    editor_state: XSignal<EditorState>,
+    side_view_resize_manager: MousemoveManager,
+) -> XElement {
     div(
         class = super::style::BODY,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
-        show_side_view(manager.clone(), manager.side_view.clone()),
+        show_side_view(
+            manager.clone(),
+            manager.side_view.clone(),
+            side_view_resize_manager.clone(),
+        ),
+        resize_bar_horz(side_view_resize_manager, Default::default()),
         editor_container(manager, editor_state),
     )
+}
+
+#[template(wrap = true)]
+pub(super) fn side_view_width(#[signal] position: Option<Position>) -> XAttributeValue {
+    let position = position.unwrap_or_default();
+    format!("0 0 max(8rem, calc(200px + {}px))", position.x)
 }
 
 #[html]
@@ -251,7 +275,7 @@ impl TextEditorManager {
                     base: this.path.base.get_value_untracked(),
                     file: file_path,
                 };
-                let data = fsio::ui::load_file(this.remote.clone(), path.clone())
+                let data = fsio::client::load_file(this.remote.clone(), path.clone())
                     .await
                     .unwrap_or_else(|error| Some(fsio::File::Error(error.to_string())))
                     .map(Arc::new);

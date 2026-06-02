@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execFile } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -77,6 +77,18 @@ function getPdfZoomSlider(page) {
 
 function getPdfZoomValue(page) {
     return page.locator('.pdf-viewer [data-control="zoom"] output');
+}
+
+function getCreateFileIcon(page) {
+    return page.locator('.create-file-icon');
+}
+
+function getCreateFolderIcon(page) {
+    return page.locator('.create-folder-icon');
+}
+
+function getCreateEntryField(page) {
+    return page.locator('.create-entry-field');
 }
 
 async function selectPdfZoom(page, percent) {
@@ -465,5 +477,28 @@ test.describe('Text editor', () => {
 
         await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0, { timeout: 30 * SECOND });
         await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 30 * SECOND });
+    });
+
+    test('creates files and folders from the folder toolbar', async ({ page }) => {
+        const fileName = 'seed.txt';
+        const { baseDir } = await createTempFile(fileName);
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+
+        await getCreateFileIcon(page).click();
+        await getCreateEntryField(page).fill(' notes with spaces.txt ');
+        await getCreateEntryField(page).press('Enter');
+
+        await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 30 * SECOND });
+        await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('');
+
+        await getCreateFolderIcon(page).click();
+        await getCreateEntryField(page).fill(' drafts ');
+        await getCreateEntryField(page).press('Enter');
+
+        await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
+        await expect.poll(async () => (await stat(path.join(baseDir, 'drafts'))).isDirectory()).toBe(true);
     });
 });

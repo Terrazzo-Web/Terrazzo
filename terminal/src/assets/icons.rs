@@ -44,6 +44,8 @@ declare_icon!(collapse_vert, "/icons/arrows-collapse.svg"; feature = "text-edito
 declare_icon!(split_vert, "/icons/arrows-expand.svg");
 declare_icon!(file, "/icons/file-earmark-text.svg"; feature = "text-editor");
 declare_icon!(folder, "/icons/folder2-open.svg"; feature = "text-editor");
+declare_icon!(new_file, "/icons/file-earmark-plus.svg"; feature = "text-editor");
+declare_icon!(new_folder, "/icons/folder-plus.svg"; feature = "text-editor");
 declare_icon!(hub, "/icons/hub.svg"; feature = "port-forward");
 declare_icon!(key_icon, "/icons/key.svg");
 declare_icon!(loading, "/icons/loading2.svg"; feature = "text-editor");

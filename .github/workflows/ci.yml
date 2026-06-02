@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Cargo build and test
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
 
       - name: Set up
         uses: ./.github/actions/setup
@@ -37,7 +37,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     name: Bazel build and test
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Set up
         uses: ./.github/actions/setup
         with:
@@ -61,7 +61,7 @@ jobs:
   publish-dry-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Publish dry run
         uses: ./.github/actions/setup
         with:

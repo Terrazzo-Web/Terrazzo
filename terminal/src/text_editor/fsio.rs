@@ -12,11 +12,12 @@ use super::file_path::FilePath;
 use crate::api::client_address::ClientAddress;
 
 pub mod canonical;
+pub mod client;
 mod fsmetadata;
 mod git;
 mod remote;
 mod service;
-pub mod ui;
+pub mod ux;
 
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -92,6 +93,30 @@ async fn list_folder(
 ) -> Result<Option<Arc<Vec<FileMetadata>>>, ServerFnError> {
     Ok(remote::LIST_FOLDER_REMOTE_FN
         .call(remote, remote::ListFolderRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn create_file(
+    remote: ClientAddress,
+    path: FilePath<Arc<str>>,
+    name: String,
+) -> Result<(), ServerFnError> {
+    Ok(remote::CREATE_FILE_REMOTE_FN
+        .call(remote, remote::CreateEntryRequest { path, name })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn create_folder(
+    remote: ClientAddress,
+    path: FilePath<Arc<str>>,
+    name: String,
+) -> Result<(), ServerFnError> {
+    Ok(remote::CREATE_FOLDER_REMOTE_FN
+        .call(remote, remote::CreateEntryRequest { path, name })
         .await?)
 }
 

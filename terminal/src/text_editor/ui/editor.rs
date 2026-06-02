@@ -18,7 +18,7 @@ use self::diagnostics::debug_span;
 use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
 use super::fsio;
-use super::fsio::ui::store_file;
+use super::fsio::client::store_file;
 use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::text_editor::file_path::FilePath;
@@ -192,7 +192,7 @@ async fn notify_edit(
     writing: Arc<AtomicU32>,
 ) {
     debug!("Loading modified file");
-    match fsio::ui::load_file(manager.remote.clone(), path.clone()).await {
+    match fsio::client::load_file(manager.remote.clone(), path.clone()).await {
         Ok(Some(fsio::File::TextFile {
             metadata: _,
             original: _,

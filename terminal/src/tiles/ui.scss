@@ -38,3 +38,27 @@ div.horizontal-tile {
 div.vertical-tile {
     flex-direction: column;
 }
+
+div.resize-bar-horizontal {
+    >div>div {
+        border-left: 1px dotted var(--color);
+    }
+
+    &:hover {
+        >div>div {
+            border-left: 0;
+        }
+    }
+}
+
+div.resize-bar-vertical {
+    >div>div {
+        border-top: 1px dotted var(--color);
+    }
+
+    &:hover {
+        >div>div {
+            border-top: 0;
+        }
+    }
+}

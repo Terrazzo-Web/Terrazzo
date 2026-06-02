@@ -28,6 +28,14 @@ pub struct StoreFileRequest {
     pub content: String,
 }
 
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct CreateEntryRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<str>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
+    pub name: String,
+}
+
 remote_fn_service::unary::declare_remote_fn!(
     LOAD_FILE_REMOTE_FN,
     super::LOAD_FILE,
@@ -46,6 +54,28 @@ remote_fn_service::unary::declare_remote_fn!(
     Option<Arc<Vec<super::FileMetadata>>>,
     |_server, arg: ListFolderRequest| {
         let result = super::service::list_folder(arg.path);
+        ready(result.map_err(GrpcError::from))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    CREATE_FILE_REMOTE_FN,
+    super::CREATE_FILE,
+    CreateEntryRequest,
+    (),
+    |_server, arg: CreateEntryRequest| {
+        let result = super::service::create_file(arg.path, arg.name);
+        ready(result.map_err(GrpcError::from))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    CREATE_FOLDER_REMOTE_FN,
+    super::CREATE_FOLDER,
+    CreateEntryRequest,
+    (),
+    |_server, arg: CreateEntryRequest| {
+        let result = super::service::create_folder(arg.path, arg.name);
         ready(result.map_err(GrpcError::from))
     }
 );

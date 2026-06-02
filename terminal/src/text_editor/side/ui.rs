@@ -10,9 +10,11 @@ use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::error;
+use super::super::ui::side_view_width;
 use crate::assets::icons;
+use crate::frontend::mousemove::MousemoveManager;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::fsio::ui::list_folder;
+use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
@@ -30,6 +32,7 @@ terrazzo_css::import_style!(style, "side.scss");
 pub fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] side_view: Arc<SideViewList>,
+    resize_manager: MousemoveManager,
 ) -> XElement {
     let base = manager.path.base.get_value_untracked();
     let base = Path::new(base.as_ref());
@@ -53,6 +56,7 @@ pub fn show_side_view(
         class = style::SIDE,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
+        style::flex %= side_view_width(resize_manager.delta.clone()),
         show_side_view_list(&manager, "".as_ref(), Arc::new(side_view), true),
     )
 }

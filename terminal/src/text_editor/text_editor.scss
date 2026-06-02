@@ -16,7 +16,8 @@ div.text_editor {
             align-items: center;
             width: 100%;
 
-            img.path-selector-icon {
+            img.path-selector-icon,
+            img.create-entry-icon {
                 @include trz-icon;
                 margin-left: var(--padding);
                 margin-right: var(--padding);
@@ -27,6 +28,13 @@ div.text_editor {
                     background-color: var(--link-color);
                     cursor: pointer;
                 }
+            }
+
+            img.create-entry-icon:hover,
+            img.create-entry-icon.active {
+                filter: invert(0);
+                background-color: var(--link-color);
+                cursor: pointer;
             }
 
             div.path-selector-widget {

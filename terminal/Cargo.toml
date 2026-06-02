@@ -24,6 +24,7 @@ required-features = ["server"]
 axum-extra = { workspace = true, optional = true, features = ["cookie"] }
 base64 = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 cms = { workspace = true, optional = true }
 const_format = { workspace = true, optional = true }
@@ -216,6 +217,7 @@ text-editor-client = [
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [
+  "dep:chrono",
   "dep:libc",
   "dep:lru",
   "dep:notify",

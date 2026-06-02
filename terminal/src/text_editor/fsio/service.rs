@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use base64::Engine as _;
 use base64::prelude::BASE64_STANDARD;
+use chrono::DateTime;
+use chrono::Utc;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tonic::Code;
@@ -158,7 +159,7 @@ fn available_trash_path(
     time: SystemTime,
 ) -> Result<PathBuf, FsioError> {
     let file_name = file_name.to_str().ok_or(FsioError::InvalidPath)?;
-    let date = system_time_date(time);
+    let date = DateTime::<Utc>::from(time).date_naive();
     let (name, extension) = split_archive_extension(file_name);
     for suffix in std::iter::once(String::new()).chain((1..).map(|index| format!("-{index}"))) {
         let candidate = if extension.is_empty() {
@@ -182,31 +183,6 @@ fn split_archive_extension(file_name: &str) -> (&str, &str) {
         Some((index, _)) => (&file_name[..index], &file_name[index + 1..]),
         None => (file_name, ""),
     }
-}
-
-fn system_time_date(time: SystemTime) -> String {
-    let days = time
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs()
-        / 86_400;
-    let (year, month, day) = civil_from_days(days as i64);
-    format!("{year:04}-{month:02}-{day:02}")
-}
-
-fn civil_from_days(days_since_unix_epoch: i64) -> (i32, u32, u32) {
-    let z = days_since_unix_epoch + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let day_of_era = z - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let mut year = year_of_era + era * 400;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_prime = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
-    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
-    year += i64::from(month <= 2);
-    (year as i32, month as u32, day as u32)
 }
 
 #[nameth]
@@ -237,10 +213,8 @@ fn check_option_order() {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use std::time::SystemTime;
-
     use crate::text_editor::file_path::FilePath;
+    use std::sync::Arc;
 
     #[test]
     fn create_file_in_folder() {
@@ -291,7 +265,7 @@ mod tests {
         std::fs::write(source.join("file.tar.gz"), "new").unwrap();
         std::fs::write(trash.join("file.tar.gz"), "old").unwrap();
 
-        let today = super::system_time_date(SystemTime::now());
+        let today = chrono::Utc::now().date_naive();
         std::fs::write(trash.join(format!("file_{today}.tar.gz")), "first").unwrap();
 
         let path = FilePath {

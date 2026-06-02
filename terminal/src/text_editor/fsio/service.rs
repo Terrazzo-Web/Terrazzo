@@ -2,6 +2,7 @@
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -94,7 +95,7 @@ pub fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioE
     return if path.exists() {
         Ok(std::fs::write(&path, content)?)
     } else {
-        Err(FsioError::InvalidPath)
+        Err(FsioError::PathNotFound { path })
     };
 }
 
@@ -116,10 +117,10 @@ pub fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioE
 pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<(), FsioError> {
     let source = concat_base_file_path(path.base, path.file);
     if !source.exists() {
-        return Err(FsioError::InvalidPath);
+        return Err(FsioError::PathNotFound { path: source });
     }
     let Some(file_name) = source.file_name() else {
-        return Err(FsioError::InvalidPath);
+        return Err(FsioError::MissingFileName { path: source });
     };
 
     let trash = trash.as_ref();
@@ -142,14 +143,16 @@ pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<
 fn create_entry_path(path: FilePath<Arc<str>>, name: &str) -> Result<PathBuf, FsioError> {
     let name = name.trim();
     if name.is_empty() || Path::new(name).components().count() != 1 {
-        return Err(FsioError::InvalidPath);
+        return Err(FsioError::InvalidEntryName {
+            name: name.to_owned(),
+        });
     }
 
     let folder = concat_base_file_path(path.base, path.file);
     if folder.is_dir() {
         Ok(folder.join(name))
     } else {
-        Err(FsioError::InvalidPath)
+        Err(FsioError::ParentNotFolder { path: folder })
     }
 }
 
@@ -158,7 +161,11 @@ fn available_trash_path(
     file_name: &std::ffi::OsStr,
     time: SystemTime,
 ) -> Result<PathBuf, FsioError> {
-    let file_name = file_name.to_str().ok_or(FsioError::InvalidPath)?;
+    let file_name = file_name
+        .to_str()
+        .ok_or_else(|| FsioError::NonUnicodeFileName {
+            file_name: file_name.into(),
+        })?;
     let date = DateTime::<Utc>::from(time).date_naive();
     let (name, extension) = split_archive_extension(file_name);
     for suffix in std::iter::once(String::new()).chain((1..).map(|index| format!("-{index}"))) {
@@ -191,15 +198,31 @@ pub enum FsioError {
     #[error("[{n}] {0}", n = self.name())]
     IO(#[from] std::io::Error),
 
-    #[error("[{n}] Invalid path", n = self.name())]
-    InvalidPath,
+    #[error("[{n}] Path not found: {path:?}", n = self.name())]
+    PathNotFound { path: PathBuf },
+
+    #[error("[{n}] Path has no file name: {path:?}", n = self.name())]
+    MissingFileName { path: PathBuf },
+
+    #[error("[{n}] Invalid entry name: {name:?}", n = self.name())]
+    InvalidEntryName { name: String },
+
+    #[error("[{n}] Parent is not a folder: {path:?}", n = self.name())]
+    ParentNotFolder { path: PathBuf },
+
+    #[error("[{n}] File name is not valid Unicode: {file_name:?}", n = self.name())]
+    NonUnicodeFileName { file_name: OsString },
 }
 
 impl IsGrpcError for FsioError {
     fn code(&self) -> Code {
         match self {
             Self::IO { .. } => Code::FailedPrecondition,
-            Self::InvalidPath => Code::InvalidArgument,
+            Self::PathNotFound { .. } => Code::NotFound,
+            Self::MissingFileName { .. } => Code::InvalidArgument,
+            Self::InvalidEntryName { .. } => Code::InvalidArgument,
+            Self::ParentNotFolder { .. } => Code::FailedPrecondition,
+            Self::NonUnicodeFileName { .. } => Code::InvalidArgument,
         }
     }
 }
@@ -252,7 +275,34 @@ mod tests {
 
         let error = super::create_file(path, "a/b.txt".to_owned()).unwrap_err();
 
-        assert!(matches!(error, super::FsioError::InvalidPath));
+        assert!(matches!(error, super::FsioError::InvalidEntryName { .. }));
+    }
+
+    #[test]
+    fn create_entry_rejects_file_parent() {
+        let tempdir = tempfile::tempdir().unwrap();
+        std::fs::write(tempdir.path().join("parent.txt"), "").unwrap();
+        let path = FilePath {
+            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
+            file: Arc::from("parent.txt"),
+        };
+
+        let error = super::create_file(path, "child.txt".to_owned()).unwrap_err();
+
+        assert!(matches!(error, super::FsioError::ParentNotFolder { .. }));
+    }
+
+    #[test]
+    fn store_file_rejects_missing_path() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = FilePath {
+            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
+            file: Arc::from("missing.txt"),
+        };
+
+        let error = super::store_file(path, "content".to_owned()).unwrap_err();
+
+        assert!(matches!(error, super::FsioError::PathNotFound { .. }));
     }
 
     #[test]

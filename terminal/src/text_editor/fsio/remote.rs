@@ -1,7 +1,6 @@
 #![cfg(feature = "server")]
 
 use std::future::ready;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::File;
@@ -93,7 +92,7 @@ remote_fn_service::unary::declare_remote_fn!(
     DeleteFileRequest,
     (),
     |server, arg: DeleteFileRequest| {
-        let trash: PathBuf = server.config().server.with(|server| server.trash.clone());
+        let trash = server.config().server.with(|server| server.trash.clone());
         let result = super::service::delete_file(arg.path, trash);
         ready(result.map_err(GrpcError::from))
     }

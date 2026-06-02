@@ -112,7 +112,7 @@ pub fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioE
     Ok(())
 }
 
-pub fn delete_file(path: FilePath<Arc<str>>, trash: PathBuf) -> Result<(), FsioError> {
+pub fn delete_file(path: FilePath<Arc<str>>, trash: impl AsRef<Path>) -> Result<(), FsioError> {
     let source = concat_base_file_path(path.base, path.file);
     if !source.exists() {
         return Err(FsioError::InvalidPath);
@@ -121,6 +121,7 @@ pub fn delete_file(path: FilePath<Arc<str>>, trash: PathBuf) -> Result<(), FsioE
         return Err(FsioError::InvalidPath);
     };
 
+    let trash = trash.as_ref();
     std::fs::create_dir_all(&trash)?;
     let destination = trash.join(file_name);
     if destination.exists() {

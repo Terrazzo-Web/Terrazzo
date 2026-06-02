@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::path::Path;
+use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -16,7 +17,7 @@ impl ServerConfig {
         let pid = self
             .read_pid()?
             .ok_or_else(|| KillServerError::PidfileNotFound {
-                pidfile: self.pidfile.to_owned(),
+                pidfile: self.pidfile.clone(),
             })?;
 
         let result = kill_aux(pid);
@@ -37,7 +38,7 @@ pub enum KillServerError {
     ReadPidfile(#[from] ReadPidfileError),
 
     #[error("[{n}] Pid file '{pidfile}' not found", n = self.name())]
-    PidfileNotFound { pidfile: PathBuf },
+    PidfileNotFound { pidfile: Arc<Path> },
 
     #[error("[{n}] {0}", n = self.name())]
     DeletePidfile(#[from] DeletePidfileError),

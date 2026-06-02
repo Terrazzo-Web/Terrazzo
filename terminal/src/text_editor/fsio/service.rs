@@ -14,6 +14,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tokio::io::AsyncWriteExt as _;
 use tonic::Code;
 use tracing::debug;
 use tracing::warn;
@@ -28,13 +29,13 @@ use crate::text_editor::file_path::FilePath;
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
 
-pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
+pub async fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     if let Ok(metadata) = path.metadata() {
         if metadata.is_file() {
             if path.extension() == Some("pdf".as_ref()) {
                 debug!("Loading PDF file {path:?}");
-                let data = std::fs::read(&path)?;
+                let data = tokio::fs::read(&path).await?;
                 let base64 = BASE64_STANDARD.encode(data).into();
                 return Ok(Some(File::PdfFile {
                     metadata: FileMetadata::single(&path, &metadata).into(),
@@ -42,7 +43,7 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
                 }));
             }
             debug!("Loading text file {path:?}");
-            let content: Arc<str> = std::fs::read_to_string(&path)?.into();
+            let content: Arc<str> = tokio::fs::read_to_string(&path).await?.into();
             let original = git::git_repo_root(&path)
                 .is_some()
                 .then(|| {
@@ -84,38 +85,43 @@ pub fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
     Ok(None)
 }
 
-pub fn list_folder(path: FilePath<Arc<str>>) -> Result<Option<Arc<Vec<FileMetadata>>>, FsioError> {
-    match load_file(path)? {
+pub async fn list_folder(
+    path: FilePath<Arc<str>>,
+) -> Result<Option<Arc<Vec<FileMetadata>>>, FsioError> {
+    match load_file(path).await? {
         Some(File::Folder(list)) => Ok(Some(list)),
         _ => Ok(None),
     }
 }
 
-pub fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {
+pub async fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     return if path.exists() {
-        Ok(std::fs::write(&path, content)?)
+        Ok(tokio::fs::write(&path, content).await?)
     } else {
         Err(FsioError::PathNotFound { path })
     };
 }
 
-pub fn create_file(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
+pub async fn create_file(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
     let path = create_entry_path(path, &name)?;
-    std::fs::OpenOptions::new()
+    let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(path)?;
+        .open(path)
+        .await?;
+    file.write_all(&format!("-- {name} --").into_bytes())
+        .await?;
     Ok(())
 }
 
-pub fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
+pub async fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
     let path = create_entry_path(path, &name)?;
-    std::fs::create_dir(path)?;
+    tokio::fs::create_dir(path).await?;
     Ok(())
 }
 
-pub fn delete_file(
+pub async fn delete_file(
     path: FilePath<Arc<str>>,
     trash: impl AsRef<Path>,
     git_trash: Option<impl AsRef<Path>>,
@@ -133,18 +139,18 @@ pub fn delete_file(
         trash.as_ref(),
         git_trash.as_ref().map(AsRef::as_ref),
     );
-    std::fs::create_dir_all(&trash)?;
+    tokio::fs::create_dir_all(&trash).await?;
     let destination = trash.join(file_name);
     if destination.exists() {
         let metadata = destination.metadata()?;
         let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
         let renamed_destination = available_trash_path(&trash, file_name, modified)?;
-        std::fs::rename(&destination, renamed_destination)?;
+        tokio::fs::rename(&destination, renamed_destination).await?;
 
         let new_destination = available_trash_path(&trash, file_name, SystemTime::now())?;
-        std::fs::rename(source, new_destination)?;
+        tokio::fs::rename(source, new_destination).await?;
     } else {
-        std::fs::rename(source, destination)?;
+        tokio::fs::rename(source, destination).await?;
     }
     Ok(())
 }
@@ -259,99 +265,123 @@ mod tests {
 
     use crate::text_editor::file_path::FilePath;
 
-    #[test]
-    fn create_file_in_folder() {
+    #[tokio::test]
+    async fn create_file_in_folder() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
             base: Arc::from(tempdir.path().to_string_lossy().to_string()),
             file: Arc::from(""),
         };
 
-        super::create_file(path, "  hello world.txt  ".to_owned()).unwrap();
+        super::create_file(path, "  hello world.txt  ".to_owned())
+            .await
+            .unwrap();
 
         assert!(tempdir.path().join("hello world.txt").is_file());
     }
 
-    #[test]
-    fn create_folder_in_folder() {
+    #[tokio::test]
+    async fn create_folder_in_folder() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
             base: Arc::from(tempdir.path().to_string_lossy().to_string()),
             file: Arc::from(""),
         };
 
-        super::create_folder(path, "new folder".to_owned()).unwrap();
+        super::create_folder(path, "new folder".to_owned())
+            .await
+            .unwrap();
 
         assert!(tempdir.path().join("new folder").is_dir());
     }
 
-    #[test]
-    fn create_entry_rejects_nested_names() {
+    #[tokio::test]
+    async fn create_entry_rejects_nested_names() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
             base: Arc::from(tempdir.path().to_string_lossy().to_string()),
             file: Arc::from(""),
         };
 
-        let error = super::create_file(path, "a/b.txt".to_owned()).unwrap_err();
+        let error = super::create_file(path, "a/b.txt".to_owned())
+            .await
+            .unwrap_err();
 
         assert!(matches!(error, super::FsioError::InvalidEntryName { .. }));
     }
 
-    #[test]
-    fn create_entry_rejects_file_parent() {
+    #[tokio::test]
+    async fn create_entry_rejects_file_parent() {
         let tempdir = tempfile::tempdir().unwrap();
-        std::fs::write(tempdir.path().join("parent.txt"), "").unwrap();
+        tokio::fs::write(tempdir.path().join("parent.txt"), "")
+            .await
+            .unwrap();
         let path = FilePath {
             base: Arc::from(tempdir.path().to_string_lossy().to_string()),
             file: Arc::from("parent.txt"),
         };
 
-        let error = super::create_file(path, "child.txt".to_owned()).unwrap_err();
+        let error = super::create_file(path, "child.txt".to_owned())
+            .await
+            .unwrap_err();
 
         assert!(matches!(error, super::FsioError::ParentNotFolder { .. }));
     }
 
-    #[test]
-    fn store_file_rejects_missing_path() {
+    #[tokio::test]
+    async fn store_file_rejects_missing_path() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
             base: Arc::from(tempdir.path().to_string_lossy().to_string()),
             file: Arc::from("missing.txt"),
         };
 
-        let error = super::store_file(path, "content".to_owned()).unwrap_err();
+        let error = super::store_file(path, "content".to_owned())
+            .await
+            .unwrap_err();
 
         assert!(matches!(error, super::FsioError::PathNotFound { .. }));
     }
 
-    #[test]
-    fn trash_conflicts_date_existing_and_new_entries() {
+    #[tokio::test]
+    async fn trash_conflicts_date_existing_and_new_entries() {
         let tempdir = tempfile::tempdir().unwrap();
         let source = tempdir.path().join("source");
         let trash = tempdir.path().join("trash");
-        std::fs::create_dir(&source).unwrap();
-        std::fs::create_dir(&trash).unwrap();
-        std::fs::write(source.join("file.tar.gz"), "new").unwrap();
-        std::fs::write(trash.join("file.tar.gz"), "old").unwrap();
+        tokio::fs::create_dir(&source).await.unwrap();
+        tokio::fs::create_dir(&trash).await.unwrap();
+        tokio::fs::write(source.join("file.tar.gz"), "new")
+            .await
+            .unwrap();
+        tokio::fs::write(trash.join("file.tar.gz"), "old")
+            .await
+            .unwrap();
 
         let today = chrono::Utc::now().date_naive();
-        std::fs::write(trash.join(format!("file_{today}.tar.gz")), "first").unwrap();
+        tokio::fs::write(trash.join(format!("file_{today}.tar.gz")), "first")
+            .await
+            .unwrap();
 
         let path = FilePath {
             base: Arc::from(source.to_string_lossy().to_string()),
             file: Arc::from("file.tar.gz"),
         };
 
-        super::delete_file(path, trash.clone(), None::<&Path>).unwrap();
+        super::delete_file(path, trash.clone(), None::<&Path>)
+            .await
+            .unwrap();
 
         assert!(!source.join("file.tar.gz").exists());
         assert_eq!(
-            std::fs::read_to_string(trash.join(format!("file_{today}-1.tar.gz"))).unwrap(),
+            tokio::fs::read_to_string(trash.join(format!("file_{today}-1.tar.gz")))
+                .await
+                .unwrap(),
             "old"
         );
         assert_eq!(
-            std::fs::read_to_string(trash.join(format!("file_{today}-2.tar.gz"))).unwrap(),
+            tokio::fs::read_to_string(trash.join(format!("file_{today}-2.tar.gz")))
+                .await
+                .unwrap(),
             "new"
         );
     }
@@ -366,30 +396,36 @@ mod tests {
         assert_eq!(super::split_archive_extension(".env"), (".env", ""));
     }
 
-    #[test]
-    fn git_file_deletes_to_repo_relative_trash() {
+    #[tokio::test]
+    async fn git_file_deletes_to_repo_relative_trash() {
         let tempdir = tempfile::tempdir().unwrap();
         let repo = tempdir.path().join("repo");
         let fallback_trash = tempdir.path().join("fallback-trash");
-        std::fs::create_dir(&repo).unwrap();
+        tokio::fs::create_dir(&repo).await.unwrap();
         std::process::Command::new("git")
             .args(["init"])
             .current_dir(&repo)
             .status()
             .unwrap();
-        std::fs::write(repo.join("file.txt"), "deleted").unwrap();
+        tokio::fs::write(repo.join("file.txt"), "deleted")
+            .await
+            .unwrap();
 
         let path = FilePath {
             base: Arc::from(repo.to_string_lossy().to_string()),
             file: Arc::from("file.txt"),
         };
 
-        super::delete_file(path, &fallback_trash, Some(Path::new(".trash"))).unwrap();
+        super::delete_file(path, &fallback_trash, Some(Path::new(".trash")))
+            .await
+            .unwrap();
 
         assert!(!repo.join("file.txt").exists());
         assert!(!fallback_trash.exists());
         assert_eq!(
-            std::fs::read_to_string(repo.join(".trash/file.txt")).unwrap(),
+            tokio::fs::read_to_string(repo.join(".trash/file.txt"))
+                .await
+                .unwrap(),
             "deleted"
         );
     }

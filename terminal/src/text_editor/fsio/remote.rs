@@ -1,6 +1,5 @@
 #![cfg(feature = "server")]
 
-use std::future::ready;
 use std::sync::Arc;
 
 use super::File;
@@ -47,9 +46,9 @@ remote_fn_service::unary::declare_remote_fn!(
     super::LOAD_FILE,
     LoadFileRequest,
     Option<File>,
-    |_server, arg: LoadFileRequest| {
-        let result = super::service::load_file(arg.path);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: LoadFileRequest| async {
+        let result = super::service::load_file(arg.path).await;
+        result.map_err(GrpcError::from)
     }
 );
 
@@ -58,9 +57,9 @@ remote_fn_service::unary::declare_remote_fn!(
     super::LIST_FOLDER,
     ListFolderRequest,
     Option<Arc<Vec<super::FileMetadata>>>,
-    |_server, arg: ListFolderRequest| {
-        let result = super::service::list_folder(arg.path);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: ListFolderRequest| async {
+        let result = super::service::list_folder(arg.path).await;
+        result.map_err(GrpcError::from)
     }
 );
 
@@ -69,9 +68,9 @@ remote_fn_service::unary::declare_remote_fn!(
     super::CREATE_FILE,
     CreateEntryRequest,
     (),
-    |_server, arg: CreateEntryRequest| {
-        let result = super::service::create_file(arg.path, arg.name);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: CreateEntryRequest| async {
+        let result = super::service::create_file(arg.path, arg.name).await;
+        result.map_err(GrpcError::from)
     }
 );
 
@@ -80,9 +79,9 @@ remote_fn_service::unary::declare_remote_fn!(
     super::CREATE_FOLDER,
     CreateEntryRequest,
     (),
-    |_server, arg: CreateEntryRequest| {
-        let result = super::service::create_folder(arg.path, arg.name);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: CreateEntryRequest| async {
+        let result = super::service::create_folder(arg.path, arg.name).await;
+        result.map_err(GrpcError::from)
     }
 );
 
@@ -92,12 +91,15 @@ remote_fn_service::unary::declare_remote_fn!(
     DeleteFileRequest,
     (),
     |server, arg: DeleteFileRequest| {
-        let (trash, git_trash) = server
-            .config()
-            .server
-            .with(|server| (server.trash.clone(), server.git_trash.clone()));
-        let result = super::service::delete_file(arg.path, trash, git_trash);
-        ready(result.map_err(GrpcError::from))
+        let server = server.clone();
+        async move {
+            let (trash, git_trash) = server
+                .config()
+                .server
+                .with(|server| (server.trash.clone(), server.git_trash.clone()));
+            let result = super::service::delete_file(arg.path, trash, git_trash).await;
+            result.map_err(GrpcError::from)
+        }
     }
 );
 
@@ -106,8 +108,8 @@ remote_fn_service::unary::declare_remote_fn!(
     super::STORE_FILE_IMPL,
     StoreFileRequest,
     (),
-    |_server, arg: StoreFileRequest| {
-        let result = super::service::store_file(arg.path, arg.content);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: StoreFileRequest| async {
+        let result = super::service::store_file(arg.path, arg.content).await;
+        result.map_err(GrpcError::from)
     }
 );

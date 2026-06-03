@@ -174,7 +174,7 @@ fn toggle_editor_diff(
         return tag(style::display = "none", style::visibility = "hidden");
     }
     img(
-        class = style::REFRESH_EDITOR,
+        class = style::TOGGLE_EDITOR_DIFF,
         class %= toggle_editor_diff_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "toggle-editor-diff",

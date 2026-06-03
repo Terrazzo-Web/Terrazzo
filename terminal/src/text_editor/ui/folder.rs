@@ -149,13 +149,11 @@ async fn delete_file(
     folder_path: Arc<str>,
     path: crate::text_editor::file_path::FilePath<Arc<str>>,
 ) {
-    let deleted_file_path = path.file.clone();
     let result = crate::text_editor::fsio::client::delete_file(manager.remote.clone(), path).await;
     if let Err(error) = result {
         warn!("Failed to move entry to trash: {error}");
         return;
     }
-    manager.remove_from_side_view(deleted_file_path.as_ref());
     if manager.path.file.get_value_untracked() == folder_path {
         manager.path.file.force(folder_path);
     } else {

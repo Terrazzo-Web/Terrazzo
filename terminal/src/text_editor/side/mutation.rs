@@ -222,50 +222,49 @@ pub fn collapse_displayed_children(
     })
 }
 
-pub fn recover_notify_registrations(
-    original: Arc<SideViewList>,
-    pruned: Arc<SideViewList>,
+pub fn side_view_notify_registrations(
+    manager: &Ptr<TextEditorManager>,
+    base: Arc<str>,
+    side_view: Arc<SideViewList>,
+) -> Arc<SideViewList> {
+    side_view_notify_registrations_rec(manager, &base, PathBuf::new(), side_view)
+}
+
+fn side_view_notify_registrations_rec(
+    manager: &Ptr<TextEditorManager>,
+    base: &Arc<str>,
+    parent_path: PathBuf,
+    side_view: Arc<SideViewList>,
 ) -> Arc<SideViewList> {
     let mut recovered = SideViewList::default();
-    for (name, pruned_child) in pruned.iter() {
-        let child = original
-            .get(name)
-            .map(|original_child| recover_node_notify_registration(original_child, pruned_child))
-            .unwrap_or_else(|| pruned_child.clone());
+    for (name, child) in side_view.iter() {
+        let path = parent_path.join(Path::new(name.as_ref()));
+        let child = match &child.item {
+            SvnItem::Folder(children) => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::Folder(side_view_notify_registrations_rec(
+                    manager,
+                    base,
+                    path,
+                    children.clone(),
+                )),
+            }),
+            SvnItem::File { metadata, .. } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::File {
+                    metadata: metadata.clone(),
+                    notify_registration: manager
+                        .watch_side_view_file(&FilePath {
+                            base: base.clone(),
+                            file: path.to_owned_string().into(),
+                        })
+                        .into(),
+                },
+            }),
+        };
         recovered.insert(name.clone(), child);
     }
     Arc::new(recovered)
-}
-
-fn recover_node_notify_registration(
-    original: &Arc<SideViewNode>,
-    pruned: &Arc<SideViewNode>,
-) -> Arc<SideViewNode> {
-    match (&original.item, &pruned.item) {
-        (SvnItem::Folder(original_children), SvnItem::Folder(pruned_children)) => {
-            Arc::new(SideViewNode {
-                properties: pruned.properties.clone(),
-                item: SvnItem::Folder(recover_notify_registrations(
-                    original_children.clone(),
-                    pruned_children.clone(),
-                )),
-            })
-        }
-        (
-            SvnItem::File {
-                notify_registration,
-                ..
-            },
-            SvnItem::File { metadata, .. },
-        ) => Arc::new(SideViewNode {
-            properties: pruned.properties.clone(),
-            item: SvnItem::File {
-                metadata: metadata.clone(),
-                notify_registration: notify_registration.clone(),
-            },
-        }),
-        _ => pruned.clone(),
-    }
 }
 
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {

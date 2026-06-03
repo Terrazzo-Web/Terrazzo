@@ -26,7 +26,7 @@ use super::manager::TextEditorManager;
 use super::notify::ui::NotifyService;
 use super::search::state::SearchState;
 use super::side::SideViewList;
-use super::side::mutation::recover_notify_registrations;
+use super::side::mutation::side_view_notify_registrations;
 use super::side::ui::show_side_view;
 use super::state;
 use super::style;
@@ -304,20 +304,26 @@ impl TextEditorManager {
             }
             if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
-                this.side_view.force(side_view.clone());
+                let base_path = this.path.base.get_value_untracked();
                 match fsio::client::prune_side_view(
                     this.remote.clone(),
-                    this.path.base.get_value_untracked(),
+                    base_path.clone(),
                     side_view.clone(),
                 )
                 .await
                 {
                     Ok(Some(pruned_side_view)) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
-                        this.side_view
-                            .force(recover_notify_registrations(side_view, pruned_side_view));
+                        this.side_view.force(side_view_notify_registrations(
+                            &this,
+                            base_path,
+                            pruned_side_view,
+                        ));
                     }
-                    Ok(None) => {}
+                    Ok(None) => {
+                        this.side_view
+                            .force(side_view_notify_registrations(&this, base_path, side_view));
+                    }
                     Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
                 }
             }

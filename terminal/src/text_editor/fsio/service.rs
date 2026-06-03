@@ -94,6 +94,11 @@ pub async fn list_folder(
     }
 }
 
+pub async fn file_exists(path: FilePath<Arc<str>>) -> Result<bool, FsioError> {
+    let path = concat_base_file_path(path.base, path.file);
+    Ok(path.exists())
+}
+
 pub async fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     return if path.exists() {

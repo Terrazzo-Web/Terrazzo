@@ -31,6 +31,10 @@ pub async fn list_folder(
     super::list_folder(remote, path).await
 }
 
+pub async fn file_exists(remote: Remote, path: FilePath<Arc<str>>) -> Result<bool, ServerFnError> {
+    super::file_exists(remote, path).await
+}
+
 pub async fn create_file(
     remote: Remote,
     path: FilePath<Arc<str>>,

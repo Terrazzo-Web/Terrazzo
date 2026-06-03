@@ -20,6 +20,12 @@ pub struct ListFolderRequest {
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct FileExistsRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<str>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct StoreFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
     pub path: FilePath<Arc<str>>,
@@ -59,6 +65,17 @@ remote_fn_service::unary::declare_remote_fn!(
     Option<Arc<Vec<super::FileMetadata>>>,
     |_server, arg: ListFolderRequest| async {
         let result = super::service::list_folder(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    FILE_EXISTS_REMOTE_FN,
+    super::FILE_EXISTS,
+    FileExistsRequest,
+    bool,
+    |_server, arg: FileExistsRequest| async {
+        let result = super::service::file_exists(arg.path).await;
         result.map_err(GrpcError::from)
     }
 );

@@ -26,6 +26,7 @@ use super::manager::TextEditorManager;
 use super::notify::ui::NotifyService;
 use super::search::state::SearchState;
 use super::side::SideViewList;
+use super::side::mutation::side_view_notify_registrations;
 use super::side::ui::show_side_view;
 use super::state;
 use super::style;
@@ -224,7 +225,12 @@ fn editor_container(
             }
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();
-                editor(manager, editor_state, EditorDocument::Pdf(base64), show_editor_diff)
+                editor(
+                    manager,
+                    editor_state,
+                    EditorDocument::Pdf(base64),
+                    show_editor_diff,
+                )
             }
             fsio::File::Folder(list) => {
                 let list = list.clone();
@@ -298,7 +304,28 @@ impl TextEditorManager {
             }
             if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
-                this.side_view.force(side_view);
+                let base_path = this.path.base.get_value_untracked();
+                match fsio::client::prune_side_view(
+                    this.remote.clone(),
+                    base_path.clone(),
+                    side_view.clone(),
+                )
+                .await
+                {
+                    Ok(Some(pruned_side_view)) => {
+                        debug!("Pruned stale side_view entries: {pruned_side_view:?}");
+                        this.side_view.force(side_view_notify_registrations(
+                            &this,
+                            base_path,
+                            pruned_side_view,
+                        ));
+                    }
+                    Ok(None) => {
+                        this.side_view
+                            .force(side_view_notify_registrations(&this, base_path, side_view));
+                    }
+                    Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
+                }
             }
             this.force_edit_path.set(
                 this.path.base.get_value_untracked().is_empty()

@@ -1,10 +1,13 @@
 #![cfg(feature = "client")]
 
 use std::collections::BTreeMap;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use terrazzo::prelude::Ptr;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
@@ -14,7 +17,10 @@ use super::SideViewNode;
 use super::SvnItem;
 use super::SvnProperties;
 use super::SvnStatus;
+use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
+use crate::text_editor::manager::TextEditorManager;
+use crate::utils::more_path::MorePath as _;
 
 pub fn add_file(
     tree: Arc<SideViewList>,
@@ -142,6 +148,7 @@ fn remove_aux_folder(
 }
 
 pub fn add_displayed_folder_content(
+    manager: &Ptr<TextEditorManager>,
     tree: Arc<SideViewList>,
     relative_path: &[Arc<str>],
     folder_content: &[FileMetadata],
@@ -166,7 +173,12 @@ pub fn add_displayed_folder_content(
                     },
                     item: SvnItem::File {
                         metadata: Arc::new(metadata.clone()),
-                        notify_registration: Default::default(),
+                        notify_registration: manager
+                            .watch_side_view_file(&FilePath {
+                                base: manager.path.base.get_value_untracked(),
+                                file: child_path(relative_path, &metadata.name),
+                            })
+                            .into(),
                     },
                 }
             };
@@ -174,6 +186,17 @@ pub fn add_displayed_folder_content(
         }
         Arc::new(new_children)
     })
+}
+
+fn child_path(parent: &[Arc<str>], name: &Arc<str>) -> Arc<str> {
+    parent
+        .iter()
+        .chain(std::iter::once(name))
+        .fold(PathBuf::new(), |path, name| {
+            path.join(Path::new(name.as_ref()))
+        })
+        .to_owned_string()
+        .into()
 }
 
 pub fn collapse_displayed_children(
@@ -199,6 +222,51 @@ pub fn collapse_displayed_children(
     })
 }
 
+pub fn side_view_notify_registrations(
+    manager: &Ptr<TextEditorManager>,
+    base: Arc<str>,
+    side_view: Arc<SideViewList>,
+) -> Arc<SideViewList> {
+    side_view_notify_registrations_rec(manager, &base, PathBuf::new(), side_view)
+}
+
+fn side_view_notify_registrations_rec(
+    manager: &Ptr<TextEditorManager>,
+    base: &Arc<str>,
+    parent_path: PathBuf,
+    side_view: Arc<SideViewList>,
+) -> Arc<SideViewList> {
+    let mut recovered = SideViewList::default();
+    for (name, child) in side_view.iter() {
+        let path = parent_path.join(Path::new(name.as_ref()));
+        let child = match &child.item {
+            SvnItem::Folder(children) => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::Folder(side_view_notify_registrations_rec(
+                    manager,
+                    base,
+                    path,
+                    children.clone(),
+                )),
+            }),
+            SvnItem::File { metadata, .. } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::File {
+                    metadata: metadata.clone(),
+                    notify_registration: manager
+                        .watch_side_view_file(&FilePath {
+                            base: base.clone(),
+                            file: path.to_owned_string().into(),
+                        })
+                        .into(),
+                },
+            }),
+        };
+        recovered.insert(name.clone(), child);
+    }
+    Arc::new(recovered)
+}
+
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     let mut new_tree = SideViewList::default();
     for (name, child) in tree.iter() {
@@ -217,7 +285,7 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     Arc::new(new_tree)
 }
 
-fn update_folder(
+pub fn update_folder(
     tree: Arc<SideViewList>,
     relative_path: &[Arc<str>],
     update: &impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,

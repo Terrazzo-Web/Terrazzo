@@ -189,20 +189,21 @@ fn folder_expand_icon(
             autoclone!(manager, path);
             let path_vec = path_vec(&path);
             let folder_path: Arc<str> = path.to_owned_string().into();
-            let manager_for_task = manager.clone();
             spawn_local(async move {
+                autoclone!(manager);
                 let path = FilePath {
-                    base: manager_for_task.path.base.get_value_untracked(),
+                    base: manager.path.base.get_value_untracked(),
                     file: folder_path,
                 };
-                let content = list_folder(manager_for_task.remote.clone(), path.clone())
+                let content = list_folder(manager.remote.clone(), path.clone())
                     .await
                     .inspect_err(|error| error!("Failed to load folder {path:?}: {error}"));
                 let Ok(Some(content)) = content else {
                     return;
                 };
-                manager_for_task.side_view.update(|side_view| {
+                manager.side_view.update(|side_view| {
                     Some(add_displayed_folder_content(
+                        &manager,
                         side_view.clone(),
                         &path_vec,
                         content.as_ref(),
@@ -213,7 +214,7 @@ fn folder_expand_icon(
     )
 }
 
-fn path_vec(path: &Path) -> Vec<Arc<str>> {
+pub fn path_vec(path: &Path) -> Vec<Arc<str>> {
     path.iter()
         .map(|leg| Arc::from(leg.to_owned_string()))
         .collect()

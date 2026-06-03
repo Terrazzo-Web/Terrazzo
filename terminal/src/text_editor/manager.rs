@@ -3,13 +3,16 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use terrazzo::autoclone;
 use terrazzo::prelude::*;
+use wasm_bindgen_futures::spawn_local;
 
 use super::file_path::FilePath;
 use super::fsio;
 use super::fsio::FileMetadata;
 use super::notify::server_fn::EventKind;
 use super::notify::server_fn::FileEventKind;
+use super::notify::ui::NotifyRegistration;
 use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
@@ -18,6 +21,7 @@ use super::side::SideViewList;
 use super::side::SvnStatus;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::remotes::Remote;
+use crate::text_editor::fsio::client::file_exists;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
@@ -56,15 +60,7 @@ impl TextEditorManager {
         metadata: &Arc<FileMetadata>,
         path: &FilePath<Arc<str>>,
     ) {
-        let this = self.clone();
-        let file_path = path.file.clone();
-        let notify_registration = self.notify_service.watch_file(path, move |event| {
-            let EventKind::File(FileEventKind::Delete | FileEventKind::Error) = event.kind else {
-                return;
-            };
-            // Remove from side view on deletion notification.
-            this.remove_from_side_view(file_path.as_ref());
-        });
+        let notify_registration = self.watch_side_view_file(path);
         self.side_view.update(|tree| {
             let file_path = Path::new(path.file.as_ref())
                 .iter()
@@ -85,6 +81,33 @@ impl TextEditorManager {
             ))
         });
         self.force_edit_path.set(false);
+    }
+
+    #[autoclone]
+    pub fn watch_side_view_file(
+        self: &Ptr<Self>,
+        path: &FilePath<Arc<str>>,
+    ) -> Ptr<NotifyRegistration> {
+        let this = self;
+        self.notify_service.watch_file(path, move |event| {
+            autoclone!(this, path);
+            let EventKind::File(
+                FileEventKind::Delete | FileEventKind::Error | FileEventKind::Modify,
+            ) = event.kind
+            else {
+                return;
+            };
+            // Remove from side view on deletion notification.
+            spawn_local(async move {
+                autoclone!(this, path);
+                if !file_exists(this.remote.clone(), path.clone())
+                    .await
+                    .unwrap_or(true)
+                {
+                    this.remove_from_side_view(path.file.as_ref());
+                }
+            });
+        })
     }
 
     // Remove from side view when we click the close button on the side panel in the UI.

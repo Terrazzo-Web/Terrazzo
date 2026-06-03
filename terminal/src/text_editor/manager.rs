@@ -84,7 +84,7 @@ impl TextEditorManager {
     }
 
     #[autoclone]
-    fn watch_side_view_file(
+    pub fn watch_side_view_file(
         self: &Ptr<Self>,
         path: &FilePath<Arc<str>>,
     ) -> Ptr<NotifyRegistration> {

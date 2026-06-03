@@ -1,10 +1,13 @@
 #![cfg(feature = "client")]
 
 use std::collections::BTreeMap;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use terrazzo::prelude::Ptr;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
@@ -14,7 +17,10 @@ use super::SideViewNode;
 use super::SvnItem;
 use super::SvnProperties;
 use super::SvnStatus;
+use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
+use crate::text_editor::manager::TextEditorManager;
+use crate::utils::more_path::MorePath as _;
 
 pub fn add_file(
     tree: Arc<SideViewList>,
@@ -142,6 +148,7 @@ fn remove_aux_folder(
 }
 
 pub fn add_displayed_folder_content(
+    manager: &Ptr<TextEditorManager>,
     tree: Arc<SideViewList>,
     relative_path: &[Arc<str>],
     folder_content: &[FileMetadata],
@@ -166,7 +173,12 @@ pub fn add_displayed_folder_content(
                     },
                     item: SvnItem::File {
                         metadata: Arc::new(metadata.clone()),
-                        notify_registration: Default::default(),
+                        notify_registration: manager
+                            .watch_side_view_file(&FilePath {
+                                base: manager.path.base.get_value_untracked(),
+                                file: child_path(relative_path, &metadata.name),
+                            })
+                            .into(),
                     },
                 }
             };
@@ -174,6 +186,17 @@ pub fn add_displayed_folder_content(
         }
         Arc::new(new_children)
     })
+}
+
+fn child_path(parent: &[Arc<str>], name: &Arc<str>) -> Arc<str> {
+    parent
+        .iter()
+        .chain(std::iter::once(name))
+        .fold(PathBuf::new(), |path, name| {
+            path.join(Path::new(name.as_ref()))
+        })
+        .to_owned_string()
+        .into()
 }
 
 pub fn collapse_displayed_children(

@@ -197,6 +197,26 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECON
         .toBe(true);
 }
 
+async function refreshUntilFolderFileVisible(page, expectedFileName, timeout = 90 * SECOND) {
+    await expect
+        .poll(
+            async () => {
+                try {
+                    await getFolderFile(page, expectedFileName).waitFor({
+                        state: 'visible',
+                        timeout: SECOND,
+                    });
+                    return true;
+                } catch {
+                    await page.reload({ waitUntil: 'domcontentloaded' });
+                    return false;
+                }
+            },
+            { intervals: [SECOND], timeout },
+        )
+        .toBe(true);
+}
+
 async function openFolderFile(page, name, timeout = 60 * SECOND) {
     await expect
         .poll(
@@ -544,8 +564,7 @@ test.describe('Text editor', () => {
         await getCreateEntryField(page).press('Enter');
 
         await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-        await setBasePath(page, baseDir, 'drafts/');
+        await refreshUntilFolderFileVisible(page, 'drafts/');
         await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
     });
 

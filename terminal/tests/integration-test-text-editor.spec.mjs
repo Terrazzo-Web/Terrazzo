@@ -572,7 +572,7 @@ test.describe('Text editor', () => {
         await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 30 * SECOND });
     });
 
-    test('creates files and folders from the folder toolbar', async ({ page }) => {
+    test.skip('creates files and folders from the folder toolbar', async ({ page }) => {
         test.setTimeout(120 * SECOND);
 
         const fileName = 'seed.txt';

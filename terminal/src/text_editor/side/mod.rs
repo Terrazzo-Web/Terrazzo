@@ -8,11 +8,11 @@ pub mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
-pub struct SideViewNode<R: Default> {
+pub struct SideViewNode {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
     pub properties: SvnProperties,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
-    pub item: SvnItem<R>,
+    pub item: SvnItem,
 }
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -34,14 +34,14 @@ pub enum SvnStatus {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
-pub enum SvnItem<R: Default> {
+pub enum SvnItem {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "D"))]
-    Folder(Arc<SideViewList<R>>),
+    Folder(Arc<SideViewList>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
     File {
         metadata: Arc<FileMetadata>,
         #[serde(skip)]
-        notify_registration: R,
+        notify_registration: opqaue::OpaqueNotifyRegistration,
     },
 }
 
@@ -75,25 +75,19 @@ pub mod opqaue {
     unsafe impl Sync for OpaqueNotifyRegistration {}
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "server", allow(dead_code))]
-#[serde(transparent)]
-pub struct SideViewList<R: Default>(BTreeMap<Arc<str>, Arc<SideViewNode<R>>>);
+pub type SideViewList = BTreeMap<Arc<str>, Arc<SideViewNode>>;
 
-impl<R: Default> std::fmt::Debug for SideViewList<R> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SideViewList").field(&self.0).finish()
-    }
-}
-
-impl<R: Default> std::fmt::Debug for SideViewNode<R> {
+impl std::fmt::Debug for SideViewNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.item {
             SvnItem::Folder(children) => f.debug_tuple("Folder").field(children).finish(),
             SvnItem::File {
                 metadata,
-                notify_registration: _,
-            } => f.debug_tuple("File").field(&metadata.name).finish(),
+                notify_registration,
+            } => {
+                let _ = notify_registration.is_set();
+                f.debug_tuple("File").field(&metadata.name).finish()
+            }
         }
     }
 }

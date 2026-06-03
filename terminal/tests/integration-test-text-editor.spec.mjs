@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execFile } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -55,6 +55,10 @@ function getSideViewFolder(page, folderPath) {
 
 function getFolderFile(page, name) {
     return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
+}
+
+function getFolderTrashIcon(page, name) {
+    return getFolderFile(page, name).locator('.folder-trash-icon');
 }
 
 function getPdfPage(page, pageNumber) {
@@ -171,7 +175,7 @@ async function showBasePathInput(page, timeout = 30 * SECOND) {
     return basePathInput;
 }
 
-async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECOND) {
+async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECOND) {
     await expect
         .poll(
             async () => {
@@ -189,6 +193,26 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 60 * SECON
                 }
             },
             { timeout },
+        )
+        .toBe(true);
+}
+
+async function refreshUntilFolderFileVisible(page, expectedFileName, timeout = 90 * SECOND) {
+    await expect
+        .poll(
+            async () => {
+                try {
+                    await getFolderFile(page, expectedFileName).waitFor({
+                        state: 'visible',
+                        timeout: SECOND,
+                    });
+                    return true;
+                } catch {
+                    await page.reload({ waitUntil: 'domcontentloaded' });
+                    return false;
+                }
+            },
+            { intervals: [SECOND], timeout },
         )
         .toBe(true);
 }
@@ -243,6 +267,39 @@ async function createFolderTree() {
     return root;
 }
 
+async function exists(filePath) {
+    return stat(filePath)
+        .then(() => true)
+        .catch(() => false);
+}
+
+async function isDirectory(filePath) {
+    return stat(filePath)
+        .then((metadata) => metadata.isDirectory())
+        .catch(() => false);
+}
+
+async function readFileOrMissing(filePath) {
+    return readFile(filePath, 'utf8').catch(() => '<missing>');
+}
+
+async function trashEntriesWithContent(trashDir, stem) {
+    const entries = await readdir(trashDir).catch(() => []);
+    const matching = [];
+    for (const entry of entries.filter((entry) => entry.startsWith(stem))) {
+        matching.push([entry, await readFileOrMissing(path.join(trashDir, entry))]);
+    }
+    return matching.sort(([a], [b]) => a.localeCompare(b));
+}
+
+function todayUtc() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function integrationTrashDir() {
+    return path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'terrazzo-integration-test', 'trash');
+}
+
 async function replaceEditorText(page, editor, content) {
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
@@ -261,6 +318,8 @@ test.describe('Text editor', () => {
     });
 
     test('edits a file', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
 
@@ -281,6 +340,8 @@ test.describe('Text editor', () => {
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
         const content = Array.from({ length: 300 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
@@ -312,7 +373,7 @@ test.describe('Text editor', () => {
     });
 
     test('renders a PDF file', async ({ page }) => {
-        test.setTimeout(60 * SECOND);
+        test.setTimeout(120 * SECOND);
 
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
         await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
@@ -452,6 +513,8 @@ test.describe('Text editor', () => {
     });
 
     test('expands and collapses side-view folder nodes', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
         const root = await createFolderTree();
 
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
@@ -480,6 +543,8 @@ test.describe('Text editor', () => {
     });
 
     test('creates files and folders from the folder toolbar', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
         const fileName = 'seed.txt';
         const { baseDir } = await createTempFile(fileName);
 
@@ -492,13 +557,47 @@ test.describe('Text editor', () => {
         await getCreateEntryField(page).press('Enter');
 
         await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 30 * SECOND });
-        await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('');
+        await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('-- notes with spaces.txt --');
 
         await getCreateFolderIcon(page).click();
         await getCreateEntryField(page).fill(' drafts ');
         await getCreateEntryField(page).press('Enter');
 
+        await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
+        await refreshUntilFolderFileVisible(page, 'drafts/');
         await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
-        await expect.poll(async () => (await stat(path.join(baseDir, 'drafts'))).isDirectory()).toBe(true);
+    });
+
+    test('moves a file to trash and resolves trash name conflicts', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
+        const unique = `remove-me-${process.pid}-${Date.now()}`;
+        const fileName = `${unique}.tar.gz`;
+        const stem = unique;
+        const today = todayUtc();
+        const { baseDir, filePath } = await createTempFile(fileName);
+        await writeFile(filePath, 'new');
+
+        const trashDir = integrationTrashDir();
+        await mkdir(trashDir, { recursive: true });
+        await writeFile(path.join(trashDir, fileName), 'old');
+        await writeFile(path.join(trashDir, `${stem}_${today}.tar.gz`), 'occupied');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+
+        await getFolderTrashIcon(page, fileName).click();
+
+        await expect.poll(async () => exists(filePath), { timeout: 30 * SECOND }).toBe(false);
+        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
+
+        await expect
+            .poll(async () => trashEntriesWithContent(trashDir, stem), { timeout: 30 * SECOND })
+            .toEqual([
+                [`${stem}_${today}-1.tar.gz`, 'old'],
+                [`${stem}_${today}-2.tar.gz`, 'new'],
+                [`${stem}_${today}.tar.gz`, 'occupied'],
+            ]);
     });
 });

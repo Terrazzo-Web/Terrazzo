@@ -96,9 +96,12 @@ impl GatewayConfig for TerminalBackendServer {
     }
 
     fn set_current_endpoint(&self) -> Option<PathBuf> {
-        self.config
-            .server
-            .with(|server| server.set_current_endpoint.to_owned())
+        self.config.server.with(|server| {
+            server
+                .set_current_endpoint
+                .as_ref()
+                .map(|path| path.to_path_buf())
+        })
     }
 
     fn app_config(&self) -> impl AppConfig {

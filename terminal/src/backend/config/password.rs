@@ -162,7 +162,8 @@ mod tests {
 
     fn test_config() -> ServerConfig {
         reset_password_attempt_state();
-        let config_file = ServerConfig::default();
+        let config = crate::backend::config::ConfigFile::default().merge(&Default::default());
+        let config_file = (*config.server).clone();
         let password = config_file.hash_password("pa$$word").unwrap();
         ServerConfig {
             password: Some(password),

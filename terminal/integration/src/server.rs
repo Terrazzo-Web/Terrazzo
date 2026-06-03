@@ -125,19 +125,21 @@ impl Server {
         let log_file = properties.get_temp_path(&properties.logs_path_suffix);
         let pid_file = properties.get_temp_path(&properties.pid_file_suffix);
         let client_cert_file = properties.get_temp_path(&properties.client_cert_file_suffix);
+        let trash = properties.get_test_temp_path("trash");
         let endpoint_file = if let Some(set_current_endpoint) = &properties.set_current_endpoint {
             set_current_endpoint.clone()
         } else {
             properties.get_test_temp_path(&properties.set_current_endpoint_file_suffix)
         };
         let config = match &properties.mode {
-            Mode::Gateway => server_toml(&pid_file, properties.port, &properties.root_ca),
+            Mode::Gateway => server_toml(&pid_file, properties.port, &properties.root_ca, &trash),
             Mode::Client { gateway_endpoint } => client_toml(
                 &pid_file,
                 &properties.root_ca,
                 &properties.root_ca.with_added_extension("cert"),
                 &client_cert_file,
                 gateway_endpoint,
+                &trash,
             ),
         };
         std::fs::write(&config_file, config).map_err(|source| RunError::WriteConfig {

@@ -10,6 +10,7 @@ publish = false
 axum-extra = { workspace = true, features = ["cookie"] }
 base64 = { workspace = true }
 bitflags = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true }
 cms = { workspace = true }
 const_format = { workspace = true }

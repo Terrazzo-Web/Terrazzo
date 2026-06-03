@@ -34,6 +34,14 @@ pub struct Cli {
     #[arg(long)]
     pub terminal_shell: Option<String>,
 
+    /// The folder where deleted text-editor files are moved.
+    #[arg(long)]
+    pub trash: Option<PathBuf>,
+
+    /// The folder, relative to a Git repository root, where deleted Git files are moved.
+    #[arg(long)]
+    pub git_trash: Option<PathBuf>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,

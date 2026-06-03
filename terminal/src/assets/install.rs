@@ -72,8 +72,10 @@ fn install_icons() {
         install_icon(super::icons::port_forward_loading());
         install_icon(super::icons::port_forward_pending());
         install_icon(super::icons::port_forward_synchronized());
-        install_icon(super::icons::trash());
     }
+
+    #[cfg(any(feature = "port-forward", feature = "text-editor"))]
+    install_icon(super::icons::trash());
 
     #[cfg(feature = "logs-panel")]
     {

@@ -122,6 +122,14 @@ async fn create_folder(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn delete_file(remote: ClientAddress, path: FilePath<Arc<str>>) -> Result<(), ServerFnError> {
+    Ok(remote::DELETE_FILE_REMOTE_FN
+        .call(remote, remote::DeleteFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn store_file_impl(
     remote: ClientAddress,
     path: FilePath<Arc<str>>,

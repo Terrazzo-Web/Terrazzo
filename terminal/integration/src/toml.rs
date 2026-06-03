@@ -1,12 +1,13 @@
 use std::path::Path;
 
-pub fn server_toml(pid_file: &Path, _port: u16, root_ca: &Path) -> String {
+pub fn server_toml(pid_file: &Path, _port: u16, root_ca: &Path, trash: &Path) -> String {
     format!(
         r#"
 [server]
 host = "localhost"
 ports = [0, 0]
 terminal-shell = "echo \"Welcome to Test Environment\"; exec /bin/bash -i"
+trash = "{trash}"
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"
@@ -19,6 +20,7 @@ fixed = "1h"
 	"#,
         pid_file = toml_path(pid_file),
         root_ca = toml_path(root_ca),
+        trash = toml_path(trash),
     )
 }
 
@@ -28,12 +30,14 @@ pub fn client_toml(
     root_ca_cert: &Path,
     client_cert: &Path,
     gateway_endpoint: &str,
+    trash: &Path,
 ) -> String {
     format!(
         r#"
 [server]
 host = "localhost"
 ports = [0, 0]
+trash = "{trash}"
 pidfile = "{pid_file}"
 private_root_ca = "{root_ca}"
 token_lifetime = "5m"
@@ -60,6 +64,7 @@ fixed = "1s"
         gateway_endpoint = gateway_endpoint,
         root_ca_cert = toml_path(root_ca_cert),
         client_cert = toml_path(client_cert),
+        trash = toml_path(trash),
     )
 }
 

@@ -74,7 +74,8 @@ div.text_editor {
             margin-right: var(--padding);
         }
 
-        img.refresh-editor {
+        img.refresh-editor,
+        img.toggle-editor-diff {
             @include trz-icon;
             margin-left: var(--padding);
             margin-right: var(--padding);
@@ -85,6 +86,12 @@ div.text_editor {
                 background-color: var(--link-color);
                 cursor: pointer;
             }
+        }
+
+        img.toggle-editor-diff.active {
+            filter: invert(0);
+            background-color: var(--link-color);
+            cursor: pointer;
         }
     }
 

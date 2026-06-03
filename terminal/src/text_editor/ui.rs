@@ -68,6 +68,7 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
     let side_view: XSignal<Arc<SideViewList>> = XSignal::new("side-view", Default::default());
+    let show_editor_diff = XSignal::new("show-editor-diff", true);
     let manager = Ptr::new(TextEditorManager {
         tile,
         remote: remote.clone(),
@@ -99,6 +100,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.file_path_selector(),
             manager.search_selector(),
             fsio::ux::create_entry_controls(manager.clone(), manager.editor_state.clone()),
+            toggle_editor_diff(manager.editor_state.clone(), show_editor_diff.clone()),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
@@ -106,6 +108,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         editor_body(
             manager.clone(),
             manager.editor_state.clone(),
+            show_editor_diff,
             side_view_resize_manager,
         ),
         after_render = move |_| {
@@ -133,6 +136,7 @@ impl TextEditorManager {
 fn editor_body(
     manager: Ptr<TextEditorManager>,
     editor_state: XSignal<EditorState>,
+    show_editor_diff: XSignal<bool>,
     side_view_resize_manager: MousemoveManager,
 ) -> XElement {
     div(
@@ -145,8 +149,53 @@ fn editor_body(
             side_view_resize_manager.clone(),
         ),
         resize_bar_horz(side_view_resize_manager, Default::default()),
-        editor_container(manager, editor_state),
+        editor_container(manager, editor_state, show_editor_diff),
     )
+}
+
+#[html]
+#[template(tag = span)]
+fn toggle_editor_diff(
+    #[signal] editor_state: EditorState,
+    show_editor_diff: XSignal<bool>,
+) -> XElement {
+    let has_diff = match editor_state {
+        EditorState::Data(editor_state) => match &*editor_state.data {
+            fsio::File::TextFile {
+                original: Some(original),
+                content,
+                ..
+            } => original != content,
+            _ => false,
+        },
+        _ => false,
+    };
+    if !has_diff {
+        return tag(style::display = "none", style::visibility = "hidden");
+    }
+    img(
+        class = style::TOGGLE_EDITOR_DIFF,
+        class %= toggle_editor_diff_class(show_editor_diff.clone()),
+        #[cfg(not(feature = "client-prod"))]
+        class = "toggle-editor-diff",
+        src = icons::split_vert(),
+        title %= toggle_editor_diff_title(show_editor_diff.clone()),
+        click = move |_| show_editor_diff.update(|show| Some(!show)),
+    )
+}
+
+#[template(wrap = true)]
+fn toggle_editor_diff_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
+    show_editor_diff.then_some(style::ACTIVE)
+}
+
+#[template(wrap = true)]
+fn toggle_editor_diff_title(#[signal] show_editor_diff: bool) -> XAttributeValue {
+    if show_editor_diff {
+        "Hide diff"
+    } else {
+        "Show diff"
+    }
 }
 
 #[template(wrap = true)]
@@ -160,6 +209,7 @@ pub(super) fn side_view_width(#[signal] position: Option<Position>) -> XAttribut
 fn editor_container(
     manager: Ptr<TextEditorManager>,
     #[signal] editor_state: EditorState,
+    show_editor_diff: XSignal<bool>,
 ) -> XElement {
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data {
@@ -170,11 +220,11 @@ fn editor_container(
                     original: original.clone(),
                     content: content.clone(),
                 };
-                editor(manager, editor_state, editor_document)
+                editor(manager, editor_state, editor_document, show_editor_diff)
             }
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();
-                editor(manager, editor_state, EditorDocument::Pdf(base64))
+                editor(manager, editor_state, EditorDocument::Pdf(base64), show_editor_diff)
             }
             fsio::File::Folder(list) => {
                 let list = list.clone();

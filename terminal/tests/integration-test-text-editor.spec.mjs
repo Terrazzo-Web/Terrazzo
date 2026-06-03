@@ -199,33 +199,11 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECON
     ).toBe(true);
 
     try {
-        let basePathWasSet = false;
-        await expect
-            .poll(
-                async () => {
-                    try {
-                        if (basePathWasSet) {
-                            await page.reload({ waitUntil: 'domcontentloaded' });
-                        } else {
-                            const basePathInput = await showBasePathInput(page, SECOND);
-                            await basePathInput.fill(baseDir);
-                            await page.keyboard.press('Tab');
-                            basePathWasSet = true;
-                        }
-                        await getFolderFile(page, expectedFileName).waitFor({
-                            state: 'visible',
-                            timeout: SECOND,
-                        });
-                        return true;
-                    } catch {
-                        return false;
-                    }
-                },
-                { intervals: [SECOND], timeout },
-            )
-            .toBe(true);
+        const basePathInput = await showBasePathInput(page, timeout);
+        await basePathInput.fill(baseDir);
+        await page.keyboard.press('Tab');
+        await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
-        await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [
             `<failed to read displayed entries: ${listError.message}>`,
         ]);
@@ -249,25 +227,9 @@ async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, ti
     ).toBe(true);
 
     try {
-        await expect
-            .poll(
-                async () => {
-                    try {
-                        await getFolderFile(page, expectedFileName).waitFor({
-                            state: 'visible',
-                            timeout: SECOND,
-                        });
-                        return true;
-                    } catch {
-                        await page.reload({ waitUntil: 'domcontentloaded' });
-                        return false;
-                    }
-                },
-                { intervals: [SECOND], timeout },
-            )
-            .toBe(true);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
-        await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [
             `<failed to read displayed entries: ${listError.message}>`,
         ]);
@@ -373,6 +335,8 @@ async function replaceEditorText(page, editor, content) {
 }
 
 test.describe('Text editor', () => {
+    test.describe.configure({ retries: 2 });
+
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);

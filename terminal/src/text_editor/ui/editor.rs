@@ -73,6 +73,7 @@ pub fn editor(
     manager: Ptr<TextEditorManager>,
     editor_state: EditorDataState,
     document: EditorDocument,
+    #[signal] show_editor_diff: bool,
 ) -> XElement {
     let EditorDataState { path, .. } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
@@ -108,17 +109,24 @@ pub fn editor(
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Box<dyn EditorBody> = match &document {
-                EditorDocument::Text { original, content } => Box::new(CodeMirrorJs::new(
-                    element.clone(),
-                    original
-                        .as_deref()
-                        .map(JsValue::from)
-                        .unwrap_or(JsValue::null()),
-                    content.as_ref().into(),
-                    make_on_change(&manager, &path, &writing),
-                    path.base.to_string(),
-                    path.as_deref().full_path().to_owned_string(),
-                )),
+                EditorDocument::Text { original, content } => {
+                    let original = if show_editor_diff {
+                        original
+                            .as_deref()
+                            .map(JsValue::from)
+                            .unwrap_or(JsValue::null())
+                    } else {
+                        JsValue::null()
+                    };
+                    Box::new(CodeMirrorJs::new(
+                        element.clone(),
+                        original,
+                        content.as_ref().into(),
+                        make_on_change(&manager, &path, &writing),
+                        path.base.to_string(),
+                        path.as_deref().full_path().to_owned_string(),
+                    ))
+                }
                 EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), base64)),
             };
             *editor_body.lock().unwrap() = Some(body);

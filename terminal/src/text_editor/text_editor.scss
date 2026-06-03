@@ -80,7 +80,8 @@ div.text_editor {
             margin-right: var(--padding);
             padding: 3px;
 
-            &:hover {
+            &:hover,
+            &.active {
                 filter: invert(0);
                 background-color: var(--link-color);
                 cursor: pointer;

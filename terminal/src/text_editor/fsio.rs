@@ -98,6 +98,17 @@ async fn list_folder(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn file_exists(
+    remote: ClientAddress,
+    path: FilePath<Arc<str>>,
+) -> Result<bool, ServerFnError> {
+    Ok(remote::FILE_EXISTS_REMOTE_FN
+        .call(remote, remote::FileExistsRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn create_file(
     remote: ClientAddress,
     path: FilePath<Arc<str>>,

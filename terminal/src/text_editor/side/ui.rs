@@ -23,6 +23,7 @@ use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::mutation::add_displayed_folder_content;
 use crate::text_editor::side::mutation::collapse_displayed_children;
+use crate::text_editor::side::synchro;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
@@ -94,6 +95,8 @@ fn show_side_view_node(
             let has_displayed_children = children
                 .values()
                 .any(|child| child.properties.status == SvnStatus::Displayed);
+            let notify_registration =
+                has_displayed_children.then(|| synchro::watch_side_view_folder(manager, &path));
             div(
                 key = "folder",
                 #[cfg(not(feature = "client-prod"))]
@@ -122,6 +125,9 @@ fn show_side_view_node(
                     class = style::SUB_FOLDER,
                     show_side_view_list(manager, &path, children.clone(), false),
                 ),
+                after_render = move |_| {
+                    let _moved = &notify_registration;
+                },
             )
         }
         SvnItem::File { metadata, .. } => {
@@ -213,7 +219,7 @@ fn folder_expand_icon(
     )
 }
 
-fn path_vec(path: &Path) -> Vec<Arc<str>> {
+pub fn path_vec(path: &Path) -> Vec<Arc<str>> {
     path.iter()
         .map(|leg| Arc::from(leg.to_owned_string()))
         .collect()

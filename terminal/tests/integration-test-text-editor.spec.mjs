@@ -630,4 +630,26 @@ test.describe('Text editor', () => {
                 [`${stem}_${today}.tar.gz`, 'occupied'],
             ]);
     });
+
+    test('removes a deleted file from the side view', async ({ page }) => {
+        test.setTimeout(120 * SECOND);
+
+        const fileName = `side-view-remove-me-${process.pid}-${Date.now()}.txt`;
+        const { baseDir, filePath } = await createTempFile(fileName);
+        await writeFile(filePath, 'delete me');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        await expect(getSideViewFile(page, fileName)).toBeVisible({ timeout: 30 * SECOND });
+
+        await getSideViewFolder(page, '').locator('span').first().click();
+        await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 30 * SECOND });
+        await getFolderTrashIcon(page, fileName).click();
+
+        await expect.poll(async () => exists(filePath), { timeout: 30 * SECOND }).toBe(false);
+        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
+    });
 });

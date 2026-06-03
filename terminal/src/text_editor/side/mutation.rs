@@ -1,12 +1,10 @@
 #![cfg(feature = "client")]
 
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use server_fn::ServerFnError;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
@@ -16,11 +14,7 @@ use super::SideViewNode;
 use super::SvnItem;
 use super::SvnProperties;
 use super::SvnStatus;
-use crate::frontend::remotes::Remote;
-use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
-use crate::text_editor::fsio::client::file_exists;
-use crate::utils::more_path::MorePath as _;
 
 pub fn add_file(
     tree: Arc<SideViewList>,
@@ -203,75 +197,6 @@ pub fn collapse_displayed_children(
         }
         Arc::new(new_children)
     })
-}
-
-pub async fn prune_side_view(
-    remote: Remote,
-    base: Arc<str>,
-    tree: Arc<SideViewList>,
-) -> Result<Option<Arc<SideViewList>>, ServerFnError> {
-    let (tree, changed) = prune_side_view_rec(remote, base, vec![], tree).await?;
-    Ok(changed.then_some(tree))
-}
-
-async fn prune_side_view_rec(
-    remote: Remote,
-    base: Arc<str>,
-    parent_path: Vec<Arc<str>>,
-    tree: Arc<SideViewList>,
-) -> Result<(Arc<SideViewList>, bool), ServerFnError> {
-    let mut changed = false;
-    let mut new_tree = SideViewList::default();
-    for (name, child) in tree.iter() {
-        let mut path = parent_path.clone();
-        path.push(name.clone());
-        let file_path = FilePath {
-            base: base.clone(),
-            file: side_view_path(&path),
-        };
-        if !file_exists(remote.clone(), file_path).await? {
-            changed = true;
-            continue;
-        }
-        let child = match &child.item {
-            SvnItem::Folder(children) => {
-                // recursion in an async fn requires boxing
-                let (children, children_changed) = Box::pin(prune_side_view_rec(
-                    remote.clone(),
-                    base.clone(),
-                    path,
-                    children.clone(),
-                ))
-                .await?;
-                changed |= children_changed;
-                Arc::new(SideViewNode {
-                    properties: child.properties.clone(),
-                    item: SvnItem::Folder(children),
-                })
-            }
-            SvnItem::File {
-                metadata,
-                notify_registration,
-            } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::File {
-                    metadata: metadata.clone(),
-                    notify_registration: notify_registration.clone(),
-                },
-            }),
-        };
-        new_tree.insert(name.clone(), child);
-    }
-    Ok((Arc::new(new_tree), changed))
-}
-
-fn side_view_path(path: &[Arc<str>]) -> Arc<str> {
-    path.iter()
-        .fold(std::path::PathBuf::new(), |path, name| {
-            path.join(Path::new(name.as_ref()))
-        })
-        .to_owned_string()
-        .into()
 }
 
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {

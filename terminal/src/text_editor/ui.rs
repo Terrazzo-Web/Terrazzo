@@ -26,7 +26,6 @@ use super::manager::TextEditorManager;
 use super::notify::ui::NotifyService;
 use super::search::state::SearchState;
 use super::side::SideViewList;
-use super::side::mutation::prune_side_view;
 use super::side::ui::show_side_view;
 use super::state;
 use super::style;
@@ -305,7 +304,7 @@ impl TextEditorManager {
             if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
                 this.side_view.force(side_view.clone());
-                match prune_side_view(
+                match fsio::client::prune_side_view(
                     this.remote.clone(),
                     this.path.base.get_value_untracked(),
                     side_view,

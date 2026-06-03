@@ -25,6 +25,10 @@ use super::canonical::concat_base_file_path;
 use super::git;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SvnItem;
+use crate::utils::more_path::MorePath as _;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
@@ -97,6 +101,61 @@ pub async fn list_folder(
 pub async fn file_exists(path: FilePath<Arc<str>>) -> Result<bool, FsioError> {
     let path = concat_base_file_path(path.base, path.file);
     Ok(path.exists())
+}
+
+pub async fn prune_side_view(
+    base: Arc<str>,
+    tree: Arc<SideViewList>,
+) -> Result<Option<Arc<SideViewList>>, FsioError> {
+    let (tree, changed) = prune_side_view_rec(&base, vec![], tree);
+    Ok(changed.then_some(tree))
+}
+
+fn prune_side_view_rec(
+    base: &Arc<str>,
+    parent_path: Vec<Arc<str>>,
+    tree: Arc<SideViewList>,
+) -> (Arc<SideViewList>, bool) {
+    let mut changed = false;
+    let mut new_tree = SideViewList::default();
+    for (name, child) in tree.iter() {
+        let mut path = parent_path.clone();
+        path.push(name.clone());
+        let file_path = concat_base_file_path(base.clone(), side_view_path(&path));
+        if !file_path.exists() {
+            changed = true;
+            continue;
+        }
+        let child = match &child.item {
+            SvnItem::Folder(children) => {
+                let (children, children_changed) =
+                    prune_side_view_rec(base, path, children.clone());
+                changed |= children_changed;
+                Arc::new(SideViewNode {
+                    properties: child.properties.clone(),
+                    item: SvnItem::Folder(children),
+                })
+            }
+            SvnItem::File { metadata, .. } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::File {
+                    metadata: metadata.clone(),
+                    notify_registration: Default::default(),
+                },
+            }),
+        };
+        new_tree.insert(name.clone(), child);
+    }
+    (Arc::new(new_tree), changed)
+}
+
+fn side_view_path(path: &[Arc<str>]) -> Arc<str> {
+    path.iter()
+        .fold(PathBuf::new(), |path, name| {
+            path.join(Path::new(name.as_ref()))
+        })
+        .to_owned_string()
+        .into()
 }
 
 pub async fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {

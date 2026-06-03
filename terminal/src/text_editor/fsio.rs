@@ -9,6 +9,7 @@ use server_fn::codec::Json;
 use terrazzo::server;
 
 use super::file_path::FilePath;
+use super::side::SideViewList;
 use crate::api::client_address::ClientAddress;
 
 pub mod canonical;
@@ -104,6 +105,18 @@ async fn file_exists(
 ) -> Result<bool, ServerFnError> {
     Ok(remote::FILE_EXISTS_REMOTE_FN
         .call(remote, remote::FileExistsRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn prune_side_view(
+    remote: ClientAddress,
+    base: Arc<str>,
+    tree: Arc<SideViewList>,
+) -> Result<Option<Arc<SideViewList>>, ServerFnError> {
+    Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
+        .call(remote, remote::PruneSideViewRequest { base, tree })
         .await?)
 }
 

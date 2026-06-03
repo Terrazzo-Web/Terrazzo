@@ -63,7 +63,10 @@ impl TextEditorManager {
         let this = self.clone();
         let notify_registration = self.notify_service.watch_file(path, move |event| {
             autoclone!(path);
-            let EventKind::File(FileEventKind::Delete | FileEventKind::Error) = event.kind else {
+            let EventKind::File(
+                FileEventKind::Delete | FileEventKind::Error | FileEventKind::Modify,
+            ) = event.kind
+            else {
                 return;
             };
             // Remove from side view on deletion notification.

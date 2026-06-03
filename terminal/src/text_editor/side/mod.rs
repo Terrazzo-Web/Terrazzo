@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::fsio::FileMetadata;
 
 pub mod mutation;
+pub mod synchro;
 pub mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

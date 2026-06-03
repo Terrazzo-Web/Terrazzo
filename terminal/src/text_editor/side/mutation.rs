@@ -1,6 +1,5 @@
 #![cfg(feature = "client")]
 
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -90,9 +89,9 @@ pub fn remove_file(
 }
 
 fn remove_aux_file(
-    tree: &Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>,
+    tree: &Arc<SideViewList>,
     child_name: &Arc<str>,
-) -> Result<Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>, RemoveFileError> {
+) -> Result<Arc<SideViewList>, RemoveFileError> {
     #[cfg(debug_assertions)]
     match tree.get(child_name) {
         Some(child) => match &child.item {
@@ -110,10 +109,10 @@ fn remove_aux_file(
 }
 
 fn remove_aux_folder(
-    tree: Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>,
+    tree: Arc<SideViewList>,
     folder_name: &Arc<str>,
     rest: &[Arc<str>],
-) -> Result<Arc<BTreeMap<Arc<str>, Arc<SideViewNode>>>, RemoveFileError> {
+) -> Result<Arc<SideViewList>, RemoveFileError> {
     let children = match tree.get(folder_name) {
         Some(child) => match &child.item {
             SvnItem::Folder(children) => {

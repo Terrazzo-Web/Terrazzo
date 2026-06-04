@@ -15,7 +15,6 @@ use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::manager::SideViewNotify;
-use crate::utils::more_path::MorePath as _;
 use crate::utils::more_path::MorePathRef as _;
 
 mod add;
@@ -26,14 +25,15 @@ mod tests;
 
 pub use self::remove::RemoveFileError;
 
-pub fn add_node(
+pub fn add_node<N: Into<Option<SideViewNode>>>(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
-    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
+    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> N,
 ) -> Arc<SideViewList> {
     let relative_path = path.file.as_ref().make_relative().iter().peekable();
-    self::add::add_node_rec(manager, &tree, path, relative_path, node).unwrap_or(tree)
+    self::add::add_node_rec(manager, &tree, path, relative_path, |old| node(old).into())
+        .unwrap_or(tree)
 }
 
 pub fn remove_node(
@@ -44,7 +44,7 @@ pub fn remove_node(
     self::remove::remove_node_rec(&tree, relative_path)
 }
 
-pub fn expand_folder_content(
+pub fn show_folder_content(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
@@ -101,7 +101,7 @@ pub fn expand_folder_content(
     })
 }
 
-pub fn collapse_displayed_children(
+pub fn filter_active_folder_content(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
@@ -147,56 +147,6 @@ pub fn collapse_displayed_children(
     })
 }
 
-pub fn side_view_notify_registrations(
-    manager: &Ptr<TextEditorManager>,
-    base: Arc<str>,
-    side_view: Arc<SideViewList>,
-) -> Arc<SideViewList> {
-    side_view_notify_registrations_rec(manager, &base, PathBuf::new(), side_view)
-}
-
-fn side_view_notify_registrations_rec(
-    manager: &Ptr<TextEditorManager>,
-    base: &Arc<str>,
-    parent_path: PathBuf,
-    side_view: Arc<SideViewList>,
-) -> Arc<SideViewList> {
-    let mut recovered = SideViewList::default();
-    for (name, child) in side_view.iter() {
-        let path = parent_path.join(Path::new(name.as_ref()));
-        let child = match &child.item {
-            SvnItem::Folder {
-                folder: children,
-                notify: _,
-            } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::Folder {
-                    folder: side_view_notify_registrations_rec(
-                        manager,
-                        base,
-                        path.clone(),
-                        children.clone(),
-                    ),
-                    notify: manager
-                        .watch_side_view_file(&FilePath {
-                            base: base.clone(),
-                            file: path.to_owned_string().into(),
-                        })
-                        .into(),
-                },
-            }),
-            SvnItem::File { metadata, .. } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::File {
-                    metadata: metadata.clone(),
-                },
-            }),
-        };
-        recovered.insert(name.clone(), child);
-    }
-    Arc::new(recovered)
-}
-
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     let mut new_tree = SideViewList::default();
     for (name, child) in tree.iter() {
@@ -204,14 +154,11 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
             continue;
         }
         let child = match &child.item {
-            SvnItem::Folder {
-                folder: children,
-                notify: notify_registration,
-            } => Arc::new(SideViewNode {
+            SvnItem::Folder { folder, notify } => Arc::new(SideViewNode {
                 properties: child.properties.clone(),
                 item: SvnItem::Folder {
-                    folder: remove_displayed(children.clone()),
-                    notify: notify_registration.clone(),
+                    folder: remove_displayed(folder.clone()),
+                    notify: notify.clone(),
                 },
             }),
             SvnItem::File { .. } => child.clone(),
@@ -221,37 +168,54 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     Arc::new(new_tree)
 }
 
-pub fn update_folder(
-    tree: &Arc<SideViewList>,
-    path: FilePath<Arc<Path>>,
-    update: impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,
+pub fn side_view_notify_registrations(
+    manager: &Ptr<TextEditorManager>,
+    base: Arc<Path>,
+    side_view: Arc<SideViewList<()>>,
 ) -> Arc<SideViewList> {
-    match relative_path {
-        [] => update(tree),
-        [folder_name, rest @ ..] => {
-            let Some(child) = tree.get(folder_name) else {
-                return tree;
-            };
-            let SvnItem::Folder {
+    side_view_notify_registrations_rec(manager, &base, PathBuf::new(), side_view)
+}
+
+fn side_view_notify_registrations_rec(
+    manager: &Ptr<TextEditorManager>,
+    base: &Arc<Path>,
+    parent_path: PathBuf,
+    side_view: Arc<SideViewList<()>>,
+) -> Arc<SideViewList> {
+    let mut active = SideViewList::default();
+    for (name, child) in side_view.iter() {
+        let child = match &child.item {
+            SvnItem::Folder {
                 folder: children,
-                notify: notify_registration,
-            } = &child.item
-            else {
-                return tree;
-            };
-            let updated_children = update_folder(children.clone(), rest, update);
-            let mut new_tree = (*tree).clone();
-            new_tree.insert(
-                folder_name.clone(),
+                notify: (),
+            } => {
+                let path = parent_path.join(Path::new(name.as_ref()));
                 Arc::new(SideViewNode {
                     properties: child.properties.clone(),
                     item: SvnItem::Folder {
-                        folder: updated_children,
-                        notify: notify_registration.clone(),
+                        folder: side_view_notify_registrations_rec(
+                            manager,
+                            base,
+                            path.clone(),
+                            children.clone(),
+                        ),
+                        notify: manager
+                            .watch_side_view_folder(&FilePath {
+                                base: base.clone(),
+                                file: path.into(),
+                            })
+                            .into(),
                     },
-                }),
-            );
-            Arc::new(new_tree)
-        }
+                })
+            }
+            SvnItem::File { metadata } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::File {
+                    metadata: metadata.clone(),
+                },
+            }),
+        };
+        active.insert(name.clone(), child);
     }
+    Arc::new(active)
 }

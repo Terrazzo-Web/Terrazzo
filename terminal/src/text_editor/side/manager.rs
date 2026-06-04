@@ -20,10 +20,7 @@ impl TextEditorManager {
         path: &FilePath<Arc<Path>>,
     ) {
         self.side_view.update(|tree| {
-            Some(super::mutation::add_node(
-                self,
-                tree.clone(),
-                path,
+            Some(super::mutation::add_node(self, tree.clone(), path, |_| {
                 SideViewNode {
                     properties: SvnProperties {
                         status: SvnStatus::Active,
@@ -31,8 +28,8 @@ impl TextEditorManager {
                     item: SvnItem::File {
                         metadata: metadata.clone(),
                     },
-                },
-            ))
+                }
+            }))
         });
         self.force_edit_path.set(false);
     }

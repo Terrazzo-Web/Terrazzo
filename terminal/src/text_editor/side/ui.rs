@@ -22,8 +22,8 @@ use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
-use crate::text_editor::side::mutation::collapse_displayed_children;
-use crate::text_editor::side::mutation::expand_folder_content;
+use crate::text_editor::side::mutation::filter_active_folder_content;
+use crate::text_editor::side::mutation::show_folder_content;
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
@@ -178,9 +178,16 @@ fn folder_expand_icon(
             class = "side-view-collapse-folder",
             click = move |_ev| {
                 autoclone!(manager, path);
-                let path_vec = path_vec(&path);
                 manager.side_view.update(|side_view| {
-                    Some(collapse_displayed_children(side_view.clone(), &path_vec))
+                    let path = FilePath {
+                        base: manager.path.base.get_value_untracked(),
+                        file: path.clone(),
+                    };
+                    Some(filter_active_folder_content(
+                        &manager,
+                        side_view.clone(),
+                        &path,
+                    ))
                 });
             },
         );
@@ -193,38 +200,29 @@ fn folder_expand_icon(
         class = "side-view-expand-folder",
         click = move |_ev| {
             autoclone!(manager, path);
-            let path_vec = path_vec(&path);
-            let folder_path: Arc<str> = path.to_owned_string().into();
             spawn_local(async move {
-                autoclone!(manager);
+                autoclone!(manager, path);
                 let path = FilePath {
                     base: manager.path.base.get_value_untracked(),
-                    file: folder_path,
+                    file: path.clone(),
                 };
-                //here
-                let content = list_folder(manager.remote.clone(), path)
+                let content = list_folder(manager.remote.clone(), path.clone())
                     .await
                     .inspect_err(|error| error!("Failed to load folder {path:?}: {error}"));
                 let Ok(Some(content)) = content else {
                     return;
                 };
                 manager.side_view.update(|side_view| {
-                    Some(expand_folder_content(
+                    Some(show_folder_content(
                         &manager,
                         side_view.clone(),
-                        &path_vec,
+                        &path,
                         content.as_ref(),
                     ))
                 });
             });
         },
     )
-}
-
-pub fn path_vec(path: &Path) -> Vec<Arc<str>> {
-    path.iter()
-        .map(|leg| Arc::from(leg.to_owned_string()))
-        .collect()
 }
 
 #[autoclone]

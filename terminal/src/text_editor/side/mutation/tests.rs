@@ -54,7 +54,7 @@ fn add_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b1/c1.txt"),
-        make_file("c1.txt"),
+        |_| make_file("c1.txt"),
     );
     assert_eq!(
         r#"
@@ -79,7 +79,7 @@ fn add_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b1/c2.txt"),
-        make_file("c2.txt"),
+        |_| make_file("c2.txt"),
     );
     assert_eq!(
         r#"
@@ -107,7 +107,7 @@ fn add_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b2/c3.txt"),
-        make_file("c2.txt"),
+        |_| make_file("c2.txt"),
     );
     assert_eq!(
         r#"
@@ -139,12 +139,9 @@ fn add_file() {
     );
 
     // Folder --> File
-    let tree = super::add_node(
-        &DummyManager,
-        tree,
-        &make_test_path("/a1/b1"),
-        make_file("b1.txt"),
-    );
+    let tree = super::add_node(&DummyManager, tree, &make_test_path("/a1/b1"), |_| {
+        make_file("b1.txt")
+    });
     assert_eq!(
         r#"
 {
@@ -172,7 +169,7 @@ fn add_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b1/c1.txt"),
-        make_file("c1.txt"),
+        |_| make_file("c1.txt"),
     );
     assert_eq!(
         r#"
@@ -226,7 +223,7 @@ fn remove_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b1/c1.txt"),
-        make_file("c1.txt"),
+        |_| make_file("c1.txt"),
     );
     assert_eq!(
         r#"
@@ -251,7 +248,7 @@ fn remove_file() {
         &DummyManager,
         tree,
         &make_test_path("/a1/b1/c2.txt"),
-        make_file("c2.txt"),
+        |_| make_file("c2.txt"),
     );
     assert_eq!(
         r#"

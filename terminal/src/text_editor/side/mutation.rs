@@ -30,7 +30,7 @@ pub fn add_node(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
-    node: SideViewNode,
+    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
 ) -> Arc<SideViewList> {
     let relative_path = path.file.as_ref().make_relative().iter().peekable();
     self::add::add_node_rec(manager, tree, path, relative_path, node)
@@ -45,15 +45,25 @@ pub fn remove_node(
 }
 
 pub fn expand_folder_content(
-    manager: &Ptr<TextEditorManager>,
+    manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
-    relative_path: &[Arc<str>],
+    path: &FilePath<Arc<Path>>,
     folder_content: &[FileMetadata],
 ) -> Arc<SideViewList> {
-    update_folder(tree, relative_path, &|children| {
-        let mut new_children = (*children).clone();
+    add_node(manager, tree, path, |old| {
+        let old = old?;
+        let (mut new_folder, notify) = if let SideViewNode {
+            properties: SvnProperties { status: _ },
+            item: SvnItem::Folder { folder, notify },
+        } = old.as_ref()
+        {
+            ((**folder).clone(), notify.clone())
+        } else {
+            return None;
+        };
         for metadata in folder_content {
-            if new_children.contains_key(&metadata.name) {
+            let name = Path::new(metadata.name.as_ref());
+            if new_folder.contains_key(name) {
                 continue;
             }
             let node = if metadata.is_dir {
@@ -63,12 +73,10 @@ pub fn expand_folder_content(
                     },
                     item: SvnItem::Folder {
                         folder: Arc::default(),
-                        notify: manager
-                            .watch_side_view_file(&FilePath {
-                                base: manager.path.base.get_value_untracked(),
-                                file: child_path(relative_path, &metadata.name),
-                            })
-                            .into(),
+                        notify: manager.watch_side_view_folder(&FilePath {
+                            base: path.base.clone(),
+                            file: path.file.join(name).into(),
+                        }),
                     },
                 }
             } else {
@@ -81,49 +89,61 @@ pub fn expand_folder_content(
                     },
                 }
             };
-            new_children.insert(metadata.name.clone(), Arc::new(node));
+            new_folder.insert(name.into(), node.into());
         }
-        Arc::new(new_children)
+        Some(SideViewNode {
+            properties: old.properties.clone(),
+            item: SvnItem::Folder {
+                folder: new_folder.into(),
+                notify,
+            },
+        })
     })
 }
 
-fn child_path(parent: &[Arc<str>], name: &Arc<str>) -> Arc<str> {
-    parent
-        .iter()
-        .chain(std::iter::once(name))
-        .fold(PathBuf::new(), |path, name| {
-            path.join(Path::new(name.as_ref()))
-        })
-        .to_owned_string()
-        .into()
-}
-
 pub fn collapse_displayed_children(
+    manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
-    relative_path: &[Arc<str>],
+    path: &FilePath<Arc<Path>>,
 ) -> Arc<SideViewList> {
-    update_folder(tree, relative_path, &|children| {
-        let mut new_children = SideViewList::default();
-        for (name, child) in children.iter() {
+    add_node(manager, tree, path, |old| {
+        let old = old?;
+        let (folder, notify) = if let SideViewNode {
+            properties: SvnProperties { status: _ },
+            item: SvnItem::Folder { folder, notify },
+        } = old.as_ref()
+        {
+            (folder, notify.clone())
+        } else {
+            return None;
+        };
+        let mut new_folder = SideViewList::default();
+        for (name, child) in folder.iter() {
             if child.properties.status == SvnStatus::Show {
                 continue;
             }
             let child = match &child.item {
                 SvnItem::Folder {
-                    folder: grandchildren,
-                    notify: notify_registration,
+                    folder: sub_folder,
+                    notify,
                 } => Arc::new(SideViewNode {
                     properties: child.properties.clone(),
                     item: SvnItem::Folder {
-                        folder: remove_displayed(grandchildren.clone()),
-                        notify: notify_registration.clone(),
+                        folder: remove_displayed(sub_folder.clone()),
+                        notify: notify.clone(),
                     },
                 }),
                 SvnItem::File { .. } => child.clone(),
             };
-            new_children.insert(name.clone(), child);
+            new_folder.insert(name.clone(), child);
         }
-        Arc::new(new_children)
+        Some(SideViewNode {
+            properties: old.properties.clone(),
+            item: SvnItem::Folder {
+                folder: new_folder.into(),
+                notify,
+            },
+        })
     })
 }
 
@@ -202,9 +222,9 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
 }
 
 pub fn update_folder(
-    tree: Arc<SideViewList>,
-    relative_path: &[Arc<str>],
-    update: &impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,
+    tree: &Arc<SideViewList>,
+    path: FilePath<Arc<Path>>,
+    update: impl Fn(Arc<SideViewList>) -> Arc<SideViewList>,
 ) -> Arc<SideViewList> {
     match relative_path {
         [] => update(tree),

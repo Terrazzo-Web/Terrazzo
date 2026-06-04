@@ -18,7 +18,7 @@ pub fn add_node_rec(
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-    node: SideViewNode,
+    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
 ) -> Arc<SideViewList> {
     match relative_path.next() {
         None => add_node_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
@@ -34,7 +34,7 @@ pub fn add_node_rec(
 
 fn add_node_leaf(
     tree: Arc<SideViewList>,
-    node: SideViewNode,
+    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
     child_name: &Path,
 ) -> Arc<SideViewList> {
     #[cfg(debug_assertions)]
@@ -45,8 +45,12 @@ fn add_node_leaf(
         },
         None => debug!("Add new file {child_name:?}"),
     }
+    let old_node = tree.get(child_name);
+    let Some(new_node) = node(old_node) else {
+        return tree;
+    };
     let mut new_tree = (*tree).clone();
-    new_tree.insert(child_name.into(), node.into());
+    new_tree.insert(child_name.into(), new_node.into());
     new_tree.into()
 }
 
@@ -55,7 +59,7 @@ fn add_node_rec_folder(
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-    node: SideViewNode,
+    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
     folder_name: &Path,
 ) -> Arc<SideViewList> {
     let folder = match tree.get(folder_name) {

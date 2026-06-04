@@ -4,9 +4,11 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 
-#[allow(dead_code)]
 pub trait MorePath {
     fn to_owned_string(self) -> String;
+}
+
+pub trait MorePathRef {
     fn make_relative(&self) -> &Path;
 }
 
@@ -14,7 +16,9 @@ impl MorePath for &Path {
     fn to_owned_string(self) -> String {
         self.as_os_str().to_owned_string()
     }
+}
 
+impl MorePathRef for Path {
     fn make_relative(&self) -> &Path {
         self.strip_prefix("/").unwrap_or(self)
     }
@@ -24,9 +28,11 @@ impl MorePath for PathBuf {
     fn to_owned_string(self) -> String {
         self.into_os_string().to_owned_string()
     }
+}
 
+impl MorePathRef for PathBuf {
     fn make_relative(&self) -> &Path {
-        self.strip_prefix("/").unwrap_or(self)
+        self.as_path().make_relative()
     }
 }
 
@@ -35,10 +41,11 @@ impl MorePath for &OsStr {
         let cow: Cow<'_, str> = self.to_string_lossy();
         return cow.into_owned();
     }
+}
 
+impl MorePathRef for OsStr {
     fn make_relative(&self) -> &Path {
-        let path: &Path = self.as_ref();
-        path.strip_prefix("/").unwrap_or(path)
+        Path::new(self).make_relative()
     }
 }
 
@@ -49,10 +56,11 @@ impl MorePath for OsString {
             Err(os_string) => os_string.as_os_str().to_owned_string(),
         }
     }
+}
 
+impl MorePathRef for OsString {
     fn make_relative(&self) -> &Path {
-        let path: &Path = self.as_ref();
-        path.strip_prefix("/").unwrap_or(path)
+        self.as_os_str().make_relative()
     }
 }
 
@@ -60,7 +68,7 @@ impl MorePath for OsString {
 mod tests {
     use std::path::Path;
 
-    use crate::utils::more_path::MorePath;
+    use super::MorePathRef;
 
     #[test]
     fn make_relative_when_relative() {

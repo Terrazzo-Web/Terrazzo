@@ -15,11 +15,11 @@ use crate::text_editor::side::SvnStatus;
 
 pub fn add_node_rec(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     path: &FilePath<Arc<Path>>,
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
     node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
-) -> Arc<SideViewList> {
+) -> Option<Arc<SideViewList>> {
     match relative_path.next() {
         None => add_node_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
         Some(item) => {
@@ -33,10 +33,10 @@ pub fn add_node_rec(
 }
 
 fn add_node_leaf(
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
     child_name: &Path,
-) -> Arc<SideViewList> {
+) -> Option<Arc<SideViewList>> {
     #[cfg(debug_assertions)]
     match tree.get(child_name) {
         Some(child) => match &child.item {
@@ -46,22 +46,20 @@ fn add_node_leaf(
         None => debug!("Add new file {child_name:?}"),
     }
     let old_node = tree.get(child_name);
-    let Some(new_node) = node(old_node) else {
-        return tree;
-    };
+    let new_node = node(old_node)?;
     let mut new_tree = (*tree).clone();
     new_tree.insert(child_name.into(), new_node.into());
-    new_tree.into()
+    Some(new_tree.into())
 }
 
 fn add_node_rec_folder(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     path: &FilePath<Arc<Path>>,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
     node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
     folder_name: &Path,
-) -> Arc<SideViewList> {
+) -> Option<Arc<SideViewList>> {
     let folder = match tree.get(folder_name) {
         Some(child) => match &child.item {
             SvnItem::Folder { folder, notify: _ } => {
@@ -80,8 +78,8 @@ fn add_node_rec_folder(
             Arc::default()
         }
     };
-    let mut new_tree = (*tree).clone();
-    let folder = add_node_rec(manager, folder, path, relative_path, node);
+    let folder = add_node_rec(manager, &folder, path, relative_path, node)?;
+    let mut new_tree = tree.clone();
     new_tree.insert(
         folder_name.into(),
         SideViewNode {
@@ -95,5 +93,5 @@ fn add_node_rec_folder(
         }
         .into(),
     );
-    new_tree.into()
+    Some(new_tree.into())
 }

@@ -30,7 +30,7 @@ pub enum RemoveFileError {
 }
 
 pub fn remove_node_rec(
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
     match relative_path.next() {
@@ -46,7 +46,7 @@ pub fn remove_node_rec(
 }
 
 fn remove_node_leaf(
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     child_name: &Path,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
     #[cfg(debug_assertions)]
@@ -60,13 +60,13 @@ fn remove_node_leaf(
             return Err(RemoveFileError::FileNotFound);
         }
     }
-    let mut new_tree = (*tree).clone();
+    let mut new_tree = tree.clone();
     new_tree.remove(child_name);
     Ok(new_tree.into())
 }
 
 fn remove_node_rec_folder(
-    tree: Arc<SideViewList>,
+    tree: &SideViewList,
     folder_name: &Path,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
@@ -85,7 +85,7 @@ fn remove_node_rec_folder(
         }
     };
     let mut new_tree = (*tree).clone();
-    let children = remove_node_rec(children, relative_path)?;
+    let children = remove_node_rec(&children, relative_path)?;
     new_tree.insert(
         folder_name.into(),
         SideViewNode {

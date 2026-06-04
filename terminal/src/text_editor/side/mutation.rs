@@ -33,7 +33,7 @@ pub fn add_node(
     node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
 ) -> Arc<SideViewList> {
     let relative_path = path.file.as_ref().make_relative().iter().peekable();
-    self::add::add_node_rec(manager, tree, path, relative_path, node)
+    self::add::add_node_rec(manager, &tree, path, relative_path, node).unwrap_or(tree)
 }
 
 pub fn remove_node(
@@ -41,7 +41,7 @@ pub fn remove_node(
     path: &Path,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
     let relative_path = path.make_relative().iter().peekable();
-    self::remove::remove_node_rec(tree, relative_path)
+    self::remove::remove_node_rec(&tree, relative_path)
 }
 
 pub fn expand_folder_content(

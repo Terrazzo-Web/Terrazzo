@@ -38,12 +38,12 @@ struct NotifyServiceImpl {
 }
 
 type Handlers =
-    Arc<Mutex<HashMap<FilePath<Arc<str>>, HashMap<usize, std::rc::Weak<NotifyRegistration>>>>>;
+    Arc<Mutex<HashMap<FilePath<Arc<Path>>, HashMap<usize, std::rc::Weak<NotifyRegistration>>>>>;
 
 #[must_use]
 pub struct NotifyRegistration {
     id: usize,
-    full_path: FilePath<Arc<str>>,
+    full_path: FilePath<Arc<Path>>,
     notify_service: std::rc::Weak<NotifyService>,
     registration_type: RegistrationType,
     callback: Box<dyn Fn(&NotifyResponse)>,
@@ -74,7 +74,7 @@ impl NotifyService {
     #[must_use]
     pub fn watch_file(
         self: &Ptr<Self>,
-        full_path: &FilePath<Arc<str>>,
+        full_path: &FilePath<Arc<Path>>,
         callback: impl Fn(&NotifyResponse) + 'static,
     ) -> Ptr<NotifyRegistration> {
         self.add_handler(full_path, RegistrationType::File, callback)
@@ -92,7 +92,7 @@ impl NotifyService {
     #[must_use]
     fn add_handler(
         self: &Ptr<Self>,
-        full_path: &FilePath<Arc<str>>,
+        full_path: &FilePath<Arc<Path>>,
         registration_type: RegistrationType,
         callback: impl Fn(&NotifyResponse) + 'static,
     ) -> Ptr<NotifyRegistration> {
@@ -157,8 +157,7 @@ impl NotifyServiceImpl {
                 match response {
                     Ok(response) => {
                         debug!("{response:?}");
-                        let response_path = Path::new(&response.path);
-                        let response_path_parent = response_path.parent();
+                        let response_path_parent = response.path.parent();
                         let handlers = {
                             let lock = handlers.lock().unwrap();
                             (*lock).clone()
@@ -170,9 +169,11 @@ impl NotifyServiceImpl {
                                     continue;
                                 };
                                 if match handler.registration_type {
-                                    RegistrationType::File => full_path == response_path,
+                                    RegistrationType::File => {
+                                        full_path.as_path() == response.path.as_ref()
+                                    }
                                     RegistrationType::Folder => {
-                                        full_path == response_path
+                                        full_path.as_path() == response.path.as_ref()
                                             || Some(full_path.as_ref()) == response_path_parent
                                     }
                                 } {
@@ -200,7 +201,7 @@ impl NotifyServiceImpl {
 
 impl NotifyRegistration {
     fn new(
-        full_path: FilePath<Arc<str>>,
+        full_path: FilePath<Arc<Path>>,
         notify_service: &Ptr<NotifyService>,
         registration_type: RegistrationType,
         callback: impl Fn(&NotifyResponse) + 'static,
@@ -247,7 +248,7 @@ impl Drop for NotifyRegistration {
             handlers.remove(&self.full_path);
         }
         notify_service.send(Ok(NotifyRequest::UnWatch {
-            full_path: std::mem::take(&mut self.full_path),
+            full_path: self.full_path.clone(),
         }));
     }
 }

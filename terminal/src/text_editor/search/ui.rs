@@ -1,6 +1,7 @@
 #![cfg(feature = "client")]
 
 use std::ops::Not;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -59,7 +60,7 @@ impl TextEditorManager {
 fn search_selector_input(
     manager: Ptr<TextEditorManager>,
     input: ElementCapture<HtmlInputElement>,
-    #[signal] base: Arc<str>,
+    #[signal] base: Arc<Path>,
     #[signal] mut is_active: bool,
 ) -> XElement {
     if !is_active {
@@ -120,7 +121,7 @@ fn close_search(editor_state: &XSignal<EditorState>, is_active_mut: &MutableSign
 
 fn do_search(
     manager: Ptr<TextEditorManager>,
-    base: Arc<str>,
+    base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
 ) -> impl Fn() {
     let callback = Duration::from_millis(250)
@@ -130,7 +131,7 @@ fn do_search(
 
 async fn do_search_impl(
     manager: Ptr<TextEditorManager>,
-    base: Arc<str>,
+    base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
 ) {
     let results = run_query(base, input).await;
@@ -143,7 +144,8 @@ async fn do_search_impl(
     });
 }
 
-async fn run_query(base: Arc<str>, input: ElementCapture<HtmlInputElement>) -> Vec<FileMetadata> {
+async fn run_query(base: Arc<Path>, input: ElementCapture<HtmlInputElement>) -> Vec<FileMetadata> {
+    let base = base.display();
     let query = input.with(|i| i.value());
     vec![
         FileMetadata {

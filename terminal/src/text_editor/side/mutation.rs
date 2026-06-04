@@ -14,7 +14,9 @@ use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::notify::manager::SideViewNotify;
 use crate::utils::more_path::MorePath as _;
+use crate::utils::more_path::MorePathRef as _;
 
 mod add;
 mod remove;
@@ -24,25 +26,25 @@ mod tests;
 
 pub use self::remove::RemoveFileError;
 
-pub fn add_file(
-    manager: &Ptr<TextEditorManager>,
+pub fn add_node(
+    manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
     node: SideViewNode,
 ) -> Arc<SideViewList> {
-    let relative_path = path.file.iter().peekable();
-    self::add::add_file_rec(manager, tree, path, relative_path, node)
+    let relative_path = path.file.as_ref().make_relative().iter().peekable();
+    self::add::add_node_rec(manager, tree, path, relative_path, node)
 }
 
-pub fn remove_file(
+pub fn remove_node(
     tree: Arc<SideViewList>,
-    path: &FilePath<Arc<Path>>,
+    path: &Path,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
-    let relative_path = path.file.iter().peekable();
-    self::remove::remove_file_rec(tree, relative_path)
+    let relative_path = path.make_relative().iter().peekable();
+    self::remove::remove_node_rec(tree, relative_path)
 }
 
-pub fn add_displayed_folder_content(
+pub fn expand_folder_content(
     manager: &Ptr<TextEditorManager>,
     tree: Arc<SideViewList>,
     relative_path: &[Arc<str>],
@@ -57,7 +59,7 @@ pub fn add_displayed_folder_content(
             let node = if metadata.is_dir {
                 SideViewNode {
                     properties: SvnProperties {
-                        status: SvnStatus::Displayed,
+                        status: SvnStatus::Show,
                     },
                     item: SvnItem::Folder {
                         folder: Arc::default(),
@@ -72,7 +74,7 @@ pub fn add_displayed_folder_content(
             } else {
                 SideViewNode {
                     properties: SvnProperties {
-                        status: SvnStatus::Displayed,
+                        status: SvnStatus::Show,
                     },
                     item: SvnItem::File {
                         metadata: Arc::new(metadata.clone()),
@@ -103,7 +105,7 @@ pub fn collapse_displayed_children(
     update_folder(tree, relative_path, &|children| {
         let mut new_children = SideViewList::default();
         for (name, child) in children.iter() {
-            if child.properties.status == SvnStatus::Displayed {
+            if child.properties.status == SvnStatus::Show {
                 continue;
             }
             let child = match &child.item {
@@ -178,7 +180,7 @@ fn side_view_notify_registrations_rec(
 fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     let mut new_tree = SideViewList::default();
     for (name, child) in tree.iter() {
-        if child.properties.status == SvnStatus::Displayed {
+        if child.properties.status == SvnStatus::Show {
             continue;
         }
         let child = match &child.item {

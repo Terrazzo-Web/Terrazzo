@@ -14,7 +14,7 @@ use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 
-pub fn add_file_rec(
+pub fn add_node_rec(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
@@ -22,18 +22,18 @@ pub fn add_file_rec(
     node: SideViewNode,
 ) -> Arc<SideViewList> {
     match relative_path.next() {
-        None => add_file_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
+        None => add_node_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
         Some(item) => {
             if relative_path.peek().is_none() {
-                add_file_leaf(tree, node, item)
+                add_node_leaf(tree, node, item)
             } else {
-                add_file_node(manager, tree, path, relative_path, node, item)
+                add_node_rec_folder(manager, tree, path, relative_path, node, item)
             }
         }
     }
 }
 
-fn add_file_leaf(
+fn add_node_leaf(
     tree: Arc<SideViewList>,
     node: SideViewNode,
     child_name: &OsStr,
@@ -52,7 +52,7 @@ fn add_file_leaf(
     Arc::new(new_tree)
 }
 
-fn add_file_node(
+fn add_node_rec_folder(
     manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
@@ -80,13 +80,13 @@ fn add_file_node(
         }
     };
     let mut new_tree = (*tree).clone();
-    let folder = add_file_rec(manager, folder, path, relative_path, node);
+    let folder = add_node_rec(manager, folder, path, relative_path, node);
     new_tree.insert(
         folder_name.into(),
         Arc::new({
             SideViewNode {
                 properties: SvnProperties {
-                    status: SvnStatus::Opened,
+                    status: SvnStatus::Active,
                 },
                 item: SvnItem::Folder {
                     folder,

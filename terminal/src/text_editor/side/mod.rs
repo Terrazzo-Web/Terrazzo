@@ -62,6 +62,10 @@ pub mod opaque {
     pub trait T: Clone {}
     impl<TT: Clone> T for TT {}
 
+    #[cfg(feature = "server")]
+    type OpaqueNotifyRegistration = ();
+
+    #[cfg(feature = "client")]
     #[derive(Clone)]
     #[cfg_attr(test, derive(Default))]
     pub struct OpaqueNotifyRegistration(

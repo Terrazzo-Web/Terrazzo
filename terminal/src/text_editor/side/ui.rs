@@ -144,7 +144,7 @@ fn show_side_view_node(
                     class %= selected_item(manager.path.file.clone(), path.clone()),
                     span("{name}"),
                     click = move |_| {
-                        autoclone!(path);
+                        autoclone!(manager, path);
                         manager.path.file.set(path.clone())
                     },
                 ),

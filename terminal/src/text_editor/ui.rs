@@ -41,7 +41,6 @@ use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::text_editor::manager;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -309,21 +308,27 @@ impl TextEditorManager {
             if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
                 let base_path = this.path.base.get_value_untracked();
-                match fsio::client::prune_side_view(this.clone(), side_view.clone()).await {
+                match fsio::client::prune_side_view(
+                    this.remote.clone(),
+                    this.path.base.get_value_untracked(),
+                    side_view.clone(),
+                )
+                .await
+                {
                     Ok(pruned_side_view) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
                         this.side_view.force(side_view_notify_registrations(
                             &this,
                             base_path,
-                            pruned_side_view,
+                            pruned_side_view.unwrap_or(side_view),
                         ));
                     }
                     Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
                 }
             }
             this.force_edit_path.set(
-                this.path.base.get_value_untracked().is_empty()
-                    || this.path.file.get_value_untracked().is_empty(),
+                this.path.base.get_value_untracked().iter().next().is_none()
+                    || this.path.file.get_value_untracked().iter().next().is_none(),
             );
             if let Ok(p) = get_search {
                 this.search.query.force(p);

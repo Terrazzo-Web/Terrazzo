@@ -29,7 +29,7 @@ use crate::text_editor::style;
 pub fn show_autocomplete(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete_sig: XSignal<Option<Vec<AutocompleteItem>>>,
     #[signal] autocomplete: Option<Vec<AutocompleteItem>>,
@@ -42,6 +42,7 @@ pub fn show_autocomplete(
         let item_display = if item.is_dir && item.path != "/" {
             format!("{}/", item.path)
         } else if item.path.trim().is_empty() {
+            // Unicode character U+00A0, called NO-BREAK SPACE.
             "\u{00A0}".into()
         } else {
             item.path.to_owned()
@@ -72,7 +73,7 @@ pub fn show_autocomplete(
 pub fn start_autocomplete(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
@@ -111,7 +112,7 @@ pub fn do_autocomplete(
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
 ) -> impl Fn(()) {
     Duration::from_millis(250).debounce(move |()| {
         do_autocomplete_impl(
@@ -128,7 +129,7 @@ pub fn do_autocomplete(
 fn do_autocomplete_impl(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) {
@@ -138,13 +139,10 @@ fn do_autocomplete_impl(
         let autocompletes = autocomplete_path(
             manager.remote.clone(),
             kind,
-            Arc::from(Path::new(
-                prefix
-                    .as_ref()
-                    .map(XSignal::get_value_untracked)
-                    .unwrap_or_default()
-                    .trim(),
-            )),
+            prefix
+                .as_ref()
+                .map(XSignal::get_value_untracked)
+                .unwrap_or(Path::new("").into()),
             value,
         )
         .await

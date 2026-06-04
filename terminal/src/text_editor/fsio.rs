@@ -80,7 +80,7 @@ impl std::fmt::Debug for File {
 #[nameth]
 async fn load_file(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<File>, ServerFnError> {
     Ok(remote::LOAD_FILE_REMOTE_FN
         .call(remote, remote::LoadFileRequest { path })
@@ -91,7 +91,7 @@ async fn load_file(
 #[nameth]
 async fn list_folder(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<Arc<Vec<FileMetadata>>>, ServerFnError> {
     Ok(remote::LIST_FOLDER_REMOTE_FN
         .call(remote, remote::ListFolderRequest { path })
@@ -113,7 +113,7 @@ async fn file_exists(
 #[nameth]
 async fn prune_side_view(
     remote: ClientAddress,
-    base: Arc<str>,
+    base: Arc<Path>,
     tree: Arc<SideViewList<()>>,
 ) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
     Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
@@ -125,7 +125,7 @@ async fn prune_side_view(
 #[nameth]
 async fn create_file(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     Ok(remote::CREATE_FILE_REMOTE_FN
@@ -137,7 +137,7 @@ async fn create_file(
 #[nameth]
 async fn create_folder(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     Ok(remote::CREATE_FOLDER_REMOTE_FN
@@ -147,7 +147,10 @@ async fn create_folder(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
-async fn delete_file(remote: ClientAddress, path: FilePath<Arc<str>>) -> Result<(), ServerFnError> {
+async fn delete_file(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
     Ok(remote::DELETE_FILE_REMOTE_FN
         .call(remote, remote::DeleteFileRequest { path })
         .await?)
@@ -157,7 +160,7 @@ async fn delete_file(remote: ClientAddress, path: FilePath<Arc<str>>) -> Result<
 #[nameth]
 async fn store_file_impl(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     content: String,
 ) -> Result<(), ServerFnError> {
     #[cfg(debug_assertions)]

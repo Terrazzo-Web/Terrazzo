@@ -21,14 +21,14 @@ use crate::text_editor::ui::STORE_FILE_DEBOUNCE_DELAY;
 
 pub async fn load_file(
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<super::File>, ServerFnError> {
     super::load_file(remote, path).await
 }
 
 pub async fn list_folder(
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<Arc<Vec<super::FileMetadata>>>, ServerFnError> {
     super::list_folder(remote, path).await
 }
@@ -39,7 +39,7 @@ pub async fn file_exists(remote: Remote, path: FilePath<Arc<Path>>) -> Result<bo
 
 pub async fn prune_side_view(
     remote: Remote,
-    base: Arc<str>,
+    base: Arc<Path>,
     tree: Arc<SideViewList<()>>,
 ) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
     super::prune_side_view(remote, base, tree).await
@@ -47,7 +47,7 @@ pub async fn prune_side_view(
 
 pub async fn create_file(
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     super::create_file(remote, path, name).await
@@ -55,13 +55,13 @@ pub async fn create_file(
 
 pub async fn create_folder(
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     super::create_folder(remote, path, name).await
 }
 
-pub async fn delete_file(remote: Remote, path: FilePath<Arc<str>>) -> Result<(), ServerFnError> {
+pub async fn delete_file(remote: Remote, path: FilePath<Arc<Path>>) -> Result<(), ServerFnError> {
     super::delete_file(remote, path).await
 }
 
@@ -70,7 +70,7 @@ static STORE_FILE_STATE: LazyLock<Mutex<StoreFileState>> = LazyLock::new(Mutex::
 
 pub async fn store_file<B: Send + 'static, A: Send + 'static>(
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     content: String,
     before: B,
     after: A,
@@ -92,7 +92,7 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
 
 async fn wait_for_pending_store_file(
     remote: &Remote,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
 ) -> oneshot::Sender<()> {
     loop {
         let done = {
@@ -142,7 +142,7 @@ fn make_debounced_store_file_fn() -> StoreFileFn {
     return Box::new(debounced);
 }
 
-fn clear_pending_store_file(remote: &Remote, path: &FilePath<Arc<str>>) {
+fn clear_pending_store_file(remote: &Remote, path: &FilePath<Arc<Path>>) {
     let mut store_file_state = STORE_FILE_STATE.lock().expect("store_file_state");
     if store_file_state
         .pending
@@ -158,7 +158,7 @@ type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 
 struct StoreFileFnArg {
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     content: String,
     before: Box<dyn Send>,
     after: Box<dyn Send>,
@@ -172,6 +172,6 @@ struct StoreFileState {
 
 struct PendingStoreFile {
     remote: Remote,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     done: Shared<BoxFuture>,
 }

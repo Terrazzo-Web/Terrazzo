@@ -1,6 +1,7 @@
 #![cfg(feature = "client")]
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -42,7 +43,6 @@ pub fn create_entry_controls(
     if !matches!(&*data.data, File::Folder(_)) {
         return tag(style::display = "none", style::visibility = "hidden");
     }
-    let folder_path = data.path.clone();
 
     let active: XSignal<Option<CreateEntryKind>> = XSignal::new("create-entry-active", None);
     let input: Rc<RefCell<Option<ElementCapture<HtmlInputElement>>>> = Default::default();
@@ -65,7 +65,7 @@ pub fn create_entry_controls(
             "Create folder",
             "create-folder-icon",
         ),
-        create_entry_input(manager, input, folder_path, active.clone(), active),
+        create_entry_input(manager, input, data.path, active.clone(), active),
     );
 
     #[template(wrap = true)]
@@ -84,11 +84,11 @@ fn create_entry_icon(
     title: &'static str,
     _test_class: &'static str,
 ) -> XElement {
-    img(
+    return img(
         class = style::CREATE_ENTRY_ICON,
         #[cfg(not(feature = "client-prod"))]
         class = _test_class,
-        class %= create_entry_icon_class(active.clone(), kind),
+        class %= icon_class(active.clone(), kind),
         src = icon,
         title = title,
         click = move |_| {
@@ -106,15 +106,15 @@ fn create_entry_icon(
                 });
             }
         },
-    )
-}
+    );
 
-#[template(wrap = true)]
-fn create_entry_icon_class(
-    #[signal] active: Option<CreateEntryKind>,
-    kind: CreateEntryKind,
-) -> XAttributeValue {
-    (active == Some(kind)).then_some(style::ACTIVE)
+    #[template(wrap = true)]
+    fn icon_class(
+        #[signal] active: Option<CreateEntryKind>,
+        kind: CreateEntryKind,
+    ) -> XAttributeValue {
+        (active == Some(kind)).then_some(style::ACTIVE)
+    }
 }
 
 #[autoclone]
@@ -123,7 +123,7 @@ fn create_entry_icon_class(
 fn create_entry_input(
     manager: Ptr<TextEditorManager>,
     input: Rc<RefCell<Option<ElementCapture<HtmlInputElement>>>>,
-    folder_path: FilePath<Arc<str>>,
+    folder_path: FilePath<Arc<Path>>,
     input_active: XSignal<Option<CreateEntryKind>>,
     #[signal] active: Option<CreateEntryKind>,
 ) -> XElement {
@@ -176,7 +176,7 @@ fn submit_create_entry(
     manager: &Ptr<TextEditorManager>,
     input: &ElementCapture<HtmlInputElement>,
     input_active: &XSignal<Option<CreateEntryKind>>,
-    folder_path: FilePath<Arc<str>>,
+    folder_path: FilePath<Arc<Path>>,
     active_kind: Option<CreateEntryKind>,
     name: String,
 ) {
@@ -197,7 +197,7 @@ fn close_create_entry(
 
 async fn create_entry(
     manager: Ptr<TextEditorManager>,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
     kind: CreateEntryKind,
 ) {
@@ -217,9 +217,7 @@ async fn create_entry(
         warn!("Failed to create entry: {error}");
         return;
     }
-    if manager.path.base.get_value_untracked() == path.base
-        && manager.path.file.get_value_untracked() == path.file
-    {
+    if manager.path.as_ref().map(|s| s.get_value_untracked()) == path {
         manager.path.file.force(path.file);
     } else {
         manager.tile.app.force(App::TextEditor);

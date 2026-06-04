@@ -21,20 +21,19 @@ use tracing::warn;
 
 use super::File;
 use super::FileMetadata;
-use super::canonical::concat_base_file_path;
 use super::git;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
-use crate::utils::more_path::MorePath as _;
+use crate::utils::more_path::MorePathRef as _;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
 
-pub async fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioError> {
-    let path = concat_base_file_path(path.base, path.file);
+pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioError> {
+    let path = path.full_path();
     if let Ok(metadata) = path.metadata() {
         if metadata.is_file() {
             if path.extension() == Some("pdf".as_ref()) {
@@ -90,7 +89,7 @@ pub async fn load_file(path: FilePath<Arc<str>>) -> Result<Option<File>, FsioErr
 }
 
 pub async fn list_folder(
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<Arc<Vec<FileMetadata>>>, FsioError> {
     match load_file(path).await? {
         Some(File::Folder(list)) => Ok(Some(list)),
@@ -98,68 +97,50 @@ pub async fn list_folder(
     }
 }
 
-pub async fn file_exists(path: FilePath<Arc<str>>) -> Result<bool, FsioError> {
-    let path = concat_base_file_path(path.base, path.file);
-    Ok(path.exists())
+pub async fn file_exists(path: FilePath<Arc<Path>>) -> Result<bool, FsioError> {
+    Ok(path.full_path().exists())
 }
 
 pub async fn prune_side_view(
-    base: Arc<str>,
-    tree: Arc<SideViewList>,
-) -> Result<Option<Arc<SideViewList>>, FsioError> {
-    let (tree, changed) = prune_side_view_rec(&base, vec![], tree);
+    base: Arc<Path>,
+    tree: Arc<SideViewList<()>>,
+) -> Result<Option<Arc<SideViewList<()>>>, FsioError> {
+    let (tree, changed) = prune_side_view_rec(&base, PathBuf::new(), tree);
     Ok(changed.then_some(tree))
 }
 
 fn prune_side_view_rec(
-    base: &Arc<str>,
-    parent_path: Vec<Arc<str>>,
-    tree: Arc<SideViewList>,
-) -> (Arc<SideViewList>, bool) {
+    base: &Arc<Path>,
+    parent_path: PathBuf,
+    tree: Arc<SideViewList<()>>,
+) -> (Arc<SideViewList<()>>, bool) {
     let mut changed = false;
     let mut new_tree = SideViewList::default();
     for (name, child) in tree.iter() {
-        let mut path = parent_path.clone();
-        path.push(name.clone());
-        let file_path = concat_base_file_path(base.clone(), side_view_path(&path));
-        if !file_path.exists() {
+        let path = parent_path.join(Path::new(name.as_ref()).make_relative());
+        if !(FilePath { base, file: &path }.full_path().exists()) {
             changed = true;
             continue;
         }
-        let child = match &child.item {
-            SvnItem::Folder(children) => {
-                let (children, children_changed) =
-                    prune_side_view_rec(base, path, children.clone());
-                changed |= children_changed;
-                Arc::new(SideViewNode {
-                    properties: child.properties.clone(),
-                    item: SvnItem::Folder(children),
-                })
+        let item = match &child.item {
+            SvnItem::Folder { folder, notify: () } => {
+                let (folder, folder_changed) = prune_side_view_rec(base, path, folder.clone());
+                changed |= folder_changed;
+                SvnItem::Folder { folder, notify: () }
             }
-            SvnItem::File { metadata, .. } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::File {
-                    metadata: metadata.clone(),
-                    notify_registration: Default::default(),
-                },
-            }),
+            item @ SvnItem::File { metadata: _ } => item.clone(),
         };
+        let child = Arc::new(SideViewNode {
+            properties: child.properties.clone(),
+            item,
+        });
         new_tree.insert(name.clone(), child);
     }
     (Arc::new(new_tree), changed)
 }
 
-fn side_view_path(path: &[Arc<str>]) -> Arc<str> {
-    path.iter()
-        .fold(PathBuf::new(), |path, name| {
-            path.join(Path::new(name.as_ref()))
-        })
-        .to_owned_string()
-        .into()
-}
-
-pub async fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(), FsioError> {
-    let path = concat_base_file_path(path.base, path.file);
+pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<(), FsioError> {
+    let path = path.full_path();
     return if path.exists() {
         Ok(tokio::fs::write(&path, content).await?)
     } else {
@@ -167,7 +148,8 @@ pub async fn store_file(path: FilePath<Arc<str>>, content: String) -> Result<(),
     };
 }
 
-pub async fn create_file(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
+pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
+    let name = name.trim();
     let path = create_entry_path(path, &name)?;
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
@@ -179,18 +161,34 @@ pub async fn create_file(path: FilePath<Arc<str>>, name: String) -> Result<(), F
     Ok(())
 }
 
-pub async fn create_folder(path: FilePath<Arc<str>>, name: String) -> Result<(), FsioError> {
+pub async fn create_folder(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
+    let name = name.trim();
     let path = create_entry_path(path, &name)?;
     tokio::fs::create_dir(path).await?;
     Ok(())
 }
 
+fn create_entry_path(path: FilePath<Arc<Path>>, name: &str) -> Result<PathBuf, FsioError> {
+    if name.is_empty() || Path::new(name).components().count() != 1 {
+        return Err(FsioError::InvalidEntryName {
+            name: name.to_owned(),
+        });
+    }
+
+    let folder = path.full_path();
+    if folder.is_dir() {
+        Ok(folder.join(name))
+    } else {
+        Err(FsioError::ParentNotFolder { path: folder })
+    }
+}
+
 pub async fn delete_file(
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     trash: impl AsRef<Path>,
     git_trash: Option<impl AsRef<Path>>,
 ) -> Result<(), FsioError> {
-    let source = concat_base_file_path(path.base, path.file);
+    let source = path.full_path();
     if !source.exists() {
         return Err(FsioError::PathNotFound { path: source });
     }
@@ -226,22 +224,6 @@ fn delete_trash_path(source: &Path, trash: &Path, git_trash: Option<&Path>) -> P
         return repo_root.join(git_trash);
     }
     trash.to_owned()
-}
-
-fn create_entry_path(path: FilePath<Arc<str>>, name: &str) -> Result<PathBuf, FsioError> {
-    let name = name.trim();
-    if name.is_empty() || Path::new(name).components().count() != 1 {
-        return Err(FsioError::InvalidEntryName {
-            name: name.to_owned(),
-        });
-    }
-
-    let folder = concat_base_file_path(path.base, path.file);
-    if folder.is_dir() {
-        Ok(folder.join(name))
-    } else {
-        Err(FsioError::ParentNotFolder { path: folder })
-    }
 }
 
 fn available_trash_path(
@@ -333,8 +315,8 @@ mod tests {
     async fn create_file_in_folder() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
-            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
-            file: Arc::from(""),
+            base: Arc::from(tempdir.path()),
+            file: Arc::from("".as_ref()),
         };
 
         super::create_file(path, "  hello world.txt  ".to_owned())
@@ -348,8 +330,8 @@ mod tests {
     async fn create_folder_in_folder() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
-            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
-            file: Arc::from(""),
+            base: Arc::from(tempdir.path()),
+            file: Arc::from("".as_ref()),
         };
 
         super::create_folder(path, "new folder".to_owned())
@@ -363,8 +345,8 @@ mod tests {
     async fn create_entry_rejects_nested_names() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
-            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
-            file: Arc::from(""),
+            base: Arc::from(tempdir.path()),
+            file: Arc::from("".as_ref()),
         };
 
         let error = super::create_file(path, "a/b.txt".to_owned())
@@ -381,8 +363,8 @@ mod tests {
             .await
             .unwrap();
         let path = FilePath {
-            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
-            file: Arc::from("parent.txt"),
+            base: Arc::from(tempdir.path()),
+            file: Arc::from("parent.txt".as_ref()),
         };
 
         let error = super::create_file(path, "child.txt".to_owned())
@@ -396,8 +378,8 @@ mod tests {
     async fn store_file_rejects_missing_path() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
-            base: Arc::from(tempdir.path().to_string_lossy().to_string()),
-            file: Arc::from("missing.txt"),
+            base: Arc::from(tempdir.path()),
+            file: Arc::from("missing.txt".as_ref()),
         };
 
         let error = super::store_file(path, "content".to_owned())
@@ -427,8 +409,8 @@ mod tests {
             .unwrap();
 
         let path = FilePath {
-            base: Arc::from(source.to_string_lossy().to_string()),
-            file: Arc::from("file.tar.gz"),
+            base: Arc::from(source.as_ref()),
+            file: Arc::from("file.tar.gz".as_ref()),
         };
 
         super::delete_file(path, trash.clone(), None::<&Path>)
@@ -476,8 +458,8 @@ mod tests {
             .unwrap();
 
         let path = FilePath {
-            base: Arc::from(repo.to_string_lossy().to_string()),
-            file: Arc::from("file.txt"),
+            base: Arc::from(repo.as_ref()),
+            file: Arc::from("file.txt".as_ref()),
         };
 
         super::delete_file(path, &fallback_trash, Some(Path::new(".trash")))

@@ -1,5 +1,6 @@
 #![cfg(feature = "server")]
 
+use std::path::Path;
 use std::sync::Arc;
 
 use super::File;
@@ -11,33 +12,33 @@ use crate::text_editor::side::SideViewList;
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct LoadFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct ListFolderRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct FileExistsRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct PruneSideViewRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "b"))]
-    pub base: Arc<str>,
+    pub base: Arc<Path>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub tree: Arc<SideViewList>,
+    pub tree: Arc<SideViewList<()>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct StoreFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
     pub content: String,
 }
@@ -45,7 +46,7 @@ pub struct StoreFileRequest {
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct CreateEntryRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: String,
 }
@@ -53,7 +54,7 @@ pub struct CreateEntryRequest {
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct DeleteFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
 }
 
 remote_fn_service::unary::declare_remote_fn!(
@@ -93,7 +94,7 @@ remote_fn_service::unary::declare_remote_fn!(
     PRUNE_SIDE_VIEW_REMOTE_FN,
     super::PRUNE_SIDE_VIEW,
     PruneSideViewRequest,
-    Option<Arc<SideViewList>>,
+    Option<Arc<SideViewList<()>>>,
     |_server, arg: PruneSideViewRequest| async {
         let result = super::service::prune_side_view(arg.base, arg.tree).await;
         result.map_err(GrpcError::from)

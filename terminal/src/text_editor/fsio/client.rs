@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -32,15 +33,15 @@ pub async fn list_folder(
     super::list_folder(remote, path).await
 }
 
-pub async fn file_exists(remote: Remote, path: FilePath<Arc<str>>) -> Result<bool, ServerFnError> {
+pub async fn file_exists(remote: Remote, path: FilePath<Arc<Path>>) -> Result<bool, ServerFnError> {
     super::file_exists(remote, path).await
 }
 
 pub async fn prune_side_view(
     remote: Remote,
     base: Arc<str>,
-    tree: Arc<SideViewList>,
-) -> Result<Option<Arc<SideViewList>>, ServerFnError> {
+    tree: Arc<SideViewList<()>>,
+) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
     super::prune_side_view(remote, base, tree).await
 }
 

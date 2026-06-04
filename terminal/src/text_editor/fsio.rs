@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -101,7 +102,7 @@ async fn list_folder(
 #[nameth]
 async fn file_exists(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<bool, ServerFnError> {
     Ok(remote::FILE_EXISTS_REMOTE_FN
         .call(remote, remote::FileExistsRequest { path })
@@ -113,8 +114,8 @@ async fn file_exists(
 async fn prune_side_view(
     remote: ClientAddress,
     base: Arc<str>,
-    tree: Arc<SideViewList>,
-) -> Result<Option<Arc<SideViewList>>, ServerFnError> {
+    tree: Arc<SideViewList<()>>,
+) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
     Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
         .call(remote, remote::PruneSideViewRequest { base, tree })
         .await?)

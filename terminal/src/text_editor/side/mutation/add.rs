@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -25,9 +24,9 @@ pub fn add_node_rec(
         None => add_node_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
         Some(item) => {
             if relative_path.peek().is_none() {
-                add_node_leaf(tree, node, item)
+                add_node_leaf(tree, node, item.as_ref())
             } else {
-                add_node_rec_folder(manager, tree, path, relative_path, node, item)
+                add_node_rec_folder(manager, tree, path, relative_path, node, item.as_ref())
             }
         }
     }
@@ -36,20 +35,19 @@ pub fn add_node_rec(
 fn add_node_leaf(
     tree: Arc<SideViewList>,
     node: SideViewNode,
-    child_name: &OsStr,
+    child_name: &Path,
 ) -> Arc<SideViewList> {
-    let child_name = child_name.to_string_lossy();
     #[cfg(debug_assertions)]
-    match tree.get(child_name.as_ref()) {
+    match tree.get(child_name) {
         Some(child) => match &child.item {
-            SvnItem::Folder { .. } => warn!("Replace folder {child_name}"),
-            SvnItem::File { .. } => debug!("Replace file {child_name}"),
+            SvnItem::Folder { .. } => warn!("Replace folder {child_name:?}"),
+            SvnItem::File { .. } => debug!("Replace file {child_name:?}"),
         },
-        None => debug!("Add new file {child_name}"),
+        None => debug!("Add new file {child_name:?}"),
     }
     let mut new_tree = (*tree).clone();
-    new_tree.insert(child_name.into(), Arc::new(node));
-    Arc::new(new_tree)
+    new_tree.insert(child_name.into(), node.into());
+    new_tree.into()
 }
 
 fn add_node_rec_folder(
@@ -58,24 +56,23 @@ fn add_node_rec_folder(
     path: &FilePath<Arc<Path>>,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
     node: SideViewNode,
-    folder_name: &OsStr,
+    folder_name: &Path,
 ) -> Arc<SideViewList> {
-    let folder_name = folder_name.to_string_lossy();
-    let folder = match tree.get(folder_name.as_ref()) {
+    let folder = match tree.get(folder_name) {
         Some(child) => match &child.item {
             SvnItem::Folder { folder, notify: _ } => {
-                debug!("Adding to folder {folder_name}");
+                debug!("Adding to folder {folder_name:?}");
                 folder.clone()
             }
             SvnItem::File { .. } => {
                 #[cfg(debug_assertions)]
-                warn!("Replace file {folder_name}");
+                warn!("Replace file {folder_name:?}");
                 Arc::default()
             }
         },
         None => {
             #[cfg(debug_assertions)]
-            debug!("Add new folder {folder_name}");
+            debug!("Add new folder {folder_name:?}");
             Arc::default()
         }
     };
@@ -83,17 +80,16 @@ fn add_node_rec_folder(
     let folder = add_node_rec(manager, folder, path, relative_path, node);
     new_tree.insert(
         folder_name.into(),
-        Arc::new({
-            SideViewNode {
-                properties: SvnProperties {
-                    status: SvnStatus::Active,
-                },
-                item: SvnItem::Folder {
-                    folder,
-                    notify: manager.watch_side_view_folder(path).into(),
-                },
-            }
-        }),
+        SideViewNode {
+            properties: SvnProperties {
+                status: SvnStatus::Active,
+            },
+            item: SvnItem::Folder {
+                folder,
+                notify: manager.watch_side_view_folder(path).into(),
+            },
+        }
+        .into(),
     );
-    Arc::new(new_tree)
+    new_tree.into()
 }

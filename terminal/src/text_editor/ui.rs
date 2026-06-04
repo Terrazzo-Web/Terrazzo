@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -24,6 +25,7 @@ use super::manager::EditorDataState;
 use super::manager::EditorState;
 use super::manager::TextEditorManager;
 use super::notify::ui::NotifyService;
+use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
 use super::side::mutation::side_view_notify_registrations;
@@ -39,7 +41,7 @@ use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::text_editor::search::state::EditorSearchState;
+use crate::text_editor::manager;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -74,8 +76,8 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         tile,
         remote: remote.clone(),
         path: FilePath {
-            base: XSignal::new("base-path", Arc::default()),
-            file: XSignal::new("file-path", Arc::default()),
+            base: XSignal::new("base-path", Path::new("").into()),
+            file: XSignal::new("file-path", Path::new("").into()),
         },
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
@@ -146,6 +148,7 @@ fn editor_body(
         class = "editor-body",
         show_side_view(
             manager.clone(),
+            manager.path.base.clone(),
             manager.side_view.clone(),
             side_view_resize_manager.clone(),
         ),
@@ -174,29 +177,30 @@ fn toggle_editor_diff(
     if !has_diff {
         return tag(style::display = "none", style::visibility = "hidden");
     }
-    img(
+
+    #[template(wrap = true)]
+    fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
+        show_editor_diff.then_some(style::ACTIVE)
+    }
+
+    #[template(wrap = true)]
+    fn make_title(#[signal] show_editor_diff: bool) -> XAttributeValue {
+        if show_editor_diff {
+            "Hide diff"
+        } else {
+            "Show diff"
+        }
+    }
+
+    return img(
         class = style::TOGGLE_EDITOR_DIFF,
-        class %= toggle_editor_diff_class(show_editor_diff.clone()),
+        class %= make_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "toggle-editor-diff",
         src = icons::split_vert(),
-        title %= toggle_editor_diff_title(show_editor_diff.clone()),
+        title %= make_title(show_editor_diff.clone()),
         click = move |_| show_editor_diff.update(|show| Some(!show)),
-    )
-}
-
-#[template(wrap = true)]
-fn toggle_editor_diff_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
-    show_editor_diff.then_some(style::ACTIVE)
-}
-
-#[template(wrap = true)]
-fn toggle_editor_diff_title(#[signal] show_editor_diff: bool) -> XAttributeValue {
-    if show_editor_diff {
-        "Hide diff"
-    } else {
-        "Show diff"
-    }
+    );
 }
 
 #[template(wrap = true)]
@@ -283,7 +287,7 @@ impl TextEditorManager {
                     .append(this.path.base.add_subscriber(move |_base_path| {
                         autoclone!(this);
                         this.side_view.force(Arc::default());
-                        this.path.file.force(Arc::default());
+                        this.path.file.force(Arc::from(Path::new("")));
                     }))
             });
             let tile_id = this.tile.id;
@@ -305,24 +309,14 @@ impl TextEditorManager {
             if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
                 let base_path = this.path.base.get_value_untracked();
-                match fsio::client::prune_side_view(
-                    this.remote.clone(),
-                    base_path.clone(),
-                    side_view.clone(),
-                )
-                .await
-                {
-                    Ok(Some(pruned_side_view)) => {
+                match fsio::client::prune_side_view(this.clone(), side_view.clone()).await {
+                    Ok(pruned_side_view) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
                         this.side_view.force(side_view_notify_registrations(
                             &this,
                             base_path,
                             pruned_side_view,
                         ));
-                    }
-                    Ok(None) => {
-                        this.side_view
-                            .force(side_view_notify_registrations(&this, base_path, side_view));
                     }
                     Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
                 }
@@ -357,9 +351,7 @@ impl TextEditorManager {
                     .unwrap_or_else(|error| Some(fsio::File::Error(error.to_string())))
                     .map(Arc::new);
 
-                if this.path.base.get_value_untracked() != path.base
-                    || this.path.file.get_value_untracked() != path.file
-                {
+                if this.path.as_ref().map(|s| s.get_value_untracked()) != path {
                     debug!("Ignoring stale file load for {:?}", path);
                     drop(loading);
                     return;

@@ -67,9 +67,8 @@ impl<B, F> FilePath<B, F> {
 mod tests {
     use std::path::Path;
 
-    use crate::utils::more_path::MorePath;
-
     use super::FilePath;
+    use crate::utils::more_path::MorePath;
 
     #[test]
     fn full_path() {

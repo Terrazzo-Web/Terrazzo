@@ -1,5 +1,5 @@
-use std::ffi::OsStr;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
@@ -20,9 +20,9 @@ pub enum RemoveFileError {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
     ExpectedFolder(Arc<str>),
 
-    #[error("[{n}] Parent folder does not exist: {0}", n = self.name())]
+    #[error("[{n}] Parent folder does not exist: {0:?}", n = self.name())]
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
-    ParentNotFound(Arc<str>),
+    ParentNotFound(PathBuf),
 
     #[error("[{n}] The file was not found", n = self.name())]
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
@@ -37,9 +37,9 @@ pub fn remove_node_rec(
         None => remove_node_rec(tree, Path::new("/").iter().peekable()),
         Some(item) => {
             if relative_path.peek().is_none() {
-                remove_node_leaf(tree, item)
+                remove_node_leaf(tree, item.as_ref())
             } else {
-                remove_node_rec_folder(tree, item, relative_path)
+                remove_node_rec_folder(tree, item.as_ref(), relative_path)
             }
         }
     }
@@ -47,35 +47,33 @@ pub fn remove_node_rec(
 
 fn remove_node_leaf(
     tree: Arc<SideViewList>,
-    child_name: &OsStr,
+    child_name: &Path,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
-    let child_name = child_name.to_string_lossy();
     #[cfg(debug_assertions)]
-    match tree.get(child_name.as_ref()) {
+    match tree.get(child_name) {
         Some(child) => match &child.item {
-            SvnItem::Folder { .. } => debug!("Remove folder {child_name}"),
-            SvnItem::File { .. } => debug!("Remove file {child_name}"),
+            SvnItem::Folder { .. } => debug!("Remove folder {child_name:?}"),
+            SvnItem::File { .. } => debug!("Remove file {child_name:?}"),
         },
         None => {
-            debug!("The file wasn't here {child_name}");
+            debug!("The file wasn't here {child_name:?}");
             return Err(RemoveFileError::FileNotFound);
         }
     }
-    let mut new_tree = (**tree).clone();
-    new_tree.remove(child_name.as_ref());
-    Ok(Arc::new(new_tree.into()))
+    let mut new_tree = (*tree).clone();
+    new_tree.remove(child_name);
+    Ok(new_tree.into())
 }
 
 fn remove_node_rec_folder(
     tree: Arc<SideViewList>,
-    folder_name: &OsStr,
+    folder_name: &Path,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
-    let folder_name = folder_name.to_string_lossy();
-    let (children, children_notify) = match tree.get(folder_name.as_ref()) {
+    let (children, children_notify) = match tree.get(folder_name) {
         Some(child) => match &child.item {
             SvnItem::Folder { folder, notify } => {
-                debug!("Removing from folder {folder_name}");
+                debug!("Removing from folder {folder_name:?}");
                 (folder.clone(), notify.clone())
             }
             SvnItem::File { metadata } => {
@@ -83,14 +81,14 @@ fn remove_node_rec_folder(
             }
         },
         None => {
-            return Err(RemoveFileError::ParentNotFound(folder_name.into()));
+            return Err(RemoveFileError::ParentNotFound(folder_name.to_owned()));
         }
     };
     let mut new_tree = (*tree).clone();
     let children = remove_node_rec(children, relative_path)?;
     new_tree.insert(
         folder_name.into(),
-        Arc::new(SideViewNode {
+        SideViewNode {
             properties: SvnProperties {
                 status: SvnStatus::Active,
             },
@@ -98,7 +96,8 @@ fn remove_node_rec_folder(
                 folder: children,
                 notify: children_notify,
             },
-        }),
+        }
+        .into(),
     );
-    Ok(Arc::new(new_tree))
+    Ok(new_tree.into())
 }

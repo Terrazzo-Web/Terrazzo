@@ -6,12 +6,11 @@ use std::sync::Arc;
 use terrazzo::autoclone;
 use terrazzo::prelude::Ptr;
 
+use super::server_fn::NotifyResponse;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
-
-use super::server_fn::NotifyResponse;
 
 pub trait SideViewNotify {
     fn watch_side_view_folder(&self, path: &FilePath<Arc<Path>>) -> OpaqueNotifyRegistration;

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
-use self::diagnostics::warn;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::notify::manager::SideViewNotify;
 use crate::text_editor::side::SideViewList;

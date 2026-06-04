@@ -29,6 +29,7 @@ use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
 use super::side::mutation::side_view_notify_registrations;
+use super::side::mutation::side_view_without_notify_registrations;
 use super::side::ui::show_side_view;
 use super::state;
 use super::style;
@@ -281,7 +282,7 @@ impl TextEditorManager {
                 *consumers.lock().unwrap() = registrations
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
-                    .append(this.save_on_change(this.side_view.clone(), state::side_view::set))
+                    .append(this.save_side_view_on_change())
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
                     .append(this.path.base.add_subscriber(move |_base_path| {
                         autoclone!(this);
@@ -378,6 +379,21 @@ impl TextEditorManager {
                 drop(loading);
             };
             spawn_local(task);
+        })
+    }
+
+    #[autoclone]
+    fn save_side_view_on_change(&self) -> Consumers {
+        let tile_id = self.tile.id;
+        let remote = self.remote.clone();
+        self.side_view.add_subscriber(move |side_view| {
+            spawn_local(async move {
+                autoclone!(remote);
+                let side_view = side_view_without_notify_registrations(side_view);
+                let () = state::side_view::set(Some(tile_id), remote, side_view)
+                    .await
+                    .unwrap_or_else(|error| warn!("Failed to save: {error}"));
+            })
         })
     }
 

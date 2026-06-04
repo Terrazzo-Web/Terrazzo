@@ -20,7 +20,6 @@ use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
-use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "folder.scss");
 
@@ -71,7 +70,7 @@ pub fn folder(
             click = move |_| {
                 autoclone!(manager, file_path, name);
                 let file = folder_entry_path(&file_path, &name);
-                manager.path.file.set(file.to_owned_string())
+                manager.path.file.set(file)
             },
             td(
                 #[cfg(not(feature = "client-prod"))]
@@ -118,7 +117,7 @@ pub fn folder(
 #[html]
 fn trash_action(
     manager: Ptr<TextEditorManager>,
-    folder_path: Arc<str>,
+    folder_path: Arc<Path>,
     name: Arc<str>,
 ) -> XElement {
     if &*name == ".." {
@@ -135,9 +134,7 @@ fn trash_action(
             event.stop_propagation();
             let path = crate::text_editor::file_path::FilePath {
                 base: manager.path.base.get_value_untracked(),
-                file: folder_entry_path(&folder_path, &name)
-                    .to_owned_string()
-                    .into(),
+                file: folder_entry_path(&folder_path, &name).into(),
             };
             spawn_local(delete_file(manager.clone(), folder_path.clone(), path));
         },
@@ -146,8 +143,8 @@ fn trash_action(
 
 async fn delete_file(
     manager: Ptr<TextEditorManager>,
-    folder_path: Arc<str>,
-    path: crate::text_editor::file_path::FilePath<Arc<str>>,
+    folder_path: Arc<Path>,
+    path: crate::text_editor::file_path::FilePath<Arc<Path>>,
 ) {
     let result = crate::text_editor::fsio::client::delete_file(manager.remote.clone(), path).await;
     if let Err(error) = result {
@@ -161,23 +158,32 @@ async fn delete_file(
     }
 }
 
-fn folder_entry_path(folder_path: &str, name: &str) -> std::path::PathBuf {
-    let folder_path = folder_path.trim_start_matches('/');
+fn folder_entry_path(folder_path: &Path, name: &str) -> std::path::PathBuf {
+    let folder_path = folder_path.strip_prefix("/").unwrap_or(folder_path);
     if name == ".." {
-        Path::new(folder_path)
+        folder_path
             .parent()
             .map(Path::to_owned)
             .unwrap_or_default()
     } else {
-        Path::new(folder_path).join(name)
+        folder_path.join(name)
     }
 }
 
-#[derive(Default)]
 struct FolderState {
     parent: Option<FileMetadata>,
     notify_registration: Option<Ptr<NotifyRegistration>>,
-    file_path: Arc<str>,
+    file_path: Arc<Path>,
+}
+
+impl Default for FolderState {
+    fn default() -> Self {
+        Self {
+            parent: Default::default(),
+            notify_registration: Default::default(),
+            file_path: Path::new("").into(),
+        }
+    }
 }
 
 #[autoclone]
@@ -192,7 +198,7 @@ fn process_folder_state(
     let path = &editor_state.path;
     let file_path = &path.file;
 
-    let parent_path = Path::new(file_path.as_ref()).parent();
+    let parent_path = file_path.parent();
     let parent = parent_path.map(|_| FileMetadata {
         name: "..".into(),
         is_dir: true,
@@ -208,7 +214,8 @@ fn process_folder_state(
                 let EventKind::File(kind) = event.kind else {
                     return;
                 };
-                match (Path::new(&event.path) == path.as_deref().full_path(), kind) {
+                let full_path = path.as_deref().full_path();
+                match (event.path.as_ref() == full_path.as_path(), kind) {
                     (
                         false,
                         FileEventKind::Create | FileEventKind::Modify | FileEventKind::Delete,
@@ -225,9 +232,8 @@ fn process_folder_state(
                     (true, FileEventKind::Delete) => {
                         debug!("The folder was deleted");
                         manager.path.file.update(|file_path| {
-                            let file_path = Path::new(file_path.as_ref());
                             let parent = file_path.parent().unwrap_or_else(|| "/".as_ref());
-                            Some(parent.to_owned_string().into())
+                            Some(Arc::from(parent))
                         });
                         return;
                     }

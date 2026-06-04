@@ -56,14 +56,13 @@ pub enum SvnItem<R = opaque::OpaqueNotifyRegistration> {
 }
 
 pub mod opaque {
+    #[cfg(feature = "client")]
     use std::any::Any;
+    #[cfg(feature = "client")]
     use std::rc::Rc;
 
-    pub trait T: Clone {}
-    impl<TT: Clone> T for TT {}
-
     #[cfg(feature = "server")]
-    type OpaqueNotifyRegistration = ();
+    pub type OpaqueNotifyRegistration = ();
 
     #[cfg(feature = "client")]
     #[derive(Clone)]
@@ -88,7 +87,9 @@ pub mod opaque {
         }
     }
 
+    #[cfg(feature = "client")]
     unsafe impl Send for OpaqueNotifyRegistration {}
+    #[cfg(feature = "client")]
     unsafe impl Sync for OpaqueNotifyRegistration {}
 }
 

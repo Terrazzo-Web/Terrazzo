@@ -1,4 +1,5 @@
 use std::pin::Pin;
+use std::path::PathBuf;
 use std::task::Context;
 use std::task::Poll;
 use std::task::ready;
@@ -62,7 +63,7 @@ fn poll_next_local_some(
         None => EventKind::File(FileEventKind::Error),
     };
     Ok(NotifyResponse {
-        path: response.path,
+        path: PathBuf::from(response.path).into(),
         kind,
     })
 }

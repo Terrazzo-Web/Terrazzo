@@ -13,7 +13,6 @@ use super::file_path::FilePath;
 use super::side::SideViewList;
 use crate::api::client_address::ClientAddress;
 
-pub mod canonical;
 pub mod client;
 mod fsmetadata;
 mod git;

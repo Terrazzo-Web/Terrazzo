@@ -28,8 +28,8 @@ use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
-use super::side::mutation::side_view_notify_registrations;
-use super::side::mutation::side_view_without_notify_registrations;
+use super::side::mutation::live_side_view;
+use super::side::mutation::stored_side_view;
 use super::side::ui::show_side_view;
 use super::state;
 use super::style;
@@ -318,9 +318,9 @@ impl TextEditorManager {
                 {
                     Ok(pruned_side_view) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
-                        this.side_view.force(side_view_notify_registrations(
+                        this.side_view.force(live_side_view(
                             &this,
-                            base_path,
+                            &base_path,
                             pruned_side_view.unwrap_or(side_view),
                         ));
                     }
@@ -389,7 +389,7 @@ impl TextEditorManager {
         self.side_view.add_subscriber(move |side_view| {
             spawn_local(async move {
                 autoclone!(remote);
-                let side_view = side_view_without_notify_registrations(side_view);
+                let side_view = stored_side_view(side_view);
                 let () = state::side_view::set(Some(tile_id), remote, side_view)
                     .await
                     .unwrap_or_else(|error| warn!("Failed to save: {error}"));

@@ -168,15 +168,15 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
     Arc::new(new_tree)
 }
 
-pub fn side_view_notify_registrations(
+pub fn live_side_view(
     manager: &Ptr<TextEditorManager>,
-    base: Arc<Path>,
+    base: &Arc<Path>,
     side_view: Arc<SideViewList<()>>,
 ) -> Arc<SideViewList> {
-    side_view_notify_registrations_rec(manager, &base, PathBuf::new(), side_view)
+    live_side_view_rec(manager, base, PathBuf::new(), side_view)
 }
 
-fn side_view_notify_registrations_rec(
+fn live_side_view_rec(
     manager: &Ptr<TextEditorManager>,
     base: &Arc<Path>,
     parent_path: PathBuf,
@@ -193,12 +193,7 @@ fn side_view_notify_registrations_rec(
                 Arc::new(SideViewNode {
                     properties: child.properties.clone(),
                     item: SvnItem::Folder {
-                        folder: side_view_notify_registrations_rec(
-                            manager,
-                            base,
-                            path.clone(),
-                            children.clone(),
-                        ),
+                        folder: live_side_view_rec(manager, base, path.clone(), children.clone()),
                         notify: manager
                             .watch_side_view_folder(&FilePath {
                                 base: base.clone(),
@@ -218,4 +213,27 @@ fn side_view_notify_registrations_rec(
         active.insert(name.clone(), child);
     }
     Arc::new(active)
+}
+
+pub fn stored_side_view(side_view: Arc<SideViewList>) -> Arc<SideViewList<()>> {
+    let mut persisted = SideViewList::default();
+    for (name, child) in side_view.iter() {
+        let child = match &child.item {
+            SvnItem::Folder { folder, notify: _ } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::Folder {
+                    folder: stored_side_view(folder.clone()),
+                    notify: (),
+                },
+            }),
+            SvnItem::File { metadata } => Arc::new(SideViewNode {
+                properties: child.properties.clone(),
+                item: SvnItem::File {
+                    metadata: metadata.clone(),
+                },
+            }),
+        };
+        persisted.insert(name.clone(), child);
+    }
+    Arc::new(persisted)
 }

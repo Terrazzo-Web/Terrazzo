@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -137,10 +138,13 @@ fn do_autocomplete_impl(
         let autocompletes = autocomplete_path(
             manager.remote.clone(),
             kind,
-            prefix
-                .as_ref()
-                .map(XSignal::get_value_untracked)
-                .unwrap_or_default(),
+            Arc::from(Path::new(
+                prefix
+                    .as_ref()
+                    .map(XSignal::get_value_untracked)
+                    .unwrap_or_default()
+                    .trim(),
+            )),
             value,
         )
         .await

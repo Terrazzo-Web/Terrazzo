@@ -2,17 +2,20 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
 
-use terrazzo::prelude::Ptr;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
 use self::diagnostics::warn;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::side::{SideViewList, SideViewNode, SvnItem, SvnProperties, SvnStatus};
+use crate::text_editor::notify::manager::SideViewNotify;
+use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SvnItem;
+use crate::text_editor::side::SvnProperties;
+use crate::text_editor::side::SvnStatus;
 
 pub fn add_file_rec(
-    manager: &Ptr<TextEditorManager>,
+    manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
@@ -50,7 +53,7 @@ fn add_file_leaf(
 }
 
 fn add_file_node(
-    manager: &Ptr<TextEditorManager>,
+    manager: &impl SideViewNotify,
     tree: Arc<SideViewList>,
     path: &FilePath<Arc<Path>>,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,

@@ -2,11 +2,16 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
 
+use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
-use crate::text_editor::side::{SideViewList, SideViewNode, SvnItem, SvnProperties, SvnStatus};
+use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SvnItem;
+use crate::text_editor::side::SvnProperties;
+use crate::text_editor::side::SvnStatus;
 
 #[nameth]
 #[derive(thiserror::Error, Debug, serde::Serialize, serde::Deserialize)]

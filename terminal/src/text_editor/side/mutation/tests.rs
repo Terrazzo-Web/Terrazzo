@@ -1,11 +1,33 @@
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::SideViewList;
 use super::SideViewNode;
 use super::SvnStatus;
+use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
+use crate::text_editor::notify::manager::SideViewNotify;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
+use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
+
+struct DummyManager;
+
+impl SideViewNotify for DummyManager {
+    fn watch_side_view_folder(&self, _path: &FilePath<Arc<Path>>) -> OpaqueNotifyRegistration {
+        Default::default()
+    }
+}
+
+fn make_test_path(path: &str) -> FilePath<Arc<Path>> {
+    FilePath {
+        base: "/path/from/root",
+        file: path,
+    }
+    .map(PathBuf::from)
+    .map(Arc::from)
+}
 
 #[test]
 fn add_file() {
@@ -29,8 +51,9 @@ fn add_file() {
         },
     };
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c1.txt")],
+        &make_test_path("/a1/b1/c1.txt"),
         make_file("c1.txt"),
     );
     assert_eq!(
@@ -53,8 +76,9 @@ fn add_file() {
     );
 
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c2.txt")],
+        &make_test_path("/a1/b1/c2.txt"),
         make_file("c2.txt"),
     );
     assert_eq!(
@@ -80,8 +104,9 @@ fn add_file() {
     );
 
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b2"), Arc::from("c3.txt")],
+        &make_test_path("/a1/b2/c3.txt"),
         make_file("c2.txt"),
     );
     assert_eq!(
@@ -115,8 +140,9 @@ fn add_file() {
 
     // Folder --> File
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1")],
+        &make_test_path("/a1/b1"),
         make_file("b1.txt"),
     );
     assert_eq!(
@@ -143,8 +169,9 @@ fn add_file() {
 
     // File --> Folder
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c1.txt")],
+        &make_test_path("/a1/b1/c1.txt"),
         make_file("c1.txt"),
     );
     assert_eq!(
@@ -196,8 +223,9 @@ fn remove_file() {
         },
     };
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c1.txt")],
+        &make_test_path("/a1/b1/c1.txt"),
         make_file("c1.txt"),
     );
     assert_eq!(
@@ -220,8 +248,9 @@ fn remove_file() {
     );
 
     let tree = super::add_file(
+        &DummyManager,
         tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c2.txt")],
+        &make_test_path("/a1/b1/c2.txt"),
         make_file("c2.txt"),
     );
     assert_eq!(
@@ -247,51 +276,27 @@ fn remove_file() {
     );
 
     // Remove file: ExpectedFolder
-    let error = super::remove_file(
-        tree.clone(),
-        &[
-            Arc::from("a1"),
-            Arc::from("b1"),
-            Arc::from("c2.txt"),
-            Arc::from("not_found.txt"),
-        ],
-    )
-    .unwrap_err();
+    let error = super::remove_file(tree.clone(), &make_test_path("/a1/b1/c2.txt/not_found.txt"))
+        .unwrap_err();
     assert_eq!(
         "[ExpectedFolder] File can't be a child of file c2.txt",
         format!("{error}")
     );
 
     // Remove file: ParentNotFound
-    let error = super::remove_file(
-        tree.clone(),
-        &[
-            Arc::from("a1"),
-            Arc::from("b1"),
-            Arc::from("c3.txt"),
-            Arc::from("not_found.txt"),
-        ],
-    )
-    .unwrap_err();
+    let error = super::remove_file(tree.clone(), &make_test_path("/a1/b1/c3.txt/not_found.txt"))
+        .unwrap_err();
     assert_eq!(
         "[ParentNotFound] Parent folder does not exist: c3.txt",
         format!("{error}")
     );
 
     // Remove file: FileNotFound
-    let error = super::remove_file(
-        tree.clone(),
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c3.txt")],
-    )
-    .unwrap_err();
+    let error = super::remove_file(tree.clone(), &make_test_path("/a1/b1/c3.txt")).unwrap_err();
     assert_eq!("[FileNotFound] The file was not found", format!("{error}"));
 
     // Remove file
-    let tree = super::remove_file(
-        tree,
-        &[Arc::from("a1"), Arc::from("b1"), Arc::from("c2.txt")],
-    )
-    .unwrap();
+    let tree = super::remove_file(tree, &make_test_path("/a1/b1/c2.txt")).unwrap();
     assert_eq!(
         r#"
 {
@@ -312,7 +317,7 @@ fn remove_file() {
     );
 
     // Remove folder
-    let tree = super::remove_file(tree, &[Arc::from("a1"), Arc::from("b1")]).unwrap();
+    let tree = super::remove_file(tree, &make_test_path("/a1/b1")).unwrap();
     assert_eq!(
         r#"
 {

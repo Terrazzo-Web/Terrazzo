@@ -83,7 +83,7 @@ impl NotifyService {
     #[must_use]
     pub fn watch_folder(
         self: &Ptr<Self>,
-        full_path: &FilePath<Arc<str>>,
+        full_path: &FilePath<Arc<Path>>,
         callback: impl Fn(&NotifyResponse) + 'static,
     ) -> Ptr<NotifyRegistration> {
         self.add_handler(full_path, RegistrationType::Folder, callback)

@@ -20,7 +20,7 @@ pub enum RemoveFileError {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
     ExpectedFolder(Arc<str>),
 
-    #[error("[{n}] Parent folder does not exist: {0:?}", n = self.name())]
+    #[error("[{n}] Parent folder does not exist: {0}", n = self.name())]
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
     ParentNotFound(PathBuf),
 

@@ -2,6 +2,8 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::utils::more_path::MorePathRef as _;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 /* serde */
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -14,7 +16,13 @@ pub struct FilePath<BASE, FILE = BASE> {
 
 impl<B: AsRef<Path>, F: AsRef<Path>> FilePath<B, F> {
     pub fn full_path(&self) -> PathBuf {
-        self.base.as_ref().join(self.file.as_ref())
+        let base = self.base.as_ref();
+        let file = self.file.as_ref().make_relative();
+        if base.is_absolute() {
+            base.join(file)
+        } else {
+            Path::new("/").join(base).join(file)
+        }
     }
 }
 
@@ -52,5 +60,49 @@ impl<B, F> FilePath<B, F> {
             base: b(self.base),
             file: f(self.file),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::utils::more_path::MorePath;
+
+    use super::FilePath;
+
+    #[test]
+    fn full_path() {
+        let actual = FilePath {
+            base: "/",
+            file: "/",
+        }
+        .full_path();
+        assert_eq!(Path::new("/"), actual);
+        assert_eq!("/", actual.to_owned_string());
+
+        let actual = FilePath {
+            base: "/a",
+            file: "/b/",
+        }
+        .full_path();
+        assert_eq!(Path::new("/a/b"), actual);
+        assert_eq!("/a/b", actual.to_owned_string());
+
+        let actual = FilePath {
+            base: "a",
+            file: "/b/",
+        }
+        .full_path();
+        assert_eq!(Path::new("/a/b"), actual);
+        assert_eq!("/a/b", actual.to_owned_string());
+
+        let actual = FilePath {
+            base: "a",
+            file: "b",
+        }
+        .full_path();
+        assert_eq!(Path::new("/a/b"), actual);
+        assert_eq!("/a/b", actual.to_owned_string());
     }
 }

@@ -123,7 +123,7 @@ impl<R> From<SideViewList<R>> for BTreeMap<Arc<Path>, Arc<SideViewNode<R>>> {
 
 impl<R> std::fmt::Debug for SideViewList<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("SideViewList").field(&self.0).finish()
+        self.0.fmt(f)
     }
 }
 

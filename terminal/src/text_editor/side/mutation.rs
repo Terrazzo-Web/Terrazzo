@@ -198,8 +198,7 @@ fn live_side_view_rec(
                             .watch_side_view_folder(&FilePath {
                                 base: base.clone(),
                                 file: path.into(),
-                            })
-                            .into(),
+                            }),
                     },
                 })
             }

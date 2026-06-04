@@ -24,6 +24,7 @@ use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::mutation::filter_active_folder_content;
 use crate::text_editor::side::mutation::show_folder_content;
+#[cfg(not(feature = "client-prod"))]
 use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");

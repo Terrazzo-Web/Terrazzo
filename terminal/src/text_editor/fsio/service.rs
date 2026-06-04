@@ -150,7 +150,7 @@ pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<()
 
 pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
     let name = name.trim();
-    let path = create_entry_path(path, &name)?;
+    let path = create_entry_path(path, name)?;
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -163,7 +163,7 @@ pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), 
 
 pub async fn create_folder(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
     let name = name.trim();
-    let path = create_entry_path(path, &name)?;
+    let path = create_entry_path(path, name)?;
     tokio::fs::create_dir(path).await?;
     Ok(())
 }

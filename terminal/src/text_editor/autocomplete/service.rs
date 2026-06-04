@@ -47,7 +47,7 @@ pub fn autocomplete_path(
         }
         .full_path()
     };
-    autocomplete_path_impl(prefix.as_ref(), &path, options, |m| kind.accept(m))
+    autocomplete_path_impl(prefix, &path, options, |m| kind.accept(m))
 }
 
 #[derive(Debug, Default)]
@@ -69,14 +69,14 @@ fn autocomplete_path_impl(
     {
         if metadata.is_dir() {
             debug!("List directory");
-            return list_folders(prefix, path.parent(), &path, leaf_filter);
+            return list_folders(prefix, path.parent(), path, leaf_filter);
         } else {
             debug!("List parent directory");
             let parent = path.parent().unwrap_or(ROOT.as_ref());
             return list_folders(prefix, Some(parent), parent, leaf_filter);
         }
     }
-    return resolve_path(prefix, &path, options, leaf_filter);
+    return resolve_path(prefix, path, options, leaf_filter);
 }
 
 fn list_folders(

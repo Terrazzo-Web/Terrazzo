@@ -4,6 +4,8 @@ use std::sync::Arc;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
+#[cfg(debug_assertions)]
+use self::diagnostics::warn;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::notify::manager::SideViewNotify;
 use crate::text_editor::side::SideViewList;
@@ -87,7 +89,7 @@ fn add_node_rec_folder(
             },
             item: SvnItem::Folder {
                 folder,
-                notify: manager.watch_side_view_folder(path).into(),
+                notify: manager.watch_side_view_folder(path),
             },
         }
         .into(),

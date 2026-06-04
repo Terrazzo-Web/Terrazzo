@@ -33,7 +33,7 @@ pub fn show_autocomplete(
     input: ElementCapture<HtmlInputElement>,
     autocomplete_sig: XSignal<Option<Vec<AutocompleteItem>>>,
     #[signal] autocomplete: Option<Vec<AutocompleteItem>>,
-    path: XSignal<Arc<str>>,
+    path: XSignal<Arc<Path>>,
 ) -> XElement {
     let Some(autocomplete) = autocomplete else {
         return tag(style::visibility = "hidden", style::display = "none");
@@ -55,7 +55,7 @@ pub fn show_autocomplete(
                 ev.stop_propagation();
                 {
                     input.with(|i| i.set_value(&item.path));
-                    path.set(item.path.as_str());
+                    path.set(Arc::from(Path::new(item.path.as_str().trim())));
                 }
                 do_autocomplete_impl(
                     manager.clone(),
@@ -95,14 +95,15 @@ pub fn start_autocomplete(
 }
 
 pub fn stop_autocomplete(
-    path: XSignal<Arc<str>>,
+    path: XSignal<Arc<Path>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
     move |_| {
         let value = input.with(|i| i.value());
+        let value = value.trim();
         info!("Update path to {value}");
-        path.set(value);
+        path.set(Arc::from(Path::new(value)));
         autocomplete.set(None);
     }
 }

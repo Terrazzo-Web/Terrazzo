@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::path::Path;
 use std::sync::Arc;
 
 use nameth::NamedEnumValues as _;
@@ -23,7 +24,7 @@ use crate::text_editor::style;
 
 impl TextEditorManager {
     pub fn base_path_selector(self: &Ptr<Self>) -> XElement {
-        path_selector_impll(
+        path_selector_impl(
             self.clone(),
             PathSelector::BasePath,
             None,
@@ -33,7 +34,7 @@ impl TextEditorManager {
     }
 
     pub fn file_path_selector(self: &Ptr<Self>) -> XElement {
-        path_selector_impll(
+        path_selector_impl(
             self.clone(),
             PathSelector::FilePath,
             Some(self.path.base.clone()),
@@ -45,11 +46,11 @@ impl TextEditorManager {
 
 #[html]
 #[template(tag = div)]
-fn path_selector_impll(
+fn path_selector_impl(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
-    path: XSignal<Arc<str>>,
+    prefix: Option<XSignal<Arc<Path>>>,
+    path: XSignal<Arc<Path>>,
     #[signal] mut force_edit_path: bool,
 ) -> XElement {
     let show_input = kind == PathSelector::FilePath || force_edit_path;
@@ -70,8 +71,8 @@ fn path_selector_impll(
 fn path_selector_input(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
-    path: XSignal<Arc<str>>,
+    prefix: Option<XSignal<Arc<Path>>>,
+    path: XSignal<Arc<Path>>,
 ) -> XElement {
     let autocomplete: XSignal<Option<Vec<AutocompleteItem>>> = XSignal::new(kind.name(), None);
     let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
@@ -86,7 +87,7 @@ fn path_selector_input(
     let onchange = path.add_subscriber(move |new| {
         autoclone!(input);
         let () = input
-            .try_with(|i| i.set_value(&new))
+            .try_with(|i| i.set_value(&new.display().to_string()))
             .unwrap_or_else(|| debug!("input was not set"));
     });
     div(
@@ -137,11 +138,12 @@ fn path_selector_input(
 #[template(tag = div)]
 fn path_selector_display(
     kind: PathSelector,
-    #[signal] path: Arc<str>,
+    #[signal] path: Arc<Path>,
     force_edit_path_mut: MutableSignal<bool>,
 ) -> XElement {
     #[cfg(feature = "client-prod")]
     let _ = kind;
+    let display_path = path.display();
     div(
         class = style::PATH_SELECTOR_WIDGET,
         key = "display",
@@ -153,7 +155,7 @@ fn path_selector_display(
                 PathSelector::FilePath => "file-path-selector-display",
             },
             dblclick = move |_ev| force_edit_path_mut.set(true),
-            "{path}",
+            "{display_path}",
         ),
     )
 }

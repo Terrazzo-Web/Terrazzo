@@ -7,11 +7,16 @@ use std::path::PathBuf;
 #[allow(dead_code)]
 pub trait MorePath {
     fn to_owned_string(self) -> String;
+    fn make_relative(&self) -> &Path;
 }
 
 impl MorePath for &Path {
     fn to_owned_string(self) -> String {
         self.as_os_str().to_owned_string()
+    }
+
+    fn make_relative(&self) -> &Path {
+        self.strip_prefix("/").unwrap_or(self)
     }
 }
 
@@ -19,12 +24,21 @@ impl MorePath for PathBuf {
     fn to_owned_string(self) -> String {
         self.into_os_string().to_owned_string()
     }
+
+    fn make_relative(&self) -> &Path {
+        self.strip_prefix("/").unwrap_or(self)
+    }
 }
 
 impl MorePath for &OsStr {
     fn to_owned_string(self) -> String {
         let cow: Cow<'_, str> = self.to_string_lossy();
         return cow.into_owned();
+    }
+
+    fn make_relative(&self) -> &Path {
+        let path: &Path = self.as_ref();
+        path.strip_prefix("/").unwrap_or(path)
     }
 }
 
@@ -34,5 +48,33 @@ impl MorePath for OsString {
             Ok(string) => string,
             Err(os_string) => os_string.as_os_str().to_owned_string(),
         }
+    }
+
+    fn make_relative(&self) -> &Path {
+        let path: &Path = self.as_ref();
+        path.strip_prefix("/").unwrap_or(path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::utils::more_path::MorePath;
+
+    #[test]
+    fn make_relative_when_relative() {
+        assert_eq!(Path::new("a/b/c"), Path::new("a//b/c").make_relative());
+    }
+
+    #[test]
+    fn make_relative_when_absolute() {
+        assert_eq!(Path::new("a/b/c"), Path::new("/a/b/c").make_relative());
+        assert_eq!(Path::new("a/b/c"), Path::new("//a/b/c").make_relative());
+    }
+
+    #[test]
+    fn make_relative_when_root() {
+        assert_eq!(Path::new(""), Path::new("/").make_relative());
     }
 }

@@ -33,14 +33,26 @@ impl SideViewNotify for Ptr<TextEditorManager> {
                     The file relative path is relative_file_path, which is event.path without the path.base prefix / path.base should be a prefix, warn and return if not.
 
                     Process:
-                    - if the changed file exists (as in fsio::client::file_exists)
-                      - if the current folder has any child.properties.status == SvnStatus::Show items
-                        // This means all files in the folder are showed, not just the active ones
-                        - add it to the list using manager.add_to_side_view
-                      - else
-                        - no-op
-                    - else
-                      - remove it from the list using manager.remove_from_side_view(relative_file_path);
+                    1. if the changed file exists (as in fsio::client::file_exists)
+                       1.1. if the current folder has any child.properties.status == SvnStatus::Show items
+                            // This means all files in the folder are showed, not just the active ones
+                            1.1.1. add it to the list using manager.add_to_side_view
+                       1.2. else
+                            1.2.1. no-op
+                    2. else
+                       2.1. remove it from the list using manager.remove_from_side_view(relative_file_path);
+
+                    For case 1.1.1., you need to add a new method load_file_metadata.
+                    It has the same signature as:
+
+                        pub async fn load_file(
+                            remote: Remote,
+                            path: FilePath<Arc<Path>>,
+                        ) -> Result<Option<super::File>, ServerFnError> {
+                            super::load_file(remote, path).await
+                        }
+
+                    but it does not load the file contents (so just return empty file contents and skip reading from disk)
                     */
                 }
 

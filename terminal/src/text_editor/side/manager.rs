@@ -10,24 +10,17 @@ use super::SvnItem;
 use super::SvnProperties;
 use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::TextEditorManager;
 
 impl TextEditorManager {
-    pub fn add_to_side_view(
-        self: &Ptr<Self>,
-        metadata: &Arc<FileMetadata>,
-        path: &FilePath<Arc<Path>>,
-    ) {
+    pub fn add_to_side_view(self: &Ptr<Self>, item: SvnItem, path: &FilePath<Arc<Path>>) {
         self.side_view.update(|tree| {
             Some(super::mutation::add_node(self, tree.clone(), path, |_| {
                 SideViewNode {
                     properties: SvnProperties {
                         status: SvnStatus::Active,
                     },
-                    item: SvnItem::File {
-                        metadata: metadata.clone(),
-                    },
+                    item,
                 }
             }))
         });

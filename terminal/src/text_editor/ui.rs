@@ -28,6 +28,7 @@ use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
+use super::side::SvnItem;
 use super::side::mutation::live_side_view;
 use super::side::mutation::stored_side_view;
 use super::side::ui::show_side_view;
@@ -367,7 +368,12 @@ impl TextEditorManager {
                     fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
                 ) = data.as_deref()
                 {
-                    this.add_to_side_view(metadata, &path);
+                    this.add_to_side_view(
+                        SvnItem::File {
+                            metadata: metadata.clone(),
+                        },
+                        &path,
+                    );
                 }
 
                 if let Some(data) = data {

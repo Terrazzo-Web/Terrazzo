@@ -26,7 +26,22 @@ impl SideViewNotify for Ptr<TextEditorManager> {
                 autoclone!(manager, path);
 
                 if *event.path != path.full_path() {
-                    // TODO: add/delete the affected file
+                    /*
+                    TODO: add/delete the changed file.
+                    In this case it means one of the files in the current folder being watched as changed.
+                    The folder path is `path` adn the changed file path is `event.path`.
+                    The file relative path is relative_file_path, which is event.path without the path.base prefix / path.base should be a prefix, warn and return if not.
+
+                    Process:
+                    - if the changed file exists (as in fsio::client::file_exists)
+                      - if the current folder has any child.properties.status == SvnStatus::Show items
+                        // This means all files in the folder are showed, not just the active ones
+                        - add it to the list using manager.add_to_side_view
+                      - else
+                        - no-op
+                    - else
+                      - remove it from the list using manager.remove_from_side_view(relative_file_path);
+                    */
                 }
 
                 // Remove from side view on deletion notification.

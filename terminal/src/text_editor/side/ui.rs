@@ -169,9 +169,9 @@ fn selected_item(#[signal] file_path: Arc<Path>, path: Arc<Path>) -> XAttributeV
 fn folder_expand_icon(
     manager: &Ptr<TextEditorManager>,
     path: &Arc<Path>,
-    has_displayed_children: bool,
+    is_expanded: bool,
 ) -> XElement {
-    if has_displayed_children {
+    if is_expanded {
         return img(
             src = icons::collapse_vert(),
             class = style::ICON,

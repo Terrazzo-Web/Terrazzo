@@ -161,10 +161,7 @@ async fn delete_file(
 fn folder_entry_path(folder_path: &Path, name: &str) -> std::path::PathBuf {
     let folder_path = folder_path.strip_prefix("/").unwrap_or(folder_path);
     if name == ".." {
-        folder_path
-            .parent()
-            .map(Path::to_owned)
-            .unwrap_or_default()
+        folder_path.parent().map(Path::to_owned).unwrap_or_default()
     } else {
         folder_path.join(name)
     }

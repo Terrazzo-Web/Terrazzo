@@ -9,6 +9,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
+use self::diagnostics::debug;
 use self::diagnostics::error;
 use super::super::ui::side_view_width;
 use crate::assets::icons;
@@ -37,6 +38,7 @@ pub fn show_side_view(
     #[signal] side_view: Arc<SideViewList>,
     resize_manager: MousemoveManager,
 ) -> XElement {
+    debug!(?base, "Loading side view");
     let root = base
         .file_name()
         .map(Path::new)
@@ -73,6 +75,7 @@ fn show_side_view_list(
     side_view: Arc<SideViewList>,
     root: bool,
 ) -> XElement {
+    debug!(?path, "Show side view list");
     let side_view = side_view.iter();
     let side_view = side_view.map(|(name, child)| {
         show_side_view_node(
@@ -97,6 +100,7 @@ fn show_side_view_node(
     name: &Path,
     side_view: &Arc<SideViewNode>,
 ) -> XElement {
+    debug!(?path, ?name, "Show side view node");
     let name_display = name.display();
     li(match &side_view.item {
         SvnItem::Folder { folder, notify: _ } => {
@@ -184,6 +188,7 @@ fn folder_expand_icon(
                         base: manager.path.base.get_value_untracked(),
                         file: path.clone(),
                     };
+                    debug!(?path, "Collapse folder view");
                     Some(filter_active_folder_content(
                         &manager,
                         side_view.clone(),
@@ -207,12 +212,15 @@ fn folder_expand_icon(
                     base: manager.path.base.get_value_untracked(),
                     file: path.clone(),
                 };
+                debug!(?path, "Expand folder view");
                 let content = list_folder(manager.remote.clone(), path.clone())
                     .await
                     .inspect_err(|error| error!("Failed to load folder {path:?}: {error}"));
                 let Ok(Some(content)) = content else {
+                    debug!(?path, "Folder was not found or not a folder");
                     return;
                 };
+                debug!(?path, "Found {} items", content.len());
                 manager.side_view.update(|side_view| {
                     Some(show_folder_content(
                         &manager,
@@ -237,6 +245,7 @@ fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
         class = "side-view-close-file",
         click = move |_ev| {
             autoclone!(manager, path);
+            debug!(?path, "Remove item from side view");
             manager.remove_from_side_view(&path);
         },
     )

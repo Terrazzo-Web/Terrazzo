@@ -194,11 +194,10 @@ fn live_side_view_rec(
                     properties: child.properties.clone(),
                     item: SvnItem::Folder {
                         folder: live_side_view_rec(manager, base, path.clone(), children.clone()),
-                        notify: manager
-                            .watch_side_view_folder(&FilePath {
-                                base: base.clone(),
-                                file: path.into(),
-                            }),
+                        notify: manager.watch_side_view_folder(&FilePath {
+                            base: base.clone(),
+                            file: path.into(),
+                        }),
                     },
                 })
             }

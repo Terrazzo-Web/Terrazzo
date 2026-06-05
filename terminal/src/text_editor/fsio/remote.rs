@@ -69,6 +69,17 @@ remote_fn_service::unary::declare_remote_fn!(
 );
 
 remote_fn_service::unary::declare_remote_fn!(
+    LOAD_FILE_METADATA_REMOTE_FN,
+    super::LOAD_FILE_METADATA,
+    LoadFileRequest,
+    Option<File>,
+    |_server, arg: LoadFileRequest| async {
+        let result = super::service::load_file_metadata(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
     LIST_FOLDER_REMOTE_FN,
     super::LIST_FOLDER,
     ListFolderRequest,

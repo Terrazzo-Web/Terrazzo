@@ -26,6 +26,13 @@ pub async fn load_file(
     super::load_file(remote, path).await
 }
 
+pub async fn load_file_metadata(
+    remote: Remote,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<super::File>, ServerFnError> {
+    super::load_file_metadata(remote, path).await
+}
+
 pub async fn list_folder(
     remote: Remote,
     path: FilePath<Arc<Path>>,

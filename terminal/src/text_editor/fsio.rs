@@ -88,6 +88,17 @@ async fn load_file(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn load_file_metadata(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<File>, ServerFnError> {
+    Ok(remote::LOAD_FILE_METADATA_REMOTE_FN
+        .call(remote, remote::LoadFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn list_folder(
     remote: ClientAddress,
     path: FilePath<Arc<Path>>,

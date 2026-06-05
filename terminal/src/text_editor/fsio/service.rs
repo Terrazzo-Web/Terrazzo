@@ -88,6 +88,31 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
     Ok(None)
 }
 
+pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioError> {
+    let path = path.full_path();
+    if let Ok(metadata) = path.metadata() {
+        if metadata.is_file() {
+            let file_metadata = Arc::new(FileMetadata::single(&path, &metadata));
+            if path.extension() == Some("pdf".as_ref()) {
+                return Ok(Some(File::PdfFile {
+                    metadata: file_metadata,
+                    base64: Arc::from(""),
+                }));
+            }
+            return Ok(Some(File::TextFile {
+                metadata: file_metadata,
+                original: None,
+                content: Arc::from(""),
+            }));
+        }
+        if metadata.is_dir() {
+            return Ok(Some(File::Folder(Arc::default())));
+        }
+    }
+    debug!("Not found {path:?}");
+    Ok(None)
+}
+
 pub async fn list_folder(
     path: FilePath<Arc<Path>>,
 ) -> Result<Option<Arc<Vec<FileMetadata>>>, FsioError> {

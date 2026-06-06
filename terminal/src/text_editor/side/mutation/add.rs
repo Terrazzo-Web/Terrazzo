@@ -4,8 +4,6 @@ use std::sync::Arc;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;
-#[cfg(debug_assertions)]
-use self::diagnostics::warn;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::notify::manager::SideViewNotify;
 use crate::text_editor::side::SideViewList;
@@ -13,86 +11,78 @@ use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
+use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 
 pub fn add_node_rec(
     manager: &impl SideViewNotify,
-    tree: &SideViewList,
     path: &FilePath<Arc<Path>>,
+    make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
-) -> Option<Arc<SideViewList>> {
-    match relative_path.next() {
-        None => add_node_rec(manager, tree, path, Path::new("/").iter().peekable(), node),
-        Some(item) => {
-            if relative_path.peek().is_none() {
-                add_node_leaf(tree, node, item.as_ref())
-            } else {
-                add_node_rec_folder(manager, tree, path, relative_path, node, item.as_ref())
-            }
-        }
-    }
-}
-
-fn add_node_leaf(
-    tree: &SideViewList,
-    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
-    child_name: &Path,
-) -> Option<Arc<SideViewList>> {
-    #[cfg(debug_assertions)]
-    match tree.get(child_name) {
-        Some(child) => match &child.item {
-            SvnItem::Folder { .. } => warn!("Replace folder {child_name:?}"),
-            SvnItem::File { .. } => debug!("Replace file {child_name:?}"),
+    node: Option<&SideViewNode>,
+) -> Option<Arc<SideViewNode>> {
+    debug!(?path, next = ?relative_path.peek(), ?node, "Add node rec");
+    let next = match relative_path.next() {
+        None => return make(node).map(Arc::new),
+        Some(item) => item,
+    };
+    let (properties, folder, notify) = parse_folder(manager, path, node);
+    Some(Arc::new(SideViewNode {
+        properties,
+        item: SvnItem::Folder {
+            folder: Arc::new(add_node_rec_folder(
+                manager,
+                path,
+                make,
+                relative_path,
+                &folder,
+                next.as_ref(),
+            )?),
+            notify,
         },
-        None => debug!("Add new file {child_name:?}"),
-    }
-    let old_node = tree.get(child_name);
-    let new_node = node(old_node)?;
-    let mut new_tree = (*tree).clone();
-    new_tree.insert(child_name.into(), new_node.into());
-    Some(new_tree.into())
+    }))
 }
 
 fn add_node_rec_folder(
     manager: &impl SideViewNotify,
-    tree: &SideViewList,
     path: &FilePath<Arc<Path>>,
+    make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
     relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> Option<SideViewNode>,
+    folder: &SideViewList,
     folder_name: &Path,
-) -> Option<Arc<SideViewList>> {
-    let folder = match tree.get(folder_name) {
-        Some(child) => match &child.item {
-            SvnItem::Folder { folder, notify: _ } => {
-                debug!("Adding to folder {folder_name:?}");
-                folder.clone()
-            }
-            SvnItem::File { .. } => {
-                #[cfg(debug_assertions)]
-                warn!("Replace file {folder_name:?}");
-                Arc::default()
-            }
-        },
-        None => {
-            #[cfg(debug_assertions)]
-            debug!("Add new folder {folder_name:?}");
-            Arc::default()
+) -> Option<SideViewList> {
+    let child = add_node_rec(
+        manager,
+        path,
+        make,
+        relative_path,
+        folder.get(folder_name).map(Arc::as_ref),
+    )?;
+    let mut folder = folder.clone();
+    folder.insert(folder_name.into(), child);
+    folder.into()
+}
+
+fn parse_folder(
+    manager: &impl SideViewNotify,
+    path: &FilePath<Arc<Path>>,
+    node: Option<&SideViewNode>,
+) -> (SvnProperties, Arc<SideViewList>, OpaqueNotifyRegistration) {
+    match node {
+        Some(node) => {
+            let (folder, notify) = match &node.item {
+                SvnItem::Folder { folder, notify } => (folder.clone(), notify.clone()),
+                SvnItem::File { metadata: _ } => {
+                    (Default::default(), manager.watch_side_view_folder(path))
+                }
+            };
+            (node.properties.clone(), folder, notify)
         }
-    };
-    let folder = add_node_rec(manager, &folder, path, relative_path, node)?;
-    let mut new_tree = tree.clone();
-    new_tree.insert(
-        folder_name.into(),
-        SideViewNode {
-            properties: SvnProperties {
-                status: SvnStatus::Active,
+        None => (
+            SvnProperties {
+                status: SvnStatus::Show,
             },
-            item: SvnItem::Folder {
-                folder,
-                notify: manager.watch_side_view_folder(path),
-            },
-        }
-        .into(),
-    );
-    Some(new_tree.into())
+            Default::default(),
+            manager.watch_side_view_folder(path),
+        ),
+    }
 }

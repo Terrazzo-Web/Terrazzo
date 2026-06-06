@@ -12,24 +12,23 @@ use wasm_bindgen_futures::spawn_local;
 use self::diagnostics::debug;
 use self::diagnostics::error;
 use super::super::ui::side_view_width;
+use super::SideViewList;
+use super::SideViewNode;
+use super::SvnItem;
+use super::SvnStatus;
+use super::mutation::filter_active_folder_content;
+use super::mutation::show_folder_content;
 use crate::assets::icons;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::notify::manager::SideViewNotify;
-use crate::text_editor::side::SideViewList;
-use crate::text_editor::side::SideViewNode;
-use crate::text_editor::side::SvnItem;
-use crate::text_editor::side::SvnProperties;
-use crate::text_editor::side::SvnStatus;
-use crate::text_editor::side::mutation::filter_active_folder_content;
-use crate::text_editor::side::mutation::show_folder_content;
-#[cfg(not(feature = "client-prod"))]
-use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
 
-// TODO: refactor by pulling functions as methods of TextEditorManager
+#[cfg(not(feature = "client-prod"))]
+use crate::utils::more_path::MorePath as _;
+
 // TODO: Declare a const for Arc::new("") and/or Arc::new("/")
 
 impl TextEditorManager {
@@ -43,75 +42,22 @@ impl TextEditorManager {
 fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] base: Arc<Path>,
-    #[signal] side_view: Arc<SideViewList>,
+    #[signal] side_view: Arc<SideViewNode>,
 ) -> XElement {
     debug!(?base, "Loading side view");
-    let side_view = make_side_view_root_list(&manager, base, side_view);
+    let root = base
+        .file_name()
+        .map(Path::new)
+        .unwrap_or_else(|| "/".as_ref());
     tag(
         class = style::SIDE,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
         style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),
-        show_side_view_list(&manager, Path::new("").into(), Arc::new(side_view), true),
+        show_side_view_node(&manager, Path::new("").into(), root, &side_view),
     )
 }
 
-fn make_side_view_root_list(
-    manager: &Ptr<TextEditorManager>,
-    base: Arc<Path>,
-    side_view: Arc<SideViewList>,
-) -> SideViewList {
-    let root = base
-        .file_name()
-        .map(Path::new)
-        .unwrap_or_else(|| "/".as_ref());
-    let current_path: FilePath<Arc<Path>> = FilePath {
-        base: base.clone(),
-        file: Path::new("").into(),
-    };
-    [(
-        root.into(),
-        SideViewNode {
-            properties: SvnProperties {
-                status: SvnStatus::Active,
-            },
-            item: SvnItem::Folder {
-                folder: side_view,
-                notify: manager.watch_side_view_folder(&current_path),
-            },
-        }
-        .into(),
-    )]
-    .into_iter()
-    .collect()
-}
-
-#[html]
-fn show_side_view_list(
-    manager: &Ptr<TextEditorManager>,
-    path: Arc<Path>,
-    side_view: Arc<SideViewList>,
-    root: bool,
-) -> XElement {
-    debug!(?path, "Show side view list");
-    let side_view = side_view.iter();
-    let side_view = side_view.map(|(name, child)| {
-        show_side_view_node(
-            manager,
-            if root {
-                // Root node repeats the last folder of manager.path so no need to add name again
-                path.clone()
-            } else {
-                path.join(name.as_ref()).into()
-            },
-            name,
-            child,
-        )
-    });
-    ul(side_view.collect::<Vec<_>>()..)
-}
-
-#[autoclone]
 #[html]
 fn show_side_view_node(
     manager: &Ptr<TextEditorManager>,
@@ -120,62 +66,81 @@ fn show_side_view_node(
     side_view: &Arc<SideViewNode>,
 ) -> XElement {
     debug!(?path, ?name, "Show side view node");
-    let name_display = name.display();
     li(match &side_view.item {
-        SvnItem::Folder { folder, notify: _ } => {
-            let is_expanded = folder
-                .values()
-                .any(|child| child.properties.status == SvnStatus::Show);
+        SvnItem::Folder { folder, notify: _ } => show_side_view_folder(manager, path, name, folder),
+        SvnItem::File { metadata, .. } => show_side_view_file(manager, path, &metadata),
+    })
+}
+
+#[autoclone]
+#[html]
+fn show_side_view_folder(
+    manager: &Ptr<TextEditorManager>,
+    path: Arc<Path>,
+    name: &Path,
+    folder: &Arc<SideViewList>,
+) -> XElement {
+    let name_display = name.display();
+    let is_expanded = folder
+        .values()
+        .any(|child| child.properties.status == SvnStatus::Show);
+    div(
+        key = "folder",
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view-folder",
+        #[cfg(not(feature = "client-prod"))]
+        data_folder_path = path.to_owned_string(),
+        div(
+            class = style::FOLDER,
+            #[cfg(not(feature = "client-prod"))]
+            class = "side-view-folder-row",
+            img(src = icons::folder(), class = style::ICON),
             div(
-                key = "folder",
-                #[cfg(not(feature = "client-prod"))]
-                class = "side-view-folder",
-                #[cfg(not(feature = "client-prod"))]
-                data_folder_path = path.to_owned_string(),
-                div(
-                    class = style::FOLDER,
-                    #[cfg(not(feature = "client-prod"))]
-                    class = "side-view-folder-row",
-                    img(src = icons::folder(), class = style::ICON),
-                    div(
-                        class %= selected_item(manager.path.file.clone(), path.clone()),
-                        span(
-                            "{name_display}",
-                            click = move |_| {
-                                autoclone!(manager, path);
-                                manager.path.file.set(path.clone())
-                            },
-                        ),
-                    ),
-                    folder_expand_icon(manager, &path, is_expanded),
-                    (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
-                ),
-                div(
-                    class = style::SUB_FOLDER,
-                    show_side_view_list(manager, path, folder.clone(), false),
-                ),
-            )
-        }
-        SvnItem::File { metadata, .. } => {
-            let name = &metadata.name;
-            div(
-                key = "file",
-                class = style::FILE,
-                #[cfg(not(feature = "client-prod"))]
-                data_file_path = path.to_owned_string(),
-                img(src = icons::file(), class = style::ICON),
-                div(
-                    class %= selected_item(manager.path.file.clone(), path.clone()),
-                    span("{name}"),
+                class %= selected_item(manager.path.file.clone(), path.clone()),
+                span(
+                    "{name_display}",
                     click = move |_| {
                         autoclone!(manager, path);
                         manager.path.file.set(path.clone())
                     },
                 ),
-                close_icon(manager, &path),
-            )
-        }
-    })
+            ),
+            folder_expand_icon(manager, &path, is_expanded),
+            (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
+        ),
+        div(
+            class = style::SUB_FOLDER,
+            ul(folder.iter().map(|(name, child)| {
+                show_side_view_node(manager, path.join(name.as_ref()).into(), name, child)
+            })..),
+        ),
+    )
+}
+
+#[autoclone]
+#[html]
+fn show_side_view_file(
+    manager: &Ptr<TextEditorManager>,
+    path: Arc<Path>,
+    metadata: &FileMetadata,
+) -> XElement {
+    let name = &metadata.name;
+    div(
+        key = "file",
+        class = style::FILE,
+        #[cfg(not(feature = "client-prod"))]
+        data_file_path = path.to_owned_string(),
+        img(src = icons::file(), class = style::ICON),
+        div(
+            class %= selected_item(manager.path.file.clone(), path.clone()),
+            span("{name}"),
+            click = move |_| {
+                autoclone!(manager, path);
+                manager.path.file.set(path.clone())
+            },
+        ),
+        close_icon(manager, &path),
+    )
 }
 
 #[template(wrap = true)]
@@ -208,11 +173,7 @@ fn folder_expand_icon(
                         file: path.clone(),
                     };
                     debug!(?path, "Collapse folder view");
-                    Some(filter_active_folder_content(
-                        &manager,
-                        side_view.clone(),
-                        &path,
-                    ))
+                    filter_active_folder_content(&manager, &side_view, &path)
                 });
             },
         );
@@ -241,12 +202,7 @@ fn folder_expand_icon(
                 };
                 debug!(?path, "Found {} items", content.len());
                 manager.side_view.update(|side_view| {
-                    Some(show_folder_content(
-                        &manager,
-                        side_view.clone(),
-                        &path,
-                        content.as_ref(),
-                    ))
+                    show_folder_content(&manager, &side_view, &path, content.as_ref()).map(Arc::new)
                 });
             });
         },

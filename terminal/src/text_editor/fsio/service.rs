@@ -27,7 +27,6 @@ use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
-use crate::utils::more_path::MorePathRef as _;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
@@ -128,40 +127,53 @@ pub async fn file_exists(path: FilePath<Arc<Path>>) -> Result<bool, FsioError> {
 
 pub async fn prune_side_view(
     base: Arc<Path>,
-    tree: Arc<SideViewList<()>>,
-) -> Result<Option<Arc<SideViewList<()>>>, FsioError> {
-    let (tree, changed) = prune_side_view_rec(&base, PathBuf::new(), tree);
-    Ok(changed.then_some(tree))
+    node: Arc<SideViewNode<()>>,
+) -> Result<Option<Arc<SideViewNode<()>>>, FsioError> {
+    let Some((node, changed)) = prune_side_view_rec(&base, Path::new(""), &node) else {
+        return Err(FsioError::BaseFolderNotFound { base });
+    };
+    Ok(changed.then(|| Arc::new(node)))
 }
 
 fn prune_side_view_rec(
     base: &Arc<Path>,
-    parent_path: PathBuf,
-    tree: Arc<SideViewList<()>>,
-) -> (Arc<SideViewList<()>>, bool) {
-    let mut changed = false;
-    let mut new_tree = SideViewList::default();
-    for (name, child) in tree.iter() {
-        let path = parent_path.join(Path::new(name.as_ref()).make_relative());
-        if !(FilePath { base, file: &path }.full_path().exists()) {
-            changed = true;
-            continue;
-        }
-        let item = match &child.item {
-            SvnItem::Folder { folder, notify: () } => {
-                let (folder, folder_changed) = prune_side_view_rec(base, path, folder.clone());
-                changed |= folder_changed;
-                SvnItem::Folder { folder, notify: () }
-            }
-            item @ SvnItem::File { metadata: _ } => item.clone(),
+    file_path: &Path,
+    node: &SideViewNode<()>,
+) -> Option<(SideViewNode<()>, bool)> {
+    {
+        let file_path = FilePath {
+            base,
+            file: file_path,
         };
-        let child = Arc::new(SideViewNode {
-            properties: child.properties.clone(),
-            item,
-        });
-        new_tree.insert(name.clone(), child);
+        if !(file_path.full_path().exists()) {
+            return None;
+        }
     }
-    (Arc::new(new_tree), changed)
+    let mut changed = false;
+    let item = match &node.item {
+        SvnItem::Folder { folder, notify: () } => {
+            let mut pruned_folder = SideViewList::default();
+            for (name, child) in folder.iter() {
+                let Some((child, child_changed)) =
+                    prune_side_view_rec(base, &file_path.join(name), node)
+                else {
+                    continue;
+                };
+                changed |= child_changed;
+                pruned_folder.insert(name.clone(), child.into());
+            }
+            SvnItem::Folder {
+                folder: pruned_folder.into(),
+                notify: (),
+            }
+        }
+        item @ SvnItem::File { metadata: _ } => item.clone(),
+    };
+    let node = SideViewNode {
+        properties: node.properties.clone(),
+        item,
+    };
+    Some((node, changed))
 }
 
 pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<(), FsioError> {
@@ -307,6 +319,9 @@ pub enum FsioError {
 
     #[error("[{n}] File name is not valid Unicode: {file_name:?}", n = self.name())]
     NonUnicodeFileName { file_name: OsString },
+
+    #[error("[{n}] Base folder does not exist: {base:?}", n = self.name())]
+    BaseFolderNotFound { base: Arc<Path> },
 }
 
 impl IsGrpcError for FsioError {
@@ -318,6 +333,7 @@ impl IsGrpcError for FsioError {
             Self::InvalidEntryName { .. } => Code::InvalidArgument,
             Self::ParentNotFolder { .. } => Code::FailedPrecondition,
             Self::NonUnicodeFileName { .. } => Code::InvalidArgument,
+            Self::BaseFolderNotFound { .. } => Code::NotFound,
         }
     }
 }

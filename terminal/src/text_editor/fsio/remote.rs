@@ -7,7 +7,7 @@ use super::File;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct LoadFileRequest {
@@ -31,8 +31,8 @@ pub struct FileExistsRequest {
 pub struct PruneSideViewRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "b"))]
     pub base: Arc<Path>,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub tree: Arc<SideViewList<()>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
+    pub node: Arc<SideViewNode<()>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
@@ -105,9 +105,9 @@ remote_fn_service::unary::declare_remote_fn!(
     PRUNE_SIDE_VIEW_REMOTE_FN,
     super::PRUNE_SIDE_VIEW,
     PruneSideViewRequest,
-    Option<Arc<SideViewList<()>>>,
+    Option<Arc<SideViewNode<()>>>,
     |_server, arg: PruneSideViewRequest| async {
-        let result = super::service::prune_side_view(arg.base, arg.tree).await;
+        let result = super::service::prune_side_view(arg.base, arg.node).await;
         result.map_err(GrpcError::from)
     }
 );

@@ -16,7 +16,7 @@ use terrazzo::widgets::debounce::DoDebounce;
 use self::diagnostics::warn;
 use crate::frontend::remotes::Remote;
 use crate::text_editor::file_path::FilePath;
-use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
 use crate::text_editor::ui::STORE_FILE_DEBOUNCE_DELAY;
 
 pub async fn load_file(
@@ -47,8 +47,8 @@ pub async fn file_exists(remote: Remote, path: FilePath<Arc<Path>>) -> Result<bo
 pub async fn prune_side_view(
     remote: Remote,
     base: Arc<Path>,
-    tree: Arc<SideViewList<()>>,
-) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
+    tree: Arc<SideViewNode<()>>,
+) -> Result<Option<Arc<SideViewNode<()>>>, ServerFnError> {
     super::prune_side_view(remote, base, tree).await
 }
 

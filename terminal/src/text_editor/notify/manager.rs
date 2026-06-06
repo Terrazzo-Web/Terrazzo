@@ -12,28 +12,33 @@ use super::server_fn::NotifyResponse;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
+use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::utils::more_path::MorePathRef as _;
 
 pub trait SideViewNotify {
-    fn watch_side_view_folder(&self, path: &FilePath<Arc<Path>>) -> OpaqueNotifyRegistration;
+    fn watch_side_view_folder(&self, folder_path: &FilePath<Arc<Path>>)
+    -> OpaqueNotifyRegistration;
 }
 
 impl SideViewNotify for Ptr<TextEditorManager> {
     #[autoclone]
-    fn watch_side_view_folder(&self, path: &FilePath<Arc<Path>>) -> OpaqueNotifyRegistration {
+    fn watch_side_view_folder(
+        &self,
+        folder_path: &FilePath<Arc<Path>>,
+    ) -> OpaqueNotifyRegistration {
         let manager = self;
         manager
             .notify_service
-            .watch_folder(path, move |event| {
-                autoclone!(manager, path);
-                if *event.path != path.full_path() {
-                    on_child_change(&manager, &path, event)
+            .watch_folder(folder_path, move |event| {
+                autoclone!(manager, folder_path);
+                if *event.path != folder_path.full_path() {
+                    on_child_change(&manager, &folder_path, event)
                 } else {
-                    on_folder_change(&manager, &path, event)
+                    on_folder_change(&manager, &folder_path, event)
                 }
             })
             .into()
@@ -43,30 +48,28 @@ impl SideViewNotify for Ptr<TextEditorManager> {
 #[autoclone]
 fn on_child_change(
     manager: &Ptr<TextEditorManager>,
-    path: &FilePath<Arc<Path>>,
+    folder_path: &FilePath<Arc<Path>>,
     event: &NotifyResponse,
 ) {
-    let base = if path.base.is_absolute() {
-        path.base.as_ref().to_path_buf()
-    } else {
-        Path::new("/").join(path.base.as_ref())
-    };
-    let relative_file_path = match event.path.strip_prefix(&base) {
-        Ok(relative_file_path) => relative_file_path.to_path_buf(),
+    let relative_file_path = match folder_path
+        .with_base_path(|base| event.path.strip_prefix(base).map(Path::to_owned))
+    {
+        Ok(relative_file_path) => relative_file_path,
         Err(error) => {
             warn!(
                 "Notify event path {:?} is not under base {:?}: {error}",
-                event.path, path.base
+                event.path, folder_path.base
             );
             return;
         }
     };
     let changed_path = FilePath {
-        base: path.base.clone(),
-        file: Arc::from(relative_file_path.clone()),
+        base: folder_path.base.clone(),
+        file: Arc::from(relative_file_path),
     };
+
     wasm_bindgen_futures::spawn_local(async move {
-        autoclone!(manager, path);
+        autoclone!(manager, folder_path);
         let Ok(exists) = fsio::client::file_exists(manager.remote.clone(), changed_path.clone())
             .await
             .inspect_err(|error| warn!("Failed to check file existence: {error}"))
@@ -74,12 +77,11 @@ fn on_child_change(
             return;
         };
         if !exists {
-            manager.remove_from_side_view(relative_file_path);
+            manager.remove_from_side_view(&changed_path.file);
             return;
         }
 
-        if !folder_has_shown_children(&manager.side_view.get_value_untracked(), path.file.as_ref())
-        {
+        if !folder_has_shown_children(&manager.side_view.get_value_untracked(), &folder_path.file) {
             return;
         }
 
@@ -90,55 +92,60 @@ fn on_child_change(
                 .ok()
                 .flatten()
         else {
+            // Note: expect the file to exist since we check above.
             return;
         };
 
-        match data {
+        let item = match data {
             fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. } => {
-                manager.add_to_side_view(SvnItem::File { metadata }, &changed_path);
+                SvnItem::File { metadata }
             }
-            fsio::File::Folder(_) => {
-                manager.add_to_side_view(
-                    SvnItem::Folder {
-                        folder: Arc::default(),
-                        notify: manager.watch_side_view_folder(&changed_path),
-                    },
-                    &changed_path,
-                );
-            }
+            fsio::File::Folder(_) => SvnItem::Folder {
+                folder: Arc::default(),
+                notify: manager.watch_side_view_folder(&changed_path),
+            },
             fsio::File::Error(error) => {
-                warn!("Failed to load file metadata: {error}")
+                warn!("Failed to load file metadata: {error}");
+                return;
             }
-        }
-    });
+        };
+        manager.add_to_side_view(&changed_path, |old_node| {
+            Some(SideViewNode {
+                properties: SvnProperties {
+                    status: old_node
+                        .map(|old_node| old_node.properties.status)
+                        .unwrap_or(SvnStatus::Show),
+                },
+                item,
+            })
+        });
+    })
 }
 
 #[autoclone]
 fn on_folder_change(
     manager: &Ptr<TextEditorManager>,
-    path: &FilePath<Arc<Path>>,
+    folder_path: &FilePath<Arc<Path>>,
     event: &NotifyResponse,
 ) {
     wasm_bindgen_futures::spawn_local(async move {
-        autoclone!(manager, path);
-        if !fsio::client::file_exists(manager.remote.clone(), path.clone())
+        autoclone!(manager, folder_path);
+        // TODO: Consider reloading the entire folder.
+        if !fsio::client::file_exists(manager.remote.clone(), folder_path.clone())
             .await
             .unwrap_or(true)
         {
-            manager.remove_from_side_view(path.file.as_ref());
+            manager.remove_from_side_view(folder_path.file.as_ref());
         }
     });
 }
 
-fn folder_has_shown_children(mut tree: &SideViewList, folder_path: &Path) -> bool {
-    let folder_path = folder_path.make_relative();
-    let mut components = folder_path.iter().peekable();
-    if components.peek().is_none() {
-        return tree
-            .values()
-            .any(|child| child.properties.status == SvnStatus::Show);
-    }
-    for component in components {
+fn folder_has_shown_children(node: &SideViewNode, folder_path: &Path) -> bool {
+    let mut tree = match &node.item {
+        SvnItem::Folder { folder, notify: () } => folder,
+        SvnItem::File { .. } => return false,
+    };
+    for component in folder_path.make_relative() {
         let Some(child) = tree.get(Path::new(component)) else {
             return false;
         };

@@ -1,7 +1,6 @@
 #![cfg(feature = "client")]
 
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use terrazzo::prelude::Ptr;
@@ -9,7 +8,6 @@ use terrazzo::prelude::Ptr;
 use super::SideViewNode;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::side::SideViewList;
 
 impl TextEditorManager {
     // Adds the given path and item to be tracked on the side view
@@ -42,12 +40,12 @@ impl TextEditorManager {
     pub fn live_side_view(
         self: &Ptr<Self>,
         base: &Arc<Path>,
-        side_view: Arc<SideViewList<()>>,
-    ) -> Arc<SideViewList> {
-        super::live::live_side_view_rec(self, base, PathBuf::new(), side_view)
+        side_view: Arc<SideViewNode<()>>,
+    ) -> Arc<SideViewNode> {
+        super::live::live_side_view_rec(self, base, Path::new(""), &side_view)
     }
 
-    pub fn stored_side_view(side_view: Arc<SideViewList>) -> Arc<SideViewList<()>> {
-        super::live::stored_side_view_rec(side_view)
+    pub fn stored_side_view(side_view: Arc<SideViewNode>) -> Arc<SideViewNode<()>> {
+        super::live::stored_side_view_rec(&side_view)
     }
 }

@@ -27,8 +27,8 @@ use super::manager::TextEditorManager;
 use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
-use super::side::SideViewList;
 use super::side::SvnItem;
+use super::side::SvnStatus;
 use super::state;
 use super::style;
 use super::synchronized_state::SynchronizedState;
@@ -40,6 +40,8 @@ use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
+use crate::text_editor::side::SideViewNode;
+use crate::text_editor::side::SvnProperties;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -68,7 +70,6 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
-    let side_view: XSignal<Arc<SideViewList>> = XSignal::new("side-view", Default::default());
     let show_editor_diff = XSignal::new("show-editor-diff", true);
     let manager = Ptr::new(TextEditorManager {
         tile,
@@ -80,7 +81,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
-        side_view,
+        side_view: XSignal::new("side-view", None),
         notify_service: Ptr::new(NotifyService::new(remote)),
         search: SearchState::new(),
         side_view_resize_manager: MousemoveManager::new(),
@@ -277,7 +278,6 @@ impl TextEditorManager {
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
                     .append(this.path.base.add_subscriber(move |_base_path| {
                         autoclone!(this);
-                        this.side_view.force(Arc::default());
                         this.path.file.force(Arc::from(Path::new("")));
                     }))
             });
@@ -303,17 +303,14 @@ impl TextEditorManager {
                 match fsio::client::prune_side_view(
                     this.remote.clone(),
                     this.path.base.get_value_untracked(),
-                    side_view.clone(),
+                    side_view,
                 )
                 .await
                 {
                     Ok(pruned_side_view) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
-                        this.side_view.force(live_side_view(
-                            &this,
-                            &base_path,
-                            pruned_side_view.unwrap_or(side_view),
-                        ));
+                        this.side_view
+                            .force(this.live_side_view(&base_path, pruned_side_view));
                     }
                     Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
                 }
@@ -358,12 +355,15 @@ impl TextEditorManager {
                     fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
                 ) = data.as_deref()
                 {
-                    this.add_to_side_view(
-                        SvnItem::File {
-                            metadata: metadata.clone(),
-                        },
-                        &path,
-                    );
+                    let metadata = metadata.clone();
+                    this.add_to_side_view(&path, |_| {
+                        Some(SideViewNode {
+                            properties: SvnProperties {
+                                status: SvnStatus::Active,
+                            },
+                            item: SvnItem::File { metadata },
+                        })
+                    });
                 }
 
                 if let Some(data) = data {
@@ -385,7 +385,7 @@ impl TextEditorManager {
         self.side_view.add_subscriber(move |side_view| {
             spawn_local(async move {
                 autoclone!(remote);
-                let side_view = stored_side_view(side_view);
+                let side_view = Self::stored_side_view(side_view);
                 let () = state::side_view::set(Some(tile_id), remote, side_view)
                     .await
                     .unwrap_or_else(|error| warn!("Failed to save: {error}"));

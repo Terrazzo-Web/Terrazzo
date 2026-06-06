@@ -47,9 +47,12 @@ pub async fn file_exists(remote: Remote, path: FilePath<Arc<Path>>) -> Result<bo
 pub async fn prune_side_view(
     remote: Remote,
     base: Arc<Path>,
-    tree: Arc<SideViewNode<()>>,
+    side_view: Option<Arc<SideViewNode<()>>>,
 ) -> Result<Option<Arc<SideViewNode<()>>>, ServerFnError> {
-    super::prune_side_view(remote, base, tree).await
+    let Some(side_view) = side_view else {
+        return Ok(None);
+    };
+    super::prune_side_view(remote, base, side_view).await
 }
 
 pub async fn create_file(

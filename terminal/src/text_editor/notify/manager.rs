@@ -81,7 +81,10 @@ fn on_child_change(
             return;
         }
 
-        if !folder_has_shown_children(&manager.side_view.get_value_untracked(), &folder_path.file) {
+        if !folder_has_shown_children(
+            manager.side_view.get_value_untracked().as_deref(),
+            &folder_path.file,
+        ) {
             return;
         }
 
@@ -140,7 +143,10 @@ fn on_folder_change(
     });
 }
 
-fn folder_has_shown_children(node: &SideViewNode, folder_path: &Path) -> bool {
+fn folder_has_shown_children(node: Option<&SideViewNode>, folder_path: &Path) -> bool {
+    let Some(node) = node else {
+        return false;
+    };
     let mut tree = match &node.item {
         SvnItem::Folder { folder, notify: () } => folder,
         SvnItem::File { .. } => return false,

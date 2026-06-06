@@ -19,15 +19,19 @@ impl TextEditorManager {
         path: &FilePath<Arc<Path>>,
         make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
     ) {
-        self.side_view
-            .update(|side_view| super::add_node(self, &side_view, path, make).map(Arc::new));
+        self.side_view.update(|side_view| {
+            let new_node = super::add_node(self, side_view.as_deref(), path, make);
+            new_node.map(|new_node| Some(Arc::new(new_node)))
+        });
         self.force_edit_path.set(false);
     }
 
     pub fn remove_from_side_view(&self, file_path: impl AsRef<Path>) {
         let file_path = file_path.as_ref();
-        self.side_view
-            .update(|side_view| super::remove_node(&side_view, file_path).map(Arc::new));
+        self.side_view.update(|side_view| {
+            let new_node = super::remove_node(side_view.as_deref(), file_path);
+            new_node.map(|new_node| Some(Arc::new(new_node)))
+        });
         self.path.file.update(|old| {
             if old.as_ref() == file_path {
                 let parent = file_path.parent().unwrap_or_else(|| Path::new(""));
@@ -41,12 +45,17 @@ impl TextEditorManager {
     pub fn live_side_view(
         self: &Ptr<Self>,
         base: &Arc<Path>,
-        side_view: Arc<SideViewNode<()>>,
-    ) -> Arc<SideViewNode> {
-        super::live::live_side_view_rec(self, base, PathBuf::default(), &side_view)
+        side_view: Option<Arc<SideViewNode<()>>>,
+    ) -> Option<Arc<SideViewNode>> {
+        Some(super::live::live_side_view_rec(
+            self,
+            base,
+            PathBuf::default(),
+            side_view?.as_ref(),
+        ))
     }
 
-    pub fn stored_side_view(side_view: Arc<SideViewNode>) -> Arc<SideViewNode<()>> {
-        super::live::stored_side_view_rec(&side_view)
+    pub fn stored_side_view(side_view: Option<Arc<SideViewNode>>) -> Option<Arc<SideViewNode<()>>> {
+        Some(super::live::stored_side_view_rec(side_view?.as_ref()))
     }
 }

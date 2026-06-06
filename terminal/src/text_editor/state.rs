@@ -14,5 +14,5 @@ make_state!(
     Arc<Path>,
     std::sync::Arc::from(std::path::Path::new(""))
 );
-make_state!(side_view, Arc<SideViewNode<()>>);
+make_state!(side_view, Option<Arc<SideViewNode<()>>>);
 make_state!(search, Arc<str>);

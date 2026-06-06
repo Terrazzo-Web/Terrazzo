@@ -28,20 +28,20 @@ mod tests;
 
 fn add_node(
     manager: &impl SideViewNotify,
-    node: &SideViewNode,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
 ) -> Option<SideViewNode> {
     let _span = debug_span!("Add node", ?path).entered();
     let relative_path = make_relative_path_iterator(&path.file);
-    self::add::add_node_rec(manager, path, make, relative_path, Some(node))
+    self::add::add_node_rec(manager, path, make, relative_path, node)
 }
 
-fn remove_node(node: &SideViewNode, path: &Path) -> Option<SideViewNode> {
+fn remove_node(node: Option<&SideViewNode>, path: &Path) -> Option<SideViewNode> {
     let _span = debug_span!("Remove node", ?path).entered();
     let mut relative_path = make_relative_path_iterator(path);
     let first = relative_path.next();
-    match self::remove::remove_node_rec(relative_path, first, Some(node)) {
+    match self::remove::remove_node_rec(relative_path, first, node) {
         Ok(node) => node,
         Err(error) => {
             warn!("Failed to remove node: {error}");
@@ -52,7 +52,7 @@ fn remove_node(node: &SideViewNode, path: &Path) -> Option<SideViewNode> {
 
 pub fn show_folder_content(
     manager: &impl SideViewNotify,
-    node: &SideViewNode,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
     folder_content: &[FileMetadata],
 ) -> Option<SideViewNode> {
@@ -107,7 +107,7 @@ pub fn show_folder_content(
 
 pub fn filter_active_folder_content(
     manager: &impl SideViewNotify,
-    node: &SideViewNode,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
 ) -> Option<SideViewNode> {
     info!(?path, "Filter folder content");

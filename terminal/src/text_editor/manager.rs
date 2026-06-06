@@ -23,7 +23,7 @@ pub(super) struct TextEditorManager {
     pub force_edit_path: XSignal<bool>,
     pub editor_state: XSignal<EditorState>,
     pub synchronized_state: XSignal<SynchronizedState>,
-    pub side_view: XSignal<Arc<SideViewNode>>,
+    pub side_view: XSignal<Option<Arc<SideViewNode>>>,
     pub notify_service: Ptr<NotifyService>,
     pub search: Ptr<SearchState>,
     pub side_view_resize_manager: MousemoveManager,

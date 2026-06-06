@@ -42,7 +42,7 @@ impl TextEditorManager {
 fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] base: Arc<Path>,
-    #[signal] side_view: Arc<SideViewNode>,
+    #[signal] side_view: Option<Arc<SideViewNode>>,
 ) -> XElement {
     debug!(?base, "Loading side view");
     let root = base
@@ -54,7 +54,9 @@ fn show_side_view(
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
         style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),
-        show_side_view_node(&manager, Path::new("").into(), root, &side_view),
+        side_view.map(|side_view| {
+            show_side_view_node(&manager, Path::new("").into(), root, &side_view)
+        })..,
     )
 }
 
@@ -63,7 +65,7 @@ fn show_side_view_node(
     manager: &Ptr<TextEditorManager>,
     path: Arc<Path>,
     name: &Path,
-    side_view: &Arc<SideViewNode>,
+    side_view: &SideViewNode,
 ) -> XElement {
     debug!(?path, ?name, "Show side view node");
     li(match &side_view.item {
@@ -111,7 +113,7 @@ fn show_side_view_folder(
         div(
             class = style::SUB_FOLDER,
             ul(folder.iter().map(|(name, child)| {
-                show_side_view_node(manager, path.join(name.as_ref()).into(), name, child)
+                show_side_view_node(manager, path.join(name.as_ref()).into(), name, &child)
             })..),
         ),
     )
@@ -173,7 +175,9 @@ fn folder_expand_icon(
                         file: path.clone(),
                     };
                     debug!(?path, "Collapse folder view");
-                    filter_active_folder_content(&manager, &side_view, &path)
+                    let new_node =
+                        filter_active_folder_content(&manager, side_view.as_deref(), &path);
+                    new_node.map(|new_node| Some(Arc::new(new_node)))
                 });
             },
         );
@@ -202,7 +206,13 @@ fn folder_expand_icon(
                 };
                 debug!(?path, "Found {} items", content.len());
                 manager.side_view.update(|side_view| {
-                    show_folder_content(&manager, &side_view, &path, content.as_ref()).map(Arc::new)
+                    let new_node = show_folder_content(
+                        &manager,
+                        side_view.as_deref(),
+                        &path,
+                        content.as_ref(),
+                    );
+                    new_node.map(|new_node| Some(Arc::new(new_node)))
                 });
             });
         },

@@ -39,9 +39,8 @@ fn add_node(
 
 fn remove_node(node: Option<&SideViewNode>, path: &Path) -> Option<SideViewNode> {
     let _span = debug_span!("Remove node", ?path).entered();
-    let mut relative_path = make_relative_path_iterator(path);
-    let first = relative_path.next();
-    match self::remove::remove_node_rec(relative_path, first, node) {
+    let relative_path = make_relative_path_iterator(path);
+    match self::remove::remove_node_rec(relative_path, node) {
         Ok(node) => node,
         Err(error) => {
             warn!("Failed to remove node: {error}");

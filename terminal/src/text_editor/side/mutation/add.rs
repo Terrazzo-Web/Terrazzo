@@ -47,7 +47,7 @@ fn add_node_rec_folder<'l>(
     manager: &impl SideViewNotify,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
-    mut relative_path: impl Iterator<Item = &'l Path>,
+    relative_path: impl Iterator<Item = &'l Path>,
     folder: &SideViewList,
     folder_name: &Path,
 ) -> Option<SideViewList> {

@@ -144,7 +144,7 @@ fn editor_body(
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
         manager.show_side_view(),
-        resize_bar_horz(manager.side_view_resize_manager, Default::default()),
+        resize_bar_horz(manager.side_view_resize_manager.clone(), Default::default()),
         editor_container(manager, editor_state, show_editor_diff),
     )
 }

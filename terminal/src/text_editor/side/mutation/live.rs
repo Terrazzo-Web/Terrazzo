@@ -44,7 +44,7 @@ pub fn stored_side_view_rec(node: &SideViewNode) -> Arc<SideViewNode<()>> {
     Arc::new(SideViewNode {
         properties: node.properties.clone(),
         item: match &node.item {
-            SvnItem::Folder { folder, notify: () } => SvnItem::Folder {
+            SvnItem::Folder { folder, notify: _ } => SvnItem::Folder {
                 folder: {
                     let mut active = SideViewList::default();
                     for (name, child) in folder.iter() {

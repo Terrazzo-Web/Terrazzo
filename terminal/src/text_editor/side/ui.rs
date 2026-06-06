@@ -33,7 +33,7 @@ use crate::utils::more_path::MorePath as _;
 
 impl TextEditorManager {
     pub fn show_side_view(self: &Ptr<TextEditorManager>) -> XElement {
-        show_side_view(self.clone(), self.path.base.clone(), self.side_view)
+        show_side_view(self.clone(), self.path.base.clone(), self.side_view.clone())
     }
 }
 

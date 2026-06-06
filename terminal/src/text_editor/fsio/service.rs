@@ -155,7 +155,7 @@ fn prune_side_view_rec(
             let mut pruned_folder = SideViewList::default();
             for (name, child) in folder.iter() {
                 let Some((child, child_changed)) =
-                    prune_side_view_rec(base, &file_path.join(name), node)
+                    prune_side_view_rec(base, &file_path.join(name), child)
                 else {
                     continue;
                 };

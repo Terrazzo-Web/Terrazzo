@@ -29,11 +29,10 @@ pub enum RemoveFileError {
 
 pub fn remove_node_rec<'l>(
     mut relative_path: impl Iterator<Item = &'l Path>,
-    next: Option<&'l Path>,
     node: Option<&SideViewNode>,
 ) -> Result<Option<SideViewNode>, RemoveFileError> {
     let next = relative_path.next();
-    debug!(?path, ?next, ?node, "Remove node rec");
+    debug!(?next, ?node, "Remove node rec");
     let Some(next) = next else {
         return Ok(None);
     };
@@ -56,16 +55,11 @@ pub fn remove_node_rec<'l>(
 }
 
 fn remove_node_rec_folder<'l>(
-    mut relative_path: impl Iterator<Item = &'l Path>,
+    relative_path: impl Iterator<Item = &'l Path>,
     folder: &SideViewList,
     folder_name: &Path,
 ) -> Result<SideViewList, RemoveFileError> {
-    let next = relative_path.next();
-    let child = remove_node_rec(
-        relative_path,
-        next,
-        folder.get(folder_name).map(Arc::as_ref),
-    )?;
+    let child = remove_node_rec(relative_path, folder.get(folder_name).map(Arc::as_ref))?;
     if let Some(child) = child {
         let mut folder = folder.clone();
         folder.insert(folder_name.into(), child.into());

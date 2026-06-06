@@ -38,7 +38,7 @@ impl SideViewNotify for Ptr<TextEditorManager> {
                 if *event.path != folder_path.full_path() {
                     on_child_change(&manager, &folder_path, event)
                 } else {
-                    on_folder_change(&manager, &folder_path, event)
+                    on_folder_change(&manager, &folder_path)
                 }
             })
             .into()
@@ -126,11 +126,7 @@ fn on_child_change(
 }
 
 #[autoclone]
-fn on_folder_change(
-    manager: &Ptr<TextEditorManager>,
-    folder_path: &FilePath<Arc<Path>>,
-    event: &NotifyResponse,
-) {
+fn on_folder_change(manager: &Ptr<TextEditorManager>, folder_path: &FilePath<Arc<Path>>) {
     wasm_bindgen_futures::spawn_local(async move {
         autoclone!(manager, folder_path);
         // TODO: Consider reloading the entire folder.
@@ -148,7 +144,7 @@ fn folder_has_shown_children(node: Option<&SideViewNode>, folder_path: &Path) ->
         return false;
     };
     let mut tree = match &node.item {
-        SvnItem::Folder { folder, notify: () } => folder,
+        SvnItem::Folder { folder, notify: _ } => folder,
         SvnItem::File { .. } => return false,
     };
     for component in folder_path.make_relative() {

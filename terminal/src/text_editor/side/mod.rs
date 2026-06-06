@@ -27,7 +27,7 @@ pub struct SvnProperties {
     pub status: SvnStatus,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
 pub enum SvnStatus {
     #[default]

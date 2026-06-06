@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::text_editor::side::SideViewList;
+use crate::text_editor::side::SideViewNode;
 use crate::tiles::state::make_state;
 
 make_state!(
@@ -14,5 +14,5 @@ make_state!(
     Arc<Path>,
     std::sync::Arc::from(std::path::Path::new(""))
 );
-make_state!(side_view, Arc<SideViewList<()>>);
+make_state!(side_view, Arc<SideViewNode<()>>);
 make_state!(search, Arc<str>);

@@ -24,6 +24,15 @@ impl<B: AsRef<Path>, F: AsRef<Path>> FilePath<B, F> {
             Path::new("/").join(base).join(file)
         }
     }
+
+    pub fn with_base_path<R>(&self, f: impl FnOnce(&Path) -> R) -> R {
+        let base = self.base.as_ref();
+        if base.is_absolute() {
+            f(base)
+        } else {
+            f(&Path::new("/").join(base))
+        }
+    }
 }
 
 impl<B, F> FilePath<B, F> {

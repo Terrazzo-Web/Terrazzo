@@ -10,7 +10,7 @@ use server_fn::codec::Json;
 use terrazzo::server;
 
 use super::file_path::FilePath;
-use super::side::SideViewList;
+use super::side::SideViewNode;
 use crate::api::client_address::ClientAddress;
 
 pub mod client;
@@ -124,10 +124,10 @@ async fn file_exists(
 async fn prune_side_view(
     remote: ClientAddress,
     base: Arc<Path>,
-    tree: Arc<SideViewList<()>>,
-) -> Result<Option<Arc<SideViewList<()>>>, ServerFnError> {
+    node: Arc<SideViewNode<()>>,
+) -> Result<Option<Arc<SideViewNode<()>>>, ServerFnError> {
     Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
-        .call(remote, remote::PruneSideViewRequest { base, tree })
+        .call(remote, remote::PruneSideViewRequest { base, node })
         .await?)
 }
 

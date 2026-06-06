@@ -3,9 +3,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use self::diagnostics::*;
 use terrazzo::prelude::diagnostics;
 
-use self::diagnostics::*;
 use super::SideViewList;
 use super::SideViewNode;
 use super::SvnItem;
@@ -24,31 +24,36 @@ mod remove;
 #[cfg(test)]
 mod tests;
 
-pub use self::remove::RemoveFileError;
-
 fn add_node(
     manager: &impl SideViewNotify,
     node: Arc<SideViewNode>,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
-) -> Option<Arc<SideViewNode>> {
+) -> Option<SideViewNode> {
     let _span = debug_span!("Add node", ?path).entered();
-    let relative_path = path.file.as_ref().make_relative().iter().peekable();
+    let relative_path = make_relative_path_iterator(&path.file);
     self::add::add_node_rec(manager, path, make, relative_path, Some(&node))
 }
 
-fn remove_node(node: Arc<SideViewNode>, path: &Path) -> Result<Arc<SideViewList>, RemoveFileError> {
+fn remove_node(node: Arc<SideViewNode>, path: &Path) -> Option<SideViewNode> {
     let _span = debug_span!("Remove node", ?path).entered();
-    let relative_path = path.make_relative().iter().peekable();
-    self::remove::remove_node_rec(&node, relative_path)
+    let mut relative_path = make_relative_path_iterator(path);
+    let first = relative_path.next();
+    match self::remove::remove_node_rec(relative_path, first, Some(&node)) {
+        Ok(node) => node,
+        Err(error) => {
+            warn!("Failed to remove node: {error}");
+            None
+        }
+    }
 }
 
 pub fn show_folder_content(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    node: Arc<SideViewNode>,
     path: &FilePath<Arc<Path>>,
     folder_content: &[FileMetadata],
-) -> Arc<SideViewList> {
+) -> Arc<SideViewNode> {
     let _span = debug_span!("Show folder content", ?path).entered();
     info!("Showing {} files", folder_content.len());
     add_node(manager, tree, path, |old| {
@@ -169,4 +174,8 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
         new_tree.insert(name.clone(), child);
     }
     Arc::new(new_tree)
+}
+
+fn make_relative_path_iterator(path: &Path) -> impl Iterator<Item = &Path> {
+    path.make_relative().iter().map(|c| c.as_ref())
 }

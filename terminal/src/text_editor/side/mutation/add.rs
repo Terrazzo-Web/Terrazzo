@@ -13,20 +13,21 @@ use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 
-pub fn add_node_rec(
+pub fn add_node_rec<'l>(
     manager: &impl SideViewNotify,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
-    mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
+    mut relative_path: impl Iterator<Item = &'l Path>,
     node: Option<&SideViewNode>,
-) -> Option<Arc<SideViewNode>> {
-    debug!(?path, next = ?relative_path.peek(), ?node, "Add node rec");
-    let next = match relative_path.next() {
-        None => return make(node).map(Arc::new),
+) -> Option<SideViewNode> {
+    let next = relative_path.next();
+    debug!(?path, ?next, ?node, "Add node rec");
+    let next = match next {
+        None => return make(node),
         Some(item) => item,
     };
     let (properties, folder, notify) = parse_folder(manager, path, node);
-    Some(Arc::new(SideViewNode {
+    Some(SideViewNode {
         properties,
         item: SvnItem::Folder {
             folder: Arc::new(add_node_rec_folder(
@@ -39,14 +40,14 @@ pub fn add_node_rec(
             )?),
             notify,
         },
-    }))
+    })
 }
 
-fn add_node_rec_folder(
+fn add_node_rec_folder<'l>(
     manager: &impl SideViewNotify,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
-    relative_path: std::iter::Peekable<std::path::Iter<'_>>,
+    mut relative_path: impl Iterator<Item = &'l Path>,
     folder: &SideViewList,
     folder_name: &Path,
 ) -> Option<SideViewList> {
@@ -58,7 +59,7 @@ fn add_node_rec_folder(
         folder.get(folder_name).map(Arc::as_ref),
     )?;
     let mut folder = folder.clone();
-    folder.insert(folder_name.into(), child);
+    folder.insert(folder_name.into(), child.into());
     folder.into()
 }
 

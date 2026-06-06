@@ -10,7 +10,7 @@ use super::fsio;
 use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
-use super::side::SideViewList;
+use super::side::SideViewNode;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
@@ -23,7 +23,7 @@ pub(super) struct TextEditorManager {
     pub force_edit_path: XSignal<bool>,
     pub editor_state: XSignal<EditorState>,
     pub synchronized_state: XSignal<SynchronizedState>,
-    pub side_view: XSignal<Arc<SideViewList>>,
+    pub side_view: XSignal<Arc<SideViewNode>>,
     pub notify_service: Ptr<NotifyService>,
     pub search: Ptr<SearchState>,
     pub side_view_resize_manager: MousemoveManager,

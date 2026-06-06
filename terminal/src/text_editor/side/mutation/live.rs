@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::text_editor::file_path::FilePath;
@@ -10,7 +11,7 @@ use crate::text_editor::side::SvnItem;
 pub fn live_side_view_rec(
     manager: &impl SideViewNotify,
     base: &Arc<Path>,
-    file_path: &Path,
+    file_path: PathBuf,
     node: &SideViewNode<()>,
 ) -> Arc<SideViewNode> {
     Arc::new(SideViewNode {
@@ -22,7 +23,7 @@ pub fn live_side_view_rec(
                     for (name, child) in folder.iter() {
                         active.insert(
                             name.clone(),
-                            live_side_view_rec(manager, base, file_path, child),
+                            live_side_view_rec(manager, base, file_path.join(name), child),
                         );
                     }
                     Arc::new(active)

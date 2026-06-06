@@ -1,6 +1,7 @@
 #![cfg(feature = "client")]
 
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use terrazzo::prelude::Ptr;
@@ -29,7 +30,7 @@ impl TextEditorManager {
             .update(|side_view| super::remove_node(side_view.clone(), file_path).map(Arc::new));
         self.path.file.update(|old| {
             if old.as_ref() == file_path {
-                let parent = file_path.parent().unwrap_or_else(|| "/".as_ref());
+                let parent = file_path.parent().unwrap_or_else(|| Path::new(""));
                 Some(parent.into())
             } else {
                 None
@@ -42,7 +43,7 @@ impl TextEditorManager {
         base: &Arc<Path>,
         side_view: Arc<SideViewNode<()>>,
     ) -> Arc<SideViewNode> {
-        super::live::live_side_view_rec(self, base, Path::new(""), &side_view)
+        super::live::live_side_view_rec(self, base, PathBuf::default(), &side_view)
     }
 
     pub fn stored_side_view(side_view: Arc<SideViewNode>) -> Arc<SideViewNode<()>> {

@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use super::fsio::FileMetadata;
 
-mod manager;
 mod mutation;
 mod ui;
 

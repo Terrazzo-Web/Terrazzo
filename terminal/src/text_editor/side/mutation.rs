@@ -3,9 +3,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use self::diagnostics::*;
 use terrazzo::prelude::diagnostics;
 
+use self::diagnostics::debug_span;
+use self::diagnostics::info;
+use self::diagnostics::warn;
 use super::SideViewList;
 use super::SideViewNode;
 use super::SvnItem;
@@ -26,20 +28,20 @@ mod tests;
 
 fn add_node(
     manager: &impl SideViewNotify,
-    node: Arc<SideViewNode>,
+    node: &SideViewNode,
     path: &FilePath<Arc<Path>>,
     make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
 ) -> Option<SideViewNode> {
     let _span = debug_span!("Add node", ?path).entered();
     let relative_path = make_relative_path_iterator(&path.file);
-    self::add::add_node_rec(manager, path, make, relative_path, Some(&node))
+    self::add::add_node_rec(manager, path, make, relative_path, Some(node))
 }
 
-fn remove_node(node: Arc<SideViewNode>, path: &Path) -> Option<SideViewNode> {
+fn remove_node(node: &SideViewNode, path: &Path) -> Option<SideViewNode> {
     let _span = debug_span!("Remove node", ?path).entered();
     let mut relative_path = make_relative_path_iterator(path);
     let first = relative_path.next();
-    match self::remove::remove_node_rec(relative_path, first, Some(&node)) {
+    match self::remove::remove_node_rec(relative_path, first, Some(node)) {
         Ok(node) => node,
         Err(error) => {
             warn!("Failed to remove node: {error}");
@@ -50,21 +52,19 @@ fn remove_node(node: Arc<SideViewNode>, path: &Path) -> Option<SideViewNode> {
 
 pub fn show_folder_content(
     manager: &impl SideViewNotify,
-    node: Arc<SideViewNode>,
+    node: &SideViewNode,
     path: &FilePath<Arc<Path>>,
     folder_content: &[FileMetadata],
-) -> Arc<SideViewNode> {
-    let _span = debug_span!("Show folder content", ?path).entered();
-    info!("Showing {} files", folder_content.len());
-    add_node(manager, tree, path, |old| {
+) -> Option<SideViewNode> {
+    info!(?path, len = folder_content.len(), "Showing folder content");
+    add_node(manager, node, path, |old| {
         info!("Setting folder content: {}", old.is_some());
-        let old = old?;
-        let (mut new_folder, notify) = if let SideViewNode {
-            properties: SvnProperties { status: _ },
+        let (properties, mut new_folder, notify) = if let Some(SideViewNode {
+            properties,
             item: SvnItem::Folder { folder, notify },
-        } = old.as_ref()
+        }) = old
         {
-            ((**folder).clone(), notify.clone())
+            (properties, (**folder).clone(), notify)
         } else {
             warn!("Old folder not found");
             return None;
@@ -74,57 +74,56 @@ pub fn show_folder_content(
             if new_folder.contains_key(name) {
                 continue;
             }
-            let node = if metadata.is_dir {
-                SideViewNode {
-                    properties: SvnProperties {
-                        status: SvnStatus::Show,
-                    },
-                    item: SvnItem::Folder {
-                        folder: Arc::default(),
-                        notify: manager.watch_side_view_folder(&FilePath {
-                            base: path.base.clone(),
-                            file: path.file.join(name).into(),
-                        }),
-                    },
+            let item = if metadata.is_dir {
+                SvnItem::Folder {
+                    folder: Arc::default(),
+                    notify: manager.watch_side_view_folder(&FilePath {
+                        base: path.base.clone(),
+                        file: path.file.join(name).into(),
+                    }),
                 }
             } else {
-                SideViewNode {
-                    properties: SvnProperties {
-                        status: SvnStatus::Show,
-                    },
-                    item: SvnItem::File {
-                        metadata: Arc::new(metadata.clone()),
-                    },
+                SvnItem::File {
+                    metadata: Arc::new(metadata.clone()),
                 }
             };
-            new_folder.insert(name.into(), node.into());
+            let child = SideViewNode {
+                properties: SvnProperties {
+                    status: SvnStatus::Show,
+                },
+                item,
+            };
+            new_folder.insert(name.into(), child.into());
         }
-        SideViewNode {
-            properties: old.properties.clone(),
+        Some(SideViewNode {
+            properties: properties.clone(),
             item: SvnItem::Folder {
                 folder: new_folder.into(),
-                notify,
+                notify: notify.clone(),
             },
-        }
+        })
     })
 }
 
 pub fn filter_active_folder_content(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    node: &SideViewNode,
     path: &FilePath<Arc<Path>>,
-) -> Arc<SideViewList> {
-    add_node(manager, tree, path, |old| {
-        let old = old?;
-        let (folder, notify) = if let SideViewNode {
-            properties: SvnProperties { status: _ },
+) -> Option<SideViewNode> {
+    info!(?path, "Filter folder content");
+    add_node(manager, node, path, |old| {
+        info!("Setting folder content: {}", old.is_some());
+        let (properties, folder, notify) = if let Some(SideViewNode {
+            properties,
             item: SvnItem::Folder { folder, notify },
-        } = old.as_ref()
+        }) = old
         {
-            (folder, notify.clone())
+            (properties, (**folder).clone(), notify)
         } else {
+            warn!("Old folder not found");
             return None;
         };
+
         let mut new_folder = SideViewList::default();
         for (name, child) in folder.iter() {
             if child.properties.status == SvnStatus::Show {
@@ -146,10 +145,10 @@ pub fn filter_active_folder_content(
             new_folder.insert(name.clone(), child);
         }
         Some(SideViewNode {
-            properties: old.properties.clone(),
+            properties: properties.clone(),
             item: SvnItem::Folder {
                 folder: new_folder.into(),
-                notify,
+                notify: notify.clone(),
             },
         })
     })

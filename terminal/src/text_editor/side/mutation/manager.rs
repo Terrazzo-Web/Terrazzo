@@ -20,14 +20,14 @@ impl TextEditorManager {
         make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
     ) {
         self.side_view
-            .update(|side_view| super::add_node(self, side_view.clone(), path, make).map(Arc::new));
+            .update(|side_view| super::add_node(self, &side_view, path, make).map(Arc::new));
         self.force_edit_path.set(false);
     }
 
     pub fn remove_from_side_view(&self, file_path: impl AsRef<Path>) {
         let file_path = file_path.as_ref();
         self.side_view
-            .update(|side_view| super::remove_node(side_view.clone(), file_path).map(Arc::new));
+            .update(|side_view| super::remove_node(&side_view, file_path).map(Arc::new));
         self.path.file.update(|old| {
             if old.as_ref() == file_path {
                 let parent = file_path.parent().unwrap_or_else(|| Path::new(""));

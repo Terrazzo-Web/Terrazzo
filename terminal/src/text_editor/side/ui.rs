@@ -13,7 +13,6 @@ use self::diagnostics::debug;
 use self::diagnostics::error;
 use super::super::ui::side_view_width;
 use crate::assets::icons;
-use crate::frontend::mousemove::MousemoveManager;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
@@ -30,21 +29,47 @@ use crate::utils::more_path::MorePath as _;
 
 terrazzo_css::import_style!(style, "side.scss");
 
+// TODO: refactor by pulling functions as methods of TextEditorManager
+// TODO: Declare a const for Arc::new("") and/or Arc::new("/")
+
+impl TextEditorManager {
+    pub fn show_side_view(self: &Ptr<TextEditorManager>) -> XElement {
+        show_side_view(self.clone(), self.path.base.clone(), self.side_view)
+    }
+}
+
 #[html]
 #[template(tag = div, key = "side-view")]
-pub fn show_side_view(
+fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] base: Arc<Path>,
     #[signal] side_view: Arc<SideViewList>,
-    resize_manager: MousemoveManager,
 ) -> XElement {
     debug!(?base, "Loading side view");
+    let side_view = make_side_view_root_list(&manager, base, side_view);
+    tag(
+        class = style::SIDE,
+        #[cfg(not(feature = "client-prod"))]
+        class = "side-view",
+        style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),
+        show_side_view_list(&manager, Path::new("").into(), Arc::new(side_view), true),
+    )
+}
+
+fn make_side_view_root_list(
+    manager: &Ptr<TextEditorManager>,
+    base: Arc<Path>,
+    side_view: Arc<SideViewList>,
+) -> SideViewList {
     let root = base
         .file_name()
         .map(Path::new)
         .unwrap_or_else(|| "/".as_ref());
-    let current_path = manager.path.as_ref().map(XSignal::get_value_untracked);
-    let side_view = [(
+    let current_path: FilePath<Arc<Path>> = FilePath {
+        base: base.clone(),
+        file: Path::new("").into(),
+    };
+    [(
         root.into(),
         SideViewNode {
             properties: SvnProperties {
@@ -58,14 +83,7 @@ pub fn show_side_view(
         .into(),
     )]
     .into_iter()
-    .collect();
-    tag(
-        class = style::SIDE,
-        #[cfg(not(feature = "client-prod"))]
-        class = "side-view",
-        style::flex %= side_view_width(resize_manager.delta.clone()),
-        show_side_view_list(&manager, Path::new("").into(), Arc::new(side_view), true),
-    )
+    .collect()
 }
 
 #[html]
@@ -81,6 +99,7 @@ fn show_side_view_list(
         show_side_view_node(
             manager,
             if root {
+                // Root node repeats the last folder of manager.path so no need to add name again
                 path.clone()
             } else {
                 path.join(name.as_ref()).into()

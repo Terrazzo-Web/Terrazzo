@@ -29,9 +29,6 @@ use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
 use super::side::SvnItem;
-use super::side::mutation::live_side_view;
-use super::side::mutation::stored_side_view;
-use super::side::ui::show_side_view;
 use super::state;
 use super::style;
 use super::synchronized_state::SynchronizedState;
@@ -86,11 +83,11 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         side_view,
         notify_service: Ptr::new(NotifyService::new(remote)),
         search: SearchState::new(),
+        side_view_resize_manager: MousemoveManager::new(),
     });
 
     let consumers = Arc::default();
     manager.restore_paths(&consumers);
-    let side_view_resize_manager = MousemoveManager::new();
 
     div(
         key = "text-editor",
@@ -113,7 +110,6 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.clone(),
             manager.editor_state.clone(),
             show_editor_diff,
-            side_view_resize_manager,
         ),
         after_render = move |_| {
             let _moved = &consumers;
@@ -141,19 +137,13 @@ fn editor_body(
     manager: Ptr<TextEditorManager>,
     editor_state: XSignal<EditorState>,
     show_editor_diff: XSignal<bool>,
-    side_view_resize_manager: MousemoveManager,
 ) -> XElement {
     div(
         class = super::style::BODY,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
-        show_side_view(
-            manager.clone(),
-            manager.path.base.clone(),
-            manager.side_view.clone(),
-            side_view_resize_manager.clone(),
-        ),
-        resize_bar_horz(side_view_resize_manager, Default::default()),
+        manager.show_side_view(),
+        resize_bar_horz(manager.side_view_resize_manager, Default::default()),
         editor_container(manager, editor_state, show_editor_diff),
     )
 }

@@ -34,7 +34,7 @@ pub fn remove_node_rec(
     mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
 ) -> Result<Arc<SideViewList>, RemoveFileError> {
     match relative_path.next() {
-        None => remove_node_rec(tree, Path::new("/").iter().peekable()),
+        None => Err(RemoveFileError::FileNotFound),
         Some(item) => {
             if relative_path.peek().is_none() {
                 remove_node_leaf(tree, item.as_ref())

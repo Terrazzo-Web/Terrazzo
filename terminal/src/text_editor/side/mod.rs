@@ -5,8 +5,8 @@ use std::sync::Arc;
 use super::fsio::FileMetadata;
 
 mod manager;
-pub mod mutation;
-pub mod ui;
+mod mutation;
+mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
@@ -123,7 +123,7 @@ impl<R> From<SideViewList<R>> for BTreeMap<Arc<Path>, Arc<SideViewNode<R>>> {
 
 impl<R> std::fmt::Debug for SideViewList<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.0.keys().fmt(f)
     }
 }
 

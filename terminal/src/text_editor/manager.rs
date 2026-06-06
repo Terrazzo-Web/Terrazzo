@@ -12,6 +12,7 @@ use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewList;
 use super::synchronized_state::SynchronizedState;
+use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
 use crate::tiles::signals::TilePtr;
 
@@ -25,6 +26,7 @@ pub(super) struct TextEditorManager {
     pub side_view: XSignal<Arc<SideViewList>>,
     pub notify_service: Ptr<NotifyService>,
     pub search: Ptr<SearchState>,
+    pub side_view_resize_manager: MousemoveManager,
 }
 
 #[derive(Clone, Debug, Default)]

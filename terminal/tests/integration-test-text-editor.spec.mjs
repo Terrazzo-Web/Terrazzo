@@ -372,7 +372,7 @@ async function dragSideViewNodeIntoFolder(page, source, destinationFolder) {
     expect(sourcePath).toBeTruthy();
     const dataTransfer = await page.evaluateHandle((sourcePath) => {
         const dataTransfer = new DataTransfer();
-        dataTransfer.setData('text_editor_side_view_path', sourcePath);
+        dataTransfer.setData('text-editor-move-file', sourcePath);
         dataTransfer.effectAllowed = 'move';
         return dataTransfer;
     }, sourcePath);

@@ -32,7 +32,7 @@ use crate::text_editor::ui::RemoveBehavior;
 
 terrazzo_css::import_style!(style, "side.scss");
 
-const SIDE_VIEW_DRAG_KEY: &str = "text_editor_side_view_path";
+const SIDE_VIEW_DRAG_KEY: &str = "text-editor-move-file";
 
 #[cfg(not(feature = "client-prod"))]
 use crate::utils::more_path::MorePath as _;
@@ -124,10 +124,14 @@ fn show_side_view_folder(
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
             dragover = move |event: DragEvent| {
-                event.prevent_default();
-                if let Some(data_transfer) = event.data_transfer() {
-                    data_transfer.set_drop_effect("move");
+                let Some(data_transfer) = event.data_transfer() else {
+                    return;
+                };
+                if !has_side_view_drag_key(&data_transfer) {
+                    return;
                 }
+                event.prevent_default();
+                data_transfer.set_drop_effect("move");
             },
             drop = drop_side_view_node(manager, path),
             img(src = icons::folder(), class = style::ICON),
@@ -196,6 +200,16 @@ fn show_side_view_file(
         ),
         close_icon(manager, path, RemoveBehavior::Hard),
     )
+}
+
+fn has_side_view_drag_key(data_transfer: &web_sys::DataTransfer) -> bool {
+    let types = data_transfer.types();
+    for i in 0..types.length() {
+        if types.get(i).as_string().as_deref() == Some(SIDE_VIEW_DRAG_KEY) {
+            return true;
+        }
+    }
+    false
 }
 
 #[autoclone]

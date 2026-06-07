@@ -12,6 +12,7 @@ use terrazzo::widgets::element_capture::ElementCapture;
 use web_sys::HtmlInputElement;
 
 use self::diagnostics::debug;
+use self::diagnostics::info;
 use super::schema::PathSelector;
 use crate::assets::icons;
 use crate::text_editor::autocomplete::server_fn::AutocompleteItem;
@@ -21,6 +22,7 @@ use crate::text_editor::autocomplete::ui::start_autocomplete;
 use crate::text_editor::autocomplete::ui::stop_autocomplete;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::style;
+use crate::utils::more_path::MorePath as _;
 
 impl TextEditorManager {
     pub fn base_path_selector(self: &Ptr<Self>) -> XElement {
@@ -74,6 +76,7 @@ fn path_selector_input(
     prefix: Option<XSignal<Arc<Path>>>,
     path: XSignal<Arc<Path>>,
 ) -> XElement {
+    info!("Show autocomplete input {kind:?}");
     let autocomplete: XSignal<Option<Vec<AutocompleteItem>>> = XSignal::new(kind.name(), None);
     let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
     let do_autocomplete = Ptr::new(do_autocomplete(
@@ -109,10 +112,11 @@ fn path_selector_input(
                 manager.clone(),
                 kind,
                 prefix.clone(),
+                path.clone(),
                 input.clone(),
                 autocomplete.clone(),
             ),
-            blur = stop_autocomplete(path.clone(), input.clone(), autocomplete.clone()),
+            blur = stop_autocomplete(kind, path.clone(), input.clone(), autocomplete.clone()),
             keydown = move |_| {
                 autoclone!(do_autocomplete);
                 do_autocomplete(())
@@ -121,6 +125,7 @@ fn path_selector_input(
                 autoclone!(do_autocomplete);
                 do_autocomplete(())
             },
+            value = path.get_value_untracked().to_owned_string(),
         ),
         show_autocomplete(
             manager,

@@ -89,9 +89,7 @@ fn show_side_view_node(
         SvnItem::Folder { folder, notify: _ } => {
             show_side_view_folder(manager, path, name, &side_view.properties, folder)
         }
-        SvnItem::File { metadata, .. } => {
-            show_side_view_file(manager, path, &side_view.properties, &metadata)
-        }
+        SvnItem::File { metadata, .. } => show_side_view_file(manager, path, &side_view.properties, metadata),
     })
 }
 
@@ -121,21 +119,21 @@ fn show_side_view_folder(
             img(src = icons::folder(), class = style::ICON),
             div(
                 class %= selected_item(manager.path.file.clone(), path.file.clone()),
-                dblclick = expand_folder(manager, &path),
+                dblclick = expand_folder(manager, path),
                 click = move |_| {
                     autoclone!(manager, path);
                     manager.path.file.set(path.file.clone())
                 },
                 span("{name_display}", class = name_display_class(properties)),
             ),
-            folder_expand_icon(manager, &path, is_expanded),
+            folder_expand_icon(manager, path, is_expanded),
             (*path.file != "".as_ref()).then(|| {
                 close_icon(
                     manager,
-                    &path,
+                    path,
                     match properties.status {
-                        SvnStatus::Active => RemoveBehavior::SOFT,
-                        SvnStatus::Show => RemoveBehavior::HARD,
+                        SvnStatus::Active => RemoveBehavior::Soft,
+                        SvnStatus::Show => RemoveBehavior::Hard,
                     },
                 )
             })..,
@@ -150,7 +148,7 @@ fn show_side_view_folder(
                         file: path.file.join(name.as_ref()).into(),
                     },
                     name,
-                    &child,
+                    child,
                 )
             })..),
         ),
@@ -180,7 +178,7 @@ fn show_side_view_file(
                 manager.path.file.force(path.file.clone())
             },
         ),
-        close_icon(manager, &path, RemoveBehavior::HARD),
+        close_icon(manager, path, RemoveBehavior::Hard),
     )
 }
 

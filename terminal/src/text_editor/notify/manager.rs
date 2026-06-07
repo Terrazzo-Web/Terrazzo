@@ -78,7 +78,7 @@ fn on_child_change(
             return;
         };
         if !exists {
-            manager.remove_from_side_view(&changed_path, RemoveBehavior::HARD);
+            manager.remove_from_side_view(&changed_path, RemoveBehavior::Hard);
             return;
         }
 
@@ -135,7 +135,7 @@ fn on_folder_change(manager: &Ptr<TextEditorManager>, folder_path: &FilePath<Arc
             .await
             .unwrap_or(true)
         {
-            manager.remove_from_side_view(&folder_path, RemoveBehavior::HARD);
+            manager.remove_from_side_view(&folder_path, RemoveBehavior::Hard);
         }
     });
 }

@@ -39,8 +39,8 @@ impl TextEditorManager {
         let file_path = path.file.as_ref();
         self.side_view.update(|side_view| {
             let new_node = match behavior {
-                RemoveBehavior::HARD => super::remove_node(side_view.as_deref(), file_path),
-                RemoveBehavior::SOFT => super::add_node(self, side_view.as_deref(), path, |old| {
+                RemoveBehavior::Hard => super::remove_node(side_view.as_deref(), file_path),
+                RemoveBehavior::Soft => super::add_node(self, side_view.as_deref(), path, |old| {
                     old.map(|old| SideViewNode {
                         properties: SvnProperties {
                             status: SvnStatus::Show,

@@ -64,13 +64,11 @@ fn remove_node_rec_folder<'l>(
         let mut folder = folder.clone();
         folder.insert(folder_name.into(), child.into());
         Ok(folder)
+    } else if folder.contains_key(folder_name) {
+        let mut folder = folder.clone();
+        folder.remove(folder_name);
+        Ok(folder)
     } else {
-        if folder.contains_key(folder_name) {
-            let mut folder = folder.clone();
-            folder.remove(folder_name);
-            Ok(folder)
-        } else {
-            Err(RemoveFileError::FileNotFound)
-        }
+        Err(RemoveFileError::FileNotFound)
     }
 }

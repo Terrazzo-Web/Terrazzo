@@ -28,7 +28,7 @@ pub fn add_node_rec<'l>(
     };
     let (mut properties, folder, notify) = parse_folder(manager, path, node);
     let (folder, status) =
-        add_node_rec_folder(manager, path, make, relative_path, &folder, next.as_ref())?;
+        add_node_rec_folder(manager, path, make, relative_path, &folder, next)?;
     if status == SvnStatus::Active {
         properties.status = status;
     }

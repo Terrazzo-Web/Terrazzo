@@ -434,6 +434,6 @@ impl TextEditorManager {
 
 #[derive(Clone, Copy, Debug)]
 pub enum RemoveBehavior {
-    HARD,
-    SOFT,
+    Hard,
+    Soft,
 }

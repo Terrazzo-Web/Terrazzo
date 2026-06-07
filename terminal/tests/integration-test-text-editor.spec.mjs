@@ -199,9 +199,11 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 10 * SECON
     ).toBe(true);
 
     try {
+        await page.waitForTimeout(SECOND);
         const basePathInput = await showBasePathInput(page, timeout);
         await basePathInput.fill(baseDir);
         await page.keyboard.press('Tab');
+        await page.waitForTimeout(SECOND);
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [

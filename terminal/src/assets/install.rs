@@ -45,6 +45,7 @@ fn install_icons() {
     {
         install_icon(super::icons::chevron_double_right());
         install_icon(super::icons::collapse_vert());
+        install_icon(super::icons::diff());
         install_icon(super::icons::file());
         install_icon(super::icons::folder());
         install_icon(super::icons::loading());

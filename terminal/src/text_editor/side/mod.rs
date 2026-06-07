@@ -60,7 +60,8 @@ pub mod opaque {
     #[cfg(feature = "client")]
     use std::rc::Rc;
 
-    #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, serde::Serialize, serde::Deserialize)]
+    #[cfg_attr(any(feature = "server", test), derive(Default))]
     pub struct OpaqueNotifyRegistration {
         #[cfg(feature = "client")]
         #[serde(skip)]

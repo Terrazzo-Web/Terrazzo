@@ -8,6 +8,7 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::DragEvent;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
@@ -28,6 +29,9 @@ use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::ui::RemoveBehavior;
+use crate::text_editor::ui::drag::on_move_dragover;
+use crate::text_editor::ui::drag::on_move_dragstart;
+use crate::text_editor::ui::drag::on_move_drop;
 
 terrazzo_css::import_style!(style, "side.scss");
 
@@ -105,6 +109,14 @@ fn show_side_view_folder(
     folder: &Arc<SideViewList>,
 ) -> XElement {
     let name_display = name.display();
+
+    let dragover_class: XSignal<Option<&'static str>> = XSignal::new("side-view-dragover", None);
+    #[template(wrap = true)]
+    fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
+        dragover_class
+    }
+    let on_move_drop = on_move_drop(manager, path);
+
     let is_expanded = folder
         .values()
         .any(|child| child.properties.status == SvnStatus::Show);
@@ -118,14 +130,32 @@ fn show_side_view_folder(
             class = style::FOLDER,
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
+            draggable = (*path.file != *Path::new("")).then_some("true"),
+            dragstart = on_move_dragstart(path),
+            dragover = move |event: DragEvent| {
+                autoclone!(dragover_class);
+                if !on_move_dragover(event) {
+                    return;
+                }
+                dragover_class.set(style::MOVE_DRAGOVER);
+            },
+            dragleave = move |_| {
+                autoclone!(dragover_class);
+                dragover_class.set(None)
+            },
+            drop = move |event| {
+                dragover_class.set(None);
+                on_move_drop(event);
+            },
             img(src = icons::folder(), class = style::ICON),
             div(
                 class %= selected_item(manager.path.file.clone(), path.file.clone()),
-                dblclick = expand_folder(manager, path),
+                class %= get_dragover_class(dragover_class.clone()),
                 click = move |_| {
                     autoclone!(manager, path);
                     manager.path.file.set(path.file.clone())
                 },
+                dblclick = expand_folder(manager, path),
                 span("{name_display}", class = name_display_class(properties)),
             ),
             folder_expand_icon(manager, path, is_expanded),
@@ -169,6 +199,8 @@ fn show_side_view_file(
     div(
         key = "file",
         class = style::FILE,
+        draggable = true,
+        dragstart = on_move_dragstart(path),
         #[cfg(not(feature = "client-prod"))]
         data_file_path = path.file.to_owned_string(),
         img(src = icons::file(), class = style::ICON),

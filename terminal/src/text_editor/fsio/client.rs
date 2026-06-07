@@ -71,6 +71,14 @@ pub async fn create_folder(
     super::create_folder(remote, path, name).await
 }
 
+pub async fn move_file(
+    remote: Remote,
+    source: FilePath<Arc<Path>>,
+    destination_folder: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
+    super::move_file(remote, source, destination_folder).await
+}
+
 pub async fn delete_file(remote: Remote, path: FilePath<Arc<Path>>) -> Result<(), ServerFnError> {
     super::delete_file(remote, path).await
 }

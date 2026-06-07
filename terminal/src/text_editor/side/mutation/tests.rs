@@ -291,7 +291,7 @@ fn remove_file() {
         path: &str,
     ) -> Result<Option<SideViewNode>, super::remove::RemoveFileError> {
         let relative_path = Path::new(path).make_relative().iter().map(|c| c.as_ref());
-        super::remove::remove_node_rec(relative_path, node)
+        super::remove::remove_node_rec(Path::new(""), relative_path, node)
     }
 
     let error = remove_for_tests(tree.as_ref(), "/a1/b1/c2.txt/not_found.txt").unwrap_err();

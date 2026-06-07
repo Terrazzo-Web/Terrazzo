@@ -149,10 +149,13 @@ impl<R> FromIterator<(Arc<Path>, Arc<SideViewNode<R>>)> for SideViewList<R> {
 impl<R> std::fmt::Debug for SideViewNode<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.item {
-            SvnItem::Folder {
-                folder: list,
-                notify: _,
-            } => f.debug_tuple("Folder").field(list).finish(),
+            SvnItem::Folder { folder, notify: _ } => {
+                let sorted_folder = (***folder)
+                    .clone()
+                    .into_iter()
+                    .collect::<std::collections::BTreeMap<_, _>>();
+                f.debug_tuple("Folder").field(&sorted_folder).finish()
+            }
             SvnItem::File { metadata } => f.debug_tuple("File").field(&metadata.name).finish(),
         }
     }

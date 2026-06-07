@@ -28,6 +28,7 @@ pub enum RemoveFileError {
 }
 
 pub fn remove_node_rec<'l>(
+    parent: &Path,
     mut relative_path: impl Iterator<Item = &'l Path>,
     node: Option<&SideViewNode>,
 ) -> Result<Option<SideViewNode>, RemoveFileError> {
@@ -37,7 +38,7 @@ pub fn remove_node_rec<'l>(
         return Ok(None);
     };
     let Some(node) = node else {
-        return Err(RemoveFileError::ParentNotFound(next.into()));
+        return Err(RemoveFileError::ParentNotFound(parent.into()));
     };
     let (folder, notify) = match &node.item {
         SvnItem::Folder { folder, notify } => (folder.clone(), notify.clone()),
@@ -59,7 +60,11 @@ fn remove_node_rec_folder<'l>(
     folder: &SideViewList,
     folder_name: &Path,
 ) -> Result<SideViewList, RemoveFileError> {
-    let child = remove_node_rec(relative_path, folder.get(folder_name).map(Arc::as_ref))?;
+    let child = remove_node_rec(
+        folder_name,
+        relative_path,
+        folder.get(folder_name).map(Arc::as_ref),
+    )?;
     if let Some(child) = child {
         let mut folder = folder.clone();
         folder.insert(folder_name.into(), child.into());

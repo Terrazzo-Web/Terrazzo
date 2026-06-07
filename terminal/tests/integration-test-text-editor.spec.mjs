@@ -281,6 +281,22 @@ async function openFolderFile(page, name, timeout = 10 * SECOND) {
         .toBe(true);
 }
 
+async function showRootFolderFile(page, fileName, timeout = 10 * SECOND) {
+    await expect
+        .poll(
+            async () => {
+                try {
+                    await getSideViewFolder(page, '').locator('span').first().click({ timeout: SECOND });
+                    return await getFolderFile(page, fileName).isVisible({ timeout: SECOND });
+                } catch {
+                    return false;
+                }
+            },
+            { timeout },
+        )
+        .toBe(true);
+}
+
 async function reopenFolderFile(page, fileName) {
     await getSideViewFolder(page, '').locator('span').first().click();
     await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
@@ -362,13 +378,9 @@ async function replaceEditorText(page, editor, content) {
     await page.keyboard.insertText(content);
 }
 
-async function dragSideViewNodeIntoFolder(page, source, destinationFolder) {
+async function dragSideViewNodeIntoFolder(page, source, sourcePath, destinationFolder) {
     await source.scrollIntoViewIfNeeded();
     await destinationFolder.scrollIntoViewIfNeeded();
-    const sourcePath = await source.evaluate((node) => {
-        const entry = node.closest('[data-file-path], [data-folder-path]');
-        return entry?.getAttribute('data-file-path') ?? entry?.getAttribute('data-folder-path');
-    });
     expect(sourcePath).toBeTruthy();
     const dataTransfer = await page.evaluateHandle((sourcePath) => {
         const dataTransfer = new DataTransfer();
@@ -710,6 +722,7 @@ test.describe('Text editor', () => {
         await dragSideViewNodeIntoFolder(
             page,
             getSideViewFile(page, 'srcfolder/src_file'),
+            path.join(baseDir, 'srcfolder', 'src_file'),
             getSideViewFolder(page, 'destfolder'),
         );
 
@@ -721,6 +734,7 @@ test.describe('Text editor', () => {
         await dragSideViewNodeIntoFolder(
             page,
             getSideViewFolder(page, 'srcfolder/src_folder'),
+            path.join(baseDir, 'srcfolder', 'src_folder'),
             getSideViewFolder(page, 'destfolder'),
         );
 

@@ -142,7 +142,7 @@ fn show_side_view_folder(
         ),
         div(
             class = style::SUB_FOLDER,
-            ul(folder.iter().map(|(name, child)| {
+            ul(folder.sorted_iter().map(|(name, child)| {
                 show_side_view_node(
                     manager,
                     &FilePath {
@@ -282,4 +282,20 @@ fn close_icon(
 
 fn name_display_class(properties: &SvnProperties) -> impl Into<XAttributeValue> {
     (properties.status == SvnStatus::Show).then_some(style::SHOW_ONLY_ITEM)
+}
+
+impl SideViewList {
+    pub fn sorted_iter(&self) -> impl Iterator<Item = (&Arc<Path>, &Arc<SideViewNode>)> {
+        let iter = self.iter();
+        let mut data = iter.collect::<Vec<_>>();
+        data.sort_by_key(|(path, node)| {
+            (
+                matches!(node.item, SvnItem::Folder { .. }),
+                path.file_name()
+                    .map(|n| n.to_ascii_lowercase())
+                    .unwrap_or_default(),
+            )
+        });
+        data.into_iter()
+    }
 }

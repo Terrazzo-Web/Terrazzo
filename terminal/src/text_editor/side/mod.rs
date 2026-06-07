@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -99,7 +99,7 @@ pub mod opaque {
 ))]
 #[serde(transparent)]
 pub struct SideViewList<R = opaque::OpaqueNotifyRegistration>(
-    BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>,
+    HashMap<Arc<Path>, Arc<SideViewNode<R>>>,
 );
 
 impl<R> Default for SideViewList<R> {
@@ -108,13 +108,13 @@ impl<R> Default for SideViewList<R> {
     }
 }
 
-impl<R> From<BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>> for SideViewList<R> {
-    fn from(value: BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>) -> Self {
+impl<R> From<HashMap<Arc<Path>, Arc<SideViewNode<R>>>> for SideViewList<R> {
+    fn from(value: HashMap<Arc<Path>, Arc<SideViewNode<R>>>) -> Self {
         Self(value)
     }
 }
 
-impl<R> From<SideViewList<R>> for BTreeMap<Arc<Path>, Arc<SideViewNode<R>>> {
+impl<R> From<SideViewList<R>> for HashMap<Arc<Path>, Arc<SideViewNode<R>>> {
     fn from(value: SideViewList<R>) -> Self {
         value.0
     }
@@ -127,7 +127,7 @@ impl<R> std::fmt::Debug for SideViewList<R> {
 }
 
 impl<R> std::ops::Deref for SideViewList<R> {
-    type Target = BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>;
+    type Target = HashMap<Arc<Path>, Arc<SideViewNode<R>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -142,7 +142,7 @@ impl<R> std::ops::DerefMut for SideViewList<R> {
 
 impl<R> FromIterator<(Arc<Path>, Arc<SideViewNode<R>>)> for SideViewList<R> {
     fn from_iter<T: IntoIterator<Item = (Arc<Path>, Arc<SideViewNode<R>>)>>(iter: T) -> Self {
-        Self(BTreeMap::from_iter(iter))
+        Self(HashMap::from_iter(iter))
     }
 }
 

@@ -153,9 +153,9 @@ pub fn filter_active_folder_content(
     })
 }
 
-fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
-    let mut new_tree = SideViewList::default();
-    for (name, child) in tree.iter() {
+fn remove_displayed(folder: Arc<SideViewList>) -> Arc<SideViewList> {
+    let mut new_folder = SideViewList::default();
+    for (name, child) in folder.iter() {
         if child.properties.status == SvnStatus::Show {
             continue;
         }
@@ -169,9 +169,9 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
             }),
             SvnItem::File { .. } => child.clone(),
         };
-        new_tree.insert(name.clone(), child);
+        new_folder.insert(name.clone(), child);
     }
-    Arc::new(new_tree)
+    Arc::new(new_folder)
 }
 
 fn make_relative_path_iterator(path: &Path) -> impl Iterator<Item = &Path> {

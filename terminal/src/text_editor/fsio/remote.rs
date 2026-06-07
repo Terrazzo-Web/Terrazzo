@@ -52,6 +52,14 @@ pub struct CreateEntryRequest {
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct MoveFileRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
+    pub source: FilePath<Arc<Path>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
+    pub destination_folder: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct DeleteFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
     pub path: FilePath<Arc<Path>>,
@@ -130,6 +138,17 @@ remote_fn_service::unary::declare_remote_fn!(
     (),
     |_server, arg: CreateEntryRequest| async {
         let result = super::service::create_folder(arg.path, arg.name).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    MOVE_FILE_REMOTE_FN,
+    super::MOVE_FILE,
+    MoveFileRequest,
+    (),
+    |_server, arg: MoveFileRequest| async {
+        let result = super::service::move_file(arg.source, arg.destination_folder).await;
         result.map_err(GrpcError::from)
     }
 );

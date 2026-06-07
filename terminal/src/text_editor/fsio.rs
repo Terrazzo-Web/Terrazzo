@@ -161,6 +161,24 @@ async fn create_folder(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn move_file(
+    remote: ClientAddress,
+    source: FilePath<Arc<Path>>,
+    destination_folder: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
+    Ok(remote::MOVE_FILE_REMOTE_FN
+        .call(
+            remote,
+            remote::MoveFileRequest {
+                source,
+                destination_folder,
+            },
+        )
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn delete_file(
     remote: ClientAddress,
     path: FilePath<Arc<Path>>,

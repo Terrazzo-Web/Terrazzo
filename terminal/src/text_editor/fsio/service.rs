@@ -206,6 +206,33 @@ pub async fn create_folder(path: FilePath<Arc<Path>>, name: String) -> Result<()
     Ok(())
 }
 
+pub async fn move_file(
+    source: FilePath<Arc<Path>>,
+    destination_folder: FilePath<Arc<Path>>,
+) -> Result<(), FsioError> {
+    let source = source.full_path();
+    if !source.exists() {
+        return Err(FsioError::PathNotFound { path: source });
+    }
+    let Some(file_name) = source.file_name() else {
+        return Err(FsioError::MissingFileName { path: source });
+    };
+
+    let destination_folder = destination_folder.full_path();
+    if !destination_folder.is_dir() {
+        return Err(FsioError::ParentNotFolder {
+            path: destination_folder,
+        });
+    }
+    let destination = destination_folder.join(file_name);
+    if source == destination {
+        return Ok(());
+    }
+
+    tokio::fs::rename(source, destination).await?;
+    Ok(())
+}
+
 fn create_entry_path(path: FilePath<Arc<Path>>, name: &str) -> Result<PathBuf, FsioError> {
     if name.is_empty() || Path::new(name).components().count() != 1 {
         return Err(FsioError::InvalidEntryName {
@@ -381,6 +408,75 @@ mod tests {
             .unwrap();
 
         assert!(tempdir.path().join("new folder").is_dir());
+    }
+
+    #[tokio::test]
+    async fn move_file_into_folder() {
+        let tempdir = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir(tempdir.path().join("destination"))
+            .await
+            .unwrap();
+        tokio::fs::write(tempdir.path().join("source.txt"), "hello")
+            .await
+            .unwrap();
+        let base: Arc<Path> = Arc::from(tempdir.path());
+
+        super::move_file(
+            FilePath {
+                base: base.clone(),
+                file: Arc::from("source.txt".as_ref()),
+            },
+            FilePath {
+                base,
+                file: Arc::from("destination".as_ref()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(!tempdir.path().join("source.txt").exists());
+        assert_eq!(
+            "hello",
+            tokio::fs::read_to_string(tempdir.path().join("destination/source.txt"))
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn move_folder_into_folder() {
+        let tempdir = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir(tempdir.path().join("destination"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir(tempdir.path().join("source"))
+            .await
+            .unwrap();
+        tokio::fs::write(tempdir.path().join("source/child.txt"), "hello")
+            .await
+            .unwrap();
+        let base: Arc<Path> = Arc::from(tempdir.path());
+
+        super::move_file(
+            FilePath {
+                base: base.clone(),
+                file: Arc::from("source".as_ref()),
+            },
+            FilePath {
+                base,
+                file: Arc::from("destination".as_ref()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(!tempdir.path().join("source").exists());
+        assert_eq!(
+            "hello",
+            tokio::fs::read_to_string(tempdir.path().join("destination/source/child.txt"))
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]

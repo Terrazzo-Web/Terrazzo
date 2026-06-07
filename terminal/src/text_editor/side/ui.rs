@@ -11,7 +11,6 @@ use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::debug;
 use self::diagnostics::error;
-use super::super::ui::side_view_width;
 use super::SideViewList;
 use super::SideViewNode;
 use super::SvnItem;
@@ -19,10 +18,13 @@ use super::SvnStatus;
 use super::mutation::filter_active_folder_content;
 use super::mutation::show_folder_content;
 use crate::assets::icons;
+use crate::frontend::mousemove::Position;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::ui::ROOT_BASE_PATH;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 
 terrazzo_css::import_style!(style, "side.scss");
 
@@ -48,16 +50,22 @@ fn show_side_view(
     let root = base
         .file_name()
         .map(Path::new)
-        .unwrap_or_else(|| "/".as_ref());
-    tag(
+        .unwrap_or_else(|| &ROOT_BASE_PATH);
+    return tag(
         class = style::SIDE,
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
         style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),
         side_view.map(|side_view| {
-            show_side_view_node(&manager, Path::new("").into(), root, &side_view)
+            show_side_view_node(&manager, ROOT_FILE_PATH.clone(), root, &side_view)
         })..,
-    )
+    );
+
+    #[template(wrap = true)]
+    fn side_view_width(#[signal] position: Option<Position>) -> XAttributeValue {
+        let position = position.unwrap_or_default();
+        format!("0 0 max(8rem, calc(200px + {}px))", position.x)
+    }
 }
 
 #[html]

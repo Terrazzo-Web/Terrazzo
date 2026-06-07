@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -14,7 +15,9 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
+use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
+use self::diagnostics::debug_span;
 use self::diagnostics::warn;
 use self::editor::EditorDocument;
 use self::editor::editor;
@@ -36,10 +39,10 @@ use super::synchronized_state::show_synchronized_state;
 use crate::assets::icons;
 use crate::frontend::menu::menu;
 use crate::frontend::mousemove::MousemoveManager;
-use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
+use crate::text_editor::notify::manager::SideViewNotify;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnProperties;
 use crate::tiles::app::App;
@@ -50,6 +53,9 @@ mod code_mirror;
 mod editor;
 mod folder;
 mod pdf_viewer;
+
+pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
+pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -75,8 +81,8 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         tile,
         remote: remote.clone(),
         path: FilePath {
-            base: XSignal::new("base-path", Path::new("").into()),
-            file: XSignal::new("file-path", Path::new("").into()),
+            base: XSignal::new("base-path", ROOT_BASE_PATH.clone()),
+            file: XSignal::new("file-path", ROOT_FILE_PATH.clone()),
         },
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
@@ -195,12 +201,6 @@ fn toggle_editor_diff(
     );
 }
 
-#[template(wrap = true)]
-pub(super) fn side_view_width(#[signal] position: Option<Position>) -> XAttributeValue {
-    let position = position.unwrap_or_default();
-    format!("0 0 max(8rem, calc(200px + {}px))", position.x)
-}
-
 #[html]
 #[template(tag = div)]
 fn editor_container(
@@ -276,9 +276,23 @@ impl TextEditorManager {
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
                     .append(this.save_side_view_on_change())
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
-                    .append(this.path.base.add_subscriber(move |_base_path| {
+                    .append(this.path.base.add_subscriber(move |base_path| {
                         autoclone!(this);
-                        this.path.file.force(Arc::from(Path::new("")));
+                        let batch = Batch::use_batch("Update base path");
+                        this.path.file.force(ROOT_FILE_PATH.clone());
+                        this.side_view.force(Some(Arc::new(SideViewNode {
+                            properties: SvnProperties {
+                                status: SvnStatus::Show,
+                            },
+                            item: SvnItem::Folder {
+                                folder: Default::default(),
+                                notify: this.watch_side_view_folder(&FilePath {
+                                    base: base_path,
+                                    file: ROOT_FILE_PATH.clone(),
+                                }),
+                            },
+                        })));
+                        drop(batch);
                     }))
             });
             let tile_id = this.tile.id;
@@ -333,6 +347,9 @@ impl TextEditorManager {
         let this = self;
         this.path.file.add_subscriber(move |file_path| {
             autoclone!(this);
+            let _span = debug_span!("File path changed").entered();
+            let end = guard((), |()| debug!("End"));
+            debug!("Start");
             let loading = SynchronizedState::enqueue(this.synchronized_state.clone());
             let task = async move {
                 autoclone!(this);
@@ -373,8 +390,9 @@ impl TextEditorManager {
                     this.editor_state.force(EditorState::default());
                 }
                 drop(loading);
+                drop(end);
             };
-            spawn_local(task);
+            spawn_local(task.in_current_span());
         })
     }
 

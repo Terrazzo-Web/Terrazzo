@@ -22,6 +22,7 @@ use super::server_fn::autocomplete_path;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::path_selector::schema::PathSelector;
 use crate::text_editor::style;
+use crate::text_editor::ui::ROOT_BASE_PATH;
 
 #[autoclone]
 #[html]
@@ -143,7 +144,7 @@ fn do_autocomplete_impl(
             prefix
                 .as_ref()
                 .map(XSignal::get_value_untracked)
-                .unwrap_or(Path::new("").into()),
+                .unwrap_or(ROOT_BASE_PATH.clone()),
             value,
         )
         .await

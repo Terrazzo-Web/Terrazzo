@@ -9,6 +9,7 @@ use terrazzo::prelude::Ptr;
 use super::SideViewNode;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 
 impl TextEditorManager {
     // Adds the given path and item to be tracked on the side view
@@ -34,7 +35,7 @@ impl TextEditorManager {
         });
         self.path.file.update(|old| {
             if old.as_ref() == file_path {
-                let parent = file_path.parent().unwrap_or_else(|| Path::new(""));
+                let parent = file_path.parent().unwrap_or_else(|| &ROOT_FILE_PATH);
                 Some(parent.into())
             } else {
                 None

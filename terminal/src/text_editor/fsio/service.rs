@@ -27,6 +27,7 @@ use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;
@@ -129,7 +130,7 @@ pub async fn prune_side_view(
     base: Arc<Path>,
     node: Arc<SideViewNode<()>>,
 ) -> Result<Option<Arc<SideViewNode<()>>>, FsioError> {
-    let Some((node, changed)) = prune_side_view_rec(&base, Path::new(""), &node) else {
+    let Some((node, changed)) = prune_side_view_rec(&base, &ROOT_FILE_PATH, &node) else {
         return Err(FsioError::BaseFolderNotFound { base });
     };
     Ok(changed.then(|| Arc::new(node)))

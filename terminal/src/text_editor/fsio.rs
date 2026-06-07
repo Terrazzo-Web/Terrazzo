@@ -1,4 +1,6 @@
+use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use nameth::NamedEnumValues as _;
@@ -9,16 +11,18 @@ use server_fn::codec::Json;
 use terrazzo::server;
 
 use super::file_path::FilePath;
-use super::side::SideViewList;
+use super::side::SideViewNode;
 use crate::api::client_address::ClientAddress;
 
-pub mod canonical;
 pub mod client;
 mod fsmetadata;
 mod git;
 mod remote;
 mod service;
 pub mod ux;
+
+pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
+pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
 
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -79,7 +83,7 @@ impl std::fmt::Debug for File {
 #[nameth]
 async fn load_file(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<File>, ServerFnError> {
     Ok(remote::LOAD_FILE_REMOTE_FN
         .call(remote, remote::LoadFileRequest { path })
@@ -88,9 +92,20 @@ async fn load_file(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn load_file_metadata(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<File>, ServerFnError> {
+    Ok(remote::LOAD_FILE_METADATA_REMOTE_FN
+        .call(remote, remote::LoadFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn list_folder(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<Arc<Vec<FileMetadata>>>, ServerFnError> {
     Ok(remote::LIST_FOLDER_REMOTE_FN
         .call(remote, remote::ListFolderRequest { path })
@@ -101,7 +116,7 @@ async fn list_folder(
 #[nameth]
 async fn file_exists(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<bool, ServerFnError> {
     Ok(remote::FILE_EXISTS_REMOTE_FN
         .call(remote, remote::FileExistsRequest { path })
@@ -112,11 +127,11 @@ async fn file_exists(
 #[nameth]
 async fn prune_side_view(
     remote: ClientAddress,
-    base: Arc<str>,
-    tree: Arc<SideViewList>,
-) -> Result<Option<Arc<SideViewList>>, ServerFnError> {
+    base: Arc<Path>,
+    node: Arc<SideViewNode<()>>,
+) -> Result<Option<Arc<SideViewNode<()>>>, ServerFnError> {
     Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
-        .call(remote, remote::PruneSideViewRequest { base, tree })
+        .call(remote, remote::PruneSideViewRequest { base, node })
         .await?)
 }
 
@@ -124,7 +139,7 @@ async fn prune_side_view(
 #[nameth]
 async fn create_file(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     Ok(remote::CREATE_FILE_REMOTE_FN
@@ -136,7 +151,7 @@ async fn create_file(
 #[nameth]
 async fn create_folder(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     name: String,
 ) -> Result<(), ServerFnError> {
     Ok(remote::CREATE_FOLDER_REMOTE_FN
@@ -146,7 +161,10 @@ async fn create_folder(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
-async fn delete_file(remote: ClientAddress, path: FilePath<Arc<str>>) -> Result<(), ServerFnError> {
+async fn delete_file(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
     Ok(remote::DELETE_FILE_REMOTE_FN
         .call(remote, remote::DeleteFileRequest { path })
         .await?)
@@ -156,7 +174,7 @@ async fn delete_file(remote: ClientAddress, path: FilePath<Arc<str>>) -> Result<
 #[nameth]
 async fn store_file_impl(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     content: String,
 ) -> Result<(), ServerFnError> {
     #[cfg(debug_assertions)]

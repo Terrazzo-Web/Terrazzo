@@ -13,21 +13,28 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
 
+use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
+use self::diagnostics::debug_span;
 use self::diagnostics::warn;
 use self::editor::EditorDocument;
 use self::editor::editor;
 use self::folder::folder;
 use super::file_path::FilePath;
 use super::fsio;
+use super::fsio::ROOT_BASE_PATH;
+use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
 use super::manager::TextEditorManager;
+use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
+use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
-use super::side::SideViewList;
-use super::side::mutation::side_view_notify_registrations;
-use super::side::ui::show_side_view;
+use super::side::SideViewNode;
+use super::side::SvnItem;
+use super::side::SvnProperties;
+use super::side::SvnStatus;
 use super::state;
 use super::style;
 use super::synchronized_state::SynchronizedState;
@@ -35,11 +42,9 @@ use super::synchronized_state::show_synchronized_state;
 use crate::assets::icons;
 use crate::frontend::menu::menu;
 use crate::frontend::mousemove::MousemoveManager;
-use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::text_editor::search::state::EditorSearchState;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -68,26 +73,25 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
-    let side_view: XSignal<Arc<SideViewList>> = XSignal::new("side-view", Default::default());
     let show_editor_diff = XSignal::new("show-editor-diff", true);
     let manager = Ptr::new(TextEditorManager {
         tile,
         remote: remote.clone(),
         path: FilePath {
-            base: XSignal::new("base-path", Arc::default()),
-            file: XSignal::new("file-path", Arc::default()),
+            base: XSignal::new("base-path", ROOT_BASE_PATH.clone()),
+            file: XSignal::new("file-path", ROOT_FILE_PATH.clone()),
         },
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
-        side_view,
+        side_view: XSignal::new("side-view", None),
         notify_service: Ptr::new(NotifyService::new(remote)),
         search: SearchState::new(),
+        side_view_resize_manager: MousemoveManager::new(),
     });
 
     let consumers = Arc::default();
     manager.restore_paths(&consumers);
-    let side_view_resize_manager = MousemoveManager::new();
 
     div(
         key = "text-editor",
@@ -110,7 +114,6 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.clone(),
             manager.editor_state.clone(),
             show_editor_diff,
-            side_view_resize_manager,
         ),
         after_render = move |_| {
             let _moved = &consumers;
@@ -138,18 +141,13 @@ fn editor_body(
     manager: Ptr<TextEditorManager>,
     editor_state: XSignal<EditorState>,
     show_editor_diff: XSignal<bool>,
-    side_view_resize_manager: MousemoveManager,
 ) -> XElement {
     div(
         class = super::style::BODY,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
-        show_side_view(
-            manager.clone(),
-            manager.side_view.clone(),
-            side_view_resize_manager.clone(),
-        ),
-        resize_bar_horz(side_view_resize_manager, Default::default()),
+        manager.show_side_view(),
+        resize_bar_horz(manager.side_view_resize_manager.clone(), Default::default()),
         editor_container(manager, editor_state, show_editor_diff),
     )
 }
@@ -174,35 +172,30 @@ fn toggle_editor_diff(
     if !has_diff {
         return tag(style::display = "none", style::visibility = "hidden");
     }
-    img(
+
+    #[template(wrap = true)]
+    fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
+        show_editor_diff.then_some(style::ACTIVE)
+    }
+
+    #[template(wrap = true)]
+    fn make_title(#[signal] show_editor_diff: bool) -> XAttributeValue {
+        if show_editor_diff {
+            "Hide diff"
+        } else {
+            "Show diff"
+        }
+    }
+
+    return img(
         class = style::TOGGLE_EDITOR_DIFF,
-        class %= toggle_editor_diff_class(show_editor_diff.clone()),
+        class %= make_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "toggle-editor-diff",
-        src = icons::split_vert(),
-        title %= toggle_editor_diff_title(show_editor_diff.clone()),
+        src = icons::diff(),
+        title %= make_title(show_editor_diff.clone()),
         click = move |_| show_editor_diff.update(|show| Some(!show)),
-    )
-}
-
-#[template(wrap = true)]
-fn toggle_editor_diff_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
-    show_editor_diff.then_some(style::ACTIVE)
-}
-
-#[template(wrap = true)]
-fn toggle_editor_diff_title(#[signal] show_editor_diff: bool) -> XAttributeValue {
-    if show_editor_diff {
-        "Hide diff"
-    } else {
-        "Show diff"
-    }
-}
-
-#[template(wrap = true)]
-pub(super) fn side_view_width(#[signal] position: Option<Position>) -> XAttributeValue {
-    let position = position.unwrap_or_default();
-    format!("0 0 max(8rem, calc(200px + {}px))", position.x)
+    );
 }
 
 #[html]
@@ -278,12 +271,25 @@ impl TextEditorManager {
                 *consumers.lock().unwrap() = registrations
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
-                    .append(this.save_on_change(this.side_view.clone(), state::side_view::set))
+                    .append(this.save_side_view_on_change())
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
-                    .append(this.path.base.add_subscriber(move |_base_path| {
+                    .append(this.path.base.add_subscriber(move |base_path| {
                         autoclone!(this);
-                        this.side_view.force(Arc::default());
-                        this.path.file.force(Arc::default());
+                        let batch = Batch::use_batch("Update base path");
+                        this.path.file.force(ROOT_FILE_PATH.clone());
+                        this.side_view.force(Some(Arc::new(SideViewNode {
+                            properties: SvnProperties {
+                                status: SvnStatus::Active,
+                            },
+                            item: SvnItem::Folder {
+                                folder: Default::default(),
+                                notify: this.watch_side_view_folder(&FilePath {
+                                    base: base_path,
+                                    file: ROOT_FILE_PATH.clone(),
+                                }),
+                            },
+                        })));
+                        drop(batch);
                     }))
             });
             let tile_id = this.tile.id;
@@ -307,29 +313,22 @@ impl TextEditorManager {
                 let base_path = this.path.base.get_value_untracked();
                 match fsio::client::prune_side_view(
                     this.remote.clone(),
-                    base_path.clone(),
-                    side_view.clone(),
+                    this.path.base.get_value_untracked(),
+                    side_view,
                 )
                 .await
                 {
-                    Ok(Some(pruned_side_view)) => {
+                    Ok(pruned_side_view) => {
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
-                        this.side_view.force(side_view_notify_registrations(
-                            &this,
-                            base_path,
-                            pruned_side_view,
-                        ));
-                    }
-                    Ok(None) => {
                         this.side_view
-                            .force(side_view_notify_registrations(&this, base_path, side_view));
+                            .force(this.live_side_view(&base_path, pruned_side_view));
                     }
                     Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
                 }
             }
             this.force_edit_path.set(
-                this.path.base.get_value_untracked().is_empty()
-                    || this.path.file.get_value_untracked().is_empty(),
+                this.path.base.get_value_untracked().iter().next().is_none()
+                    || this.path.file.get_value_untracked().iter().next().is_none(),
             );
             if let Ok(p) = get_search {
                 this.search.query.force(p);
@@ -345,6 +344,9 @@ impl TextEditorManager {
         let this = self;
         this.path.file.add_subscriber(move |file_path| {
             autoclone!(this);
+            let _span = debug_span!("File path changed").entered();
+            let end = guard((), |()| debug!("End"));
+            debug!("Start");
             let loading = SynchronizedState::enqueue(this.synchronized_state.clone());
             let task = async move {
                 autoclone!(this);
@@ -357,9 +359,7 @@ impl TextEditorManager {
                     .unwrap_or_else(|error| Some(fsio::File::Error(error.to_string())))
                     .map(Arc::new);
 
-                if this.path.base.get_value_untracked() != path.base
-                    || this.path.file.get_value_untracked() != path.file
-                {
+                if this.path.as_ref().map(|s| s.get_value_untracked()) != path {
                     debug!("Ignoring stale file load for {:?}", path);
                     drop(loading);
                     return;
@@ -369,7 +369,15 @@ impl TextEditorManager {
                     fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
                 ) = data.as_deref()
                 {
-                    this.add_to_side_view(metadata, &path);
+                    let metadata = metadata.clone();
+                    this.add_to_side_view(&path, |_| {
+                        Some(SideViewNode {
+                            properties: SvnProperties {
+                                status: SvnStatus::Active,
+                            },
+                            item: SvnItem::File { metadata },
+                        })
+                    });
                 }
 
                 if let Some(data) = data {
@@ -379,8 +387,24 @@ impl TextEditorManager {
                     this.editor_state.force(EditorState::default());
                 }
                 drop(loading);
+                drop(end);
             };
-            spawn_local(task);
+            spawn_local(task.in_current_span());
+        })
+    }
+
+    #[autoclone]
+    fn save_side_view_on_change(&self) -> Consumers {
+        let tile_id = self.tile.id;
+        let remote = self.remote.clone();
+        self.side_view.add_subscriber(move |side_view| {
+            spawn_local(async move {
+                autoclone!(remote);
+                let side_view = Self::stored_side_view(side_view);
+                let () = state::side_view::set(Some(tile_id), remote, side_view)
+                    .await
+                    .unwrap_or_else(|error| warn!("Failed to save: {error}"));
+            })
         })
     }
 
@@ -406,4 +430,10 @@ impl TextEditorManager {
             })
         })
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum RemoveBehavior {
+    Hard,
+    Soft,
 }

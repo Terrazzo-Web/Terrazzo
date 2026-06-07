@@ -40,7 +40,7 @@ declare_icon!(close_tab, "/icons/x-lg.svg"; any(feature = "terminal", feature = 
 declare_icon!(collapse_vert, "/icons/arrows-collapse.svg"; feature = "text-editor");
 declare_icon!(converter, "/icons/regex.svg"; feature = "converter");
 declare_icon!(copy, "/icons/copy.svg"; feature = "converter");
-declare_icon!(diff, "/icons/layout-split.svg");
+declare_icon!(diff, "/icons/layout-split.svg"; feature = "text-editor");
 declare_icon!(done, "/icons/done.svg"; any(feature = "converter", feature = "text-editor"));
 declare_icon!(file, "/icons/file-earmark-text.svg"; feature = "text-editor");
 declare_icon!(folder, "/icons/folder2-open.svg"; feature = "text-editor");

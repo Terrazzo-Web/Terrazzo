@@ -50,6 +50,7 @@ use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
 
 mod code_mirror;
+pub mod drag;
 mod editor;
 mod folder;
 mod pdf_viewer;

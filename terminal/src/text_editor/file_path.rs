@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::text_editor::ui::ROOT_BASE_PATH;
+use super::fsio::ROOT_BASE_PATH;
 use crate::utils::more_path::MorePathRef as _;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

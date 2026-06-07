@@ -19,10 +19,10 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::info;
 use super::server_fn::AutocompleteItem;
 use super::server_fn::autocomplete_path;
+use crate::text_editor::fsio::ROOT_BASE_PATH;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::path_selector::schema::PathSelector;
 use crate::text_editor::style;
-use crate::text_editor::ui::ROOT_BASE_PATH;
 
 #[autoclone]
 #[html]

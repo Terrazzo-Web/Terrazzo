@@ -24,10 +24,10 @@ use super::FileMetadata;
 use super::git;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
-use crate::text_editor::ui::ROOT_FILE_PATH;
 
 const MAX_FILES_SORTED: usize = 5000;
 const MAX_FILES_RETURNED: usize = 1000;

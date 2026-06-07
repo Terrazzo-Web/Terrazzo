@@ -8,8 +8,8 @@ use terrazzo::prelude::Ptr;
 
 use super::SideViewNode;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::ui::ROOT_FILE_PATH;
 
 impl TextEditorManager {
     // Adds the given path and item to be tracked on the side view

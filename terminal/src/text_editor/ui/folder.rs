@@ -20,6 +20,7 @@ use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 
 terrazzo_css::import_style!(style, "folder.scss");
 
@@ -178,7 +179,7 @@ impl Default for FolderState {
         Self {
             parent: Default::default(),
             notify_registration: Default::default(),
-            file_path: Path::new("").into(),
+            file_path: ROOT_FILE_PATH.clone(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use nameth::NamedEnumValues as _;
@@ -19,6 +20,9 @@ mod git;
 mod remote;
 mod service;
 pub mod ux;
+
+pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
+pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
 
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

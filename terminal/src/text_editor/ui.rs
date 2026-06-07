@@ -1,8 +1,6 @@
 #![cfg(feature = "client")]
 
-use std::path::Path;
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -24,13 +22,18 @@ use self::editor::editor;
 use self::folder::folder;
 use super::file_path::FilePath;
 use super::fsio;
+use super::fsio::ROOT_BASE_PATH;
+use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
 use super::manager::TextEditorManager;
+use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
+use super::side::SideViewNode;
 use super::side::SvnItem;
+use super::side::SvnProperties;
 use super::side::SvnStatus;
 use super::state;
 use super::style;
@@ -42,9 +45,6 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::text_editor::notify::manager::SideViewNotify;
-use crate::text_editor::side::SideViewNode;
-use crate::text_editor::side::SvnProperties;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -53,9 +53,6 @@ mod code_mirror;
 mod editor;
 mod folder;
 mod pdf_viewer;
-
-pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
-pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)

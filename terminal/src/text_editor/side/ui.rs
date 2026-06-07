@@ -21,10 +21,10 @@ use crate::assets::icons;
 use crate::frontend::mousemove::Position;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
+use crate::text_editor::fsio::ROOT_BASE_PATH;
+use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::ui::ROOT_BASE_PATH;
-use crate::text_editor::ui::ROOT_FILE_PATH;
 
 terrazzo_css::import_style!(style, "side.scss");
 

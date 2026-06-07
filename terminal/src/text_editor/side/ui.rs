@@ -61,7 +61,7 @@ fn show_side_view(
             show_side_view_node(
                 &manager,
                 &FilePath {
-                    base,
+                    base: base.clone(),
                     file: ROOT_FILE_PATH.clone(),
                 },
                 root,
@@ -177,7 +177,7 @@ fn show_side_view_file(
             span(class = name_display_class(properties), "{name}"),
             click = move |_| {
                 autoclone!(manager, path);
-                manager.path.file.set(path.file.clone())
+                manager.path.file.force(path.file.clone())
             },
         ),
         close_icon(manager, &path, RemoveBehavior::HARD),

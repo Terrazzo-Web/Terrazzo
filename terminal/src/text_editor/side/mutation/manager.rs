@@ -7,6 +7,7 @@ use std::sync::Arc;
 use terrazzo::prelude::Ptr;
 
 use super::SideViewNode;
+use super::SvnItem;
 use super::SvnProperties;
 use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
@@ -44,7 +45,13 @@ impl TextEditorManager {
                         properties: SvnProperties {
                             status: SvnStatus::Show,
                         },
-                        item: old.item.clone(),
+                        item: match &old.item {
+                            SvnItem::Folder { folder: _, notify } => SvnItem::Folder {
+                                folder: Default::default(),
+                                notify: notify.clone(),
+                            },
+                            file @ SvnItem::File { .. } => file.clone(),
+                        },
                     })
                 }),
             };

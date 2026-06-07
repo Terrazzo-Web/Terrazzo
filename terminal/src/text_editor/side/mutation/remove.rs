@@ -55,11 +55,17 @@ pub fn remove_node_rec<'l>(
 }
 
 fn remove_node_rec_folder<'l>(
-    relative_path: impl Iterator<Item = &'l Path>,
+    mut relative_path: impl Iterator<Item = &'l Path>,
     folder: &SideViewList,
     folder_name: &Path,
 ) -> Result<SideViewList, RemoveFileError> {
-    let child = remove_node_rec(relative_path, folder.get(folder_name).map(Arc::as_ref))?;
+    let child = if let Some(child) = folder.get(folder_name) {
+        remove_node_rec(relative_path, Some(child.as_ref()))?
+    } else if relative_path.next().is_some() {
+        return Err(RemoveFileError::ParentNotFound(folder_name.into()));
+    } else {
+        None
+    };
     if let Some(child) = child {
         let mut folder = folder.clone();
         folder.insert(folder_name.into(), child.into());

@@ -23,6 +23,7 @@ use super::mutation::show_folder_content;
 use crate::assets::icons;
 use crate::frontend::mousemove::Position;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::ROOT_BASE_PATH;
 use crate::text_editor::fsio::ROOT_FILE_PATH;
@@ -219,7 +220,9 @@ fn drag_side_view_node(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'stat
         let Some(data_transfer) = event.data_transfer() else {
             return;
         };
-        let _ = data_transfer.set_data(SIDE_VIEW_DRAG_KEY, &path.file.to_string_lossy());
+        debug!("Dragging source file:{path:?}");
+        event.stop_propagation();
+        let _ = data_transfer.set_data(SIDE_VIEW_DRAG_KEY, &path.full_path().to_string_lossy());
         data_transfer.set_effect_allowed("move");
     }
 }
@@ -231,39 +234,40 @@ fn drop_side_view_node(
 ) -> impl Fn(DragEvent) + 'static {
     move |event| {
         autoclone!(manager, destination_folder);
+        debug!("Processing drop event to {destination_folder:?}");
         event.prevent_default();
         event.stop_propagation();
         let Some(data_transfer) = event.data_transfer() else {
+            debug!("No DataTransfer object found");
             return;
         };
         let Ok(source_file) = data_transfer.get_data(SIDE_VIEW_DRAG_KEY) else {
+            debug!("Data not found for key {SIDE_VIEW_DRAG_KEY}");
             return;
         };
         if source_file.is_empty() {
+            debug!("Source file is empty!");
             return;
         }
+        debug!("Source file:'{source_file}' to Destination folder:'{destination_folder:?}'");
 
         let source_path = Path::new(&source_file);
-        let destination_path = destination_folder.file.as_ref();
-        if source_path.parent() == Some(destination_path) {
-            return;
-        }
-        if source_path.starts_with(destination_path) && source_path == destination_path {
-            return;
-        }
-        if destination_path.starts_with(source_path) {
+        let destination_path = destination_folder.full_path();
+        if source_path.parent() == Some(&destination_path)
+            || source_path == destination_path
+            || destination_path.starts_with(source_path)
+        {
+            debug!("No-op move!");
             return;
         }
 
-        let move_manager = manager.clone();
-        let move_destination_folder = destination_folder.clone();
         spawn_local(move_side_view_node(
-            move_manager,
+            manager.clone(),
             FilePath {
-                base: destination_folder.base.clone(),
-                file: Arc::<Path>::from(source_path),
+                base: ROOT_BASE_PATH.clone(),
+                file: source_path.into(),
             },
-            move_destination_folder,
+            destination_folder.clone(),
         ));
     }
 }
@@ -273,23 +277,10 @@ async fn move_side_view_node(
     source: FilePath<Arc<Path>>,
     destination_folder: FilePath<Arc<Path>>,
 ) {
-    let result = crate::text_editor::fsio::client::move_file(
-        manager.remote.clone(),
-        source.clone(),
-        destination_folder.clone(),
-    )
-    .await;
+    let result = fsio::client::move_file(manager.remote.clone(), source, destination_folder).await;
     if let Err(error) = result {
         error!("Failed to move side-view entry: {error}");
         return;
-    }
-
-    let current = manager.path.file.get_value_untracked();
-    let source_parent = source.file.parent().map(Arc::<Path>::from);
-    if current == destination_folder.file || source_parent.as_ref() == Some(&current) {
-        manager.path.file.force(current);
-    } else {
-        manager.tile.app.force(crate::tiles::app::App::TextEditor);
     }
 }
 

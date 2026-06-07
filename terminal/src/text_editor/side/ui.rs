@@ -109,6 +109,15 @@ fn show_side_view_folder(
     folder: &Arc<SideViewList>,
 ) -> XElement {
     let name_display = name.display();
+
+    let dragover_class: XSignal<Option<&'static str>> =
+        XSignal::new("side-view-folder-dragover", None);
+    #[template(wrap = true)]
+    fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
+        dragover_class
+    }
+    let on_move_drop = on_move_drop(manager, path);
+
     let is_expanded = folder
         .values()
         .any(|child| child.properties.status == SvnStatus::Show);
@@ -120,11 +129,13 @@ fn show_side_view_folder(
         data_folder_path = path.file.to_owned_string(),
         div(
             class = style::FOLDER,
+            class %= get_dragover_class(dragover_class.clone()),
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
             draggable = (*path.file != *Path::new("")).then_some("true"),
             dragstart = drag_side_view_node(path),
             dragover = move |event: DragEvent| {
+                autoclone!(dragover_class);
                 let Some(data_transfer) = event.data_transfer() else {
                     return;
                 };
@@ -133,16 +144,24 @@ fn show_side_view_folder(
                 }
                 event.prevent_default();
                 data_transfer.set_drop_effect("move");
+                dragover_class.set(style::FOLDER_DRAGOVER);
             },
-            drop = drop_side_view_node(manager, path),
+            dragleave = move |_| {
+                autoclone!(dragover_class);
+                dragover_class.set(None)
+            },
+            drop = move |event| {
+                dragover_class.set(None);
+                on_move_drop(event);
+            },
             img(src = icons::folder(), class = style::ICON),
             div(
                 class %= selected_item(manager.path.file.clone(), path.file.clone()),
-                dblclick = expand_folder(manager, path),
                 click = move |_| {
                     autoclone!(manager, path);
                     manager.path.file.set(path.file.clone())
                 },
+                dblclick = expand_folder(manager, path),
                 span("{name_display}", class = name_display_class(properties)),
             ),
             folder_expand_icon(manager, path, is_expanded),
@@ -228,7 +247,7 @@ fn drag_side_view_node(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'stat
 }
 
 #[autoclone]
-fn drop_side_view_node(
+fn on_move_drop(
     manager: &Ptr<TextEditorManager>,
     destination_folder: &FilePath<Arc<Path>>,
 ) -> impl Fn(DragEvent) + 'static {

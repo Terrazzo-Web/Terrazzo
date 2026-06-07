@@ -8,6 +8,7 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::DragEvent;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
@@ -30,6 +31,8 @@ use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::ui::RemoveBehavior;
 
 terrazzo_css::import_style!(style, "side.scss");
+
+const SIDE_VIEW_DRAG_KEY: &str = "text_editor_side_view_path";
 
 #[cfg(not(feature = "client-prod"))]
 use crate::utils::more_path::MorePath as _;
@@ -108,6 +111,8 @@ fn show_side_view_folder(
         .any(|child| child.properties.status == SvnStatus::Show);
     div(
         key = "folder",
+        draggable = (*path.file != *Path::new("")).then_some("true"),
+        dragstart = drag_side_view_node(path),
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-folder",
         #[cfg(not(feature = "client-prod"))]
@@ -116,6 +121,13 @@ fn show_side_view_folder(
             class = style::FOLDER,
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
+            dragover = move |event: DragEvent| {
+                event.prevent_default();
+                if let Some(data_transfer) = event.data_transfer() {
+                    data_transfer.set_drop_effect("move");
+                }
+            },
+            drop = drop_side_view_node(manager, path),
             img(src = icons::folder(), class = style::ICON),
             div(
                 class %= selected_item(manager.path.file.clone(), path.file.clone()),
@@ -167,6 +179,8 @@ fn show_side_view_file(
     div(
         key = "file",
         class = style::FILE,
+        draggable = true,
+        dragstart = drag_side_view_node(path),
         #[cfg(not(feature = "client-prod"))]
         data_file_path = path.file.to_owned_string(),
         img(src = icons::file(), class = style::ICON),
@@ -180,6 +194,87 @@ fn show_side_view_file(
         ),
         close_icon(manager, path, RemoveBehavior::Hard),
     )
+}
+
+#[autoclone]
+fn drag_side_view_node(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'static {
+    move |event| {
+        autoclone!(path);
+        let Some(data_transfer) = event.data_transfer() else {
+            return;
+        };
+        let _ = data_transfer.set_data(SIDE_VIEW_DRAG_KEY, &path.file.to_string_lossy());
+        data_transfer.set_effect_allowed("move");
+    }
+}
+
+#[autoclone]
+fn drop_side_view_node(
+    manager: &Ptr<TextEditorManager>,
+    destination_folder: &FilePath<Arc<Path>>,
+) -> impl Fn(DragEvent) + 'static {
+    move |event| {
+        autoclone!(manager, destination_folder);
+        event.prevent_default();
+        event.stop_propagation();
+        let Some(data_transfer) = event.data_transfer() else {
+            return;
+        };
+        let Ok(source_file) = data_transfer.get_data(SIDE_VIEW_DRAG_KEY) else {
+            return;
+        };
+        if source_file.is_empty() {
+            return;
+        }
+
+        let source_path = Path::new(&source_file);
+        let destination_path = destination_folder.file.as_ref();
+        if source_path.parent() == Some(destination_path) {
+            return;
+        }
+        if source_path.starts_with(destination_path) && source_path == destination_path {
+            return;
+        }
+        if destination_path.starts_with(source_path) {
+            return;
+        }
+
+        let move_manager = manager.clone();
+        let move_destination_folder = destination_folder.clone();
+        spawn_local(move_side_view_node(
+            move_manager,
+            FilePath {
+                base: destination_folder.base.clone(),
+                file: Arc::<Path>::from(source_path),
+            },
+            move_destination_folder,
+        ));
+    }
+}
+
+async fn move_side_view_node(
+    manager: Ptr<TextEditorManager>,
+    source: FilePath<Arc<Path>>,
+    destination_folder: FilePath<Arc<Path>>,
+) {
+    let result = crate::text_editor::fsio::client::move_file(
+        manager.remote.clone(),
+        source.clone(),
+        destination_folder.clone(),
+    )
+    .await;
+    if let Err(error) = result {
+        error!("Failed to move side-view entry: {error}");
+        return;
+    }
+
+    let current = manager.path.file.get_value_untracked();
+    let source_parent = source.file.parent().map(Arc::<Path>::from);
+    if current == destination_folder.file || source_parent.as_ref() == Some(&current) {
+        manager.path.file.force(current);
+    } else {
+        manager.tile.app.force(crate::tiles::app::App::TextEditor);
+    }
 }
 
 #[template(wrap = true)]

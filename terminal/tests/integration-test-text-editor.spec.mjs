@@ -299,6 +299,15 @@ async function createFolderTree() {
     return root;
 }
 
+async function createMoveTree() {
+    const root = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-move-'));
+    await mkdir(path.join(root, 'destfolder'), { recursive: true });
+    await mkdir(path.join(root, 'srcfolder', 'src_folder'), { recursive: true });
+    await writeFile(path.join(root, 'srcfolder', 'src_file'), 'move me');
+    await writeFile(path.join(root, 'srcfolder', 'src_folder', 'child.txt'), 'move the folder too');
+    return root;
+}
+
 async function exists(filePath) {
     return stat(filePath)
         .then(() => true)
@@ -336,6 +345,37 @@ async function replaceEditorText(page, editor, content) {
     await editor.click();
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
     await page.keyboard.insertText(content);
+}
+
+async function dragSideViewNodeIntoFolder(page, source, destinationFolder) {
+    await source.scrollIntoViewIfNeeded();
+    await destinationFolder.scrollIntoViewIfNeeded();
+    const sourcePath = await source.evaluate((node) => {
+        const entry = node.closest('[data-file-path], [data-folder-path]');
+        return entry?.getAttribute('data-file-path') ?? entry?.getAttribute('data-folder-path');
+    });
+    expect(sourcePath).toBeTruthy();
+    const dataTransfer = await page.evaluateHandle((sourcePath) => {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.setData('text_editor_side_view_path', sourcePath);
+        dataTransfer.effectAllowed = 'move';
+        return dataTransfer;
+    }, sourcePath);
+    await destinationFolder.dispatchEvent('dragover', { dataTransfer });
+    await destinationFolder.dispatchEvent('drop', { dataTransfer });
+    await dataTransfer.dispose();
+    await page.waitForTimeout(SECOND);
+}
+
+async function expandSideViewFolder(page, folderPath) {
+    const folder = getSideViewFolder(page, folderPath);
+    await expect(folder).toBeVisible({ timeout: 10 * SECOND });
+    await folder.hover();
+    const expandIcon = folder.locator('.side-view-expand-folder');
+    if (await expandIcon.isVisible().catch(() => false)) {
+        await expandIcon.click();
+        await page.waitForTimeout(SECOND);
+    }
 }
 
 test.describe('Text editor', () => {
@@ -600,6 +640,48 @@ test.describe('Text editor', () => {
         await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
         await refreshUntilFolderFileVisible(page, baseDir, 'drafts/');
         await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 10 * SECOND });
+    });
+
+    test('moves files and folders by dragging side-view nodes into folder nodes', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const baseDir = await createMoveTree();
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        await setBasePath(page, baseDir, 'destfolder/');
+        await openFolderFile(page, 'destfolder/');
+        await getSideViewFolder(page, '').locator('span').first().click();
+        await expect(getFolderFile(page, 'srcfolder/')).toBeVisible({ timeout: 10 * SECOND });
+        await openFolderFile(page, 'srcfolder/');
+        await expandSideViewFolder(page, '');
+        await expandSideViewFolder(page, 'srcfolder');
+
+        await expect(getSideViewFolder(page, 'destfolder')).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getSideViewFile(page, 'srcfolder/src_file')).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getSideViewFolder(page, 'srcfolder/src_folder')).toBeVisible({ timeout: 10 * SECOND });
+
+        await dragSideViewNodeIntoFolder(
+            page,
+            getSideViewFile(page, 'srcfolder/src_file'),
+            getSideViewFolder(page, 'destfolder'),
+        );
+
+        await expect.poll(async () => exists(path.join(baseDir, 'destfolder', 'src_file')), { timeout: 10 * SECOND }).toBe(true);
+        await expect.poll(async () => exists(path.join(baseDir, 'srcfolder', 'src_file')), { timeout: 10 * SECOND }).toBe(false);
+        await page.waitForTimeout(SECOND);
+        await expect(getSideViewFile(page, 'srcfolder/src_file')).toHaveCount(0, { timeout: 10 * SECOND });
+
+        await dragSideViewNodeIntoFolder(
+            page,
+            getSideViewFolder(page, 'srcfolder/src_folder'),
+            getSideViewFolder(page, 'destfolder'),
+        );
+
+        await expect.poll(async () => isDirectory(path.join(baseDir, 'destfolder', 'src_folder')), { timeout: 10 * SECOND }).toBe(true);
+        await expect.poll(async () => exists(path.join(baseDir, 'srcfolder', 'src_folder')), { timeout: 10 * SECOND }).toBe(false);
+        await page.waitForTimeout(SECOND);
+        await expect(getSideViewFolder(page, 'srcfolder/src_folder')).toHaveCount(0, { timeout: 10 * SECOND });
     });
 
     test('moves a file to trash and resolves trash name conflicts', async ({ page }) => {

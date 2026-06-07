@@ -214,6 +214,8 @@ text-editor-client = [
   "remotes-ui",
   "text-editor",
   "tiles-state-client",
+  "web-sys/File",
+  "web-sys/FileList",
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [

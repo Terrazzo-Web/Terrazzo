@@ -81,6 +81,8 @@ web-sys = { workspace = true, features = [
   "Document",
   "DragEvent",
   "Element",
+  "File",
+  "FileList",
   "FocusEvent",
   "Headers",
   "HtmlDivElement",

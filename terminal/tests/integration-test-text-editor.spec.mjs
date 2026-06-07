@@ -382,6 +382,22 @@ async function dragSideViewNodeIntoFolder(page, source, sourcePath, destinationF
     await page.waitForTimeout(SECOND);
 }
 
+async function dropExternalFileIntoFolder(page, destinationFolder, fileName, content) {
+    await destinationFolder.scrollIntoViewIfNeeded();
+    const dataTransfer = await page.evaluateHandle(
+        ({ fileName, content }) => {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(new File([content], fileName, { type: 'text/plain' }));
+            dataTransfer.effectAllowed = 'copy';
+            return dataTransfer;
+        },
+        { fileName, content },
+    );
+    await destinationFolder.dispatchEvent('dragover', { dataTransfer });
+    await destinationFolder.dispatchEvent('drop', { dataTransfer });
+    await dataTransfer.dispose();
+}
+
 async function expandSideViewFolder(page, folderPath) {
     const folder = getSideViewFolder(page, folderPath);
     await expect(folder).toBeVisible({ timeout: 10 * SECOND });
@@ -472,6 +488,24 @@ test.describe('Text editor', () => {
         const downloadedPath = path.join(process.env.TEST_TMPDIR ?? tmpdir(), `downloaded-${process.pid}-${Date.now()}-${fileName}`);
         await download.saveAs(downloadedPath);
         expect(await readFile(downloadedPath)).toEqual(content);
+    });
+
+    test('uploads a dropped file into a side-view folder', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const baseDir = await createTempDir();
+        await writeFile(path.join(baseDir, 'seed.txt'), 'seed');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'seed.txt');
+
+        const fileName = 'uploaded from finder.txt';
+        const content = 'Dropped from Finder or File Explorer';
+        await dropExternalFileIntoFolder(page, getSideViewFolder(page, ''), fileName, content);
+
+        const uploadedPath = path.join(baseDir, fileName);
+        await expect.poll(async () => readFile(uploadedPath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
+        await refreshUntilFolderFileVisible(page, baseDir, fileName);
     });
 
     test('edits a file', async ({ page }) => {

@@ -1,13 +1,15 @@
 use std::path::PathBuf;
 
 use terrazzo::axum::Router;
-use terrazzo::axum::body::Bytes;
+use terrazzo::axum::body::Body;
 use terrazzo::axum::extract::Query;
 use terrazzo::axum::response::IntoResponse;
 use terrazzo::axum::routing::get;
 use terrazzo::axum::routing::post;
 use terrazzo::http::StatusCode;
 use terrazzo::http::header;
+use tokio::io::AsyncWriteExt as _;
+use tokio_stream::StreamExt as _;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
@@ -57,7 +59,7 @@ async fn download_file(
 
 async fn upload_file(
     Query(path): Query<ApiFilePath>,
-    content: Bytes,
+    content: Body,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let path = path.into_file_path().full_path();
     if path.is_dir() {
@@ -75,9 +77,17 @@ async fn upload_file(
         ));
     }
 
-    tokio::fs::write(path, content)
+    let mut file = tokio::fs::File::create(path)
         .await
         .map_err(internal_server_error)?;
+    let mut content = content.into_data_stream();
+    while let Some(chunk) = content.next().await {
+        let chunk = chunk.map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+        file.write_all(&chunk)
+            .await
+            .map_err(internal_server_error)?;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }
 

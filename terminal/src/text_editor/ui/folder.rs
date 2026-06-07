@@ -25,6 +25,7 @@ use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::text_editor::ui::ROOT_FILE_PATH;
+use crate::text_editor::ui::drag::encode_query_path;
 use crate::text_editor::ui::drag::on_move_dragover;
 use crate::text_editor::ui::drag::on_move_dragstart;
 use crate::text_editor::ui::drag::on_move_drop;
@@ -217,18 +218,6 @@ fn download_url(file_path: &FilePath<Arc<Path>>) -> String {
         encode_query_path(file_path.base.as_ref()),
         encode_query_path(file_path.file.as_ref())
     )
-}
-
-fn encode_query_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .bytes()
-        .map(|byte| match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                (byte as char).to_string()
-            }
-            _ => format!("%{byte:02X}"),
-        })
-        .collect()
 }
 
 async fn delete_file(

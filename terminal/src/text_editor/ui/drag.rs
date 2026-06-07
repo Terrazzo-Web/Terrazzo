@@ -6,7 +6,9 @@ use terrazzo::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::DragEvent;
 
+use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
+use self::diagnostics::debug_span;
 use self::diagnostics::error;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio;
@@ -19,6 +21,7 @@ const MOVE_FILE_KEY: &str = "text-editor-move-file";
 pub fn on_move_dragstart(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'static {
     move |event| {
         autoclone!(path);
+        let _span = debug_span!("Drag start").entered();
         let Some(data_transfer) = event.data_transfer() else {
             return;
         };
@@ -30,12 +33,16 @@ pub fn on_move_dragstart(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'st
 }
 
 pub fn on_move_dragover(event: DragEvent) -> bool {
+    let _span = debug_span!("Drag over").entered();
     let Some(data_transfer) = event.data_transfer() else {
+        debug!("No DataTransfer object found");
         return false;
     };
     if !has_side_view_drag_key(&data_transfer) {
+        debug!("Not expected draggable");
         return false;
     }
+    debug!("Accepted draggable");
     event.prevent_default();
     data_transfer.set_drop_effect("move");
     return true;
@@ -58,6 +65,7 @@ pub(in crate::text_editor) fn on_move_drop(
 ) -> impl Fn(DragEvent) + 'static {
     move |event| {
         autoclone!(manager, destination_folder);
+        let _span = debug_span!("Drop").entered();
         debug!("Processing drop event to {destination_folder:?}");
         event.prevent_default();
         event.stop_propagation();
@@ -85,14 +93,17 @@ pub(in crate::text_editor) fn on_move_drop(
             return;
         }
 
-        spawn_local(move_side_view_node(
-            manager.clone(),
-            FilePath {
-                base: ROOT_BASE_PATH.clone(),
-                file: source_path.into(),
-            },
-            destination_folder.clone(),
-        ));
+        spawn_local(
+            move_side_view_node(
+                manager.clone(),
+                FilePath {
+                    base: ROOT_BASE_PATH.clone(),
+                    file: source_path.into(),
+                },
+                destination_folder.clone(),
+            )
+            .in_current_span(),
+        );
     }
 }
 
@@ -106,4 +117,5 @@ async fn move_side_view_node(
         error!("Failed to move side-view entry: {error}");
         return;
     }
+    debug!("Moved!")
 }

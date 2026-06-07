@@ -21,22 +21,24 @@ div.side {
         display: flex;
         flex-direction: row;
 
-        img.hover-img {
-            @include trz-icon($display: none);
-            visibility: hidden;
-        }
-
-        &:hover img.hover-img {
-            display: block;
-            visibility: visible;
+        img.button-icon,
+        img.button-hover-icon {
+            @include trz-icon;
+            cursor: pointer;
 
             &:hover {
                 background-color: var(--link-color);
                 filter: invert(0);
-                cursor: pointer;
             }
         }
 
+        img.button-hover-icon {
+            visibility: hidden;
+        }
+
+        &:hover img.button-hover-icon {
+            visibility: visible;
+        }
     }
 
     div.label,
@@ -66,5 +68,10 @@ div.side {
     img.icon {
         @include trz-icon;
         margin-right: var(--padding);
+    }
+
+    .show-only-item {
+        font-style: italic;
+        opacity: 80%;
     }
 }

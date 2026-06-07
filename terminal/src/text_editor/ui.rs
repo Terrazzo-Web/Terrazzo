@@ -279,7 +279,7 @@ impl TextEditorManager {
                         this.path.file.force(ROOT_FILE_PATH.clone());
                         this.side_view.force(Some(Arc::new(SideViewNode {
                             properties: SvnProperties {
-                                status: SvnStatus::Show,
+                                status: SvnStatus::Active,
                             },
                             item: SvnItem::Folder {
                                 folder: Default::default(),

@@ -80,7 +80,7 @@ fn parse_folder(
         }
         None => (
             SvnProperties {
-                status: SvnStatus::Show,
+                status: SvnStatus::Active,
             },
             Default::default(),
             manager.watch_side_view_folder(path),

@@ -227,6 +227,7 @@ async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, ti
     ).toBe(true);
 
     try {
+        await page.waitForTimeout(SECOND);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {

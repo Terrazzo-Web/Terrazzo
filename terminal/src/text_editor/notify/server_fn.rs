@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use nameth::nameth;
@@ -30,19 +31,19 @@ pub enum NotifyRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "W"))]
     Watch {
         #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-        full_path: FilePath<Arc<str>>,
+        full_path: FilePath<Arc<Path>>,
     },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "U"))]
     UnWatch {
         #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-        full_path: FilePath<Arc<str>>,
+        full_path: FilePath<Arc<Path>>,
     },
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct NotifyResponse {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: String,
+    pub path: Arc<Path>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "k"))]
     pub kind: EventKind,
 }

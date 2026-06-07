@@ -7,7 +7,6 @@ use tracing::warn;
 use super::server_fn::EventKind;
 use super::server_fn::FileEventKind;
 use super::server_fn::NotifyResponse;
-use crate::utils::more_path::MorePath as _;
 
 pub fn make_event_handler(
     tx: mpsc::UnboundedSender<Result<NotifyResponse, ServerFnError>>,
@@ -35,7 +34,7 @@ pub fn make_event_handler(
         };
         for path in paths {
             let response = NotifyResponse {
-                path: path.to_owned_string(),
+                path: path.into(),
                 kind: EventKind::File(kind),
             };
             match tx.send(Ok(response)) {

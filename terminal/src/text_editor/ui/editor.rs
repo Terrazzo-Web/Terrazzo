@@ -28,6 +28,7 @@ use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
@@ -90,7 +91,7 @@ pub fn editor(
     );
     let base_path = FilePath {
         base: path.base.clone(),
-        file: Default::default(),
+        file: ROOT_FILE_PATH.clone(),
     };
     let diagnostics_notify_registration = manager.notify_service.watch_file(
         &base_path,
@@ -123,7 +124,7 @@ pub fn editor(
                         original,
                         content.as_ref().into(),
                         make_on_change(&manager, &path, &writing),
-                        path.base.to_string(),
+                        path.base.as_ref().to_owned_string(),
                         path.as_deref().full_path().to_owned_string(),
                     ))
                 }
@@ -137,7 +138,7 @@ pub fn editor(
 #[autoclone]
 fn make_on_change(
     manager: &Ptr<TextEditorManager>,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
 ) -> Closure<dyn FnMut(JsValue)> {
     Closure::new(move |content: JsValue| {
@@ -172,7 +173,7 @@ fn make_on_change(
 fn make_edits_notify_handler(
     manager: &Ptr<TextEditorManager>,
     editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
@@ -196,7 +197,7 @@ fn make_edits_notify_handler(
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     writing: Arc<AtomicU32>,
 ) {
     debug!("Loading modified file");
@@ -224,9 +225,8 @@ async fn notify_edit(
         Ok(None) => {
             debug!("The modified file is gone");
             manager.path.file.update(|file_path| {
-                let file_path = Path::new(file_path.as_ref());
                 let parent = file_path.parent().unwrap_or_else(|| "/".as_ref());
-                Some(parent.to_owned_string().into())
+                Some(Arc::from(parent))
             })
         }
         Ok(Some(fsio::File::Folder { .. })) => {
@@ -245,7 +245,7 @@ async fn notify_edit(
 #[autoclone]
 fn make_diagnostics_notify_handler(
     editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
         autoclone!(editor_body, path);

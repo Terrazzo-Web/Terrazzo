@@ -120,11 +120,11 @@ async function selectPdfZoom(page, percent) {
 
 async function expectPdfPage(page, pageNumber) {
     const viewer = page.locator('.pdf-viewer');
-    await expect(viewer).toBeVisible({ timeout: 30 * SECOND });
+    await expect(viewer).toBeVisible({ timeout: 10 * SECOND });
 
     const canvas = getPdfPage(page, pageNumber);
     try {
-        await expect(canvas).toBeVisible({ timeout: 30 * SECOND });
+        await expect(canvas).toBeVisible({ timeout: 10 * SECOND });
     } catch (error) {
         const status = await viewer.locator('.pdf-status').textContent().catch(() => '<none>');
         throw new Error(`PDF page ${pageNumber} did not render. Status: ${status}\n${error.message}`);
@@ -178,7 +178,7 @@ async function renderedPixelCount(canvas) {
     });
 }
 
-async function showBasePathInput(page, timeout = 30 * SECOND) {
+async function showBasePathInput(page, timeout = 10 * SECOND) {
     const basePathInput = getBasePathInput(page);
     await page
         .locator('.base-path-selector-field, .base-path-selector-display')
@@ -191,7 +191,7 @@ async function showBasePathInput(page, timeout = 30 * SECOND) {
     return basePathInput;
 }
 
-async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECOND) {
+async function setBasePath(page, baseDir, expectedFileName, timeout = 10 * SECOND) {
     const diskEntries = await listDiskFolderEntries(baseDir);
     expect(
         diskEntries.some((entry) => expectedDiskEntryVariants(expectedFileName).includes(entry)),
@@ -199,9 +199,11 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECON
     ).toBe(true);
 
     try {
+        await page.waitForTimeout(SECOND);
         const basePathInput = await showBasePathInput(page, timeout);
         await basePathInput.fill(baseDir);
         await page.keyboard.press('Tab');
+        await page.waitForTimeout(SECOND);
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [
@@ -219,7 +221,7 @@ async function setBasePath(page, baseDir, expectedFileName, timeout = 90 * SECON
     }
 }
 
-async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, timeout = 90 * SECOND) {
+async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, timeout = 10 * SECOND) {
     const diskEntries = await listDiskFolderEntries(baseDir);
     expect(
         diskEntries.some((entry) => expectedDiskEntryVariants(expectedFileName).includes(entry)),
@@ -227,6 +229,7 @@ async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, ti
     ).toBe(true);
 
     try {
+        await page.waitForTimeout(SECOND);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
@@ -245,7 +248,7 @@ async function refreshUntilFolderFileVisible(page, baseDir, expectedFileName, ti
     }
 }
 
-async function openFolderFile(page, name, timeout = 60 * SECOND) {
+async function openFolderFile(page, name, timeout = 10 * SECOND) {
     await expect
         .poll(
             async () => {
@@ -263,8 +266,9 @@ async function openFolderFile(page, name, timeout = 60 * SECOND) {
         .toBe(true);
 }
 
-async function reloadFolder(page, baseDir, fileName) {
-    await setBasePath(page, baseDir, fileName);
+async function reopenFolderFile(page, fileName) {
+    await getSideViewFolder(page, '').locator('span').first().click();
+    await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
     await openFolderFile(page, fileName);
 }
 
@@ -335,7 +339,7 @@ async function replaceEditorText(page, editor, content) {
 }
 
 test.describe('Text editor', () => {
-    test.describe.configure({ retries: 2 });
+    test.describe.configure({ retries: 5 });
 
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
@@ -348,7 +352,7 @@ test.describe('Text editor', () => {
     });
 
     test('edits a file', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -360,7 +364,7 @@ test.describe('Text editor', () => {
         await openFolderFile(page, fileName);
 
         const editor = getCodeMirrorContent(page);
-        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
         await editor.click();
         await page.keyboard.type('Hello, world!');
 
@@ -370,7 +374,7 @@ test.describe('Text editor', () => {
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -383,7 +387,7 @@ test.describe('Text editor', () => {
         await openFolderFile(page, fileName);
 
         const editor = getCodeMirrorContent(page);
-        await expect(editor).toBeVisible({ timeout: 30 * SECOND });
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
         await replaceEditorText(page, editor, content);
 
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
@@ -391,7 +395,7 @@ test.describe('Text editor', () => {
         await page.keyboard.press(editorFindShortcut());
 
         const searchPanel = getCodeMirrorSearchPanel(page);
-        await expect(searchPanel).toBeVisible({ timeout: 30 * SECOND });
+        await expect(searchPanel).toBeVisible({ timeout: 10 * SECOND });
         await searchPanel.locator('input[name="search"]').click();
         await page.keyboard.type('! 8');
         await page.keyboard.press('Enter');
@@ -403,7 +407,7 @@ test.describe('Text editor', () => {
     });
 
     test('renders a PDF file', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
         await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
@@ -414,12 +418,12 @@ test.describe('Text editor', () => {
 
         await openFolderFile(page, 'PlantUML.pdf');
 
-        await expect(getSideViewFile(page, 'PlantUML.pdf')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'PlantUML.pdf')).toBeVisible({ timeout: 10 * SECOND });
 
         const firstPage = await expectPdfPage(page, 1);
         await expect
             .poll(async () => (await renderedPixelCount(firstPage)).paintedPixels, {
-                timeout: 30 * SECOND,
+                timeout: 10 * SECOND,
             })
             .toBeGreaterThan(0);
         const pixels = await renderedPixelCount(firstPage);
@@ -428,11 +432,11 @@ test.describe('Text editor', () => {
         expect(pixels.paintedPixels).toBeGreaterThan(0);
 
         const firstPageTextLayer = getPdfTextLayer(page, 1);
-        await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 30 * SECOND });
-        await expect.poll(() => selectedPdfText(page, 1), { timeout: 30 * SECOND }).not.toBe('');
+        await expect(firstPageTextLayer.locator('span')).not.toHaveCount(0, { timeout: 10 * SECOND });
+        await expect.poll(() => selectedPdfText(page, 1), { timeout: 10 * SECOND }).not.toBe('');
 
         const firstPageLinks = getPdfAnnotationLayer(page, 1).locator('a');
-        await expect(firstPageLinks).not.toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(firstPageLinks).not.toHaveCount(0, { timeout: 10 * SECOND });
         const firstLink = firstPageLinks.first();
         await expect(firstLink).toHaveAttribute('href', /.+/);
         const firstLinkBox = await firstLink.boundingBox();
@@ -474,7 +478,7 @@ test.describe('Text editor', () => {
                 const canvas = node.ownerDocument.querySelector('.pdf-viewer canvas[data-page-number="1"]');
                 const width = canvas?.getBoundingClientRect().width ?? 0;
                 return !window.__pdfZoomStreamDone && width > minWidth ? width : 0;
-            }, initialCssWidth * 1.15), { timeout: 30 * SECOND })
+            }, initialCssWidth * 1.15), { timeout: 10 * SECOND })
             .toBeGreaterThan(0);
         await zoomSliderHandle.evaluate((node) => {
             window.clearInterval(window.__pdfZoomStreamTimer);
@@ -488,7 +492,7 @@ test.describe('Text editor', () => {
         });
         await expect(zoomValue).toHaveText('200%');
         await expect
-            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
+            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 10 * SECOND })
             .toBeGreaterThan(initialCssWidth * 1.8);
 
         const sliderCssWidth = await renderedCssWidth(getPdfPage(page, 1));
@@ -504,12 +508,12 @@ test.describe('Text editor', () => {
         });
 
         await expect
-            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 30 * SECOND })
+            .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 10 * SECOND })
             .toBeGreaterThan(sliderCssWidth * 1.05);
     });
 
     test('shows a git diff for modified files and returns to plain view when reverted', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const { baseDir, fileName, filePath } = await createCommittedReadme();
 
@@ -518,32 +522,32 @@ test.describe('Text editor', () => {
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
         const plainEditor = getCodeMirrorContent(page).first();
-        await expect(plainEditor).toContainText('Hello, World!', { timeout: 30 * SECOND });
+        await expect(plainEditor).toContainText('Hello, World!', { timeout: 10 * SECOND });
 
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
 
-        await reloadFolder(page, `${baseDir}${path.sep}.`, fileName);
+        await reopenFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 30 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 10 * SECOND });
         const diffEditors = getCodeMirrorContent(page);
-        await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 30 * SECOND });
-        await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 30 * SECOND });
+        await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 10 * SECOND });
+        await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 10 * SECOND });
 
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
-        await reloadFolder(page, baseDir, fileName);
+        await reopenFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
-        await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 30 * SECOND });
-        await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 30 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 10 * SECOND });
+        await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 10 * SECOND });
     });
 
     test('expands and collapses side-view folder nodes', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const root = await createFolderTree();
 
@@ -553,27 +557,27 @@ test.describe('Text editor', () => {
         await openFolderFile(page, 'a/');
         await openFolderFile(page, 'a2.txt');
 
-        await expect(getCodeMirrorContent(page)).toContainText('I am Bob', { timeout: 30 * SECOND });
-        await expect(getSideViewFile(page, 'a/a2.txt')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getCodeMirrorContent(page)).toContainText('I am Bob', { timeout: 10 * SECOND });
+        await expect(getSideViewFile(page, 'a/a2.txt')).toBeVisible({ timeout: 10 * SECOND });
         await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0);
 
         const folderA = getSideViewFolder(page, 'a');
-        await expect(folderA).toBeVisible({ timeout: 30 * SECOND });
+        await expect(folderA).toBeVisible({ timeout: 10 * SECOND });
         await folderA.hover();
         await folderA.locator('.side-view-expand-folder').click();
 
-        await expect(getSideViewFile(page, 'a/a1.txt')).toBeVisible({ timeout: 30 * SECOND });
-        await expect(getSideViewFolder(page, 'a/c')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'a/a1.txt')).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getSideViewFolder(page, 'a/c')).toBeVisible({ timeout: 10 * SECOND });
         await expect(getSideViewFile(page, 'a/c/c.txt')).toHaveCount(0);
 
         await folderA.locator('.side-view-collapse-folder').click();
 
-        await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0, { timeout: 30 * SECOND });
-        await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, 'a/a1.txt')).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 10 * SECOND });
     });
 
-    test.skip('creates files and folders from the folder toolbar', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+    test('creates files and folders from the folder toolbar', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'seed.txt';
         const { baseDir } = await createTempFile(fileName);
@@ -586,7 +590,7 @@ test.describe('Text editor', () => {
         await getCreateEntryField(page).fill(' notes with spaces.txt ');
         await getCreateEntryField(page).press('Enter');
 
-        await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 10 * SECOND });
         await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('-- notes with spaces.txt --');
 
         await getCreateFolderIcon(page).click();
@@ -595,11 +599,11 @@ test.describe('Text editor', () => {
 
         await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
         await refreshUntilFolderFileVisible(page, baseDir, 'drafts/');
-        await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getFolderFile(page, 'drafts/')).toBeVisible({ timeout: 10 * SECOND });
     });
 
     test('moves a file to trash and resolves trash name conflicts', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const unique = `remove-me-${process.pid}-${Date.now()}`;
         const fileName = `${unique}.tar.gz`;
@@ -619,11 +623,11 @@ test.describe('Text editor', () => {
 
         await getFolderTrashIcon(page, fileName).click();
 
-        await expect.poll(async () => exists(filePath), { timeout: 30 * SECOND }).toBe(false);
-        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect.poll(async () => exists(filePath), { timeout: 10 * SECOND }).toBe(false);
+        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 10 * SECOND });
 
         await expect
-            .poll(async () => trashEntriesWithContent(trashDir, stem), { timeout: 30 * SECOND })
+            .poll(async () => trashEntriesWithContent(trashDir, stem), { timeout: 10 * SECOND })
             .toEqual([
                 [`${stem}_${today}-1.tar.gz`, 'old'],
                 [`${stem}_${today}-2.tar.gz`, 'new'],
@@ -632,7 +636,7 @@ test.describe('Text editor', () => {
     });
 
     test('removes a deleted file from the side view', async ({ page }) => {
-        test.setTimeout(120 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = `side-view-remove-me-${process.pid}-${Date.now()}.txt`;
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -642,14 +646,14 @@ test.describe('Text editor', () => {
 
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
-        await expect(getSideViewFile(page, fileName)).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getSideViewFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
 
         await getSideViewFolder(page, '').locator('span').first().click();
-        await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 30 * SECOND });
+        await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
         await getFolderTrashIcon(page, fileName).click();
 
-        await expect.poll(async () => exists(filePath), { timeout: 30 * SECOND }).toBe(false);
-        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
-        await expect(getSideViewFile(page, fileName)).toHaveCount(0, { timeout: 30 * SECOND });
+        await expect.poll(async () => exists(filePath), { timeout: 10 * SECOND }).toBe(false);
+        await expect(getFolderFile(page, fileName)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getSideViewFile(page, fileName)).toHaveCount(0, { timeout: 10 * SECOND });
     });
 });

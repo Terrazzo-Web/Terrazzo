@@ -18,6 +18,7 @@ ASSETS = [
     "assets/icons/folder2-open.svg",
     "assets/icons/hub.svg",
     "assets/icons/key.svg",
+    "assets/icons/layout-split.svg",
     "assets/icons/layout-text-sidebar-reverse.svg",
     "assets/icons/loading2.svg",
     "assets/icons/plus-square.svg",

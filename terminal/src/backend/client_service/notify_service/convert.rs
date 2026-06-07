@@ -1,30 +1,27 @@
 //! Conversion utils for the Notify service.
 
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use crate::backend::protos::terrazzo::notify::FilePath as FilePathProto;
 use crate::text_editor::file_path::FilePath;
+use crate::utils::more_path::MorePath as _;
 
-impl<B, F> From<FilePathProto> for FilePath<B, F>
-where
-    String: Into<B>,
-    String: Into<F>,
-{
+impl From<FilePathProto> for FilePath<Arc<Path>> {
     fn from(proto: FilePathProto) -> Self {
         Self {
-            base: proto.base.into(),
-            file: proto.file.into(),
+            base: PathBuf::from(proto.base).into(),
+            file: PathBuf::from(proto.file).into(),
         }
     }
 }
 
-impl<B, F> From<FilePath<B, F>> for FilePathProto
-where
-    B: ToString,
-    F: ToString,
-{
-    fn from(proto: FilePath<B, F>) -> Self {
+impl From<FilePath<Arc<Path>>> for FilePathProto {
+    fn from(value: FilePath<Arc<Path>>) -> Self {
         Self {
-            base: proto.base.to_string(),
-            file: proto.file.to_string(),
+            base: value.base.as_ref().to_owned_string(),
+            file: value.file.as_ref().to_owned_string(),
         }
     }
 }

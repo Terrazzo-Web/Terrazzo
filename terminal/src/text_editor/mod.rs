@@ -2,7 +2,7 @@
 
 mod autocomplete;
 pub mod file_path;
-mod fsio;
+pub mod fsio;
 mod manager;
 pub mod notify;
 mod path_selector;

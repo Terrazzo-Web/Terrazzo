@@ -14,6 +14,8 @@ use super::file_path::FilePath;
 use super::side::SideViewNode;
 use crate::api::client_address::ClientAddress;
 
+#[cfg(feature = "server")]
+pub mod api;
 pub mod client;
 mod fsmetadata;
 mod git;

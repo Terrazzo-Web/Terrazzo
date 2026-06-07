@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use terrazzo::autoclone;
@@ -16,6 +17,7 @@ use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
@@ -24,7 +26,9 @@ use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::text_editor::ui::drag::on_move_dragover;
+use crate::text_editor::ui::drag::on_move_dragstart;
 use crate::text_editor::ui::drag::on_move_drop;
+use crate::tiles::app::App;
 
 terrazzo_css::import_style!(style, "folder.scss");
 
@@ -39,7 +43,7 @@ pub fn folder(
     let FolderState {
         parent,
         notify_registration,
-        file_path,
+        file_path: folder_path,
     } = process_folder_state(&manager, editor_state);
     let mut rows = vec![];
     for file in parent.iter().chain(list.iter()) {
@@ -68,16 +72,21 @@ pub fn folder(
                 )
             })
             .unwrap_or_default();
+        let file_path = FilePath {
+            base: manager.path.base.get_value_untracked(),
+            file: folder_entry_path(&folder_path, name).into(),
+        };
         rows.push(tr(
             id = "{name}",
             #[cfg(not(feature = "client-prod"))]
             class = "folder-row",
             click = move |_| {
-                autoclone!(manager, file_path, name);
-                let file = folder_entry_path(&file_path, &name);
-                manager.path.file.set(file)
+                autoclone!(manager, file_path);
+                manager.path.file.set(file_path.file.clone())
             },
             td(
+                draggable = (name.as_ref() != "..").then_some("true"),
+                dragstart = on_move_dragstart(&file_path),
                 #[cfg(not(feature = "client-prod"))]
                 class = "folder-name",
                 "{display_name}",
@@ -89,14 +98,19 @@ pub fn folder(
             td("{permissions}"),
             td(
                 class = style::FOLDER_ACTIONS,
-                trash_action(manager.clone(), file_path.clone(), name.clone()),
+                trash_action(
+                    manager.clone(),
+                    folder_path.clone(),
+                    file_path.clone(),
+                    name.clone(),
+                ),
             ),
         ));
     }
 
     let destination_folder = FilePath {
         base: manager.path.base.get_value_untracked(),
-        file: file_path.clone(),
+        file: folder_path.clone(),
     };
     let dragover_class: XSignal<Option<&'static str>> = XSignal::new("folder-view-dragover", None);
     #[template(wrap = true)]
@@ -151,6 +165,7 @@ pub fn folder(
 fn trash_action(
     manager: Ptr<TextEditorManager>,
     folder_path: Arc<Path>,
+    file_path: FilePath<Arc<Path>>,
     name: Arc<str>,
 ) -> XElement {
     if &*name == ".." {
@@ -163,13 +178,13 @@ fn trash_action(
         src = icons::trash(),
         title = "Move to trash",
         click = move |event: MouseEvent| {
-            autoclone!(manager, folder_path, name);
+            autoclone!(manager, folder_path, file_path);
             event.stop_propagation();
-            let path = FilePath {
-                base: manager.path.base.get_value_untracked(),
-                file: folder_entry_path(&folder_path, &name).into(),
-            };
-            spawn_local(delete_file(manager.clone(), folder_path.clone(), path));
+            spawn_local(delete_file(
+                manager.clone(),
+                folder_path.clone(),
+                file_path.clone(),
+            ));
         },
     )
 }
@@ -177,9 +192,9 @@ fn trash_action(
 async fn delete_file(
     manager: Ptr<TextEditorManager>,
     folder_path: Arc<Path>,
-    path: FilePath<Arc<Path>>,
+    file_path: FilePath<Arc<Path>>,
 ) {
-    let result = crate::text_editor::fsio::client::delete_file(manager.remote.clone(), path).await;
+    let result = fsio::client::delete_file(manager.remote.clone(), file_path).await;
     if let Err(error) = result {
         warn!("Failed to move entry to trash: {error}");
         return;
@@ -187,11 +202,11 @@ async fn delete_file(
     if manager.path.file.get_value_untracked() == folder_path {
         manager.path.file.force(folder_path);
     } else {
-        manager.tile.app.force(crate::tiles::app::App::TextEditor);
+        manager.tile.app.force(App::TextEditor);
     }
 }
 
-fn folder_entry_path(folder_path: &Path, name: &str) -> std::path::PathBuf {
+fn folder_entry_path(folder_path: &Path, name: &str) -> PathBuf {
     let folder_path = folder_path.strip_prefix("/").unwrap_or(folder_path);
     if name == ".." {
         folder_path.parent().map(Path::to_owned).unwrap_or_default()

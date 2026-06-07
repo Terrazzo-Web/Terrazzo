@@ -57,14 +57,13 @@ div.side {
             }
         }
 
-        &.folder-dragover>span {
+        &.move-dragover>span {
             background-color: var(--link-color);
 
             &:hover {
                 cursor: move;
             }
         }
-
     }
 
     div.selected_label>span {

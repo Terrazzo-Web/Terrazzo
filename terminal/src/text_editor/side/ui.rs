@@ -110,8 +110,7 @@ fn show_side_view_folder(
 ) -> XElement {
     let name_display = name.display();
 
-    let dragover_class: XSignal<Option<&'static str>> =
-        XSignal::new("side-view-folder-dragover", None);
+    let dragover_class: XSignal<Option<&'static str>> = XSignal::new("side-view-dragover", None);
     #[template(wrap = true)]
     fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
         dragover_class
@@ -138,7 +137,7 @@ fn show_side_view_folder(
                 if !on_move_dragover(event) {
                     return;
                 }
-                dragover_class.set(style::FOLDER_DRAGOVER);
+                dragover_class.set(style::MOVE_DRAGOVER);
             },
             dragleave = move |_| {
                 autoclone!(dragover_class);

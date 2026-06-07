@@ -54,3 +54,7 @@ div.folder {
         }
     }
 }
+
+.move-dragover {
+    background-color: color-mix(in srgb, var(--link-color) 30%, transparent);
+}

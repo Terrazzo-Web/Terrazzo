@@ -6,6 +6,7 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::DragEvent;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
@@ -14,6 +15,7 @@ use crate::assets::icons;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
+use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
@@ -21,6 +23,8 @@ use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::text_editor::ui::ROOT_FILE_PATH;
+use crate::text_editor::ui::drag::on_move_dragover;
+use crate::text_editor::ui::drag::on_move_drop;
 
 terrazzo_css::import_style!(style, "folder.scss");
 
@@ -89,8 +93,36 @@ pub fn folder(
             ),
         ));
     }
+
+    let destination_folder = FilePath {
+        base: manager.path.base.get_value_untracked(),
+        file: file_path.clone(),
+    };
+    let dragover_class: XSignal<Option<&'static str>> = XSignal::new("folder-view-dragover", None);
+    #[template(wrap = true)]
+    fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
+        dragover_class
+    }
+    let on_move_drop = on_move_drop(&manager, &destination_folder);
+
     tag(
         class = style::FOLDER,
+        dragover = move |event: DragEvent| {
+            autoclone!(dragover_class);
+            if !on_move_dragover(event) {
+                return;
+            }
+            dragover_class.set(style::MOVE_DRAGOVER);
+        },
+        dragleave = move |_| {
+            autoclone!(dragover_class);
+            dragover_class.set(None)
+        },
+        drop = move |event| {
+            dragover_class.set(None);
+            on_move_drop(event);
+        },
+        class %= get_dragover_class(dragover_class.clone()),
         table(
             thead(tr(
                 th("Name"),
@@ -133,7 +165,7 @@ fn trash_action(
         click = move |event: MouseEvent| {
             autoclone!(manager, folder_path, name);
             event.stop_propagation();
-            let path = crate::text_editor::file_path::FilePath {
+            let path = FilePath {
                 base: manager.path.base.get_value_untracked(),
                 file: folder_entry_path(&folder_path, &name).into(),
             };
@@ -145,7 +177,7 @@ fn trash_action(
 async fn delete_file(
     manager: Ptr<TextEditorManager>,
     folder_path: Arc<Path>,
-    path: crate::text_editor::file_path::FilePath<Arc<Path>>,
+    path: FilePath<Arc<Path>>,
 ) {
     let result = crate::text_editor::fsio::client::delete_file(manager.remote.clone(), path).await;
     if let Err(error) = result {

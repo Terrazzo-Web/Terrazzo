@@ -41,13 +41,6 @@ div.side {
         }
     }
 
-    div.folder-dragover {
-        background-color: var(--link-color);
-
-        &:hover {
-            cursor: move;
-        }
-    }
 
     div.label,
     div.selected_label {
@@ -63,6 +56,15 @@ div.side {
                 background-color: var(--link-color);
             }
         }
+
+        &.folder-dragover>span {
+            background-color: var(--link-color);
+
+            &:hover {
+                cursor: move;
+            }
+        }
+
     }
 
     div.selected_label>span {

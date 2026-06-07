@@ -129,7 +129,6 @@ fn show_side_view_folder(
         data_folder_path = path.file.to_owned_string(),
         div(
             class = style::FOLDER,
-            class %= get_dragover_class(dragover_class.clone()),
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
             draggable = (*path.file != *Path::new("")).then_some("true"),
@@ -157,6 +156,7 @@ fn show_side_view_folder(
             img(src = icons::folder(), class = style::ICON),
             div(
                 class %= selected_item(manager.path.file.clone(), path.file.clone()),
+                class %= get_dragover_class(dragover_class.clone()),
                 click = move |_| {
                     autoclone!(manager, path);
                     manager.path.file.set(path.file.clone())

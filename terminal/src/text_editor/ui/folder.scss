@@ -39,17 +39,24 @@ div.folder {
             td.folder-actions {
                 width: 1%;
                 white-space: nowrap;
-                text-align: center;
+                text-align: right;
             }
 
+            img.download-action,
             img.trash-action {
                 width: 1rem;
                 height: 1rem;
-                opacity: 0.75;
+                opacity: 0.5;
 
                 &:hover {
                     opacity: 1;
                 }
+
+                margin-left: var(--padding);
+            }
+
+            img.download-action {
+                filter: invert(1);
             }
         }
     }

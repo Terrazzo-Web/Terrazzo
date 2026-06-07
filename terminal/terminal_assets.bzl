@@ -12,6 +12,7 @@ ASSETS = [
     "assets/icons/chevron-double-right.svg",
     "assets/icons/copy.svg",
     "assets/icons/done.svg",
+    "assets/icons/download.svg",
     "assets/icons/file-earmark-plus.svg",
     "assets/icons/file-earmark-text.svg",
     "assets/icons/folder-plus.svg",

@@ -92,6 +92,10 @@ function getFolderTrashIcon(page, name) {
     return getFolderFile(page, name).locator('.folder-trash-icon');
 }
 
+function getFolderDownloadIcon(page, name) {
+    return getFolderFile(page, name).locator('.folder-download-icon');
+}
+
 function getPdfPage(page, pageNumber) {
     return page.locator(`.pdf-viewer canvas[data-page-number="${pageNumber}"]`);
 }
@@ -431,6 +435,43 @@ test.describe('Text editor', () => {
         expect(response.ok(), `download failed with status ${response.status()}: ${await response.text()}`).toBeTruthy();
         expect(response.headers()['content-type']).toMatch(/^application\/octet-stream\b/i);
         expect(await response.body()).toEqual(content);
+    });
+
+    test('downloads a file from the folder view', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const baseDir = await createTempDir();
+        const fileName = 'download me.txt';
+        const content = Buffer.from('download me');
+        await writeFile(path.join(baseDir, fileName), content);
+        await mkdir(path.join(baseDir, 'folder'), { recursive: true });
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+
+        const downloadIcon = getFolderDownloadIcon(page, fileName);
+        await expect(downloadIcon).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getFolderDownloadIcon(page, 'folder/')).toHaveCount(0);
+
+        const link = downloadIcon.locator('xpath=ancestor::a[1]');
+        await expect(link).toHaveAttribute('download', fileName);
+
+        const href = await link.getAttribute('href');
+        expect(href).toBeTruthy();
+        const url = new URL(href, BASE_URL);
+        expect(url.pathname).toBe('/api/text_editor/fsio/download');
+        expect(url.searchParams.get('base')).toBe(baseDir);
+        expect(url.searchParams.get('file')).toBe(fileName);
+
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            downloadIcon.click(),
+        ]);
+        expect(download.suggestedFilename()).toBe(fileName);
+
+        const downloadedPath = path.join(process.env.TEST_TMPDIR ?? tmpdir(), `downloaded-${process.pid}-${Date.now()}-${fileName}`);
+        await download.saveAs(downloadedPath);
+        expect(await readFile(downloadedPath)).toEqual(content);
     });
 
     test('edits a file', async ({ page }) => {

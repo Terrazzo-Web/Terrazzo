@@ -80,7 +80,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                 .into_iter()
                 .take(MAX_FILES_RETURNED)
                 .collect::<Vec<_>>();
-            files.sort_by(|a, b| Ord::cmp(&a.name, &b.name));
+            files.sort_by_key(|f| (!f.is_dir, f.name.to_lowercase()));
             return Ok(Some(File::Folder(Arc::from(files))));
         }
     }

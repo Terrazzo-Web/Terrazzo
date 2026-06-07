@@ -282,7 +282,7 @@ fn sort_result(prefix: &Path, mut result: Vec<PathInfo>) -> Vec<AutocompleteItem
             Some(AutocompleteItem { path, is_dir })
         })
         .collect();
-    result.sort_by(|a, b| Ord::cmp(&a.path, &b.path));
+    result.sort_by_key(|p| p.path.to_ascii_lowercase());
     return result;
 }
 

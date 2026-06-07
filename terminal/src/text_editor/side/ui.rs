@@ -290,7 +290,7 @@ impl SideViewList {
         let mut data = iter.collect::<Vec<_>>();
         data.sort_by_key(|(path, node)| {
             (
-                matches!(node.item, SvnItem::Folder { .. }),
+                !matches!(node.item, SvnItem::Folder { .. }),
                 path.file_name()
                     .map(|n| n.to_ascii_lowercase())
                     .unwrap_or_default(),

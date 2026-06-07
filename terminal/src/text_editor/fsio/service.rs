@@ -266,6 +266,14 @@ pub async fn delete_file(
         trash.as_ref(),
         git_trash.as_ref().map(AsRef::as_ref),
     );
+    if source.starts_with(&trash) {
+        if source.is_dir() {
+            tokio::fs::remove_dir_all(source).await?;
+        } else {
+            tokio::fs::remove_file(source).await?;
+        }
+        return Ok(());
+    }
     tokio::fs::create_dir_all(&trash).await?;
     let destination = trash.join(file_name);
     if destination.exists() {

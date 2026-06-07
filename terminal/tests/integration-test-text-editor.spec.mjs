@@ -281,22 +281,6 @@ async function openFolderFile(page, name, timeout = 10 * SECOND) {
         .toBe(true);
 }
 
-async function showRootFolderFile(page, fileName, timeout = 10 * SECOND) {
-    await expect
-        .poll(
-            async () => {
-                try {
-                    await getSideViewFolder(page, '').locator('span').first().click({ timeout: SECOND });
-                    return await getFolderFile(page, fileName).isVisible({ timeout: SECOND });
-                } catch {
-                    return false;
-                }
-            },
-            { timeout },
-        )
-        .toBe(true);
-}
-
 async function reopenFolderFile(page, fileName) {
     await getSideViewFolder(page, '').locator('span').first().click();
     await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });

@@ -26,18 +26,16 @@ pub fn add_node_rec<'l>(
         None => return make(node),
         Some(item) => item,
     };
-    let (properties, folder, notify) = parse_folder(manager, path, node);
+    let (mut properties, folder, notify) = parse_folder(manager, path, node);
+    let (folder, status) =
+        add_node_rec_folder(manager, path, make, relative_path, &folder, next.as_ref())?;
+    if status == SvnStatus::Active {
+        properties.status = status;
+    }
     Some(SideViewNode {
         properties,
         item: SvnItem::Folder {
-            folder: Arc::new(add_node_rec_folder(
-                manager,
-                path,
-                make,
-                relative_path,
-                &folder,
-                next.as_ref(),
-            )?),
+            folder: folder.into(),
             notify,
         },
     })
@@ -50,7 +48,7 @@ fn add_node_rec_folder<'l>(
     relative_path: impl Iterator<Item = &'l Path>,
     folder: &SideViewList,
     folder_name: &Path,
-) -> Option<SideViewList> {
+) -> Option<(SideViewList, SvnStatus)> {
     let child = add_node_rec(
         manager,
         path,
@@ -58,9 +56,10 @@ fn add_node_rec_folder<'l>(
         relative_path,
         folder.get(folder_name).map(Arc::as_ref),
     )?;
+    let status = child.properties.status;
     let mut folder = folder.clone();
     folder.insert(folder_name.into(), child.into());
-    folder.into()
+    (folder, status).into()
 }
 
 fn parse_folder(

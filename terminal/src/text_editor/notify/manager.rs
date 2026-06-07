@@ -17,6 +17,7 @@ use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
 use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
+use crate::text_editor::ui::RemoveBehavior;
 use crate::utils::more_path::MorePathRef as _;
 
 pub trait SideViewNotify {
@@ -77,7 +78,7 @@ fn on_child_change(
             return;
         };
         if !exists {
-            manager.remove_from_side_view(&changed_path.file);
+            manager.remove_from_side_view(&changed_path, RemoveBehavior::HARD);
             return;
         }
 
@@ -134,7 +135,7 @@ fn on_folder_change(manager: &Ptr<TextEditorManager>, folder_path: &FilePath<Arc
             .await
             .unwrap_or(true)
         {
-            manager.remove_from_side_view(folder_path.file.as_ref());
+            manager.remove_from_side_view(&folder_path, RemoveBehavior::HARD);
         }
     });
 }

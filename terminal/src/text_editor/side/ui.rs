@@ -27,6 +27,7 @@ use crate::text_editor::fsio::ROOT_BASE_PATH;
 use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::fsio::client::list_folder;
 use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::ui::RemoveBehavior;
 
 terrazzo_css::import_style!(style, "side.scss");
 
@@ -57,7 +58,15 @@ fn show_side_view(
         class = "side-view",
         style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),
         side_view.map(|side_view| {
-            show_side_view_node(&manager, ROOT_FILE_PATH.clone(), root, &side_view)
+            show_side_view_node(
+                &manager,
+                &FilePath {
+                    base,
+                    file: ROOT_FILE_PATH.clone(),
+                },
+                root,
+                &side_view,
+            )
         })..,
     );
 
@@ -71,7 +80,7 @@ fn show_side_view(
 #[html]
 fn show_side_view_node(
     manager: &Ptr<TextEditorManager>,
-    path: Arc<Path>,
+    path: &FilePath<Arc<Path>>,
     name: &Path,
     side_view: &SideViewNode,
 ) -> XElement {
@@ -90,7 +99,7 @@ fn show_side_view_node(
 #[html]
 fn show_side_view_folder(
     manager: &Ptr<TextEditorManager>,
-    path: Arc<Path>,
+    path: &FilePath<Arc<Path>>,
     name: &Path,
     properties: &SvnProperties,
     folder: &Arc<SideViewList>,
@@ -104,28 +113,45 @@ fn show_side_view_folder(
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-folder",
         #[cfg(not(feature = "client-prod"))]
-        data_folder_path = path.to_owned_string(),
+        data_folder_path = path.file.to_owned_string(),
         div(
             class = style::FOLDER,
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
             img(src = icons::folder(), class = style::ICON),
             div(
-                class %= selected_item(manager.path.file.clone(), path.clone()),
+                class %= selected_item(manager.path.file.clone(), path.file.clone()),
                 dblclick = expand_folder(manager, &path),
                 click = move |_| {
                     autoclone!(manager, path);
-                    manager.path.file.set(path.clone())
+                    manager.path.file.set(path.file.clone())
                 },
                 span("{name_display}", class = name_display_class(properties)),
             ),
             folder_expand_icon(manager, &path, is_expanded),
-            (*path != "".as_ref()).then(|| close_icon(manager, &path))..,
+            (*path.file != "".as_ref()).then(|| {
+                close_icon(
+                    manager,
+                    &path,
+                    match properties.status {
+                        SvnStatus::Active => RemoveBehavior::SOFT,
+                        SvnStatus::Show => RemoveBehavior::HARD,
+                    },
+                )
+            })..,
         ),
         div(
             class = style::SUB_FOLDER,
             ul(folder.iter().map(|(name, child)| {
-                show_side_view_node(manager, path.join(name.as_ref()).into(), name, &child)
+                show_side_view_node(
+                    manager,
+                    &FilePath {
+                        base: path.base.clone(),
+                        file: path.file.join(name.as_ref()).into(),
+                    },
+                    name,
+                    &child,
+                )
             })..),
         ),
     )
@@ -135,7 +161,7 @@ fn show_side_view_folder(
 #[html]
 fn show_side_view_file(
     manager: &Ptr<TextEditorManager>,
-    path: Arc<Path>,
+    path: &FilePath<Arc<Path>>,
     properties: &SvnProperties,
     metadata: &FileMetadata,
 ) -> XElement {
@@ -144,17 +170,17 @@ fn show_side_view_file(
         key = "file",
         class = style::FILE,
         #[cfg(not(feature = "client-prod"))]
-        data_file_path = path.to_owned_string(),
+        data_file_path = path.file.to_owned_string(),
         img(src = icons::file(), class = style::ICON),
         div(
-            class %= selected_item(manager.path.file.clone(), path.clone()),
+            class %= selected_item(manager.path.file.clone(), path.file.clone()),
             span(class = name_display_class(properties), "{name}"),
             click = move |_| {
                 autoclone!(manager, path);
-                manager.path.file.set(path.clone())
+                manager.path.file.set(path.file.clone())
             },
         ),
-        close_icon(manager, &path),
+        close_icon(manager, &path, RemoveBehavior::HARD),
     )
 }
 
@@ -170,7 +196,7 @@ fn selected_item(#[signal] file_path: Arc<Path>, path: Arc<Path>) -> XAttributeV
 #[html]
 fn folder_expand_icon(
     manager: &Ptr<TextEditorManager>,
-    path: &Arc<Path>,
+    path: &FilePath<Arc<Path>>,
     is_expanded: bool,
 ) -> XElement {
     if !is_expanded {
@@ -195,16 +221,12 @@ fn folder_expand_icon(
 #[autoclone]
 fn expand_folder(
     manager: &Ptr<TextEditorManager>,
-    path: &Arc<Path>,
+    path: &FilePath<Arc<Path>>,
 ) -> impl Fn(MouseEvent) + 'static {
     move |_| {
         autoclone!(manager, path);
         spawn_local(async move {
             autoclone!(manager, path);
-            let path = FilePath {
-                base: manager.path.base.get_value_untracked(),
-                file: path.clone(),
-            };
             debug!(?path, "Expand folder view");
             let content = list_folder(manager.remote.clone(), path.clone())
                 .await
@@ -226,15 +248,11 @@ fn expand_folder(
 #[autoclone]
 fn collapse_folder(
     manager: &Ptr<TextEditorManager>,
-    path: &Arc<Path>,
+    path: &FilePath<Arc<Path>>,
 ) -> impl Fn(MouseEvent) + 'static {
     move |_| {
         autoclone!(manager, path);
         manager.side_view.update(|side_view| {
-            let path = FilePath {
-                base: manager.path.base.get_value_untracked(),
-                file: path.clone(),
-            };
             debug!(?path, "Collapse folder view");
             let new_node = filter_active_folder_content(&manager, side_view.as_deref(), &path);
             new_node.map(|new_node| Some(Arc::new(new_node)))
@@ -244,7 +262,11 @@ fn collapse_folder(
 
 #[autoclone]
 #[html]
-fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
+fn close_icon(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+    behavior: RemoveBehavior,
+) -> XElement {
     img(
         src = icons::close_tab(),
         class = style::BUTTON_HOVER_ICON,
@@ -253,7 +275,7 @@ fn close_icon(manager: &Ptr<TextEditorManager>, path: &Arc<Path>) -> XElement {
         click = move |_ev| {
             autoclone!(manager, path);
             debug!(?path, "Remove item from side view");
-            manager.remove_from_side_view(&path);
+            manager.remove_from_side_view(&path, behavior);
         },
     )
 }

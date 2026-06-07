@@ -7,9 +7,12 @@ use std::sync::Arc;
 use terrazzo::prelude::Ptr;
 
 use super::SideViewNode;
+use super::SvnProperties;
+use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::manager::TextEditorManager;
+use crate::text_editor::ui::RemoveBehavior;
 
 impl TextEditorManager {
     // Adds the given path and item to be tracked on the side view
@@ -27,10 +30,24 @@ impl TextEditorManager {
         self.force_edit_path.set(false);
     }
 
-    pub fn remove_from_side_view(&self, file_path: impl AsRef<Path>) {
-        let file_path = file_path.as_ref();
+    pub fn remove_from_side_view(
+        self: &Ptr<Self>,
+        path: &FilePath<Arc<Path>>,
+        behavior: RemoveBehavior,
+    ) {
+        let file_path = path.file.as_ref();
         self.side_view.update(|side_view| {
-            let new_node = super::remove_node(side_view.as_deref(), file_path);
+            let new_node = match behavior {
+                RemoveBehavior::HARD => super::remove_node(side_view.as_deref(), file_path),
+                RemoveBehavior::SOFT => super::add_node(self, side_view.as_deref(), path, |old| {
+                    old.map(|old| SideViewNode {
+                        properties: SvnProperties {
+                            status: SvnStatus::Show,
+                        },
+                        item: old.item.clone(),
+                    })
+                }),
+            };
             new_node.map(|new_node| Some(Arc::new(new_node)))
         });
         self.path.file.update(|old| {

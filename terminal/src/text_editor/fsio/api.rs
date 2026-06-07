@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use terrazzo::axum::Router;
 use terrazzo::axum::body::Bytes;
@@ -12,7 +12,6 @@ use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
 
-use super::canonical::concat_base_file_path;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::text_editor::file_path::FilePath;
@@ -35,8 +34,7 @@ pub(crate) fn fsio_routes(
 async fn download_file(
     Query(path): Query<ApiFilePath>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let path = path.into_file_path();
-    let path = concat_base_file_path(path.base, path.file);
+    let path = path.into_file_path().full_path();
     if !path.exists() {
         return Err((
             StatusCode::NOT_FOUND,
@@ -61,8 +59,7 @@ async fn upload_file(
     Query(path): Query<ApiFilePath>,
     content: Bytes,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let path = path.into_file_path();
-    let path = concat_base_file_path(path.base, path.file);
+    let path = path.into_file_path().full_path();
     if path.is_dir() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -90,12 +87,12 @@ fn internal_server_error(error: std::io::Error) -> (StatusCode, String) {
 
 #[derive(serde::Deserialize)]
 struct ApiFilePath {
-    base: Arc<str>,
-    file: Arc<str>,
+    base: PathBuf,
+    file: PathBuf,
 }
 
 impl ApiFilePath {
-    fn into_file_path(self) -> FilePath<Arc<str>> {
+    fn into_file_path(self) -> FilePath<PathBuf> {
         FilePath {
             base: self.base,
             file: self.file,

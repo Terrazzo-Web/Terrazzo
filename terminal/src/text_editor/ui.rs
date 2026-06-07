@@ -192,7 +192,7 @@ fn toggle_editor_diff(
         class %= make_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "toggle-editor-diff",
-        src = icons::split_vert(),
+        src = icons::split_vert(), // TODO: Update this icon
         title %= make_title(show_editor_diff.clone()),
         click = move |_| show_editor_diff.update(|show| Some(!show)),
     );

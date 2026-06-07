@@ -122,7 +122,7 @@ impl<R> From<SideViewList<R>> for HashMap<Arc<Path>, Arc<SideViewNode<R>>> {
 
 impl<R> std::fmt::Debug for SideViewList<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.keys().fmt(f)
+        self.0.fmt(f)
     }
 }
 

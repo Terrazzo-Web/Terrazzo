@@ -29,6 +29,17 @@ fn make_test_path(path: &str) -> FilePath<Arc<Path>> {
     .map(Arc::from)
 }
 
+fn format_tree(tree: Option<&SideViewNode>) -> String {
+    let Some(SideViewNode {
+        item: SvnItem::Folder { folder, notify: _ },
+        ..
+    }) = tree
+    else {
+        panic!("expected a folder tree");
+    };
+    format!("{folder:#?}")
+}
+
 #[test]
 fn add_file() {
     let make_file = |name: &str| SideViewNode {
@@ -71,7 +82,7 @@ fn add_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     let tree = super::add_node(
@@ -99,7 +110,7 @@ fn add_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     let tree = super::add_node(
@@ -134,7 +145,7 @@ fn add_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     // Folder --> File
@@ -163,7 +174,7 @@ fn add_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     // File --> Folder
@@ -196,7 +207,7 @@ fn add_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 }
 
@@ -242,7 +253,7 @@ fn remove_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     let tree = super::add_node(
@@ -270,7 +281,7 @@ fn remove_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     // Remove file: ExpectedFolder
@@ -318,7 +329,7 @@ fn remove_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(tree.as_ref())
     );
 
     // Remove folder
@@ -331,6 +342,6 @@ fn remove_file() {
     ),
 }"#
         .trim(),
-        format!("{tree:#?}")
+        format_tree(Some(&tree))
     );
 }

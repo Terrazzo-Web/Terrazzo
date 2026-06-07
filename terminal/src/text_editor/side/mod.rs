@@ -60,17 +60,13 @@ pub mod opaque {
     #[cfg(feature = "client")]
     use std::rc::Rc;
 
-    #[cfg(feature = "server")]
-    pub type OpaqueNotifyRegistration = ();
-
-    #[cfg(feature = "client")]
-    #[derive(Clone)]
-    #[cfg_attr(test, derive(Default))]
-    pub struct OpaqueNotifyRegistration(
+    #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+    pub struct OpaqueNotifyRegistration {
         #[cfg(feature = "client")]
+        #[serde(skip)]
         #[expect(unused)]
-        Option<Rc<dyn Any>>,
-    );
+        registration: Option<Rc<dyn Any>>,
+    }
 
     #[cfg(feature = "client")]
     mod convert {
@@ -81,7 +77,9 @@ pub mod opaque {
 
         impl From<Ptr<NotifyRegistration>> for OpaqueNotifyRegistration {
             fn from(value: Ptr<NotifyRegistration>) -> Self {
-                Self(Some(value))
+                Self {
+                    registration: Some(value),
+                }
             }
         }
     }

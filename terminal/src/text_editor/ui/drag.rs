@@ -52,7 +52,7 @@ fn has_side_view_drag_key(data_transfer: &web_sys::DataTransfer) -> bool {
 }
 
 #[autoclone]
-pub fn on_move_drop(
+pub(in super::super) fn on_move_drop(
     manager: &Ptr<TextEditorManager>,
     destination_folder: &FilePath<Arc<Path>>,
 ) -> impl Fn(DragEvent) + 'static {

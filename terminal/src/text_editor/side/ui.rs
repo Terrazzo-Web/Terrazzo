@@ -116,7 +116,7 @@ fn show_side_view_folder(
     fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
         dragover_class
     }
-    let on_move_drop = on_move_drop(manager, path);
+    let on_drag_move_drop = on_drag_move_drop(manager, path);
 
     let is_expanded = folder
         .values()
@@ -132,7 +132,7 @@ fn show_side_view_folder(
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
             draggable = (*path.file != *Path::new("")).then_some("true"),
-            dragstart = drag_side_view_node(path),
+            dragstart = on_drag_move_start(path),
             dragover = move |event: DragEvent| {
                 autoclone!(dragover_class);
                 let Some(data_transfer) = event.data_transfer() else {
@@ -151,7 +151,7 @@ fn show_side_view_folder(
             },
             drop = move |event| {
                 dragover_class.set(None);
-                on_move_drop(event);
+                on_drag_move_drop(event);
             },
             img(src = icons::folder(), class = style::ICON),
             div(
@@ -206,7 +206,7 @@ fn show_side_view_file(
         key = "file",
         class = style::FILE,
         draggable = true,
-        dragstart = drag_side_view_node(path),
+        dragstart = on_drag_move_start(path),
         #[cfg(not(feature = "client-prod"))]
         data_file_path = path.file.to_owned_string(),
         img(src = icons::file(), class = style::ICON),
@@ -233,7 +233,7 @@ fn has_side_view_drag_key(data_transfer: &web_sys::DataTransfer) -> bool {
 }
 
 #[autoclone]
-fn drag_side_view_node(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'static {
+fn on_drag_move_start(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'static {
     move |event| {
         autoclone!(path);
         let Some(data_transfer) = event.data_transfer() else {
@@ -247,7 +247,7 @@ fn drag_side_view_node(path: &FilePath<Arc<Path>>) -> impl Fn(DragEvent) + 'stat
 }
 
 #[autoclone]
-fn on_move_drop(
+fn on_drag_move_drop(
     manager: &Ptr<TextEditorManager>,
     destination_folder: &FilePath<Arc<Path>>,
 ) -> impl Fn(DragEvent) + 'static {

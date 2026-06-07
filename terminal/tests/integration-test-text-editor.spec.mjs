@@ -263,8 +263,9 @@ async function openFolderFile(page, name, timeout = 60 * SECOND) {
         .toBe(true);
 }
 
-async function reloadFolder(page, baseDir, fileName) {
-    await setBasePath(page, baseDir, fileName);
+async function reopenFolderFile(page, fileName) {
+    await getSideViewFolder(page, '').locator('span').first().click();
+    await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 30 * SECOND });
     await openFolderFile(page, fileName);
 }
 
@@ -525,7 +526,7 @@ test.describe('Text editor', () => {
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
 
-        await reloadFolder(page, `${baseDir}${path.sep}.`, fileName);
+        await reopenFolderFile(page, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(2, { timeout: 30 * SECOND });
         const diffEditors = getCodeMirrorContent(page);
@@ -535,7 +536,7 @@ test.describe('Text editor', () => {
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
-        await reloadFolder(page, baseDir, fileName);
+        await reopenFolderFile(page, fileName);
 
         await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 30 * SECOND });
         await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 30 * SECOND });

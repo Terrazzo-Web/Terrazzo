@@ -98,6 +98,7 @@ pub fn folder(
             td("{permissions}"),
             td(
                 class = style::FOLDER_ACTIONS,
+                download_action(file_path.clone(), name.clone(), is_dir),
                 trash_action(
                     manager.clone(),
                     folder_path.clone(),
@@ -160,6 +161,27 @@ pub fn folder(
     )
 }
 
+#[html]
+fn download_action(file_path: FilePath<Arc<Path>>, name: Arc<str>, is_dir: bool) -> XElement {
+    if is_dir || &*name == ".." {
+        return span();
+    }
+    a(
+        href = download_url(&file_path),
+        download = name,
+        click = move |event: MouseEvent| {
+            event.stop_propagation();
+        },
+        img(
+            class = style::DOWNLOAD_ACTION,
+            #[cfg(not(feature = "client-prod"))]
+            class = "folder-download-icon",
+            src = icons::download(),
+            title = "Download",
+        ),
+    )
+}
+
 #[autoclone]
 #[html]
 fn trash_action(
@@ -187,6 +209,26 @@ fn trash_action(
             ));
         },
     )
+}
+
+fn download_url(file_path: &FilePath<Arc<Path>>) -> String {
+    format!(
+        "/api/text_editor/fsio/download?base={}&file={}",
+        encode_query_path(file_path.base.as_ref()),
+        encode_query_path(file_path.file.as_ref())
+    )
+}
+
+fn encode_query_path(path: &Path) -> String {
+    path.to_string_lossy()
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }
 
 async fn delete_file(

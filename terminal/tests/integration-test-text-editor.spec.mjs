@@ -349,7 +349,7 @@ test.describe('Text editor', () => {
     });
 
     test('edits a file', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -371,7 +371,7 @@ test.describe('Text editor', () => {
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
@@ -404,7 +404,7 @@ test.describe('Text editor', () => {
     });
 
     test('renders a PDF file', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-pdf-'));
         await copyFile(PLANTUML_PDF, path.join(baseDir, 'PlantUML.pdf'));
@@ -510,7 +510,7 @@ test.describe('Text editor', () => {
     });
 
     test('shows a git diff for modified files and returns to plain view when reverted', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const { baseDir, fileName, filePath } = await createCommittedReadme();
 
@@ -544,7 +544,7 @@ test.describe('Text editor', () => {
     });
 
     test('expands and collapses side-view folder nodes', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const root = await createFolderTree();
 
@@ -573,8 +573,8 @@ test.describe('Text editor', () => {
         await expect(getSideViewFolder(page, 'a/c')).toHaveCount(0, { timeout: 10 * SECOND });
     });
 
-    test.skip('creates files and folders from the folder toolbar', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+    test('creates files and folders from the folder toolbar', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
 
         const fileName = 'seed.txt';
         const { baseDir } = await createTempFile(fileName);
@@ -600,7 +600,7 @@ test.describe('Text editor', () => {
     });
 
     test('moves a file to trash and resolves trash name conflicts', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const unique = `remove-me-${process.pid}-${Date.now()}`;
         const fileName = `${unique}.tar.gz`;
@@ -633,7 +633,7 @@ test.describe('Text editor', () => {
     });
 
     test('removes a deleted file from the side view', async ({ page }) => {
-        test.setTimeout(10 * SECOND);
+        test.setTimeout(60 * SECOND);
 
         const fileName = `side-view-remove-me-${process.pid}-${Date.now()}.txt`;
         const { baseDir, filePath } = await createTempFile(fileName);

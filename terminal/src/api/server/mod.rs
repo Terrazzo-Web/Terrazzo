@@ -34,5 +34,8 @@ pub fn api_routes(
         server,
     ));
 
+    #[cfg(feature = "text-editor")]
+    let router = router.merge(crate::text_editor::fsio::api::fsio_routes(auth_config));
+
     return router;
 }

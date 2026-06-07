@@ -11,6 +11,7 @@ const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
     .split(';')
     .map((url) => url.trim())
     .filter(Boolean)[0];
+const TEXT_EDITOR_FSIO_URL = `${BASE_URL}/api/text_editor/fsio`;
 const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
 const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 
@@ -19,6 +20,20 @@ async function createTempFile(name) {
     const filePath = path.join(baseDir, name);
     await writeFile(filePath, '');
     return { baseDir, filePath };
+}
+
+async function createTempDir() {
+    return mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-api-'));
+}
+
+async function authenticateApi(request) {
+    const response = await request.post(`${BASE_URL}/api/login`, { data: null });
+    expect(response.ok(), `login failed with status ${response.status()}: ${await response.text()}`).toBeTruthy();
+}
+
+function fsioApiUrl(action, base, file) {
+    const params = new URLSearchParams({ base, file });
+    return `${TEXT_EDITOR_FSIO_URL}/${action}?${params}`;
 }
 
 function getBasePathInput(page) {
@@ -349,6 +364,37 @@ test.describe('Text editor', () => {
     test('starts the server', async ({ page }) => {
         const response = await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         expect(response?.ok()).toBeTruthy();
+    });
+
+    test('uploads a file through the text editor API', async ({ request }) => {
+        const baseDir = await createTempDir();
+        const fileName = 'uploaded.bin';
+        const content = Buffer.from([0, 1, 2, 3, 253, 254, 255]);
+
+        await authenticateApi(request);
+        const response = await request.post(fsioApiUrl('upload', baseDir, fileName), {
+            data: content,
+            headers: {
+                'content-type': 'application/octet-stream',
+            },
+        });
+
+        expect(response.status(), await response.text()).toBe(204);
+        await expect.poll(async () => readFile(path.join(baseDir, fileName))).toEqual(content);
+    });
+
+    test('downloads a file through the text editor API', async ({ request }) => {
+        const baseDir = await createTempDir();
+        const fileName = 'downloaded.bin';
+        const content = Buffer.from([255, 128, 64, 32, 16, 8, 0]);
+        await writeFile(path.join(baseDir, fileName), content);
+
+        await authenticateApi(request);
+        const response = await request.get(fsioApiUrl('download', baseDir, fileName));
+
+        expect(response.ok(), `download failed with status ${response.status()}: ${await response.text()}`).toBeTruthy();
+        expect(response.headers()['content-type']).toMatch(/^application\/octet-stream\b/i);
+        expect(await response.body()).toEqual(content);
     });
 
     test('edits a file', async ({ page }) => {

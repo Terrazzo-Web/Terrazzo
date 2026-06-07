@@ -89,7 +89,9 @@ fn show_side_view_node(
         SvnItem::Folder { folder, notify: _ } => {
             show_side_view_folder(manager, path, name, &side_view.properties, folder)
         }
-        SvnItem::File { metadata, .. } => show_side_view_file(manager, path, &side_view.properties, metadata),
+        SvnItem::File { metadata, .. } => {
+            show_side_view_file(manager, path, &side_view.properties, metadata)
+        }
     })
 }
 

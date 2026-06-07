@@ -10,8 +10,6 @@ use self::diagnostics::debug;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
-use crate::text_editor::side::SvnProperties;
-use crate::text_editor::side::SvnStatus;
 
 #[nameth]
 #[derive(thiserror::Error, Debug, serde::Serialize, serde::Deserialize)]
@@ -29,75 +27,53 @@ pub enum RemoveFileError {
     FileNotFound,
 }
 
-pub fn remove_node_rec(
-    tree: &SideViewList,
-    mut relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-) -> Result<Arc<SideViewList>, RemoveFileError> {
-    match relative_path.next() {
-        None => remove_node_rec(tree, Path::new("/").iter().peekable()),
-        Some(item) => {
-            if relative_path.peek().is_none() {
-                remove_node_leaf(tree, item.as_ref())
-            } else {
-                remove_node_rec_folder(tree, item.as_ref(), relative_path)
-            }
-        }
-    }
-}
-
-fn remove_node_leaf(
-    tree: &SideViewList,
-    child_name: &Path,
-) -> Result<Arc<SideViewList>, RemoveFileError> {
-    #[cfg(debug_assertions)]
-    match tree.get(child_name) {
-        Some(child) => match &child.item {
-            SvnItem::Folder { .. } => debug!("Remove folder {child_name:?}"),
-            SvnItem::File { .. } => debug!("Remove file {child_name:?}"),
-        },
-        None => {
-            debug!("The file wasn't here {child_name:?}");
-            return Err(RemoveFileError::FileNotFound);
-        }
-    }
-    let mut new_tree = tree.clone();
-    new_tree.remove(child_name);
-    Ok(new_tree.into())
-}
-
-fn remove_node_rec_folder(
-    tree: &SideViewList,
-    folder_name: &Path,
-    relative_path: std::iter::Peekable<std::path::Iter<'_>>,
-) -> Result<Arc<SideViewList>, RemoveFileError> {
-    let (children, children_notify) = match tree.get(folder_name) {
-        Some(child) => match &child.item {
-            SvnItem::Folder { folder, notify } => {
-                debug!("Removing from folder {folder_name:?}");
-                (folder.clone(), notify.clone())
-            }
-            SvnItem::File { metadata } => {
-                return Err(RemoveFileError::ExpectedFolder(metadata.name.clone()));
-            }
-        },
-        None => {
-            return Err(RemoveFileError::ParentNotFound(folder_name.to_owned()));
+pub fn remove_node_rec<'l>(
+    parent: &Path,
+    mut relative_path: impl Iterator<Item = &'l Path>,
+    node: Option<&SideViewNode>,
+) -> Result<Option<SideViewNode>, RemoveFileError> {
+    let next = relative_path.next();
+    debug!(?next, ?node, "Remove node rec");
+    let Some(next) = next else {
+        return Ok(None);
+    };
+    let Some(node) = node else {
+        return Err(RemoveFileError::ParentNotFound(parent.into()));
+    };
+    let (folder, notify) = match &node.item {
+        SvnItem::Folder { folder, notify } => (folder.clone(), notify.clone()),
+        SvnItem::File { metadata } => {
+            return Err(RemoveFileError::ExpectedFolder(metadata.name.clone()));
         }
     };
-    let mut new_tree = (*tree).clone();
-    let children = remove_node_rec(&children, relative_path)?;
-    new_tree.insert(
-        folder_name.into(),
-        SideViewNode {
-            properties: SvnProperties {
-                status: SvnStatus::Active,
-            },
-            item: SvnItem::Folder {
-                folder: children,
-                notify: children_notify,
-            },
-        }
-        .into(),
-    );
-    Ok(new_tree.into())
+    Ok(Some(SideViewNode {
+        properties: node.properties.clone(),
+        item: SvnItem::Folder {
+            folder: remove_node_rec_folder(relative_path, &folder, next)?.into(),
+            notify,
+        },
+    }))
+}
+
+fn remove_node_rec_folder<'l>(
+    relative_path: impl Iterator<Item = &'l Path>,
+    folder: &SideViewList,
+    folder_name: &Path,
+) -> Result<SideViewList, RemoveFileError> {
+    let child = remove_node_rec(
+        folder_name,
+        relative_path,
+        folder.get(folder_name).map(Arc::as_ref),
+    )?;
+    if let Some(child) = child {
+        let mut folder = folder.clone();
+        folder.insert(folder_name.into(), child.into());
+        Ok(folder)
+    } else if folder.contains_key(folder_name) {
+        let mut folder = folder.clone();
+        folder.remove(folder_name);
+        Ok(folder)
+    } else {
+        Err(RemoveFileError::FileNotFound)
+    }
 }

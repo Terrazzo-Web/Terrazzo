@@ -1,11 +1,13 @@
 #![cfg(feature = "client")]
 
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 
-use terrazzo::prelude::Ptr;
+use terrazzo::prelude::diagnostics;
 
+use self::diagnostics::debug_span;
+use self::diagnostics::info;
+use self::diagnostics::warn;
 use super::SideViewList;
 use super::SideViewNode;
 use super::SvnItem;
@@ -13,52 +15,57 @@ use super::SvnProperties;
 use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
-use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::manager::SideViewNotify;
 use crate::utils::more_path::MorePathRef as _;
 
 mod add;
+mod live;
+mod manager;
 mod remove;
 
 #[cfg(test)]
 mod tests;
 
-pub use self::remove::RemoveFileError;
-
-pub fn add_node<N: Into<Option<SideViewNode>>>(
+fn add_node(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
-    node: impl FnOnce(Option<&Arc<SideViewNode>>) -> N,
-) -> Arc<SideViewList> {
-    let relative_path = path.file.as_ref().make_relative().iter().peekable();
-    self::add::add_node_rec(manager, &tree, path, relative_path, |old| node(old).into())
-        .unwrap_or(tree)
+    make: impl FnOnce(Option<&SideViewNode>) -> Option<SideViewNode>,
+) -> Option<SideViewNode> {
+    let _span = debug_span!("Add node", ?path).entered();
+    let relative_path = make_relative_path_iterator(&path.file);
+    self::add::add_node_rec(manager, path, make, relative_path, node)
 }
 
-pub fn remove_node(
-    tree: Arc<SideViewList>,
-    path: &Path,
-) -> Result<Arc<SideViewList>, RemoveFileError> {
-    let relative_path = path.make_relative().iter().peekable();
-    self::remove::remove_node_rec(&tree, relative_path)
+fn remove_node(node: Option<&SideViewNode>, path: &Path) -> Option<SideViewNode> {
+    let _span = debug_span!("Remove node", ?path).entered();
+    let relative_path = make_relative_path_iterator(path);
+    match self::remove::remove_node_rec(Path::new(""), relative_path, node) {
+        Ok(node) => node,
+        Err(error) => {
+            warn!("Failed to remove node: {error}");
+            None
+        }
+    }
 }
 
 pub fn show_folder_content(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
     folder_content: &[FileMetadata],
-) -> Arc<SideViewList> {
-    add_node(manager, tree, path, |old| {
-        let old = old?;
-        let (mut new_folder, notify) = if let SideViewNode {
-            properties: SvnProperties { status: _ },
+) -> Option<SideViewNode> {
+    info!(?path, len = folder_content.len(), "Showing folder content");
+    add_node(manager, node, path, |old| {
+        info!("Setting folder content: {}", old.is_some());
+        let (properties, mut new_folder, notify) = if let Some(SideViewNode {
+            properties,
             item: SvnItem::Folder { folder, notify },
-        } = old.as_ref()
+        }) = old
         {
-            ((**folder).clone(), notify.clone())
+            (properties, (**folder).clone(), notify)
         } else {
+            warn!("Old folder not found");
             return None;
         };
         for metadata in folder_content {
@@ -66,36 +73,32 @@ pub fn show_folder_content(
             if new_folder.contains_key(name) {
                 continue;
             }
-            let node = if metadata.is_dir {
-                SideViewNode {
-                    properties: SvnProperties {
-                        status: SvnStatus::Show,
-                    },
-                    item: SvnItem::Folder {
-                        folder: Arc::default(),
-                        notify: manager.watch_side_view_folder(&FilePath {
-                            base: path.base.clone(),
-                            file: path.file.join(name).into(),
-                        }),
-                    },
+            let item = if metadata.is_dir {
+                SvnItem::Folder {
+                    folder: Arc::default(),
+                    notify: manager.watch_side_view_folder(&FilePath {
+                        base: path.base.clone(),
+                        file: path.file.join(name).into(),
+                    }),
                 }
             } else {
-                SideViewNode {
-                    properties: SvnProperties {
-                        status: SvnStatus::Show,
-                    },
-                    item: SvnItem::File {
-                        metadata: Arc::new(metadata.clone()),
-                    },
+                SvnItem::File {
+                    metadata: Arc::new(metadata.clone()),
                 }
             };
-            new_folder.insert(name.into(), node.into());
+            let child = SideViewNode {
+                properties: SvnProperties {
+                    status: SvnStatus::Show,
+                },
+                item,
+            };
+            new_folder.insert(name.into(), child.into());
         }
         Some(SideViewNode {
-            properties: old.properties.clone(),
+            properties: properties.clone(),
             item: SvnItem::Folder {
                 folder: new_folder.into(),
-                notify,
+                notify: notify.clone(),
             },
         })
     })
@@ -103,20 +106,23 @@ pub fn show_folder_content(
 
 pub fn filter_active_folder_content(
     manager: &impl SideViewNotify,
-    tree: Arc<SideViewList>,
+    node: Option<&SideViewNode>,
     path: &FilePath<Arc<Path>>,
-) -> Arc<SideViewList> {
-    add_node(manager, tree, path, |old| {
-        let old = old?;
-        let (folder, notify) = if let SideViewNode {
-            properties: SvnProperties { status: _ },
+) -> Option<SideViewNode> {
+    info!(?path, "Filter folder content");
+    add_node(manager, node, path, |old| {
+        info!("Setting folder content: {}", old.is_some());
+        let (properties, folder, notify) = if let Some(SideViewNode {
+            properties,
             item: SvnItem::Folder { folder, notify },
-        } = old.as_ref()
+        }) = old
         {
-            (folder, notify.clone())
+            (properties, (**folder).clone(), notify)
         } else {
+            warn!("Old folder not found");
             return None;
         };
+
         let mut new_folder = SideViewList::default();
         for (name, child) in folder.iter() {
             if child.properties.status == SvnStatus::Show {
@@ -138,18 +144,18 @@ pub fn filter_active_folder_content(
             new_folder.insert(name.clone(), child);
         }
         Some(SideViewNode {
-            properties: old.properties.clone(),
+            properties: properties.clone(),
             item: SvnItem::Folder {
                 folder: new_folder.into(),
-                notify,
+                notify: notify.clone(),
             },
         })
     })
 }
 
-fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
-    let mut new_tree = SideViewList::default();
-    for (name, child) in tree.iter() {
+fn remove_displayed(folder: Arc<SideViewList>) -> Arc<SideViewList> {
+    let mut new_folder = SideViewList::default();
+    for (name, child) in folder.iter() {
         if child.properties.status == SvnStatus::Show {
             continue;
         }
@@ -163,76 +169,11 @@ fn remove_displayed(tree: Arc<SideViewList>) -> Arc<SideViewList> {
             }),
             SvnItem::File { .. } => child.clone(),
         };
-        new_tree.insert(name.clone(), child);
+        new_folder.insert(name.clone(), child);
     }
-    Arc::new(new_tree)
+    Arc::new(new_folder)
 }
 
-pub fn live_side_view(
-    manager: &Ptr<TextEditorManager>,
-    base: &Arc<Path>,
-    side_view: Arc<SideViewList<()>>,
-) -> Arc<SideViewList> {
-    live_side_view_rec(manager, base, PathBuf::new(), side_view)
-}
-
-fn live_side_view_rec(
-    manager: &Ptr<TextEditorManager>,
-    base: &Arc<Path>,
-    parent_path: PathBuf,
-    side_view: Arc<SideViewList<()>>,
-) -> Arc<SideViewList> {
-    let mut active = SideViewList::default();
-    for (name, child) in side_view.iter() {
-        let child = match &child.item {
-            SvnItem::Folder {
-                folder: children,
-                notify: (),
-            } => {
-                let path = parent_path.join(Path::new(name.as_ref()));
-                Arc::new(SideViewNode {
-                    properties: child.properties.clone(),
-                    item: SvnItem::Folder {
-                        folder: live_side_view_rec(manager, base, path.clone(), children.clone()),
-                        notify: manager
-                            .watch_side_view_folder(&FilePath {
-                                base: base.clone(),
-                                file: path.into(),
-                            }),
-                    },
-                })
-            }
-            SvnItem::File { metadata } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::File {
-                    metadata: metadata.clone(),
-                },
-            }),
-        };
-        active.insert(name.clone(), child);
-    }
-    Arc::new(active)
-}
-
-pub fn stored_side_view(side_view: Arc<SideViewList>) -> Arc<SideViewList<()>> {
-    let mut persisted = SideViewList::default();
-    for (name, child) in side_view.iter() {
-        let child = match &child.item {
-            SvnItem::Folder { folder, notify: _ } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::Folder {
-                    folder: stored_side_view(folder.clone()),
-                    notify: (),
-                },
-            }),
-            SvnItem::File { metadata } => Arc::new(SideViewNode {
-                properties: child.properties.clone(),
-                item: SvnItem::File {
-                    metadata: metadata.clone(),
-                },
-            }),
-        };
-        persisted.insert(name.clone(), child);
-    }
-    Arc::new(persisted)
+fn make_relative_path_iterator(path: &Path) -> impl Iterator<Item = &Path> {
+    path.make_relative().iter().map(|c| c.as_ref())
 }

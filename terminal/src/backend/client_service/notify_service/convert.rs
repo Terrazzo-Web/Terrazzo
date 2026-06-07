@@ -18,10 +18,10 @@ impl From<FilePathProto> for FilePath<Arc<Path>> {
 }
 
 impl From<FilePath<Arc<Path>>> for FilePathProto {
-    fn from(proto: FilePath<Arc<Path>>) -> Self {
+    fn from(value: FilePath<Arc<Path>>) -> Self {
         Self {
-            base: proto.base.as_ref().to_owned_string(),
-            file: proto.file.as_ref().to_owned_string(),
+            base: value.base.as_ref().to_owned_string(),
+            file: value.file.as_ref().to_owned_string(),
         }
     }
 }

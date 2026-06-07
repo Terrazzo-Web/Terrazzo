@@ -1,12 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
 use super::fsio::FileMetadata;
 
-mod manager;
-pub mod mutation;
-pub mod ui;
+mod mutation;
+mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
@@ -28,7 +27,7 @@ pub struct SvnProperties {
     pub status: SvnStatus,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "server", allow(dead_code))]
 pub enum SvnStatus {
     #[default]
@@ -98,7 +97,7 @@ pub mod opaque {
 ))]
 #[serde(transparent)]
 pub struct SideViewList<R = opaque::OpaqueNotifyRegistration>(
-    BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>,
+    HashMap<Arc<Path>, Arc<SideViewNode<R>>>,
 );
 
 impl<R> Default for SideViewList<R> {
@@ -107,13 +106,13 @@ impl<R> Default for SideViewList<R> {
     }
 }
 
-impl<R> From<BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>> for SideViewList<R> {
-    fn from(value: BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>) -> Self {
+impl<R> From<HashMap<Arc<Path>, Arc<SideViewNode<R>>>> for SideViewList<R> {
+    fn from(value: HashMap<Arc<Path>, Arc<SideViewNode<R>>>) -> Self {
         Self(value)
     }
 }
 
-impl<R> From<SideViewList<R>> for BTreeMap<Arc<Path>, Arc<SideViewNode<R>>> {
+impl<R> From<SideViewList<R>> for HashMap<Arc<Path>, Arc<SideViewNode<R>>> {
     fn from(value: SideViewList<R>) -> Self {
         value.0
     }
@@ -126,7 +125,7 @@ impl<R> std::fmt::Debug for SideViewList<R> {
 }
 
 impl<R> std::ops::Deref for SideViewList<R> {
-    type Target = BTreeMap<Arc<Path>, Arc<SideViewNode<R>>>;
+    type Target = HashMap<Arc<Path>, Arc<SideViewNode<R>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -141,17 +140,20 @@ impl<R> std::ops::DerefMut for SideViewList<R> {
 
 impl<R> FromIterator<(Arc<Path>, Arc<SideViewNode<R>>)> for SideViewList<R> {
     fn from_iter<T: IntoIterator<Item = (Arc<Path>, Arc<SideViewNode<R>>)>>(iter: T) -> Self {
-        Self(BTreeMap::from_iter(iter))
+        Self(HashMap::from_iter(iter))
     }
 }
 
 impl<R> std::fmt::Debug for SideViewNode<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.item {
-            SvnItem::Folder {
-                folder: list,
-                notify: _,
-            } => f.debug_tuple("Folder").field(list).finish(),
+            SvnItem::Folder { folder, notify: _ } => {
+                let sorted_folder = (***folder)
+                    .clone()
+                    .into_iter()
+                    .collect::<std::collections::BTreeMap<_, _>>();
+                f.debug_tuple("Folder").field(&sorted_folder).finish()
+            }
             SvnItem::File { metadata } => f.debug_tuple("File").field(&metadata.name).finish(),
         }
     }

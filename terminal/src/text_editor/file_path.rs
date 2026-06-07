@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
+use super::fsio::ROOT_BASE_PATH;
 use crate::utils::more_path::MorePathRef as _;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -21,7 +22,16 @@ impl<B: AsRef<Path>, F: AsRef<Path>> FilePath<B, F> {
         if base.is_absolute() {
             base.join(file)
         } else {
-            Path::new("/").join(base).join(file)
+            ROOT_BASE_PATH.join(base).join(file)
+        }
+    }
+
+    pub fn with_base_path<R>(&self, f: impl FnOnce(&Path) -> R) -> R {
+        let base = self.base.as_ref();
+        if base.is_absolute() {
+            f(base)
+        } else {
+            f(&ROOT_BASE_PATH.join(base))
         }
     }
 }

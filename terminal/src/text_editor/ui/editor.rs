@@ -28,6 +28,7 @@ use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
@@ -90,7 +91,7 @@ pub fn editor(
     );
     let base_path = FilePath {
         base: path.base.clone(),
-        file: Arc::from(Path::new("")),
+        file: ROOT_FILE_PATH.clone(),
     };
     let diagnostics_notify_registration = manager.notify_service.watch_file(
         &base_path,

@@ -18,6 +18,9 @@ macro_rules! make_state {
 
         #[cfg(feature = "server")]
         fn default_value() -> ty::Type {
+            #[allow(unused)]
+            pub use super::*;
+
             $default
         }
 

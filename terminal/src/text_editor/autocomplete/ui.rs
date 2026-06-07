@@ -19,6 +19,7 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::info;
 use super::server_fn::AutocompleteItem;
 use super::server_fn::autocomplete_path;
+use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::path_selector::schema::PathSelector;
 use crate::text_editor::style;
@@ -70,16 +71,20 @@ pub fn show_autocomplete(
     tag(class = style::PATH_SELECTOR_AUTOCOMPLETE, items..)
 }
 
+#[autoclone]
 pub fn start_autocomplete(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
     prefix: Option<XSignal<Arc<Path>>>,
+    path: XSignal<Arc<Path>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
     move |_| {
-        let input_element_blur = scopeguard::guard(input.clone(), |input| {
-            let () = input.get().blur().or_throw("Can't blur() input element");
+        info!("Start autocomplete {kind:?}");
+        let input_element_blur = scopeguard::guard(input.clone(), move |input| {
+            autoclone!(path, autocomplete);
+            do_stop_autocomplete(kind, &path, &input, &autocomplete);
         });
         let before_menu = &manager.tile.menu.before;
         before_menu.add(move || drop(input_element_blur));
@@ -95,17 +100,27 @@ pub fn start_autocomplete(
 }
 
 pub fn stop_autocomplete(
+    kind: PathSelector,
     path: XSignal<Arc<Path>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
-    move |_| {
-        let value = input.with(|i| i.value());
-        let value = value.trim();
-        info!("Update path to {value}");
-        path.set(Arc::from(Path::new(value)));
-        autocomplete.set(None);
-    }
+    move |_| do_stop_autocomplete(kind, &path, &input, &autocomplete)
+}
+
+pub fn do_stop_autocomplete(
+    kind: PathSelector,
+    path: &XSignal<Arc<Path>>,
+    input: &ElementCapture<HtmlInputElement>,
+    autocomplete: &XSignal<Option<Vec<AutocompleteItem>>>,
+) {
+    let Some(value) = input.try_with(|i| i.value()) else {
+        return;
+    };
+    let value = value.trim();
+    info!("Update {kind:?} path to {value}");
+    path.set(Arc::from(Path::new(value)));
+    autocomplete.set(None);
 }
 
 pub fn do_autocomplete(
@@ -143,7 +158,7 @@ fn do_autocomplete_impl(
             prefix
                 .as_ref()
                 .map(XSignal::get_value_untracked)
-                .unwrap_or(Path::new("").into()),
+                .unwrap_or(ROOT_FILE_PATH.clone()),
             value,
         )
         .await

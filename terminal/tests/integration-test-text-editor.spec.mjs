@@ -281,6 +281,22 @@ async function openFolderFile(page, name, timeout = 10 * SECOND) {
         .toBe(true);
 }
 
+async function showRootFolderFile(page, fileName, timeout = 10 * SECOND) {
+    await expect
+        .poll(
+            async () => {
+                try {
+                    await getSideViewFolder(page, '').locator('span').first().click({ timeout: SECOND });
+                    return await getFolderFile(page, fileName).isVisible({ timeout: SECOND });
+                } catch {
+                    return false;
+                }
+            },
+            { timeout },
+        )
+        .toBe(true);
+}
+
 async function reopenFolderFile(page, fileName) {
     await getSideViewFolder(page, '').locator('span').first().click();
     await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
@@ -362,13 +378,9 @@ async function replaceEditorText(page, editor, content) {
     await page.keyboard.insertText(content);
 }
 
-async function dragSideViewNodeIntoFolder(page, source, destinationFolder) {
+async function dragSideViewNodeIntoFolder(page, source, sourcePath, destinationFolder) {
     await source.scrollIntoViewIfNeeded();
     await destinationFolder.scrollIntoViewIfNeeded();
-    const sourcePath = await source.evaluate((node) => {
-        const entry = node.closest('[data-file-path], [data-folder-path]');
-        return entry?.getAttribute('data-file-path') ?? entry?.getAttribute('data-folder-path');
-    });
     expect(sourcePath).toBeTruthy();
     const dataTransfer = await page.evaluateHandle((sourcePath) => {
         const dataTransfer = new DataTransfer();
@@ -391,6 +403,12 @@ async function expandSideViewFolder(page, folderPath) {
         await expandIcon.click();
         await page.waitForTimeout(SECOND);
     }
+}
+
+async function submitCreateEntry(page, name) {
+    const field = getCreateEntryField(page);
+    await field.fill(name);
+    await field.dispatchEvent('change');
 }
 
 test.describe('Text editor', () => {
@@ -673,15 +691,16 @@ test.describe('Text editor', () => {
         await setBasePath(page, baseDir, fileName);
 
         await getCreateFileIcon(page).click();
-        await getCreateEntryField(page).fill(' notes with spaces.txt ');
-        await getCreateEntryField(page).press('Enter');
+        await submitCreateEntry(page, ' notes with spaces.txt ');
 
+        await expect
+            .poll(async () => readFileOrMissing(path.join(baseDir, 'notes with spaces.txt')))
+            .toBe('-- notes with spaces.txt --');
+        await refreshUntilFolderFileVisible(page, baseDir, 'notes with spaces.txt');
         await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 10 * SECOND });
-        await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('-- notes with spaces.txt --');
 
         await getCreateFolderIcon(page).click();
-        await getCreateEntryField(page).fill(' drafts ');
-        await getCreateEntryField(page).press('Enter');
+        await submitCreateEntry(page, ' drafts ');
 
         await expect.poll(async () => isDirectory(path.join(baseDir, 'drafts'))).toBe(true);
         await refreshUntilFolderFileVisible(page, baseDir, 'drafts/');
@@ -710,6 +729,7 @@ test.describe('Text editor', () => {
         await dragSideViewNodeIntoFolder(
             page,
             getSideViewFile(page, 'srcfolder/src_file'),
+            path.join(baseDir, 'srcfolder', 'src_file'),
             getSideViewFolder(page, 'destfolder'),
         );
 
@@ -721,6 +741,7 @@ test.describe('Text editor', () => {
         await dragSideViewNodeIntoFolder(
             page,
             getSideViewFolder(page, 'srcfolder/src_folder'),
+            path.join(baseDir, 'srcfolder', 'src_folder'),
             getSideViewFolder(page, 'destfolder'),
         );
 
@@ -776,8 +797,7 @@ test.describe('Text editor', () => {
         await openFolderFile(page, fileName);
         await expect(getSideViewFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
 
-        await getSideViewFolder(page, '').locator('span').first().click();
-        await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
+        await showRootFolderFile(page, fileName);
         await getFolderTrashIcon(page, fileName).click();
 
         await expect.poll(async () => exists(filePath), { timeout: 10 * SECOND }).toBe(false);

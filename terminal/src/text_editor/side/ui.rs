@@ -114,8 +114,6 @@ fn show_side_view_folder(
         .any(|child| child.properties.status == SvnStatus::Show);
     div(
         key = "folder",
-        draggable = (*path.file != *Path::new("")).then_some("true"),
-        dragstart = drag_side_view_node(path),
         #[cfg(not(feature = "client-prod"))]
         class = "side-view-folder",
         #[cfg(not(feature = "client-prod"))]
@@ -124,6 +122,8 @@ fn show_side_view_folder(
             class = style::FOLDER,
             #[cfg(not(feature = "client-prod"))]
             class = "side-view-folder-row",
+            draggable = (*path.file != *Path::new("")).then_some("true"),
+            dragstart = drag_side_view_node(path),
             dragover = move |event: DragEvent| {
                 let Some(data_transfer) = event.data_transfer() else {
                     return;

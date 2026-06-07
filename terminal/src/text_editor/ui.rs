@@ -314,11 +314,12 @@ impl TextEditorManager {
                 match fsio::client::prune_side_view(
                     this.remote.clone(),
                     this.path.base.get_value_untracked(),
-                    side_view,
+                    side_view.clone(),
                 )
                 .await
                 {
                     Ok(pruned_side_view) => {
+                        let pruned_side_view = pruned_side_view.or(side_view);
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
                         this.side_view
                             .force(this.live_side_view(&base_path, pruned_side_view));

@@ -130,13 +130,28 @@ fn on_child_change(
 fn on_folder_change(manager: &Ptr<TextEditorManager>, folder_path: &FilePath<Arc<Path>>) {
     wasm_bindgen_futures::spawn_local(async move {
         autoclone!(manager, folder_path);
-        // TODO: Consider reloading the entire folder.
         if !fsio::client::file_exists(manager.remote.clone(), folder_path.clone())
             .await
             .unwrap_or(true)
         {
             manager.remove_from_side_view(&folder_path, RemoveBehavior::Hard);
+            return;
         }
+
+        let side_view =
+            TextEditorManager::stored_side_view(manager.side_view.get_value_untracked());
+        let Ok(pruned_side_view) = fsio::client::prune_side_view(
+            manager.remote.clone(),
+            folder_path.base.clone(),
+            side_view,
+        )
+        .await
+        .inspect_err(|error| warn!("Failed to prune stale side_view entries: {error}")) else {
+            return;
+        };
+        manager
+            .side_view
+            .force(manager.live_side_view(&folder_path.base, pruned_side_view));
     });
 }
 

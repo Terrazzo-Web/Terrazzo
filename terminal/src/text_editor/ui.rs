@@ -302,19 +302,15 @@ impl TextEditorManager {
                 state::search::get(Some(tile_id), remote.clone()),
             )
             .await;
-            let batch = Batch::use_batch(Self::RESTORE_PATHS);
-            if let Ok(p) = get_base_path {
-                this.path.base.force(p);
-            }
-            if let Ok(p) = get_file_path {
-                this.path.file.force(p);
-            }
-            if let Ok(side_view) = get_side_view {
+            let base_path = get_base_path.as_ref().ok().cloned();
+            let side_view = if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
-                let base_path = this.path.base.get_value_untracked();
+                let base_path = base_path
+                    .clone()
+                    .unwrap_or_else(|| this.path.base.get_value_untracked());
                 match fsio::client::prune_side_view(
                     this.remote.clone(),
-                    this.path.base.get_value_untracked(),
+                    base_path.clone(),
                     side_view.clone(),
                 )
                 .await
@@ -322,11 +318,26 @@ impl TextEditorManager {
                     Ok(pruned_side_view) => {
                         let pruned_side_view = pruned_side_view.or(side_view);
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
-                        this.side_view
-                            .force(this.live_side_view(&base_path, pruned_side_view));
+                        Some((base_path, pruned_side_view))
                     }
-                    Err(error) => warn!("Failed to prune stale side_view entries: {error}"),
+                    Err(error) => {
+                        warn!("Failed to prune stale side_view entries: {error}");
+                        None
+                    }
                 }
+            } else {
+                None
+            };
+            let batch = Batch::use_batch(Self::RESTORE_PATHS);
+            if let Some(p) = base_path {
+                this.path.base.force(p);
+            }
+            if let Ok(p) = get_file_path {
+                this.path.file.force(p);
+            }
+            if let Some((base_path, side_view)) = side_view {
+                this.side_view
+                    .force(this.live_side_view(&base_path, side_view));
             }
             this.force_edit_path.set(
                 this.path.base.get_value_untracked().iter().next().is_none()

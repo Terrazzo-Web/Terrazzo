@@ -104,14 +104,17 @@ impl Drop for Batch {
     fn drop(&mut self) {
         let _span = self.span.enter();
         debug!("Processing batch...");
-        let Ok(mut waiting_batch) = WAITING_BATCH.lock().map_err(|error| {
-            error!("Batch::drop failed to lock WAITING_BATCH: {error}");
-        }) else {
-            return;
-        };
-        let Some(callbacks) = std::mem::replace(&mut *waiting_batch, self.prev.take()) else {
-            error!("Batch::drop failed because WAITING_BATCH was empty");
-            return;
+        let callbacks = {
+            let Ok(mut waiting_batch) = WAITING_BATCH.lock().map_err(|error| {
+                error!("Batch::drop failed to lock WAITING_BATCH: {error}");
+            }) else {
+                return;
+            };
+            let Some(callbacks) = std::mem::replace(&mut *waiting_batch, self.prev.take()) else {
+                error!("Batch::drop failed because WAITING_BATCH was empty");
+                return;
+            };
+            callbacks
         };
         if self.forget {
             debug!("Processing batch: Skipped");
@@ -127,15 +130,20 @@ impl Drop for Batch {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
+    use std::sync::LazyLock;
+    use std::sync::Mutex;
 
     use autoclone::autoclone;
 
     use super::Batch;
     use crate::utils::Ptr;
 
+    static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
     #[test]
     #[autoclone]
     fn batch() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 
@@ -177,6 +185,7 @@ mod tests {
     #[test]
     #[autoclone]
     fn forget() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 

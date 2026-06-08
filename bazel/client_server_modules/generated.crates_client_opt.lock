@@ -5253,6 +5253,7 @@ dependencies = [
  "tracing-futures",
  "trz-gateway-common",
  "trz-gateway-server",
+ "url",
  "uuid",
 ]
 

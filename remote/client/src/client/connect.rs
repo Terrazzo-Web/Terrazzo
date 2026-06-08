@@ -8,6 +8,7 @@ use futures::future::Either;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
 use tokio::time::error::Elapsed;
@@ -36,7 +37,11 @@ impl super::Client {
         timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
-        info!(uri = self.uri, "Connecting WebSocket");
+        info!(
+            uri = self.uri,
+            endpoint_uri = self.endpoint_uri,
+            "Connecting WebSocket"
+        );
         let web_socket_config = None;
         let disable_nagle = true;
 
@@ -46,10 +51,17 @@ impl super::Client {
         websocket_uri
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let (web_socket, response) = tokio_tungstenite::connect_async_tls_with_config(
+        let endpoint_uri = format!("ws{}", &self.endpoint_uri["http".len()..])
+            .into_client_request()
+            .map_err(Box::from)?;
+        let socket = connect_tcp(&endpoint_uri, disable_nagle)
+            .timeout(timeout)
+            .await
+            .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??;
+        let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             websocket_uri,
+            socket,
             web_socket_config,
-            disable_nagle,
             Some(self.tls_client.clone()),
         )
         .timeout(timeout)
@@ -129,6 +141,32 @@ trait HasTimeout: Future + Sized {
 
 impl<T: Future + Sized> HasTimeout for T {}
 
+async fn connect_tcp(
+    request: &tungstenite::handshake::client::Request,
+    disable_nagle: bool,
+) -> Result<TcpStream, ConnectError> {
+    let host = request
+        .uri()
+        .host()
+        .ok_or(ConnectError::MissingEndpointHost)?;
+    let port = request
+        .uri()
+        .port_u16()
+        .or_else(|| match request.uri().scheme_str() {
+            Some("wss") => Some(443),
+            Some("ws") => Some(80),
+            _ => None,
+        })
+        .ok_or(ConnectError::MissingEndpointPort)?;
+    let socket = TcpStream::connect((host, port))
+        .await
+        .map_err(ConnectError::TcpConnect)?;
+    if disable_nagle {
+        socket.set_nodelay(true).map_err(ConnectError::TcpConnect)?;
+    }
+    Ok(socket)
+}
+
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -138,6 +176,15 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     Connect(#[from] Box<tungstenite::Error>),
+
+    #[error("[{n}] The Gateway endpoint must include a host", n = self.name())]
+    MissingEndpointHost,
+
+    #[error("[{n}] The Gateway endpoint must include or imply a port", n = self.name())]
+    MissingEndpointPort,
+
+    #[error("[{n}] {0}", n = self.name())]
+    TcpConnect(std::io::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),

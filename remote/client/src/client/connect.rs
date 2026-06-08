@@ -40,11 +40,7 @@ impl super::Client {
         timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
-        info!(
-            uri = self.uri,
-            ?self.sni_override,
-            "Connecting WebSocket"
-        );
+        info!(uri = self.uri, sni = ?self.sni_override, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 

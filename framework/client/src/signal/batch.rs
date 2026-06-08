@@ -5,7 +5,7 @@ use super::version::Version;
 use crate::prelude::OrElseLog as _;
 use crate::prelude::diagnostics::debug;
 use crate::prelude::diagnostics::debug_span;
-use crate::prelude::diagnostics::span::EnteredSpan;
+use crate::prelude::diagnostics::span::Span;
 
 /// Allows batching several signal writes into one refresh.
 ///
@@ -33,7 +33,7 @@ use crate::prelude::diagnostics::span::EnteredSpan;
 pub struct Batch {
     prev: Option<BatchedCallbacks>,
     forget: bool,
-    _span: EnteredSpan,
+    span: Span,
     _not_send: PhantomData<*mut u8>,
 }
 
@@ -46,13 +46,14 @@ thread_local! {
 
 impl Batch {
     pub fn use_batch(name: &str) -> Self {
-        let span = debug_span!("Batch", batch = name).entered();
+        let span = debug_span!("Batch", batch = name);
+        let _span = span.clone().entered();
         debug!("Starting batch");
         WAITING_BATCH.with_borrow_mut(move |batch| {
             let new_batch = Self {
                 prev: batch.take(),
                 forget: false,
-                _span: span,
+                span,
                 _not_send: PhantomData,
             };
             *batch = Some(BatchedCallbacks::default());
@@ -87,6 +88,7 @@ pub(super) struct NotBatched(());
 
 impl Drop for Batch {
     fn drop(&mut self) {
+        let _span = self.span.enter();
         debug!("Processing batch...");
         let callbacks = WAITING_BATCH
             .replace(self.prev.take())

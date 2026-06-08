@@ -108,6 +108,8 @@ How it works:
 - Signals and templates are the default state-management and rendering pattern; follow
   existing `XSignal`, `XTemplate`, `#[html]`, and `#[template]` usage before
   introducing a different approach.
+- Prefer shadowing over prefixed variable names when the previous binding is no longer
+  used and the meaning stays unambiguous.
 
 ## Build Validation
 
@@ -125,13 +127,13 @@ Cargo validation commands:
 
 Bazel validation commands:
 
-- `export PROTOC=$(which protoc)`
-- `bazel build --action_env=PROTOC //...`
-- `bazel test --action_env=PROTOC --test_output=errors --verbose_failures //...`
+- `.bazelrc` sets `PROTOC` through platform-specific `--action_env` entries.
+- `bazel build //...`
+- `bazel test --test_output=errors --verbose_failures //...`
 - Opt-mode Bazel tests:
 
   ```sh
-  bazel test --action_env=PROTOC --test_output=errors --verbose_failures -c opt \
+  bazel test --test_output=errors --verbose_failures -c opt \
     --flaky_test_attempts=3 $(bazel query 'attr("tags", "opt_mode", //...)')
   ```
 
@@ -147,7 +149,7 @@ Formatting and generated-file commands from the merge-validation pipeline:
 
   ```sh
   bazel query 'attr("tags", "auto-generated", //...)' \
-    | xargs -r -n1 bazel run --action_env=PROTOC
+    | xargs -r -n1 bazel run
   ```
 
 - `bazel run //bazel:buildifier`

@@ -31,7 +31,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use uuid::Uuid;
 
 use self::config::SniOverrideError;
-use self::config::gateway_url;
+use self::config::url;
 use self::service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
@@ -52,10 +52,10 @@ pub struct Client {
     pub client_name: ClientName,
 
     /// The URL used to open the TCP connection.
-    endpoint_uri: String,
-
-    /// The URL used for the TLS server name and WebSocket request.
     uri: String,
+
+    /// The TLS server name to validate when it differs from [Self::uri].
+    sni_override: Option<String>,
 
     /// The TLS client is used to create the secure WebSocket tunnel.
     ///
@@ -92,8 +92,8 @@ impl Client {
         let tunnel_path = format!("/remote/tunnel/{client_name}");
         Ok(Arc::new(Client {
             client_name,
-            endpoint_uri: format!("{}{}", config.base_url(), tunnel_path),
-            uri: gateway_url(&config, &tunnel_path)?.to_string(),
+            uri: url(&config, &tunnel_path)?.to_string(),
+            sni_override: config.sni_override().map(ToOwned::to_owned),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),

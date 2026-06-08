@@ -82,28 +82,19 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
     }
 }
 
-pub(crate) fn gateway_url<C: ClientConfig>(
-    client_config: &C,
-    path: &str,
-) -> Result<Url, SniOverrideError> {
-    let mut url = base_url(client_config)?;
-    let path = path.strip_prefix('/').unwrap_or(path);
-    url.path_segments_mut()
-        .map_err(|()| SniOverrideError::BaseUrlCannotBeABase)?
-        .pop_if_empty()
-        .extend(path.split('/'));
-    url.set_query(None);
-    url.set_fragment(None);
-    Ok(url)
+pub(crate) fn url<C: ClientConfig>(client_config: &C, path: &str) -> Result<Url, SniOverrideError> {
+    Ok(Url::parse(&format!("{}{path}", client_config.base_url()))?)
 }
 
-pub(crate) fn base_url<C: ClientConfig>(client_config: &C) -> Result<Url, SniOverrideError> {
-    let mut url = Url::parse(&client_config.base_url().to_string())?;
-    if let Some(sni_override) = client_config.sni_override() {
+pub(crate) fn set_sni_override(
+    url: &mut Url,
+    sni_override: Option<&str>,
+) -> Result<(), SniOverrideError> {
+    if let Some(sni_override) = sni_override {
         url.set_host(Some(sni_override))
             .map_err(|_| SniOverrideError::InvalidSniOverride(sni_override.to_owned()))?;
     }
-    Ok(url)
+    Ok(())
 }
 
 pub(crate) fn sni_override_resolution<C: ClientConfig>(
@@ -129,9 +120,6 @@ pub(crate) fn sni_override_resolution<C: ClientConfig>(
 pub enum SniOverrideError {
     #[error("{0}")]
     Url(#[from] url::ParseError),
-
-    #[error("The Gateway URL cannot be used as a base URL")]
-    BaseUrlCannotBeABase,
 
     #[error("The Gateway URL must include a host when using SNI override")]
     MissingBaseUrlHost,

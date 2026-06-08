@@ -41,7 +41,7 @@ Terrazzo uses two macros together:
   `#[template(debug = true)]` or `#[html(debug = true)]` when you need to inspect
   generated code.
 
-```rust
+```rust,ignore
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
@@ -82,7 +82,7 @@ only refresh the smallest useful part of the page.
 A tag template is a template whose outer element is fixed by the template
 attribute. The special `tag(...)` call creates that outer element.
 
-```rust
+```rust,ignore
 #[html]
 #[template(tag = div)]
 fn panel(title: &str) -> XElement {
@@ -104,7 +104,7 @@ Templates can also return an attribute value instead of an element. Use
 `#[template(wrap = true)]` for reactive attributes, classes, styles, titles, and
 other values.
 
-```rust
+```rust,ignore
 #[template(wrap = true)]
 fn active_class(#[signal] active: bool) -> XAttributeValue {
     active.then_some("active")
@@ -134,7 +134,7 @@ The `%=` form attaches a dynamic value. The template re-runs when one of its
 Attributes are written as named arguments. Raw Rust keywords can be escaped with
 `r#`.
 
-```rust
+```rust,ignore
 #[html]
 fn form() -> XElement {
     input(
@@ -147,7 +147,7 @@ fn form() -> XElement {
 
 CSS properties use the `style::` namespace:
 
-```rust
+```rust,ignore
 #[html]
 fn boxy() -> XElement {
     div(
@@ -167,7 +167,7 @@ when a helper returns several CSS declarations.
 Use `|=` when an attribute or style may be absent. Any value convertible into
 `Option` works, and `None` means no attribute is emitted.
 
-```rust
+```rust,ignore
 #[html]
 fn maybe_disabled(disabled: bool) -> XElement {
     button(
@@ -187,7 +187,7 @@ This is the same mechanism used by dynamic attribute templates that return
 Because templates are Rust syntax, `#[cfg(...)]` can be used directly on
 attributes, styles, events, and children.
 
-```rust
+```rust,ignore
 #[html]
 fn build_marker() -> XElement {
     div(
@@ -211,7 +211,7 @@ DOM events are written as attributes whose value is a closure. Common event
 names such as `click`, `change`, `keydown`, `mouseover`, `mouseout`, and
 `dblclick` are typed by the macro.
 
-```rust
+```rust,ignore
 use terrazzo::widgets::more_event::MoreEvent as _;
 use web_sys::HtmlInputElement;
 use web_sys::KeyboardEvent;
@@ -241,7 +241,7 @@ the same signal or pointer more than once, annotate the function with
 
 Terrazzo projects commonly keep SCSS beside the Rust module that uses it:
 
-```rust
+```rust,ignore
 terrazzo_css::import_style!(style, "tabs.scss");
 
 #[html]
@@ -260,7 +260,7 @@ with `declare_scss_asset!`.
 Use the special `key` attribute to keep DOM identity stable when lists reorder or
 when a component should be replaced only when a key changes.
 
-```rust
+```rust,ignore
 #[html]
 fn item(id: u64, label: &str) -> XElement {
     div(key = "{id}", "{label}")
@@ -269,7 +269,7 @@ fn item(id: u64, label: &str) -> XElement {
 
 Templates also support render hooks:
 
-```rust
+```rust,ignore
 #[html]
 fn measured() -> XElement {
     div(

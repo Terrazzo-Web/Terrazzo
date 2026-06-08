@@ -75,9 +75,17 @@ pub fn editor(
     editor_state: EditorDataState,
     document: EditorDocument,
     #[signal] show_editor_diff: bool,
+    show_html_preview: bool,
 ) -> XElement {
     let EditorDataState { path, .. } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
+    let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
+    let html_preview = match &document {
+        EditorDocument::Text { content, .. } if is_html_preview => {
+            super::html_viewer::html_viewer(content.clone())
+        }
+        _ => span(style::display = "none", style::visibility = "hidden"),
+    };
 
     // Count edits waiting (debounced) to be committed. Notifications can arrive
     // out of causal order, so don't refresh CodeMirror while local edits are pending.
@@ -101,15 +109,20 @@ pub fn editor(
     tag(
         class = style::EDITOR,
         class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
+        class = is_html_preview.then_some(super::html_viewer::style::HTML_VIEWER),
         #[cfg(not(feature = "client-prod"))]
         class = is_pdf.then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf).then_some("code-mirror-editor"),
+        class = is_html_preview.then_some("html-viewer"),
+        #[cfg(not(feature = "client-prod"))]
+        class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
+        html_preview,
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
-            let body: Box<dyn EditorBody> = match &document {
+            let body: Option<Box<dyn EditorBody>> = match &document {
+                EditorDocument::Text { .. } if is_html_preview => None,
                 EditorDocument::Text { original, content } => {
                     let original = if show_editor_diff {
                         original
@@ -119,18 +132,18 @@ pub fn editor(
                     } else {
                         JsValue::null()
                     };
-                    Box::new(CodeMirrorJs::new(
+                    Some(Box::new(CodeMirrorJs::new(
                         element.clone(),
                         original,
                         content.as_ref().into(),
                         make_on_change(&manager, &path, &writing),
                         path.base.as_ref().to_owned_string(),
                         path.as_deref().full_path().to_owned_string(),
-                    ))
+                    )))
                 }
-                EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), base64)),
+                EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
             };
-            *editor_body.lock().unwrap() = Some(body);
+            *editor_body.lock().unwrap() = body;
         },
     )
 }
@@ -209,6 +222,8 @@ async fn notify_edit(
         })) => {
             debug!("Loaded modified file");
             let Some(editor_body) = &*editor_body.lock().unwrap() else {
+                debug!("The modified file has no mutable editor body, force reload");
+                manager.path.file.force(path.file);
                 return;
             };
             if writing.load(SeqCst) == 0 {

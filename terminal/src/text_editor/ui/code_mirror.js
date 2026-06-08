@@ -27,6 +27,7 @@ class CodeMirrorJsImpl {
             JsDeps.search({ top: true }),
             JsDeps.lintGutter(),
             JsDeps.oneDark,
+            JsDeps.EditorView.lineWrapping,
             updateListener,
         ];
         const language = getLanguage(fullPath);
@@ -36,7 +37,6 @@ class CodeMirrorJsImpl {
 
         if (original) {
             const mergePaneExtensions = [
-                JsDeps.EditorView.lineWrapping,
                 JsDeps.EditorView.theme({
                     "&": {
                         minWidth: "0",

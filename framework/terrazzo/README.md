@@ -1,137 +1,300 @@
 # Terrazzo
 
-**Terrazzo** is a lightweight, simple and efficient web UI framework based on **Rust** and **WASM**.
+**Terrazzo** is a lightweight web UI framework for Rust and WebAssembly. It
+lets you write browser UI, event handlers, reactive state, reusable widgets, and
+server/static-asset glue in Rust while still using normal Rust formatting and
+normal Rust ownership.
 
-**Tl;DR**: See **Terrazzo** in action in the [demo](https://github.com/Terrazzo-Web/Terrazzo/blob/main/demo/src/demo.rs).
+The umbrella `terrazzo` crate re-exports:
 
-## Prior art
+- `#[html]` and `#[template]` from `terrazzo-macro`
+- client-side rendering types such as `XElement`, `XSignal`, `MutableSignal`,
+  attributes, batches, and widgets
+- server-side static asset helpers such as `declare_scss_asset!`
+- utility macros such as `autoclone!`
 
-This project was inspired by frameworks like [Dioxus](https://dioxuslabs.com/learn/0.6/) and [Leptos](https://leptos.dev).
+See the demo in `demo/src/demo.rs` and its modules for runnable examples.
 
-These frameworks are based on Rust and WASM:
-- Both the server-side and client-side logic is written in Rust
-- Rust↔Javascript interop based on [wasm_bindgen](https://docs.rs/wasm-bindgen/latest/wasm_bindgen/)
-  allows creating dynamic web pages using the DOM API.
+## Design
 
-Like many other frameworks, the core is built around a simple concept: reactivity. When a function
-computes a component (i.e: an HTML node), it records which signals are being used. Then, whenever
-one of those signals changes, the function is automatically re-evaluated again, and the UI is
-updated.
+Terrazzo is intentionally smaller than frameworks such as Dioxus or Leptos. Its
+core job is templated DOM construction with reactive updates. A template records
+which signals it reads, and when one of those signals changes only the dependent
+template is re-evaluated.
 
-The implicit reactive ownership tree derives from the UI components tree (the DOM), and allows making
-the signals arena-allocated. In Rust terms, it means `Signal` can be `Copy` and not just `Clone`,
-which greatly improves the ergonomics.
+Terrazzo does not make signals `Copy` through arena allocation. Signals are
+ordinary owned Rust values, so moving them into closures generally means calling
+`.clone()` or using `autoclone!`. That is slightly more explicit, but it keeps
+Rust's ownership model visible and avoids relying on implicit signal lifetimes.
 
-- We don't have to guess how and when to call `.clone()`, especially when signals are used in
-  closures.
-- We can always pass signals as values so we don't have to deal with references, lifetimes and the
-  Rust borrow-checker.
+Terrazzo does not require a custom CLI for authoring UI. Templates are Rust
+functions, so `rustfmt`, `cargo`, clippy, and Bazel all continue to work on the
+code you write.
 
-In other words, we can leverage the powerful Rust type system, use one language for both the UI and
-the backend server implementation, and get all the benefits of the rich Rust ecosystem.
+## Basic component
 
-## Why Terrazzo?
+Terrazzo uses two macros together:
 
-The goal of Terrazzo isn't to replace Dioxus or Leptos. It's a lightweight, bare-bones alternative
-that aims to achieve one simple task and do it well: a templating system for UI.
+- `#[html]` rewrites calls such as `div(...)`, `button(...)`, and `input(...)`
+  into DOM element builders.
+- `#[template]` turns a function into a reactive template. Use
+  `#[template(debug = true)]` or `#[html(debug = true)]` when you need to inspect
+  generated code.
 
-Dioxus and Leptos are incredibly feature-rich, but are also prone to bugs.
+```rust
+use terrazzo::autoclone;
+use terrazzo::html;
+use terrazzo::prelude::*;
+use terrazzo::template;
+use web_sys::MouseEvent;
 
-### Arena-allocated signals and use-after-free bugs
-I believe that making signals `Copy` using arena allocation for the sake of ergonomics is an
-anti-pattern.
-- With Dioxus, use of signals must obey a strict set of rules can that cannot be enforced otherwise
-  by the Rust compiler.
-  <https://dioxuslabs.com/learn/0.6/reference/hooks/#rules-of-hooks>
-- With Leptos, bugs can arise if signals are used after they are (implicitly) disposed. I feel
-  like this is completely missing the point of using Rust, since once of the main selling points of
-  this language is precisely to [prevent use-after-free bugs](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#dangling-references).
-  [Appendix: The Life Cycle of a Signal](https://book.leptos.dev/appendix_life_cycle.html?highlight=owner#signals-can-be-used-after-they-are-disposed)
-
-I prefer dealing with the Rust borrow-checker and any other kind of static analysis annoyance, even
-if it means I have to add explicit calls to `.clone()` and add some extra boilerplate. This is a
-small price to pay if I can avoid wasting time debugging large classes of bugs.
-
-The promise of Rust is that the compiler has your back: if it compiles, it works. Rust code runs
-faster than other languages, not because "for-loops" are faster in Rust, but because Rust codebases
-are easier to refactor and optimize. You can replace a deep copy with a reference, and that promise
-will hold: if it compiles, it works. Else, the Rust compiler will help you figure out when to call
-`.clone()`, when to use use ref-counting pointers, or when to guard mutable state with a mutex or
-use a cell.
-
-### Hydration bugs
-Server-side rendering is a hard-to-use feature. It only works if the server-side code generates the
-same page as the client-side code would. In theory, they should always match since the exact same
-code runs server- and client-side, it's just an optimization. In practice, it's not necessarily the
-case, so avoiding these bugs requires careful debugging and testing.
-[Hydration Bugs *(and how to avoid them)*](https://book.leptos.dev/ssr/24_hydration_bugs.html)
-
-### Custom tooling
-One of the biggest selling points for Rust is strong tooling, including `cargo`, `rustfmt` and
-`clippy`.
-- The [Dioxus CLI](https://dioxuslabs.com/learn/0.6/CLI/) is an unnecessary annoyance
-- The `rsx! { ... }` and `view! { ... }` macros to write HTML templates look nice at first,
-  but don't work with the standard Rust formatter.
-
-## What does Terrazzo look like?
-
-Terrazzo does not need custom tooling. The `autoclone!()` macro helps with cloning. SSR with
-hydration is not supported yet but Terrazzo useds a simple diff-merge logic that isn't prone
-to bugs.
-
-**Doing the right thing should be easy, doing the wrong thing should be hard**:
-Terrazzo makes it easier to optimize rendering: reading a signal requires declaring a template, so
-just make sure to push reading signals down to child DOM nodes. Only read a signal where you need
-to render something. Use the `key` special attribute to avoid re-creating DOM nodes when ordering
-changes but the nodes stay the same.
-
-Terrazzo uses two different macros:
-- The `#[template]` turns a function into a template. Use `#[template(debug = true)]` to see what
-  the generated code looks like.
-- The `#[html]` adds syntactic sugar to replace function calls where the name matches one of the
-  well-known [HTML tags](https://github.com/Terrazzo-Web/Terrazzo/blob/readme/framework/macro/src/arguments.rs#L31-L47)
-  into a Rust struct representing an HTML tag.
-  Use `#[html(debug = true)]` to see what the generated code looks like.
-
-```
-# fn main() {
-# #[cfg(feature = "client")] {
-# use terrazzo::html;
-# use terrazzo::prelude::*;
-# use terrazzo::template;
-# struct State { value: i32, signal: XSignal<String> }
-# impl State { fn click(&self) { println!("Click!"); } }
-#[template]
+#[autoclone]
 #[html]
-pub fn my_main_component() -> XElement {
-    let state = State {
-        value: 123,
-        signal: XSignal::new("signal", "state".to_owned()),
-    };
-    let state_value = state.value;
-    return div(
-        class = "main-component",
+#[template(tag = div)]
+fn counter(#[signal] count: i32, count_signal: XSignal<i32>) -> XElement {
+    tag(
+        class = "counter",
+        button(
+            click = move |_ev: MouseEvent| {
+                autoclone!(count_signal);
+                count_signal.update(|count| Some(*count - 1));
+            },
+            "-",
+        ),
+        span("Count: {count}"),
+        button(
+            click = move |_ev: MouseEvent| {
+                autoclone!(count_signal);
+                count_signal.update(|count| Some(*count + 1));
+            },
+            "+",
+        ),
+    )
+}
+```
+
+`#[signal] count: i32` means this template re-runs when the signal passed for
+`count` changes. Push signal reads as low as possible in the DOM tree so updates
+only refresh the smallest useful part of the page.
+
+## Tag templates
+
+A tag template is a template whose outer element is fixed by the template
+attribute. The special `tag(...)` call creates that outer element.
+
+```rust
+#[html]
+#[template(tag = div)]
+fn panel(title: &str) -> XElement {
+    tag(
+        class = "panel",
+        h2("{title}"),
+        div(class = "panel-body", "Content"),
+    )
+}
+```
+
+Tag templates are useful when a component always renders the same root tag and
+you want a compact return expression. They are also common for helper templates
+that need a stable root element, such as `#[template(tag = img)]`.
+
+## Attribute templates
+
+Templates can also return an attribute value instead of an element. Use
+`#[template(wrap = true)]` for reactive attributes, classes, styles, titles, and
+other values.
+
+```rust
+#[template(wrap = true)]
+fn active_class(#[signal] active: bool) -> XAttributeValue {
+    active.then_some("active")
+}
+
+#[template(wrap = true)]
+fn width(#[signal] percent: i32) -> XAttributeValue {
+    format!("{percent}%")
+}
+
+#[html]
+fn row(active: XSignal<bool>, percent: XSignal<i32>) -> XElement {
+    div(
+        class = "row",
+        class %= active_class(active),
+        style::width %= width(percent),
+        "Resizable row",
+    )
+}
+```
+
+The `%=` form attaches a dynamic value. The template re-runs when one of its
+`#[signal]` inputs changes.
+
+## Attributes and styles
+
+Attributes are written as named arguments. Raw Rust keywords can be escaped with
+`r#`.
+
+```rust
+#[html]
+fn form() -> XElement {
+    input(
+        r#type = "text",
+        name = "project",
+        value = "Terrazzo",
+    )
+}
+```
+
+CSS properties use the `style::` namespace:
+
+```rust
+#[html]
+fn boxy() -> XElement {
+    div(
+        style::display = "flex",
+        style::font_family = "Arial",
         style::width = "100%",
-        click = move |event| state.click(),
-        "text node {state_value}",
-        static_component(),
-        dynamic_component(state.signal.clone()),
-    );
+        "Styled from Rust",
+    )
 }
-
-#[template(tag = div)]
-#[html]
-fn static_component() -> XElement {
-    tag("static value")
-}
-
-#[template(tag = div)]
-#[html]
-fn dynamic_component(#[signal] value: String) -> XElement {
-    tag("Dynamic: ", "{value}")
-}
-# } // #[cfg(feature = "client")]
-# } // fn main()
 ```
 
-See [demo.rs](https://github.com/Terrazzo-Web/Terrazzo/blob/main/demo/src/demo.rs).
+You can also append full style fragments with `style = "...;"`, which is useful
+when a helper returns several CSS declarations.
+
+## Optional attributes
+
+Use `|=` when an attribute or style may be absent. Any value convertible into
+`Option` works, and `None` means no attribute is emitted.
+
+```rust
+#[html]
+fn maybe_disabled(disabled: bool) -> XElement {
+    button(
+        disabled |= disabled.then_some("disabled"),
+        title |= (!disabled).then_some("Ready"),
+        style::visibility |= disabled.then_some("hidden"),
+        "Run",
+    )
+}
+```
+
+This is the same mechanism used by dynamic attribute templates that return
+`Option`, such as `active.then_some("active")`.
+
+## Conditionally compiled attributes
+
+Because templates are Rust syntax, `#[cfg(...)]` can be used directly on
+attributes, styles, events, and children.
+
+```rust
+#[html]
+fn build_marker() -> XElement {
+    div(
+        #[cfg(feature = "bazel")]
+        class = "bazel",
+        #[cfg(not(feature = "bazel"))]
+        class = "cargo",
+        #[cfg(feature = "debug")]
+        data_mode = "debug",
+        "Build-specific markup",
+    )
+}
+```
+
+This is useful for test-only classes, debug-only labels, feature-gated handlers,
+and product builds where diagnostics should disappear entirely.
+
+## Events
+
+DOM events are written as attributes whose value is a closure. Common event
+names such as `click`, `change`, `keydown`, `mouseover`, `mouseout`, and
+`dblclick` are typed by the macro.
+
+```rust
+use terrazzo::widgets::more_event::MoreEvent as _;
+use web_sys::HtmlInputElement;
+use web_sys::KeyboardEvent;
+
+#[html]
+fn editor_name(name: XSignal<String>) -> XElement {
+    input(
+        change = move |ev: web_sys::Event| {
+            let input: HtmlInputElement =
+                ev.current_target_element("name").or_throw("name input");
+            name.set(input.value());
+        },
+        keydown = move |ev: KeyboardEvent| {
+            if ev.key() == "Enter" {
+                ev.prevent_default();
+            }
+        },
+    )
+}
+```
+
+Event closures are normal Rust closures. When a `move` closure needs to capture
+the same signal or pointer more than once, annotate the function with
+`#[autoclone]` and place `autoclone!(value);` at the top of the closure.
+
+## CSS modules and static styles
+
+Terrazzo projects commonly keep SCSS beside the Rust module that uses it:
+
+```rust
+terrazzo_css::import_style!(style, "tabs.scss");
+
+#[html]
+fn tabs() -> XElement {
+    div(class = style::TABS, "Tabs")
+}
+```
+
+`terrazzo_css::import_style!` reads the SCSS file at compile time and exposes
+hashed class-name constants. The Bazel `scss_rule` or the CSS CLI bundles the
+rewritten SCSS into a static asset. Server builds can install SCSS/CSS assets
+with `declare_scss_asset!`.
+
+## Keys and lifecycle hooks
+
+Use the special `key` attribute to keep DOM identity stable when lists reorder or
+when a component should be replaced only when a key changes.
+
+```rust
+#[html]
+fn item(id: u64, label: &str) -> XElement {
+    div(key = "{id}", "{label}")
+}
+```
+
+Templates also support render hooks:
+
+```rust
+#[html]
+fn measured() -> XElement {
+    div(
+        before_render = |_: &Element| diagnostics::info!("before render"),
+        after_render = |_: &Element| diagnostics::info!("after render"),
+        "Measure me",
+    )
+}
+```
+
+## Widgets and utilities
+
+The client runtime includes reusable widgets and helpers under
+`terrazzo::widgets`, including tabs, editable fields, select controls, debounce,
+cancellable timers, resize events, element capture, and link helpers. The crate
+also exposes `drop_list` utilities for cleanup registration.
+
+## Build features
+
+The crate is split by feature:
+
+- `client`: client-side DOM rendering, signals, widgets, and macros.
+- `server`: static asset helpers and server-side support.
+- `debug`: debug variants used by local/dev builds.
+- `diagnostics`: verbose names and diagnostics-friendly output.
+
+Most applications build separate client WASM and server binaries with the same
+Rust source tree but different feature sets.

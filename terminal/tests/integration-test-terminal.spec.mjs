@@ -158,6 +158,62 @@ test.describe('Terminal', () => {
         await expect(textarea).toHaveValue('');
     });
 
+    test('sends mocked speech recognition input from the terminal overlay', async ({ page }) => {
+        await page.addInitScript(() => {
+            class MockSpeechRecognition {
+                constructor() {
+                    this.interimResults = false;
+                    this.continuous = false;
+                    this.lang = 'en-US';
+                }
+
+                start() {
+                    setTimeout(() => {
+                        this.onresult?.({
+                            results: [[{ transcript: 'echo speech-overlay-27182\n' }]],
+                        });
+                    }, 0);
+                }
+
+                stop() {
+                    this.onend?.();
+                }
+            }
+
+            Object.defineProperty(window, 'SpeechRecognition', {
+                configurable: true,
+                value: MockSpeechRecognition,
+            });
+            Object.defineProperty(window, 'webkitSpeechRecognition', {
+                configurable: true,
+                value: MockSpeechRecognition,
+            });
+        });
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await getAddTabButton(page).waitFor({ timeout: 10 * SECOND });
+        await closeAllTabs(page);
+
+        const addTabButton = getAddTabButton(page);
+        await addTabButton.click();
+
+        const activeTerminal = getActiveTerminal(page);
+        await expect(activeTerminal).toContainText('Welcome to Test Environment');
+
+        const overlayButton = page.locator('li.selected .input-overlay-button');
+        await expect(overlayButton).toBeVisible();
+        await overlayButton.click();
+        await overlayButton.click();
+
+        const textarea = page.locator('li.selected .input-overlay-textarea');
+        const sendButton = page.locator('li.selected .input-overlay-send');
+        await expect(textarea).toHaveValue('echo speech-overlay-27182\n');
+        await expect(sendButton).toHaveCSS('opacity', '1');
+        await sendButton.click();
+
+        await expect(activeTerminal).toContainText('speech-overlay-27182');
+        await expect(textarea).toHaveValue('');
+    });
+
     test('two terminals', async ({ page }) => {
         const addTabButton = getAddTabButton(page);
         await addTabButton.waitFor({ timeout: 10 * SECOND });

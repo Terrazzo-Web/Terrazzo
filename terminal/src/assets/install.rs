@@ -39,6 +39,10 @@ fn install_icons() {
     {
         install_icon(super::icons::add_tab());
         install_icon(super::icons::terminal());
+        install_icon(super::icons::paragraph());
+        install_icon(super::icons::mic_fill());
+        install_icon(super::icons::mic_mute_fill());
+        install_icon(super::icons::send_fill());
     }
 
     #[cfg(feature = "text-editor")]

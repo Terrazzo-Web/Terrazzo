@@ -76,6 +76,13 @@ test.describe('Terminal', () => {
         await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
     });
 
+    test('loads terminal input overlay icons', async ({ request }) => {
+        await expectStaticAssetLoads(request, '/static/icons/paragraph.svg', /^image\/svg\+xml\b/i);
+        await expectStaticAssetLoads(request, '/static/icons/mic-fill.svg', /^image\/svg\+xml\b/i);
+        await expectStaticAssetLoads(request, '/static/icons/mic-mute-fill.svg', /^image\/svg\+xml\b/i);
+        await expectStaticAssetLoads(request, '/static/icons/send-fill.svg', /^image\/svg\+xml\b/i);
+    });
+
     test('opens a new terminal tab and runs a command', async ({ page }) => {
         const addTabButton = getAddTabButton(page);
         await addTabButton.waitFor({ timeout: 10 * SECOND });
@@ -134,12 +141,14 @@ test.describe('Terminal', () => {
 
         const overlayButton = page.locator('li.selected .input-overlay-button');
         await expect(overlayButton).toBeVisible();
+        await expect(overlayButton).toHaveCSS('filter', 'invert(1)');
         await expect(overlayButton).toHaveCSS('opacity', '0.3');
         await overlayButton.click();
 
         const textarea = page.locator('li.selected .input-overlay-textarea');
         const sendButton = page.locator('li.selected .input-overlay-send');
         await expect(textarea).toBeVisible();
+        await expect(sendButton).toHaveCSS('filter', 'invert(1)');
         await expect(sendButton).toHaveCSS('opacity', '0.3');
         await textarea.fill('echo overlay-input-31415\n');
         await expect(sendButton).toHaveCSS('opacity', '1');

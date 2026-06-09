@@ -63,6 +63,7 @@ impl Config {
                 DiffArc::from(MeshConfig {
                     client_name: Some(mesh.client_name.clone()),
                     gateway_url: Some(mesh.gateway_url.clone()),
+                    sni_override: mesh.sni_override.clone(),
                     gateway_pki: mesh.gateway_pki.as_ref().map(collapse_tilde),
                     client_certificate: Some(collapse_tilde(&mesh.client_certificate)),
                     retry_strategy: Some(mesh.retry_strategy.clone()),
@@ -153,11 +154,13 @@ fn merge_mesh_config(
 ) -> Option<DiffArc<MeshConfig<RuntimeTypes>>> {
     let client_name = cli.client_name.as_ref().cloned();
     let gateway_url = cli.gateway_url.as_ref().cloned();
+    let sni_override = cli.sni_override.as_ref().cloned();
     let gateway_pki = cli.gateway_pki.as_deref();
     let client_certificate = cli.client_certificate.as_deref();
     Some(DiffArc::from(MeshConfig {
         client_name: client_name.or(mesh.and_then(|m| m.client_name.to_owned()))?,
         gateway_url: gateway_url.or(mesh.and_then(|m| m.gateway_url.to_owned()))?,
+        sni_override: sni_override.or_else(|| mesh.and_then(|m| m.sni_override.to_owned())),
         gateway_pki: gateway_pki
             .map(expand_tilde)
             .or_else(|| mesh.and_then(|m| m.gateway_pki.as_deref().map(expand_tilde)))

@@ -14,6 +14,9 @@ use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
 use super::config::ClientConfig;
+use super::config::SniOverrideError;
+use super::config::set_sni_override;
+use super::config::url;
 
 /// API to obtain client certificates from the Terrazzo Gateway.
 pub async fn get_certifiate(
@@ -23,8 +26,10 @@ pub async fn get_certifiate(
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
+    let mut url = url(client_config, "/remote/certificate")?;
+    set_sni_override(&mut url, client_config.sni_override())?;
     let request = http_client
-        .get(format!("{}/remote/certificate", client_config.base_url()))
+        .get(url)
         .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
         .body(serde_json::to_string(&GetCertificateRequest {
             auth_code,
@@ -44,6 +49,9 @@ pub async fn get_certifiate(
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum GetCertificateError {
+    #[error("[{n}] {0}", n = self.name())]
+    SniOverride(#[from] SniOverrideError),
+
     #[error("[{n}] {0}", n = self.name())]
     PublicKeyToPem(#[from] PemAsStringError),
 

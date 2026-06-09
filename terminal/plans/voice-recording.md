@@ -86,16 +86,23 @@ Add a small interaction overlay inside the terminal container that lets users ty
 - The overlay should be contained entirely inside the terminal pane and not use a separate floating panel.
 - The send button must only be fully active when text exists, but should still render in the compose view.
 - The text must be delivered through the terminal input API; do not use low-level DOM input simulation.
+- Implement the overlay in a dedicated terminal module at `terminal/src/terminal/input_overlay.rs`.
 
 ## Step-by-step priority
-1. Render the base overlay node inside the terminal item view.
+1. Render the base overlay node inside the terminal item view from `terminal/src/terminal/input_overlay.rs`.
 2. Add CSS for absolute positioning, opacity, hover state, and textarea layout.
 3. Create local state signals for overlay open/closed, textarea content, and recording status.
 4. Implement click handlers for paragraph icon, mic icon, and send icon.
 5. Add textarea input handling and signal updates.
 6. Wire send-click to actual terminal paste.
 7. Add browser speech recognition integration and recording state toggling.
-8. Test the full flow: open overlay, type text, send text, start/stop recording.
+8. Add a Playwright integration test in `terminal/tests/integration-test-terminal.spec.mjs`.
+9. Test the full flow: open overlay, type text, send text, start/stop recording.
+
+## Test execution
+- Run the terminal integration harness with Bazel:
+  `bazel test --test_output=errors --verbose_failures //terminal:terminal-integration-test-debug`
+- Manual voice-recording verification is separate and should be performed in the browser when the overlay is visible.
 
 ## Expected result
 A bottom-right action overlay inside each terminal tab that can show a paragraph icon, expand to a compose box with mic/send controls, and paste typed or dictated text into the terminal input.

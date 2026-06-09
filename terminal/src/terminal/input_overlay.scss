@@ -4,24 +4,30 @@
 
 .input-overlay {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: calc(var(--padding) / 2);
+    right: calc(var(--padding) / 2);
+    bottom: calc(var(--padding) / 2);
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    gap: calc(var(--padding) / 2);
     pointer-events: none;
     z-index: 10;
 }
 
-.input-overlay-button {
-    position: absolute;
-    bottom: calc(var(--padding) / 2);
-    right: calc(var(--padding) / 2);
-    width: 2.5rem;
-    height: 2.5rem;
-    cursor: pointer;
+.input-overlay-button,
+.input-overlay-send {
+    flex: 0 0 auto;
+    width: 1.5rem;
+    height: 1.5rem;
     filter: invert(1);
-    opacity: 0.3;
     pointer-events: auto;
     transition: opacity 0.2s ease;
+}
+
+.input-overlay-button {
+    cursor: pointer;
+    opacity: 0.3;
 }
 
 .input-overlay-button:hover,
@@ -29,36 +35,28 @@
     opacity: 1;
 }
 
-.input-overlay-input {
-    position: absolute;
-    left: var(--padding);
-    right: calc(var(--padding) + 3.5rem);
-    bottom: var(--padding);
-    display: flex;
-    align-items: flex-end;
-    gap: calc(var(--padding) / 2);
-    pointer-events: auto;
+.input-overlay:not(.active) .input-overlay-textarea,
+.input-overlay:not(.active) .input-overlay-send {
+    display: none;
+    visibility: hidden;
 }
 
 .input-overlay-textarea {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 4rem;
     padding: var(--padding);
     border: 1px solid var(--color);
     border-radius: 0.5rem;
     background: rgba(0, 0, 0, 0.8);
     color: var(--color);
+    pointer-events: auto;
     resize: none;
     outline: none;
 }
 
 .input-overlay-send {
-    width: 2.5rem;
-    height: 2.5rem;
-    filter: invert(1);
     opacity: 0.3;
     cursor: default;
-    transition: opacity 0.2s ease;
 }
 
 .input-overlay-send.active {

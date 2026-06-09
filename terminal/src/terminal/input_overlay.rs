@@ -39,70 +39,76 @@ pub fn input_overlay(terminal_tab: TerminalTab) -> XElement {
 
     div(
         class = style::INPUT_OVERLAY,
+        class %= overlay_class(is_open.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay",
-        compose_input(
+        state_button(
+            is_open.clone(),
+            is_recording,
+            value.clone(),
+            textarea.clone(),
+            speech_recognition,
+        ),
+        send_button(terminal_tab.clone(), value.clone(), textarea.clone()),
+        compose_textarea(
             terminal_tab.clone(),
             textarea.clone(),
             value.clone(),
-            is_open.clone(),
+            is_open,
         ),
-        state_button(is_open, is_recording, value, textarea, speech_recognition),
     )
+}
+
+#[template(wrap = true)]
+fn overlay_class(#[signal] is_open: bool) -> XAttributeValue {
+    is_open.then_some(style::ACTIVE)
 }
 
 #[autoclone]
 #[html]
-#[template(tag = div)]
-fn compose_input(
+#[template(tag = textarea)]
+fn compose_textarea(
     terminal_tab: TerminalTab,
     textarea: ElementCapture<HtmlTextAreaElement>,
     value: XSignal<XString>,
     #[signal] mut open: bool,
 ) -> XElement {
-    if !open {
-        return tag(style::display = "none", style::visibility = "hidden");
-    }
+    let _ = open;
     tag(
-        class = style::INPUT_OVERLAY_INPUT,
+        before_render = textarea.capture(),
+        class = style::INPUT_OVERLAY_TEXTAREA,
         #[cfg(not(feature = "client-prod"))]
-        class = "input-overlay-input",
-        textarea(
-            before_render = textarea.capture(),
-            class = style::INPUT_OVERLAY_TEXTAREA,
-            #[cfg(not(feature = "client-prod"))]
-            class = "input-overlay-textarea",
-            input = move |_| {
-                autoclone!(value, textarea);
-                let new_value = textarea
-                    .try_with(|textarea| textarea.value())
-                    .unwrap_or_default();
-                value.set(new_value);
-            },
-            keydown = move |event: KeyboardEvent| {
-                autoclone!(terminal_tab, value, textarea);
-                event.stop_propagation();
-                match event.key().as_str() {
-                    "Escape" => open_mut.set(false),
-                    "Enter" if event.ctrl_key() || event.meta_key() => {
-                        event.prevent_default();
-                        send_value(terminal_tab.clone(), value.clone(), textarea.clone());
-                    }
-                    _ => {}
+        class = "input-overlay-textarea",
+        input = move |_| {
+            autoclone!(value, textarea);
+            let new_value = textarea
+                .try_with(|textarea| textarea.value())
+                .unwrap_or_default();
+            value.set(new_value);
+        },
+        keydown = move |event: KeyboardEvent| {
+            autoclone!(terminal_tab, value, textarea);
+            event.stop_propagation();
+            match event.key().as_str() {
+                "Escape" => open_mut.set(false),
+                "Enter" if event.ctrl_key() || event.meta_key() => {
+                    event.prevent_default();
+                    send_value(terminal_tab.clone(), value.clone(), textarea.clone());
                 }
-            },
-        ),
-        send_button(terminal_tab, value.clone(), textarea.clone()),
+                _ => {}
+            }
+        },
     )
 }
 
 #[html]
+#[template(tag = img)]
 fn send_button(
     terminal_tab: TerminalTab,
     value: XSignal<XString>,
     textarea: ElementCapture<HtmlTextAreaElement>,
 ) -> XElement {
-    return img(
+    return tag(
         class = style::INPUT_OVERLAY_SEND,
         class %= send_button_class(value.clone()),
         #[cfg(not(feature = "client-prod"))]

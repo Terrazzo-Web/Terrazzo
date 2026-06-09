@@ -121,12 +121,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
-        editor_body(
-            manager.clone(),
-            manager.editor_state.clone(),
-            manager.show_editor_diff.clone(),
-            manager.show_html_preview.clone(),
-        ),
+        editor_body(manager),
         after_render = move |_| {
             let _moved = &consumers;
         },
@@ -149,19 +144,19 @@ impl TextEditorManager {
 }
 
 #[html]
-fn editor_body(
-    manager: Ptr<TextEditorManager>,
-    editor_state: XSignal<EditorState>,
-    show_editor_diff: XSignal<bool>,
-    show_html_preview: XSignal<bool>,
-) -> XElement {
+fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
     div(
         class = super::style::BODY,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
         manager.show_side_view(),
         resize_bar_horz(manager.side_view_resize_manager.clone(), Default::default()),
-        editor_container(manager, editor_state, show_editor_diff, show_html_preview),
+        editor_container(
+            manager.clone(),
+            manager.editor_state.clone(),
+            manager.show_editor_diff.clone(),
+            manager.show_html_preview.clone(),
+        ),
     )
 }
 
@@ -263,7 +258,7 @@ fn toggle_editor_diff(
 fn editor_container(
     manager: Ptr<TextEditorManager>,
     #[signal] editor_state: EditorState,
-    show_editor_diff: XSignal<bool>,
+    #[signal] show_editor_diff: bool,
     #[signal] show_html_preview: bool,
 ) -> XElement {
     let body = match editor_state {

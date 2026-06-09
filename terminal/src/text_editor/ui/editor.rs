@@ -74,7 +74,7 @@ pub fn editor(
     manager: Ptr<TextEditorManager>,
     editor_state: EditorDataState,
     document: EditorDocument,
-    #[signal] show_editor_diff: bool,
+    show_editor_diff: bool,
     show_html_preview: bool,
 ) -> XElement {
     let EditorDataState { path, .. } = editor_state;

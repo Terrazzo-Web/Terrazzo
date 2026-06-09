@@ -33,10 +33,12 @@ div.side {
         }
 
         img.button-hover-icon {
+            display: none;
             visibility: hidden;
         }
 
         &:hover img.button-hover-icon {
+            display: block;
             visibility: visible;
         }
     }

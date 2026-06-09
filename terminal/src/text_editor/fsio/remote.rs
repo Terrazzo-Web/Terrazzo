@@ -1,8 +1,10 @@
 #![cfg(feature = "server")]
 
+use std::convert::Infallible;
 use std::path::Path;
 use std::sync::Arc;
 
+use super::CursorPosition;
 use super::File;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
@@ -41,6 +43,20 @@ pub struct StoreFileRequest {
     pub path: FilePath<Arc<Path>>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
     pub content: String,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct LoadCursorPositionRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct StoreCursorPositionRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
+    pub position: CursorPosition,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
@@ -179,5 +195,26 @@ remote_fn_service::unary::declare_remote_fn!(
     |_server, arg: StoreFileRequest| async {
         let result = super::service::store_file(arg.path, arg.content).await;
         result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    LOAD_CURSOR_POSITION_REMOTE_FN,
+    super::LOAD_CURSOR_POSITION,
+    LoadCursorPositionRequest,
+    Option<CursorPosition>,
+    |_server, arg: LoadCursorPositionRequest| async move {
+        Ok::<_, GrpcError<Infallible>>(super::cursor_positions::load(arg.path))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    STORE_CURSOR_POSITION_REMOTE_FN,
+    super::STORE_CURSOR_POSITION,
+    StoreCursorPositionRequest,
+    (),
+    |_server, arg: StoreCursorPositionRequest| async move {
+        let () = super::cursor_positions::store(arg.path, arg.position);
+        Ok::<_, GrpcError<Infallible>>(())
     }
 );

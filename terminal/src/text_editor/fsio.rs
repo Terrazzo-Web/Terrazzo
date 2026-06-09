@@ -17,6 +17,7 @@ use crate::api::client_address::ClientAddress;
 #[cfg(feature = "server")]
 pub mod api;
 pub mod client;
+mod cursor_positions;
 mod fsmetadata;
 mod git;
 mod remote;
@@ -25,6 +26,12 @@ pub mod ux;
 
 pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
 pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CursorPosition {
+    pub anchor: u32,
+    pub head: u32,
+}
 
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -201,5 +208,31 @@ async fn store_file_impl(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     Ok(remote::STORE_FILE_REMOTE_FN
         .call(remote, remote::StoreFileRequest { path, content })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn load_cursor_position(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<CursorPosition>, ServerFnError> {
+    Ok(remote::LOAD_CURSOR_POSITION_REMOTE_FN
+        .call(remote, remote::LoadCursorPositionRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn store_cursor_position(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+    position: CursorPosition,
+) -> Result<(), ServerFnError> {
+    Ok(remote::STORE_CURSOR_POSITION_REMOTE_FN
+        .call(
+            remote,
+            remote::StoreCursorPositionRequest { path, position },
+        )
         .await?)
 }

@@ -43,6 +43,7 @@ pub(super) enum EditorState {
 pub(super) struct EditorDataState {
     pub path: FilePath<Arc<Path>>,
     pub data: Arc<fsio::File>,
+    pub cursor_position: Option<fsio::CursorPosition>,
 }
 
 impl std::fmt::Debug for EditorDataState {

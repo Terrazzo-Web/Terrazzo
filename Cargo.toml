@@ -124,7 +124,7 @@ prost = { version = "0.14.4" }
 prost-types = { version = "0.14.4" }
 quote = { version = "1.0.45" }
 rcgen = { version = "0.14.8" }
-regex = { version = "1.12.3" }
+regex = { version = "1.12.4" }
 reqwest = { version = "0.13.4" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }

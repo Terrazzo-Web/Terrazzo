@@ -1,17 +1,16 @@
 #![cfg(feature = "client")]
 
+use std::mem;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
-use futures::FutureExt as _;
 use futures::channel::oneshot;
-use futures::future::Shared;
 use server_fn::ServerFnError;
 use terrazzo::prelude::diagnostics;
-use terrazzo::widgets::debounce::DoDebounce;
+use terrazzo::widgets::sleep::sleep;
+use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::warn;
 use crate::frontend::remotes::Remote;
@@ -83,7 +82,6 @@ pub async fn delete_file(remote: Remote, path: FilePath<Arc<Path>>) -> Result<()
     super::delete_file(remote, path).await
 }
 
-static DEBOUNCED_STORE_FILE_FN: LazyLock<StoreFileFn> = LazyLock::new(make_debounced_store_file_fn);
 static STORE_FILE_STATE: LazyLock<Mutex<StoreFileState>> = LazyLock::new(Mutex::default);
 
 pub async fn store_file<B: Send + 'static, A: Send + 'static>(
@@ -95,101 +93,94 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
 ) {
     assert!(std::mem::needs_drop::<B>());
     assert!(std::mem::needs_drop::<A>());
-    let debounced_store_file_fn = &*DEBOUNCED_STORE_FILE_FN;
-    let done = wait_for_pending_store_file(&remote, &path).await;
-    debounced_store_file_fn(StoreFileFnArg {
+    let (done_tx, done_rx) = oneshot::channel();
+    let schedule = {
+        let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
+        let waiter = StoreFileWaiter {
+            before: Box::new(before),
+            after: Box::new(after),
+            done: done_tx,
+        };
+        if let Some(pending) = state
+            .pending
+            .iter_mut()
+            .find(|pending| pending.remote == remote && pending.path == path)
+        {
+            pending.content = content;
+            pending.waiters.push(waiter);
+        } else {
+            state.pending.push(PendingStoreFile {
+                remote,
+                path,
+                content,
+                waiters: vec![waiter],
+            });
+        }
+        let schedule = !state.scheduled;
+        state.scheduled = true;
+        schedule
+    };
+    if schedule {
+        spawn_local(flush_pending_store_files());
+    }
+    let _ = done_rx.await;
+}
+
+async fn flush_pending_store_files() {
+    if let Err(error) = sleep(STORE_FILE_DEBOUNCE_DELAY).await {
+        warn!("Failed to wait before storing files: {error}");
+    }
+    let pending = {
+        let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
+        state.scheduled = false;
+        mem::take(&mut state.pending)
+    };
+    for PendingStoreFile {
         remote,
         path,
         content,
-        before: Box::new(before),
-        after: Box::new(after),
-        done,
-    })
-    .await;
-}
-
-async fn wait_for_pending_store_file(
-    remote: &Remote,
-    path: &FilePath<Arc<Path>>,
-) -> oneshot::Sender<()> {
-    loop {
-        let done = {
-            let mut store_file_state = STORE_FILE_STATE.lock().expect("store_file_state");
-            match &store_file_state.pending {
-                Some(PendingStoreFile {
-                    remote: pending_remote,
-                    path: pending_path,
-                    done,
-                }) if pending_remote != remote || pending_path != path => done.clone(),
-                _ => {
-                    let (done_tx, done_rx) = oneshot::channel();
-                    let done: BoxFuture =
-                        Box::pin(done_rx.map(|_result: Result<(), oneshot::Canceled>| ()));
-                    store_file_state.pending = Some(PendingStoreFile {
-                        remote: remote.clone(),
-                        path: path.clone(),
-                        done: done.shared(),
-                    });
-                    return done_tx;
-                }
-            }
-        };
-        done.await;
-    }
-}
-
-fn make_debounced_store_file_fn() -> StoreFileFn {
-    let debounced = STORE_FILE_DEBOUNCE_DELAY.async_debounce(
-        move |StoreFileFnArg {
-                  remote,
-                  path,
-                  content,
-                  before,
-                  after,
-                  done,
-              }| async move {
-            drop(before);
-            let () = super::store_file_impl(remote.clone(), path.clone(), content)
-                .await
-                .unwrap_or_else(|error| warn!("Failed to store file: {error}"));
-            drop(after);
-            clear_pending_store_file(&remote, &path);
-            let _ = done.send(());
-        },
-    );
-    return Box::new(debounced);
-}
-
-fn clear_pending_store_file(remote: &Remote, path: &FilePath<Arc<Path>>) {
-    let mut store_file_state = STORE_FILE_STATE.lock().expect("store_file_state");
-    if store_file_state
-        .pending
-        .as_ref()
-        .is_some_and(|pending| pending.remote == *remote && pending.path == *path)
+        waiters,
+    } in pending
     {
-        store_file_state.pending = None;
+        let (before, after): (Vec<_>, Vec<_>) = waiters
+            .into_iter()
+            .map(
+                |StoreFileWaiter {
+                     before,
+                     after,
+                     done,
+                 }| {
+                    let after = (after, done);
+                    (before, after)
+                },
+            )
+            .unzip();
+        drop(before);
+        let () = super::store_file_impl(remote, path, content)
+            .await
+            .unwrap_or_else(|error| warn!("Failed to store file: {error}"));
+        for (after, done) in after {
+            drop(after);
+            let _ = done.send(());
+        }
     }
-}
-
-type StoreFileFn = Box<dyn Fn(StoreFileFnArg) -> Shared<BoxFuture> + Send + Sync>;
-type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
-
-struct StoreFileFnArg {
-    remote: Remote,
-    path: FilePath<Arc<Path>>,
-    content: String,
-    before: Box<dyn Send>,
-    after: Box<dyn Send>,
-    done: oneshot::Sender<()>,
 }
 
 #[derive(Default)]
 struct StoreFileState {
-    pending: Option<PendingStoreFile>,
+    pending: Vec<PendingStoreFile>,
+    scheduled: bool,
 }
 
 struct PendingStoreFile {
     remote: Remote,
     path: FilePath<Arc<Path>>,
-    done: Shared<BoxFuture>,
+    content: String,
+    waiters: Vec<StoreFileWaiter>,
+}
+
+struct StoreFileWaiter {
+    before: Box<dyn Send>,
+    after: Box<dyn Send>,
+    done: oneshot::Sender<()>,
 }

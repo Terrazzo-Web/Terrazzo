@@ -22,6 +22,8 @@ pub(super) struct TextEditorManager {
     pub path: FilePath<XSignal<Arc<Path>>>,
     pub force_edit_path: XSignal<bool>,
     pub editor_state: XSignal<EditorState>,
+    pub show_editor_diff: XSignal<bool>,
+    pub show_html_preview: XSignal<bool>,
     pub synchronized_state: XSignal<SynchronizedState>,
     pub side_view: XSignal<Option<Arc<SideViewNode>>>,
     pub notify_service: Ptr<NotifyService>,

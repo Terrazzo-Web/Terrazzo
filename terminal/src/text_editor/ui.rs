@@ -53,6 +53,7 @@ mod code_mirror;
 pub mod drag;
 mod editor;
 mod folder;
+mod html_viewer;
 mod pdf_viewer;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
@@ -74,7 +75,6 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
-    let show_editor_diff = XSignal::new("show-editor-diff", true);
     let manager = Ptr::new(TextEditorManager {
         tile,
         remote: remote.clone(),
@@ -84,6 +84,8 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         },
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
+        show_editor_diff: XSignal::new("show-editor-diff", false),
+        show_html_preview: XSignal::new("show-html-preview", true),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
         notify_service: Ptr::new(NotifyService::new(remote)),
@@ -106,16 +108,20 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             manager.file_path_selector(),
             manager.search_selector(),
             fsio::ux::create_entry_controls(manager.clone(), manager.editor_state.clone()),
-            toggle_editor_diff(manager.editor_state.clone(), show_editor_diff.clone()),
+            toggle_html_preview(
+                manager.editor_state.clone(),
+                manager.show_html_preview.clone(),
+            ),
+            toggle_editor_diff(
+                manager.editor_state.clone(),
+                manager.show_editor_diff.clone(),
+                manager.show_html_preview.clone(),
+            ),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
-        editor_body(
-            manager.clone(),
-            manager.editor_state.clone(),
-            show_editor_diff,
-        ),
+        editor_body(manager),
         after_render = move |_| {
             let _moved = &consumers;
         },
@@ -138,18 +144,60 @@ impl TextEditorManager {
 }
 
 #[html]
-fn editor_body(
-    manager: Ptr<TextEditorManager>,
-    editor_state: XSignal<EditorState>,
-    show_editor_diff: XSignal<bool>,
-) -> XElement {
+fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
     div(
         class = super::style::BODY,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
         manager.show_side_view(),
         resize_bar_horz(manager.side_view_resize_manager.clone(), Default::default()),
-        editor_container(manager, editor_state, show_editor_diff),
+        editor_container(
+            manager.clone(),
+            manager.editor_state.clone(),
+            manager.show_editor_diff.clone(),
+            manager.show_html_preview.clone(),
+        ),
+    )
+}
+
+#[html]
+#[template(tag = span)]
+fn toggle_html_preview(
+    #[signal] editor_state: EditorState,
+    show_html_preview: XSignal<bool>,
+) -> XElement {
+    let is_html = match editor_state {
+        EditorState::Data(editor_state) => {
+            editor_state.path.file.extension() == Some("html".as_ref())
+        }
+        _ => false,
+    };
+    if !is_html {
+        return tag(style::display = "none", style::visibility = "hidden");
+    }
+
+    #[template(wrap = true)]
+    fn make_class(#[signal] show_html_preview: bool) -> XAttributeValue {
+        show_html_preview.then_some(style::ACTIVE)
+    }
+
+    #[template(wrap = true)]
+    fn make_title(#[signal] show_html_preview: bool) -> XAttributeValue {
+        if show_html_preview {
+            "Show HTML source"
+        } else {
+            "Preview HTML"
+        }
+    }
+
+    img(
+        class = style::TOGGLE_HTML_PREVIEW,
+        class %= make_class(show_html_preview.clone()),
+        #[cfg(not(feature = "client-prod"))]
+        class = "toggle-html-preview",
+        src = icons::text_editor(),
+        title %= make_title(show_html_preview.clone()),
+        click = move |_| show_html_preview.update(|show| Some(!show)),
     )
 }
 
@@ -158,8 +206,14 @@ fn editor_body(
 fn toggle_editor_diff(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
+    #[signal] show_html_preview: bool,
 ) -> XElement {
     let has_diff = match editor_state {
+        EditorState::Data(editor_state)
+            if editor_state.path.file.extension() == Some("html".as_ref()) && show_html_preview =>
+        {
+            false
+        }
         EditorState::Data(editor_state) => match &*editor_state.data {
             fsio::File::TextFile {
                 original: Some(original),
@@ -204,7 +258,8 @@ fn toggle_editor_diff(
 fn editor_container(
     manager: Ptr<TextEditorManager>,
     #[signal] editor_state: EditorState,
-    show_editor_diff: XSignal<bool>,
+    #[signal] show_editor_diff: bool,
+    #[signal] show_html_preview: bool,
 ) -> XElement {
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data {
@@ -215,7 +270,13 @@ fn editor_container(
                     original: original.clone(),
                     content: content.clone(),
                 };
-                editor(manager, editor_state, editor_document, show_editor_diff)
+                editor(
+                    manager,
+                    editor_state,
+                    editor_document,
+                    show_editor_diff,
+                    show_html_preview,
+                )
             }
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();
@@ -224,6 +285,7 @@ fn editor_container(
                     editor_state,
                     EditorDocument::Pdf(base64),
                     show_editor_diff,
+                    show_html_preview,
                 )
             }
             fsio::File::Folder(list) => {

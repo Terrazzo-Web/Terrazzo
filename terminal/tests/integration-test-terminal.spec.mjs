@@ -124,6 +124,31 @@ test.describe('Terminal', () => {
         ).length)).toBeGreaterThanOrEqual(3);
     });
 
+    test('sends typed input from the terminal overlay', async ({ page }) => {
+        const addTabButton = getAddTabButton(page);
+        await addTabButton.waitFor({ timeout: 10 * SECOND });
+        await addTabButton.click();
+
+        const activeTerminal = getActiveTerminal(page);
+        await expect(activeTerminal).toContainText('Welcome to Test Environment');
+
+        const overlayButton = page.locator('li.selected .input-overlay-button');
+        await expect(overlayButton).toBeVisible();
+        await expect(overlayButton).toHaveCSS('opacity', '0.3');
+        await overlayButton.click();
+
+        const textarea = page.locator('li.selected .input-overlay-textarea');
+        const sendButton = page.locator('li.selected .input-overlay-send');
+        await expect(textarea).toBeVisible();
+        await expect(sendButton).toHaveCSS('opacity', '0.3');
+        await textarea.fill('echo overlay-input-31415\n');
+        await expect(sendButton).toHaveCSS('opacity', '1');
+        await sendButton.click();
+
+        await expect(activeTerminal).toContainText('overlay-input-31415');
+        await expect(textarea).toHaveValue('');
+    });
+
     test('two terminals', async ({ page }) => {
         const addTabButton = getAddTabButton(page);
         await addTabButton.waitFor({ timeout: 10 * SECOND });

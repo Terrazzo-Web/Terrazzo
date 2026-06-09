@@ -21,6 +21,7 @@ use self::diagnostics::debug;
 use self::diagnostics::enabled;
 use self::diagnostics::warn;
 use super::attach;
+use super::input_overlay::input_overlay;
 use super::javascript::TerminalJs;
 use super::ui::TerminalsState;
 use crate::api::client::terminal_api;
@@ -182,10 +183,12 @@ impl TabDescriptor for TerminalTab {
         let state = state.clone();
         div(
             class = style::TERMINAL,
+            class = super::input_overlay::style::TERMINAL,
             div(move |template| {
                 autoclone!(this);
                 attach::attach(template, state.clone(), this.clone())
             }),
+            input_overlay(this.clone()),
         )
     }
 

@@ -1,0 +1,65 @@
+.terminal {
+    position: relative;
+}
+
+.input-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.input-overlay-button {
+    position: absolute;
+    bottom: calc(var(--padding) / 2);
+    right: calc(var(--padding) / 2);
+    width: 2.5rem;
+    height: 2.5rem;
+    cursor: pointer;
+    opacity: 0.3;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+}
+
+.input-overlay-button:hover,
+.input-overlay-button.active {
+    opacity: 1;
+}
+
+.input-overlay-input {
+    position: absolute;
+    left: var(--padding);
+    right: calc(var(--padding) + 3.5rem);
+    bottom: var(--padding);
+    display: flex;
+    align-items: flex-end;
+    gap: calc(var(--padding) / 2);
+    pointer-events: auto;
+}
+
+.input-overlay-textarea {
+    flex: 1;
+    min-height: 4rem;
+    padding: var(--padding);
+    border: 1px solid var(--color);
+    border-radius: 0.5rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--color);
+    resize: none;
+    outline: none;
+}
+
+.input-overlay-send {
+    width: 2.5rem;
+    height: 2.5rem;
+    opacity: 0.3;
+    cursor: default;
+    transition: opacity 0.2s ease;
+}
+
+.input-overlay-send.active {
+    opacity: 1;
+    cursor: pointer;
+}

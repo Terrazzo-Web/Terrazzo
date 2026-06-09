@@ -40,4 +40,17 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn dispose(this: &TerminalJs);
+
+    #[wasm_bindgen(js_name = "createSpeechRecognition")]
+    pub fn create_speech_recognition(
+        on_result: &Closure<dyn FnMut(JsValue)>,
+        on_end: &Closure<dyn FnMut()>,
+        on_error: &Closure<dyn FnMut(JsValue)>,
+    ) -> JsValue;
+
+    #[wasm_bindgen(js_name = "startSpeechRecognition")]
+    pub fn start_speech_recognition(recognition: &JsValue);
+
+    #[wasm_bindgen(js_name = "stopSpeechRecognition")]
+    pub fn stop_speech_recognition(recognition: &JsValue);
 }

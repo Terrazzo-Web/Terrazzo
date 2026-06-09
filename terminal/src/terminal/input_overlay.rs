@@ -15,7 +15,7 @@ use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 
 use self::diagnostics::warn;
-use super::javascript;
+use super::speech_recognition;
 use super::terminal_tab::TerminalTab;
 use crate::api::client::terminal_api;
 use crate::assets::icons;
@@ -240,12 +240,12 @@ fn start_recording(
             is_recording.set(false);
         }
     });
-    let recognition = javascript::create_speech_recognition(&on_result, &on_end, &on_error);
+    let recognition = speech_recognition::create_speech_recognition(&on_result, &on_end, &on_error);
     if recognition.is_null() || recognition.is_undefined() {
         warn!("Speech recognition is not supported in this browser");
         return;
     }
-    javascript::start_speech_recognition(&recognition);
+    speech_recognition::start_speech_recognition(&recognition);
     is_recording.set(true);
     *speech_recognition.borrow_mut() = Some(SpeechRecognitionHandle {
         recognition,
@@ -260,7 +260,7 @@ fn stop_recording(
     speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) {
     if let Some(speech_recognition) = speech_recognition.borrow().as_ref() {
-        javascript::stop_speech_recognition(&speech_recognition.recognition);
+        speech_recognition::stop_speech_recognition(&speech_recognition.recognition);
     }
     is_recording.set(false);
 }

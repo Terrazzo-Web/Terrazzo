@@ -156,10 +156,13 @@ test.describe('Terminal', () => {
 
         await expect(activeTerminal).toContainText('overlay-input-31415');
         await expect(textarea).toHaveValue('');
+        await expect(textarea).toBeHidden();
     });
 
     test('sends mocked speech recognition input from the terminal overlay', async ({ page }) => {
         await page.addInitScript(() => {
+            window.__speechRecognitionStops = 0;
+
             class MockSpeechRecognition {
                 constructor() {
                     this.interimResults = false;
@@ -176,6 +179,7 @@ test.describe('Terminal', () => {
                 }
 
                 stop() {
+                    window.__speechRecognitionStops += 1;
                     this.onend?.();
                 }
             }
@@ -212,6 +216,8 @@ test.describe('Terminal', () => {
 
         await expect(activeTerminal).toContainText('speech-overlay-27182');
         await expect(textarea).toHaveValue('');
+        await expect(textarea).toBeHidden();
+        await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(1);
     });
 
     test('two terminals', async ({ page }) => {

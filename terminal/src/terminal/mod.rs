@@ -4,8 +4,6 @@ mod api;
 #[cfg(feature = "client")]
 mod attach;
 #[cfg(feature = "client")]
-mod input_overlay;
-#[cfg(feature = "client")]
 mod javascript;
 #[cfg(feature = "server")]
 mod service;

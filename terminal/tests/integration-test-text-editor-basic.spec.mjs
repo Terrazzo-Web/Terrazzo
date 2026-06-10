@@ -50,6 +50,101 @@ test.describe('Text editor basic', () => {
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, world!');
     });
 
+    test('inserts typed input from the editor overlay', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const fileName = 'overlay.txt';
+        const { baseDir, filePath } = await createTempFile(fileName);
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
+
+        const overlayButton = page.locator('.code-mirror-editor .input-overlay-button');
+        await expect(overlayButton).toBeVisible();
+        await overlayButton.click();
+
+        const textarea = page.locator('.code-mirror-editor .input-overlay-textarea');
+        const sendButton = page.locator('.code-mirror-editor .input-overlay-send');
+        await expect(textarea).toBeVisible();
+        await textarea.fill('Hello from overlay');
+        await expect(sendButton).toHaveCSS('opacity', '1');
+        await sendButton.click();
+
+        await expect(editor).toContainText('Hello from overlay');
+        await expect(textarea).toHaveValue('');
+        await expect(textarea).toBeHidden();
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello from overlay');
+    });
+
+    test('inserts mocked speech recognition input from the editor overlay', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        await page.addInitScript(() => {
+            window.__speechRecognitionStops = 0;
+
+            class MockSpeechRecognition {
+                constructor() {
+                    this.interimResults = false;
+                    this.continuous = false;
+                    this.lang = 'en-US';
+                }
+
+                start() {
+                    setTimeout(() => {
+                        this.onresult?.({
+                            results: [[{ transcript: 'Hello from speech overlay' }]],
+                        });
+                    }, 0);
+                }
+
+                stop() {
+                    window.__speechRecognitionStops += 1;
+                    this.onend?.();
+                }
+            }
+
+            Object.defineProperty(window, 'SpeechRecognition', {
+                configurable: true,
+                value: MockSpeechRecognition,
+            });
+            Object.defineProperty(window, 'webkitSpeechRecognition', {
+                configurable: true,
+                value: MockSpeechRecognition,
+            });
+        });
+
+        const fileName = 'speech-overlay.txt';
+        const { baseDir, filePath } = await createTempFile(fileName);
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
+
+        const overlayButton = page.locator('.code-mirror-editor .input-overlay-button');
+        await expect(overlayButton).toBeVisible();
+        await overlayButton.click();
+        await overlayButton.click();
+
+        const textarea = page.locator('.code-mirror-editor .input-overlay-textarea');
+        const sendButton = page.locator('.code-mirror-editor .input-overlay-send');
+        await expect(textarea).toHaveValue('Hello from speech overlay');
+        await expect(sendButton).toHaveCSS('opacity', '1');
+        await sendButton.click();
+
+        await expect(editor).toContainText('Hello from speech overlay');
+        await expect(textarea).toHaveValue('');
+        await expect(textarea).toBeHidden();
+        await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(1);
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello from speech overlay');
+    });
+
     test('finds text in the editor and selects the matching row', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

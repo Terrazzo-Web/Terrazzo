@@ -92,8 +92,6 @@ fn compose_textarea(
             if let Err(error) = textarea.focus() {
                 warn!("Failed to focus terminal input overlay: {error:?}");
             }
-            textarea.set_value("");
-            value.set("");
         },
         class = style::INPUT_OVERLAY_TEXTAREA,
         #[cfg(not(feature = "client-prod"))]
@@ -247,16 +245,13 @@ fn start_recording(
         let textarea = textarea.clone();
         move |transcript: JsValue| {
             let transcript = transcript.as_string().unwrap_or_default();
-            let mut new_value = String::default();
-            value.update(|_| {
-                new_value = original_value.to_string();
-                if new_value.ends_with(char::is_whitespace) {
-                    new_value += &transcript;
-                } else {
-                    new_value += &format!(" {}", transcript);
-                }
-                Some(new_value.clone().into())
-            });
+            let mut new_value = original_value.to_string();
+            if new_value.ends_with(char::is_whitespace) {
+                new_value += &transcript;
+            } else {
+                new_value += &format!(" {}", transcript);
+            }
+            value.set(new_value.clone());
             textarea.try_with(|textarea| textarea.set_value(&new_value));
         }
     });

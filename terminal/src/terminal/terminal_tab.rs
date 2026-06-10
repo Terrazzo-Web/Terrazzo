@@ -181,6 +181,12 @@ impl TabDescriptor for TerminalTab {
         let this = self.clone();
         let state = state.clone();
         div(
+            mouseenter = move |_| {
+                autoclone!(this);
+                if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+                    xtermjs.focus();
+                }
+            },
             class = style::TERMINAL,
             div(move |template| {
                 autoclone!(this);

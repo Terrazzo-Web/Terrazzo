@@ -43,6 +43,14 @@ impl CodeMirrorJs {
         self.inner.set_content(content);
     }
 
+    pub fn insert_text(&self, text: String) {
+        self.inner.insert_text(text);
+    }
+
+    pub fn focus(&self) {
+        self.inner.focus();
+    }
+
     pub fn cargo_check(&self, diagnostics: JsValue) {
         self.inner.cargo_check(diagnostics);
     }
@@ -68,6 +76,12 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn set_content(this: &CodeMirrorJsImpl, content: String);
+
+    #[wasm_bindgen(method)]
+    pub fn insert_text(this: &CodeMirrorJsImpl, text: String);
+
+    #[wasm_bindgen(method)]
+    pub fn focus(this: &CodeMirrorJsImpl);
 
     #[wasm_bindgen(method)]
     pub fn cargo_check(this: &CodeMirrorJsImpl, diagnostics: JsValue);

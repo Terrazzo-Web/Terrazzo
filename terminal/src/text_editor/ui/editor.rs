@@ -21,6 +21,7 @@ use super::fsio;
 use super::fsio::client::store_file;
 use super::pdf_viewer::PdfJs;
 use super::style;
+use crate::frontend::input_overlay::input_overlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
@@ -43,12 +44,24 @@ pub(super) enum EditorDocument {
 trait EditorBody {
     fn set_content(&self, content: String);
 
+    fn insert_text(&self, _text: String) {}
+
+    fn focus(&self) {}
+
     fn cargo_check(&self, _diagnostics: JsValue) {}
 }
 
 impl EditorBody for CodeMirrorJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
+    }
+
+    fn insert_text(&self, text: String) {
+        self.insert_text(text);
+    }
+
+    fn focus(&self) {
+        self.focus();
     }
 
     fn cargo_check(&self, diagnostics: JsValue) {
@@ -92,6 +105,23 @@ pub fn editor(
     let writing = Arc::new(AtomicU32::new(0));
 
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
+    let input_overlay = if !is_pdf && !is_html_preview {
+        let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
+            autoclone!(editor_body);
+            if let Some(editor_body) = &*editor_body.lock().unwrap() {
+                editor_body.insert_text(text);
+            }
+        });
+        let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
+            autoclone!(editor_body);
+            if let Some(editor_body) = &*editor_body.lock().unwrap() {
+                editor_body.focus();
+            }
+        });
+        input_overlay(send_to_editor, focus_editor)
+    } else {
+        span(style::display = "none", style::visibility = "hidden")
+    };
 
     let edits_notify_registration = manager.notify_service.watch_file(
         &path,
@@ -117,6 +147,7 @@ pub fn editor(
         #[cfg(not(feature = "client-prod"))]
         class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
         html_preview,
+        input_overlay,
         after_render = move |element| {
             autoclone!(path);
             let _moved = &edits_notify_registration;

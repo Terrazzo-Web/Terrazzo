@@ -10,17 +10,18 @@ use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 
 use self::diagnostics::warn;
-use super::terminal_tab::TerminalTab;
-use crate::api::client::terminal_api;
 use crate::assets::icons;
 use crate::frontend::speech_recognition;
 
-terrazzo_css::import_style!(pub(super) style, "input_overlay.scss");
+terrazzo_css::import_style!(pub style, "input_overlay.scss");
+
+const SIGNAL_PREFIX: &str = "input-overlay";
+const OPEN_TITLE: &str = "Compose input";
+const SEND_TITLE: &str = "Send input";
 
 struct SpeechRecognitionHandle {
     recognition: JsValue,
@@ -30,10 +31,10 @@ struct SpeechRecognitionHandle {
 }
 
 #[html]
-pub fn input_overlay(terminal_tab: TerminalTab) -> XElement {
-    let is_open = XSignal::new("terminal-input-overlay-open", false);
-    let is_recording = XSignal::new("terminal-input-overlay-recording", false);
-    let value = XSignal::new("terminal-input-overlay-value", XString::default());
+pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> XElement {
+    let is_open = XSignal::new(format!("{SIGNAL_PREFIX}-open"), false);
+    let is_recording = XSignal::new(format!("{SIGNAL_PREFIX}-recording"), false);
+    let value = XSignal::new(format!("{SIGNAL_PREFIX}-value"), XString::default());
     let textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>> = Default::default();
     let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
 
@@ -45,19 +46,32 @@ pub fn input_overlay(terminal_tab: TerminalTab) -> XElement {
         div(
             class = style::INPUT_OVERLAY_BUTTONS,
             state_button(
+                OPEN_TITLE,
                 is_open.clone(),
-                is_recording,
+                is_recording.clone(),
                 value.clone(),
                 textarea.clone(),
-                speech_recognition,
+                speech_recognition.clone(),
             ),
-            send_button(terminal_tab.clone(), value.clone(), textarea.clone()),
+            send_button(
+                SEND_TITLE,
+                send.clone(),
+                focus_target.clone(),
+                is_open.clone(),
+                is_recording.clone(),
+                value.clone(),
+                textarea.clone(),
+                speech_recognition.clone(),
+            ),
         ),
         compose_textarea(
-            terminal_tab.clone(),
             textarea.clone(),
             value.clone(),
             is_open,
+            is_recording,
+            send,
+            focus_target,
+            speech_recognition,
         ),
     )
 }
@@ -71,10 +85,13 @@ fn overlay_class(#[signal] is_open: bool) -> XAttributeValue {
 #[html]
 #[template(tag = textarea)]
 fn compose_textarea(
-    terminal_tab: TerminalTab,
     textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>>,
     value: XSignal<XString>,
     #[signal] mut open: bool,
+    is_recording: XSignal<bool>,
+    send: Ptr<dyn Fn(String)>,
+    focus_target: Ptr<dyn Fn()>,
+    speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) -> XElement {
     let _ = open;
     let textarea = {
@@ -89,7 +106,7 @@ fn compose_textarea(
                 .dyn_ref::<HtmlTextAreaElement>()
                 .or_throw("Expected HtmlTextAreaElement");
             if let Err(error) = textarea.focus() {
-                warn!("Failed to focus terminal input overlay: {error:?}");
+                warn!("Failed to focus input overlay: {error:?}");
             }
         },
         class = style::INPUT_OVERLAY_TEXTAREA,
@@ -103,13 +120,28 @@ fn compose_textarea(
             value.set(new_value);
         },
         keydown = move |event: KeyboardEvent| {
-            autoclone!(terminal_tab, value, textarea);
+            autoclone!(
+                send,
+                focus_target,
+                is_recording,
+                value,
+                textarea,
+                speech_recognition
+            );
             event.stop_propagation();
             match event.key().as_str() {
                 "Escape" => open_mut.set(false),
                 "Enter" if event.ctrl_key() || event.meta_key() => {
                     event.prevent_default();
-                    send_value(terminal_tab.clone(), value.clone(), textarea.clone());
+                    send_value(
+                        send.clone(),
+                        focus_target.clone(),
+                        open_mut.clone(),
+                        is_recording.clone(),
+                        value.clone(),
+                        textarea.clone(),
+                        speech_recognition.clone(),
+                    );
                 }
                 _ => {}
             }
@@ -120,9 +152,14 @@ fn compose_textarea(
 #[html]
 #[template(tag = img)]
 fn send_button(
-    terminal_tab: TerminalTab,
+    title: &'static str,
+    send: Ptr<dyn Fn(String)>,
+    focus_target: Ptr<dyn Fn()>,
+    is_open: XSignal<bool>,
+    is_recording: XSignal<bool>,
     value: XSignal<XString>,
     textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>>,
+    speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) -> XElement {
     return tag(
         class = style::INPUT_OVERLAY_SEND,
@@ -130,12 +167,16 @@ fn send_button(
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-send",
         src = icons::send_fill(),
-        title = "Send to terminal",
+        title = title,
         click = move |_| {
             send_value(
-                terminal_tab.clone(),
+                send.clone(),
+                focus_target.clone(),
+                MutableSignal::from(&is_open),
+                is_recording.clone(),
                 value.clone(),
                 textarea.lock().unwrap().clone(),
+                speech_recognition.clone(),
             )
         },
     );
@@ -147,30 +188,30 @@ fn send_button(
 }
 
 fn send_value(
-    terminal_tab: TerminalTab,
+    send: Ptr<dyn Fn(String)>,
+    focus_target: Ptr<dyn Fn()>,
+    is_open: MutableSignal<bool>,
+    is_recording: XSignal<bool>,
     value: XSignal<XString>,
     textarea: ElementCapture<HtmlTextAreaElement>,
+    speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) {
     let data = textarea.try_with(|t| t.value()).unwrap_or_default();
     if data.is_empty() {
         return;
     }
+    stop_recording(is_recording, speech_recognition);
     value.set(XString::default());
     textarea.try_with(|textarea| textarea.set_value(""));
-    let terminal = terminal_tab.address.clone();
-    spawn_local(async move {
-        if let Err(error) = terminal_api::write::write(&terminal, data).await {
-            warn!("Failed to write input overlay text to the terminal: {error}");
-        }
-    });
-    if let Some(xtermjs) = terminal_tab.xtermjs.lock().or_throw("xtermjs").clone() {
-        xtermjs.focus();
-    }
+    send(data);
+    is_open.set(false);
+    focus_target();
 }
 
 #[autoclone]
 #[html]
 fn state_button(
+    open_title: &'static str,
     is_open: XSignal<bool>,
     is_recording: XSignal<bool>,
     value: XSignal<XString>,
@@ -183,7 +224,7 @@ fn state_button(
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-button",
         src %= state_button_icon(is_open.clone(), is_recording.clone()),
-        title %= state_button_title(is_open.clone(), is_recording.clone()),
+        title %= state_button_title(open_title, is_open.clone(), is_recording.clone()),
         click = move |_| {
             autoclone!(is_open, is_recording, value, textarea, speech_recognition);
             let textarea = textarea.lock().unwrap().clone();
@@ -222,13 +263,17 @@ fn state_button_icon(#[signal] is_open: bool, #[signal] is_recording: bool) -> X
 }
 
 #[template(wrap = true)]
-fn state_button_title(#[signal] is_open: bool, #[signal] is_recording: bool) -> XAttributeValue {
+fn state_button_title(
+    open_title: &'static str,
+    #[signal] is_open: bool,
+    #[signal] is_recording: bool,
+) -> XAttributeValue {
     if is_recording {
         "Stop dictation"
     } else if is_open {
         "Start dictation"
     } else {
-        "Compose terminal input"
+        open_title
     }
 }
 
@@ -245,7 +290,7 @@ fn start_recording(
         move |transcript: JsValue| {
             let transcript = transcript.as_string().unwrap_or_default();
             let mut new_value = original_value.to_string();
-            if new_value.ends_with(char::is_whitespace) {
+            if new_value.is_empty() || new_value.ends_with(char::is_whitespace) {
                 new_value += &transcript;
             } else {
                 new_value += &format!(" {}", transcript);

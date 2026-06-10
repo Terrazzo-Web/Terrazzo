@@ -84,6 +84,7 @@ class TerminalJs {
         this.fitAddon.dispose();
     }
 }
+
 export {
     TerminalJs
 };

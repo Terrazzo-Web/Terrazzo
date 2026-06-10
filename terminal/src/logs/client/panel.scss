@@ -18,10 +18,16 @@ div.resize-bar {
         >img.resize-icon {
             position: absolute;
             right: 0;
-            width: 1.5rem;
-            height: 1.5rem;
+            width: 1rem;
+            height: 1rem;
             z-index: 2;
             filter: invert(1);
+
+            opacity: 30%;
+
+            &:hover {
+                opacity: 100%;
+            }
 
             &.resize-icon-show {
                 top: var(--width);

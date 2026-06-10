@@ -8,12 +8,15 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use self::login::login;
 
+#[cfg(any(feature = "terminal-client", feature = "text-editor-client"))]
+pub mod input_overlay;
 pub mod login;
 pub mod menu;
 pub mod mousemove;
 pub mod remotes;
 pub mod remotes_ui;
 pub mod resize_bar;
+pub(crate) mod speech_recognition;
 pub mod timestamp;
 
 #[wasm_bindgen]

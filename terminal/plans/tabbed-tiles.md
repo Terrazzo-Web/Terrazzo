@@ -39,6 +39,7 @@ This is a layout feature for tiles, not a replacement for terminal tabs. A tabbe
   - ensuring horizontal/vertical flattening still behaves as today
 
 Open decision: when a tabbed tile is inserted into a horizontal or vertical parent, it should behave like any other child and occupy one flex slot. This keeps the tree semantics simple.
+// TODO: when click the tabbed button on a tile menu, it should turn the current tile into a list of tabs, with a single tab. Then there should be a + button like in terminal tabs ot add more tiles to the list
 
 ## Client State
 - Extend `terminal/src/tiles/signals.rs` with a selected-tab signal for tabbed arrays.
@@ -50,6 +51,7 @@ Open decision: when a tabbed tile is inserted into a horizontal or vertical pare
   - optionally a per-array title cache later
 
 Open decision: selected tab persistence can remain client-only for v1. Persisting selected tile across reloads can be added later through `tiles-state` if it proves useful.
+// TODO: persisting selected tile is important in V1
 
 ## Rendering
 - Split `show_tiles_rec` in `terminal/src/tiles/ui.rs` into three array render paths:
@@ -75,6 +77,7 @@ Important layout detail: the tab strip needs fixed height and the selected child
 - Future title strategy:
   - Allow each app to expose an optional tile title.
   - Terminal tiles could surface the selected terminal tab title as the tile-tab title later.
+  // TODO: there should be titles in v1. Tiles will now have a title that is only displayed when they are tabbed. Title default to name of app (use Debug fmt if App is not Display). The tile title can be modified by the user like terminal tabs
 
 ## Menu and Icons
 - Add a third split action in `terminal/src/frontend/menu.rs`:
@@ -86,6 +89,7 @@ Important layout detail: the tab strip needs fixed height and the selected child
   - Prefer an existing tab/add-tab style icon if available in `terminal/src/assets/icons.rs`.
   - Otherwise add a small tabbed-layout icon to `terminal/assets/icons` and register it in `terminal/src/assets/install.rs`.
 - Add non-prod test class, for example `split-tabbed`, matching the existing `split-horizontal` and `split-vertical` hooks.
+// TODO use this icon: window-stack.svg. Yes you need to declare the icon and install it server side
 
 ## Reordering
 - Use `terrazzo::widgets::tabs` drag/drop hooks for tab reordering.
@@ -96,6 +100,7 @@ Important layout detail: the tab strip needs fixed height and the selected child
 - If reordering is too large for the first implementation, keep drag/drop disabled visually and ship click-to-select first. The tab widget currently expects `move_tab`, so a no-op implementation is possible but should be called out in code comments and tests should avoid assuming reorder.
 
 Recommendation: include reordering in v1 if it is small, because users will expect tile tabs to behave like terminal tabs.
+// Please include V1
 
 ## Styling
 - Add `tabbed-tile`, `tile-tabs`, `tile-tab-titles`, `tile-tab-title`, `tile-tab-items`, `tile-tab-item`, and `selected` classes in `terminal/src/tiles/ui.scss`.
@@ -104,6 +109,7 @@ Recommendation: include reordering in v1 if it is small, because users will expe
   - selected tab visibly connected to content
   - close enough spacing that nested terminal tabs do not look like a different product
 - Avoid nested card styling. The tabbed tile is a layout container, not a card.
+// Add styles in a new scss file, tabs.scss
 
 ## Tests
 - Rust unit tests:

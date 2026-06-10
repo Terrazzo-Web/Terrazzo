@@ -15,6 +15,12 @@
     z-index: 10;
 }
 
+.input-overlay-buttons {
+    display: flex;
+    flex-direction: column;
+    margin-left: calc(var(--padding) / 2);
+}
+
 .input-overlay-button,
 .input-overlay-send {
     flex: 0 0 auto;
@@ -23,7 +29,7 @@
     filter: invert(1);
     pointer-events: auto;
     transition: opacity 0.2s ease;
-    margin-left: calc(var(--padding) / 2);
+    margin-top: calc(var(--padding) / 2);
 }
 
 .input-overlay-button {

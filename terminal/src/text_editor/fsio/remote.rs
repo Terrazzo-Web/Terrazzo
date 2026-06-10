@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::path::Path;
 use std::sync::Arc;
 

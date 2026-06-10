@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::num::NonZero;
 use std::sync::Arc;
 

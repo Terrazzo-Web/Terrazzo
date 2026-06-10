@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::marker::PhantomData;
 
 use terrazzo::prelude::XSignal;

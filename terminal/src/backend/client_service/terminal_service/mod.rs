@@ -1,4 +1,3 @@
-#![cfg(feature = "terminal")]
 
 pub mod ack;
 pub mod close;

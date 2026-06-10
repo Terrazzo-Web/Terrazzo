@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use bitflags::bitflags;
 use scopeguard::guard;
 use terrazzo::prelude::XSignal;

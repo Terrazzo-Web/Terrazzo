@@ -1,7 +1,5 @@
-#![cfg(feature = "server")]
-
-use super::Tile;
 use super::state::STATE;
+use super::Tile;
 
 impl Drop for Tile {
     fn drop(&mut self) {

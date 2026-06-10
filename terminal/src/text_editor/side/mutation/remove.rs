@@ -2,8 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use terrazzo::prelude::diagnostics;
 
 use self::diagnostics::debug;

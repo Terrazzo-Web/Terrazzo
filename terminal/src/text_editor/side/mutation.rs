@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -20,6 +18,7 @@ use crate::utils::more_path::MorePathRef as _;
 
 mod add;
 mod live;
+#[cfg(feature = "client")]
 mod manager;
 mod remove;
 

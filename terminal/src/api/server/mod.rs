@@ -1,4 +1,3 @@
-#![cfg(feature = "server")]
 
 use std::sync::Arc;
 
@@ -14,8 +13,10 @@ use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 
 mod common;
+#[cfg(feature = "correlation-id")]
 mod correlation_id;
 
+#[cfg(feature = "terminal")]
 mod terminal_api;
 
 pub fn api_routes(

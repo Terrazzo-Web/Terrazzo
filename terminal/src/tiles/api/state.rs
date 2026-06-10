@@ -1,11 +1,9 @@
-#![cfg(feature = "server")]
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use nameth::NamedEnumValues as _;
 
 use super::Tiles;
 use crate::tiles::id::TileId;

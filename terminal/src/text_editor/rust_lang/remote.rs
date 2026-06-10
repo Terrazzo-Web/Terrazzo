@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::sync::Arc;
 
 use serde::Deserialize;

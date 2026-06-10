@@ -1,5 +1,4 @@
 #![cfg(test)]
-#![cfg(feature = "server")]
 
 use std::mem::MaybeUninit;
 use std::sync::Arc;

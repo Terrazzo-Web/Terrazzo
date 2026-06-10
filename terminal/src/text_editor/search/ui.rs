@@ -1,4 +1,3 @@
-#![cfg(feature = "client")]
 
 use std::ops::Not;
 use std::path::Path;

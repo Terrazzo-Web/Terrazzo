@@ -1,4 +1,3 @@
-#![cfg(feature = "client")]
 
 use std::collections::HashMap;
 use std::collections::hash_map;

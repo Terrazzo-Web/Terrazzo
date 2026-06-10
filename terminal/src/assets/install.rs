@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use terrazzo::declare_asset;
 use terrazzo::declare_scss_asset;
 

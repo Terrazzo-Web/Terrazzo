@@ -1,4 +1,3 @@
-#![cfg(feature = "client")]
 
 use std::sync::Mutex;
 
@@ -10,11 +9,14 @@ use self::login::login;
 
 pub mod login;
 pub mod menu;
+#[cfg(feature = "client")]
 pub mod mousemove;
 pub mod remotes;
+#[cfg(feature = "remotes-ui")]
 pub mod remotes_ui;
 pub mod resize_bar;
 pub(crate) mod speech_recognition;
+#[cfg(feature = "text-editor")]
 pub mod timestamp;
 
 #[wasm_bindgen]

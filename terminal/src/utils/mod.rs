@@ -1,6 +1,9 @@
+#[cfg(feature = "server")]
+#[cfg(feature = "text-editor")]
 pub mod async_throttle;
 pub mod more_path;
 #[cfg(feature = "remote-fn")]
+#[cfg(feature = "server")]
 pub mod testable_once_lock;
 
 #[cfg(feature = "logs-panel")]

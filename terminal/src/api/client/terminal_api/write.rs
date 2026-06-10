@@ -1,4 +1,3 @@
-#![cfg(feature = "terminal")]
 
 use nameth::NamedEnumValues as _;
 use nameth::nameth;

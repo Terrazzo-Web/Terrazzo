@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::cmp::Reverse;
 use std::ffi::OsStr;
 use std::fmt::Debug;
@@ -9,8 +7,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use nameth::NamedEnumValues as _;
 use tonic::Code;
 use tracing::debug;
 use tracing::debug_span;

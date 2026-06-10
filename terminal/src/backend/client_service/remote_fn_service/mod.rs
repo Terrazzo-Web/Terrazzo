@@ -1,4 +1,3 @@
-#![cfg(feature = "remote-fn")]
 
 use std::sync::Arc;
 use std::sync::Weak;

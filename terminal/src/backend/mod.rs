@@ -1,4 +1,3 @@
-#![cfg(feature = "server")]
 
 use std::future::ready;
 use std::ops::Deref;
@@ -76,6 +75,7 @@ mod daemonize;
 pub mod protos;
 mod root_ca_config;
 mod server_config;
+#[cfg(feature = "terminal")]
 pub mod throttling_stream;
 mod tls_config;
 

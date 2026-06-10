@@ -16,11 +16,17 @@ use crate::api::client_address::ClientAddress;
 
 #[cfg(feature = "server")]
 pub mod api;
+#[cfg(feature = "client")]
 pub mod client;
+#[cfg(feature = "server")]
 mod fsmetadata;
+#[cfg(feature = "server")]
 mod git;
+#[cfg(feature = "server")]
 mod remote;
+#[cfg(feature = "server")]
 mod service;
+#[cfg(feature = "client")]
 pub mod ux;
 
 pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());

@@ -1,5 +1,3 @@
-#![cfg(feature = "terminal")]
-
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::pin::Pin;
@@ -7,12 +5,12 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 use std::sync::OnceLock;
-use std::task::Poll;
 use std::task::ready;
+use std::task::Poll;
 
+use futures::channel::oneshot;
 use futures::FutureExt as _;
 use futures::Stream;
-use futures::channel::oneshot;
 use pin_project::pin_project;
 use pin_project::pinned_drop;
 use terrazzo_pty::lease::LeaseItem;

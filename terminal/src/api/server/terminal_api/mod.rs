@@ -1,4 +1,3 @@
-#![cfg(feature = "terminal")]
 
 pub mod new_id;
 pub mod resize;

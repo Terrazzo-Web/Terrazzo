@@ -19,10 +19,6 @@ use crate::frontend::speech_recognition;
 
 terrazzo_css::import_style!(pub style, "input_overlay.scss");
 
-const SIGNAL_PREFIX: &str = "input-overlay";
-const OPEN_TITLE: &str = "Compose input";
-const SEND_TITLE: &str = "Send input";
-
 struct SpeechRecognitionHandle {
     recognition: JsValue,
     _on_result: Closure<dyn FnMut(JsValue)>,
@@ -32,9 +28,9 @@ struct SpeechRecognitionHandle {
 
 #[html]
 pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> XElement {
-    let is_open = XSignal::new(format!("{SIGNAL_PREFIX}-open"), false);
-    let is_recording = XSignal::new(format!("{SIGNAL_PREFIX}-recording"), false);
-    let value = XSignal::new(format!("{SIGNAL_PREFIX}-value"), XString::default());
+    let is_open = XSignal::new("input-overlay-open", false);
+    let is_recording = XSignal::new("input-overlay-recording", false);
+    let value = XSignal::new("input-overlay-value", XString::default());
     let textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>> = Default::default();
     let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
 
@@ -46,7 +42,6 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
         div(
             class = style::INPUT_OVERLAY_BUTTONS,
             state_button(
-                OPEN_TITLE,
                 is_open.clone(),
                 is_recording.clone(),
                 value.clone(),
@@ -54,7 +49,6 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
                 speech_recognition.clone(),
             ),
             send_button(
-                SEND_TITLE,
                 send.clone(),
                 focus_target.clone(),
                 is_open.clone(),
@@ -152,7 +146,6 @@ fn compose_textarea(
 #[html]
 #[template(tag = img)]
 fn send_button(
-    title: &'static str,
     send: Ptr<dyn Fn(String)>,
     focus_target: Ptr<dyn Fn()>,
     is_open: XSignal<bool>,
@@ -167,7 +160,7 @@ fn send_button(
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-send",
         src = icons::send_fill(),
-        title = title,
+        title = "Send input",
         click = move |_| {
             send_value(
                 send.clone(),
@@ -211,7 +204,6 @@ fn send_value(
 #[autoclone]
 #[html]
 fn state_button(
-    open_title: &'static str,
     is_open: XSignal<bool>,
     is_recording: XSignal<bool>,
     value: XSignal<XString>,
@@ -224,7 +216,7 @@ fn state_button(
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-button",
         src %= state_button_icon(is_open.clone(), is_recording.clone()),
-        title %= state_button_title(open_title, is_open.clone(), is_recording.clone()),
+        title %= state_button_title(is_open.clone(), is_recording.clone()),
         click = move |_| {
             autoclone!(is_open, is_recording, value, textarea, speech_recognition);
             let textarea = textarea.lock().unwrap().clone();
@@ -263,17 +255,13 @@ fn state_button_icon(#[signal] is_open: bool, #[signal] is_recording: bool) -> X
 }
 
 #[template(wrap = true)]
-fn state_button_title(
-    open_title: &'static str,
-    #[signal] is_open: bool,
-    #[signal] is_recording: bool,
-) -> XAttributeValue {
+fn state_button_title(#[signal] is_open: bool, #[signal] is_recording: bool) -> XAttributeValue {
     if is_recording {
         "Stop dictation"
     } else if is_open {
         "Start dictation"
     } else {
-        open_title
+        "Compose input"
     }
 }
 

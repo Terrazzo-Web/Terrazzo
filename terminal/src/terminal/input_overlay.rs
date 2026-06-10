@@ -241,22 +241,23 @@ fn start_recording(
     textarea: ElementCapture<HtmlTextAreaElement>,
     speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) {
+    let original_value = value.get_value_untracked();
     let on_result: Closure<dyn FnMut(JsValue)> = Closure::new({
         let value = value.clone();
         let textarea = textarea.clone();
         move |transcript: JsValue| {
             let transcript = transcript.as_string().unwrap_or_default();
-            value.update(|value| {
-                let mut value = value.to_string();
-                // TODO: it should be if ends with space or any other whitespace character like the ones used by .trim()
-                if value.ends_with(' ') {
-                    value += &transcript;
+            let mut new_value = String::default();
+            value.update(|_| {
+                new_value = original_value.to_string();
+                if new_value.ends_with(char::is_whitespace) {
+                    new_value += &transcript;
                 } else {
-                    value += &format!(" {}", transcript);
+                    new_value += &format!(" {}", transcript);
                 }
-                Some(value.into())
+                Some(new_value.clone().into())
             });
-            textarea.try_with(|textarea| textarea.set_value(&transcript));
+            textarea.try_with(|textarea| textarea.set_value(&new_value));
         }
     });
     let on_end: Closure<dyn FnMut()> = Closure::new({

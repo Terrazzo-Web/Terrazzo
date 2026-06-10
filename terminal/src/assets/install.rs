@@ -35,11 +35,10 @@ fn install_icons() {
     install_icon(super::icons::key_icon());
     install_icon(super::icons::menu());
 
+    install_icon(super::icons::add_tab());
+
     #[cfg(feature = "terminal")]
-    {
-        install_icon(super::icons::add_tab());
-        install_icon(super::icons::terminal());
-    }
+    install_icon(super::icons::terminal());
 
     #[cfg(any(feature = "terminal", feature = "text-editor"))]
     {
@@ -95,6 +94,7 @@ fn install_icons() {
 
     install_icon(super::icons::split_horz());
     install_icon(super::icons::split_vert());
+    install_icon(super::icons::window_stack());
     install_icon(super::icons::close_app());
 }
 

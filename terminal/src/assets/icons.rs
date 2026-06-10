@@ -31,7 +31,7 @@ macro_rules! declare_icon {
 pub type Icon = &'static str;
 
 declare_icon!(add_port_forward,"/icons/add-port-forward.svg"; feature = "port-forward");
-declare_icon!(add_tab, "/icons/plus-square.svg"; feature = "terminal");
+declare_icon!(add_tab, "/icons/plus-square.svg");
 declare_icon!(chevron_bar_down, "/icons/chevron-bar-down.svg"; feature = "logs-panel");
 declare_icon!(chevron_bar_up, "/icons/chevron-bar-up.svg"; feature = "logs-panel");
 declare_icon!(chevron_double_right, "/icons/chevron-double-right.svg"; feature = "text-editor");
@@ -60,6 +60,7 @@ declare_icon!(slash, "/icons/slash.svg"; feature = "text-editor");
 declare_icon!(split_horz, "/icons/arrows-expand-vertical.svg");
 declare_icon!(split_vert, "/icons/arrows-expand.svg");
 declare_icon!(terminal, "/icons/terminal-dash.svg"; feature = "terminal");
+declare_icon!(window_stack, "/icons/window-stack.svg");
 declare_icon!(paragraph, "/icons/paragraph.svg"; any(feature = "terminal", feature = "text-editor"));
 declare_icon!(mic_fill, "/icons/mic-fill.svg"; any(feature = "terminal", feature = "text-editor"));
 declare_icon!(mic_mute_fill, "/icons/mic-mute-fill.svg"; any(feature = "terminal", feature = "text-editor"));

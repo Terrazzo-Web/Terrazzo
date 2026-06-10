@@ -13,6 +13,7 @@ pub trait TilesVisitorKind: Sized {
     type Node;
     type Tile;
     type Direction;
+    type Selected;
 
     fn do_visit_node<V: TilesTreeVisitor<Self> + ?Sized>(visitor: &mut V, tree: Self::Node);
 }
@@ -28,6 +29,12 @@ pub trait TilesTreeVisitor<K: TilesVisitorKind> {
     ) {
     }
     fn visit_tile(&mut self, #[expect(unused)] tile: K::Tile) {}
+    fn visit_selected(
+        &mut self,
+        #[expect(unused)] id: TileId,
+        #[expect(unused)] selected: K::Selected,
+    ) {
+    }
 }
 
 pub struct UiStateVisitor<'l> {
@@ -38,6 +45,7 @@ impl<'l> TilesVisitorKind for UiStateVisitor<'l> {
     type Node = &'l UiTileTree;
     type Tile = &'l UiTilePtr;
     type Direction = &'l XSignal<Direction>;
+    type Selected = &'l XSignal<Option<TileId>>;
 
     fn do_visit_node<V: TilesTreeVisitor<Self> + ?Sized>(visitor: &mut V, tree: Self::Node) {
         match tree {
@@ -45,9 +53,11 @@ impl<'l> TilesVisitorKind for UiStateVisitor<'l> {
             UiTileTree::Array {
                 id,
                 direction,
+                selected,
                 nodes,
             } => {
                 visitor.visit_tree(*id, direction);
+                visitor.visit_selected(*id, selected);
                 for node in nodes {
                     visitor.visit_node(node);
                 }

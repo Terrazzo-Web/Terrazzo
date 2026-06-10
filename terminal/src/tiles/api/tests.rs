@@ -12,6 +12,7 @@ fn add_remove() {
         id: TileId::for_test(1),
         app: Default::default(),
         remote: Default::default(),
+        title: Default::default(),
     }));
 
     let tree = add_node_for_tests(

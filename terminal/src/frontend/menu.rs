@@ -113,6 +113,13 @@ fn menu_items(
             div(img(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]
+                class = "split-tabbed",
+                src = icons::window_stack(),
+                click = tile.tabify(),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
                 class = "tile-close",
                 src = icons::close_app(),
                 click = tile.close(),

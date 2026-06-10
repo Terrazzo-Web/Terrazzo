@@ -39,6 +39,7 @@ fn remove_node_aux(
         Tiles::Array {
             id,
             direction,
+            selected,
             nodes,
         } => {
             let nodes = nodes
@@ -51,6 +52,12 @@ fn remove_node_aux(
                 Some(Arc::new(Tiles::Array {
                     id: *id,
                     direction: *direction,
+                    selected: selected.filter(|selected| {
+                        nodes.iter().any(|node| match &**node {
+                            Tiles::Tile(tile) => tile.id == *selected,
+                            Tiles::Array { id, .. } => *id == *selected,
+                        })
+                    }),
                     nodes,
                 }))
             }

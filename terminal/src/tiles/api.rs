@@ -10,10 +10,14 @@ use super::id::TileId;
 use crate::api::client_address::ClientAddress;
 
 mod add;
+mod add_tab;
 mod drop;
+mod move_child;
 mod mutate;
 mod remove;
+mod select_child;
 mod state;
+mod tabify;
 mod tests;
 
 #[server]
@@ -31,6 +35,36 @@ pub async fn add(
 }
 
 #[server]
+pub async fn tabify(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(tabify::tabify_node(id)?)
+}
+
+#[server]
+pub async fn add_tab(
+    array_id: TileId,
+    after_child: Option<TileId>,
+) -> Result<(Arc<Tiles>, TileId), ServerFnError> {
+    Ok(add_tab::add_tab(array_id, after_child)?)
+}
+
+#[server]
+pub async fn move_child(
+    array_id: TileId,
+    after_child: Option<TileId>,
+    moved_child: TileId,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(move_child::move_child(array_id, after_child, moved_child)?)
+}
+
+#[server]
+pub async fn select_child(
+    array_id: TileId,
+    selected: Option<TileId>,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(select_child::select_child(array_id, selected)?)
+}
+
+#[server]
 pub async fn remove(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(remove::remove_node(id)?)
 }
@@ -41,6 +75,17 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
         id: tile.id,
         app,
         remote: tile.remote.clone(),
+        title: tile.title.clone(),
+    })?)
+}
+
+#[server]
+pub async fn set_title(id: TileId, title: Option<String>) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(mutate::mutate_node(id, |tile| Tile {
+        id: tile.id,
+        app: tile.app,
+        remote: tile.remote.clone(),
+        title: title.clone(),
     })?)
 }
 
@@ -50,6 +95,7 @@ pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>,
         id: tile.id,
         app: tile.app,
         remote,
+        title: tile.title.clone(),
     })?)
 }
 
@@ -62,6 +108,8 @@ pub enum Direction {
     Horizontal,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "V"))]
     Vertical,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "T"))]
+    Tabbed,
 }
 
 // Basic
@@ -83,6 +131,8 @@ pub enum Tiles {
     Array {
         id: TileId,
         direction: Direction,
+        #[serde(default)]
+        selected: Option<TileId>,
         nodes: Vec<Arc<Tiles>>,
     },
 }
@@ -96,6 +146,8 @@ pub struct Tile {
     pub app: App,
     #[serde(default)]
     pub remote: ClientAddress,
+    #[serde(default)]
+    pub title: Option<String>,
 }
 
 impl Default for Tiles {
@@ -104,6 +156,7 @@ impl Default for Tiles {
             id: TileId::first_tile_id(),
             app: Default::default(),
             remote: Default::default(),
+            title: Default::default(),
         }
         .into()
     }

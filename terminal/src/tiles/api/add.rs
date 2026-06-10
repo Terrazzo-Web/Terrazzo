@@ -42,10 +42,18 @@ fn add_node_aux(
                     .ok_or(TilesStateError::DuplicateTileId(next_to))?,
                 app: App::Default,
                 remote: node.remote.clone(),
+                title: Default::default(),
             }));
             Arc::new(Tiles::Array {
                 id: TileId::new(),
                 direction: with_direction,
+                selected: (with_direction == Direction::Tabbed).then(|| match side {
+                    Side::Before => node.id,
+                    Side::After => match &*new {
+                        Tiles::Tile(tile) => tile.id,
+                        Tiles::Array { .. } => unreachable!(),
+                    },
+                }),
                 nodes: match side {
                     Side::Before => vec![new, tree],
                     Side::After => vec![tree, new],
@@ -55,6 +63,7 @@ fn add_node_aux(
         Tiles::Array {
             id,
             direction,
+            selected,
             nodes,
         } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
@@ -71,6 +80,7 @@ fn add_node_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                selected: *selected,
                 nodes: nodes2,
             })
         }
@@ -93,6 +103,7 @@ fn add_node_flatten(
     if let Tiles::Array {
         id: _,
         direction,
+        selected: _,
         nodes,
     } = &*tree
         && *direction == flatten_direction

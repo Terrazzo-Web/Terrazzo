@@ -95,6 +95,7 @@ impl Position {
         match direction {
             Direction::Horizontal => self.x,
             Direction::Vertical => self.y,
+            Direction::Tabbed => 0,
         }
     }
 }

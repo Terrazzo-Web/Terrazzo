@@ -14,6 +14,7 @@ pub mod mousemove;
 pub mod remotes;
 pub mod remotes_ui;
 pub mod resize_bar;
+pub(crate) mod speech_recognition;
 pub mod timestamp;
 
 #[wasm_bindgen]

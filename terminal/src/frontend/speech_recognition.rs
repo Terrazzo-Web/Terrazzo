@@ -2,7 +2,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen(module = "/src/terminal/speech_recognition.js")]
+#[wasm_bindgen(module = "/src/frontend/speech_recognition.js")]
 extern "C" {
     #[wasm_bindgen(js_name = "createSpeechRecognition")]
     pub fn create_speech_recognition(

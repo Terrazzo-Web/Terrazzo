@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -15,10 +13,10 @@ use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 
 use self::diagnostics::warn;
-use super::speech_recognition;
 use super::terminal_tab::TerminalTab;
 use crate::api::client::terminal_api;
 use crate::assets::icons;
+use crate::frontend::speech_recognition;
 
 terrazzo_css::import_style!(pub(super) style, "input_overlay.scss");
 

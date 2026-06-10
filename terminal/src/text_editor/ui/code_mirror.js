@@ -9,6 +9,8 @@ class CodeMirrorJsImpl {
         original,
         content,
         onchange,
+        oncursor,
+        cursorPosition,
         basePath,
         fullPath,
     ) {
@@ -19,6 +21,13 @@ class CodeMirrorJsImpl {
             if (!this.reloadFromDisk && update.docChanged) {
                 const content = update.state.doc.toString();
                 onchange(content);
+            }
+            if (!this.reloadFromDisk && update.selectionSet) {
+                const selection = update.state.selection.main;
+                oncursor({
+                    anchor: selection.anchor,
+                    head: selection.head,
+                });
             }
         });
 
@@ -63,6 +72,7 @@ class CodeMirrorJsImpl {
                 },
                 b: {
                     doc: content,
+                    selection: selectionFromCursorPosition(cursorPosition, content.length),
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -86,6 +96,7 @@ class CodeMirrorJsImpl {
             this.rootView = new JsDeps.EditorView({
                 state: JsDeps.EditorState.create({
                     doc: content,
+                    selection: selectionFromCursorPosition(cursorPosition, content.length),
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -184,6 +195,23 @@ function getLanguage(fileName) {
 
     const ext = fileName.slice(lastDotIndex + 1).toLowerCase();
     return JsDeps.languages[ext] || null;
+}
+
+function selectionFromCursorPosition(cursorPosition, docLength) {
+    if (!cursorPosition) {
+        return undefined;
+    }
+    return {
+        anchor: clampCursorOffset(cursorPosition.anchor, docLength),
+        head: clampCursorOffset(cursorPosition.head, docLength),
+    };
+}
+
+function clampCursorOffset(offset, docLength) {
+    if (!Number.isInteger(offset)) {
+        return 0;
+    }
+    return Math.max(0, Math.min(offset, docLength));
 }
 
 export {

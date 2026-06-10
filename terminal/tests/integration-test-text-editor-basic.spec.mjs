@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import {
     BASE_URL,
@@ -10,6 +11,7 @@ import {
     editorFindShortcut,
     getCodeMirrorContent,
     getCodeMirrorSearchPanel,
+    getFolderFile,
     getMergeViewEditors,
     getSideViewFile,
     getSideViewFolder,
@@ -143,6 +145,48 @@ test.describe('Text editor basic', () => {
         await expect(textarea).toBeHidden();
         await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(1);
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello from speech overlay');
+    });
+
+    test('remembers the cursor position when reopening a file', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const firstFile = 'first.txt';
+        const secondFile = 'second.txt';
+        const { baseDir, filePath: firstPath } = await createTempFile(firstFile);
+        const secondPath = path.join(baseDir, secondFile);
+        await writeFile(firstPath, ['alpha line', 'bravo line', 'charlie line'].join('\n'));
+        await writeFile(secondPath, 'Second file');
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, firstFile);
+        await openFolderFile(page, firstFile);
+
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toContainText('bravo line', { timeout: 10 * SECOND });
+        await editor.click();
+        await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home');
+        await page.keyboard.press('ArrowDown');
+        for (let i = 0; i < 'bravo'.length; i += 1) {
+            await page.keyboard.press('ArrowRight');
+        }
+        await page.waitForTimeout(2 * SECOND);
+
+        await getSideViewFolder(page, '').locator('span').first().click();
+        await expect(getFolderFile(page, secondFile)).toBeVisible({ timeout: 10 * SECOND });
+        await openFolderFile(page, secondFile);
+
+        await expect(getSideViewFile(page, firstFile)).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getSideViewFile(page, secondFile)).toBeVisible({ timeout: 10 * SECOND });
+        await expect(editor).toContainText('Second file', { timeout: 10 * SECOND });
+
+        await getSideViewFile(page, firstFile).locator('span').first().click();
+        await expect(editor).toContainText('bravo line', { timeout: 10 * SECOND });
+        await editor.evaluate((node) => node.focus());
+        await page.keyboard.insertText(' remembered');
+        await expect.poll(async () => readFile(firstPath, 'utf8'), { timeout: 10 * SECOND }).toBe(
+            ['alpha line', 'bravo remembered line', 'charlie line'].join('\n'),
+        );
+        await expect.poll(async () => readFile(secondPath, 'utf8'), { timeout: 10 * SECOND }).toBe('Second file');
     });
 
     test('finds text in the editor and selects the matching row', async ({ page }) => {

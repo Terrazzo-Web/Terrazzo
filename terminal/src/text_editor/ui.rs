@@ -433,6 +433,17 @@ impl TextEditorManager {
                     .await
                     .unwrap_or_else(|error| Some(fsio::File::Error(error.to_string())))
                     .map(Arc::new);
+                let cursor_position = match data.as_deref() {
+                    Some(fsio::File::TextFile { .. }) => {
+                        fsio::client::load_cursor_position(this.remote.clone(), path.clone())
+                            .await
+                            .unwrap_or_else(|error| {
+                                warn!("Failed to load cursor position: {error}");
+                                None
+                            })
+                    }
+                    _ => None,
+                };
 
                 if this.path.as_ref().map(|s| s.get_value_untracked()) != path {
                     debug!("Ignoring stale file load for {:?}", path);
@@ -456,8 +467,11 @@ impl TextEditorManager {
                 }
 
                 if let Some(data) = data {
-                    this.editor_state
-                        .force(EditorState::Data(EditorDataState { path, data }))
+                    this.editor_state.force(EditorState::Data(EditorDataState {
+                        path,
+                        data,
+                        cursor_position,
+                    }))
                 } else {
                     this.editor_state.force(EditorState::default());
                 }

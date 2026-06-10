@@ -18,6 +18,8 @@ use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::ui::STORE_FILE_DEBOUNCE_DELAY;
 
+use super::CursorPosition;
+
 pub async fn load_file(
     remote: Remote,
     path: FilePath<Arc<Path>>,
@@ -183,4 +185,89 @@ struct StoreFileWaiter {
     before: Box<dyn Send>,
     after: Box<dyn Send>,
     done: oneshot::Sender<()>,
+}
+
+static STORE_CURSOR_POSITION_STATE: LazyLock<Mutex<StoreCursorPositionState>> =
+    LazyLock::new(Mutex::default);
+
+pub async fn load_cursor_position(
+    remote: Remote,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<CursorPosition>, ServerFnError> {
+    super::load_cursor_position(remote, path).await
+}
+
+pub async fn store_cursor_position(
+    remote: Remote,
+    path: FilePath<Arc<Path>>,
+    position: CursorPosition,
+) {
+    let (done_tx, done_rx) = oneshot::channel();
+    let schedule = {
+        let mut state = STORE_CURSOR_POSITION_STATE
+            .lock()
+            .expect("store_cursor_position_state");
+        if let Some(pending) = state
+            .pending
+            .iter_mut()
+            .find(|pending| pending.remote == remote && pending.path == path)
+        {
+            pending.position = position;
+            pending.done.push(done_tx);
+        } else {
+            state.pending.push(PendingStoreCursorPosition {
+                remote,
+                path,
+                position,
+                done: vec![done_tx],
+            });
+        }
+        let schedule = !state.scheduled;
+        state.scheduled = true;
+        schedule
+    };
+    if schedule {
+        spawn_local(flush_pending_cursor_positions());
+    }
+    let _ = done_rx.await;
+}
+
+async fn flush_pending_cursor_positions() {
+    if let Err(error) = sleep(STORE_FILE_DEBOUNCE_DELAY).await {
+        warn!("Failed to wait before storing cursor positions: {error}");
+    }
+    let pending = {
+        let mut state = STORE_CURSOR_POSITION_STATE
+            .lock()
+            .expect("store_cursor_position_state");
+        state.scheduled = false;
+        mem::take(&mut state.pending)
+    };
+    for PendingStoreCursorPosition {
+        remote,
+        path,
+        position,
+        done,
+    } in pending
+    {
+        let () = super::store_cursor_position(remote, path, position)
+            .await
+            .unwrap_or_else(|error| warn!("Failed to store cursor position: {error}"));
+        for done in done {
+            let _ = done.send(());
+        }
+    }
+}
+
+#[derive(Default)]
+struct StoreCursorPositionState {
+    pending: Vec<PendingStoreCursorPosition>,
+    scheduled: bool,
+}
+
+struct PendingStoreCursorPosition {
+    remote: Remote,
+    path: FilePath<Arc<Path>>,
+    position: CursorPosition,
+    done: Vec<oneshot::Sender<()>>,
 }

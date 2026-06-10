@@ -246,7 +246,16 @@ fn start_recording(
         let textarea = textarea.clone();
         move |transcript: JsValue| {
             let transcript = transcript.as_string().unwrap_or_default();
-            value.set(transcript.clone());
+            value.update(|value| {
+                let mut value = value.to_string();
+                // TODO: it should be if ends with space or any other whitespace character like the ones used by .trim()
+                if value.ends_with(' ') {
+                    value += &transcript;
+                } else {
+                    value += &format!(" {}", transcript);
+                }
+                Some(value.into())
+            });
             textarea.try_with(|textarea| textarea.set_value(&transcript));
         }
     });

@@ -1,15 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Mutex;
 
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::element_capture::ElementCapture;
-use wasm_bindgen::JsCast as _;
-use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsValue;
 use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 
@@ -31,7 +29,7 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
     let is_open = XSignal::new("input-overlay-open", false);
     let is_recording = XSignal::new("input-overlay-recording", false);
     let value = XSignal::new("input-overlay-value", XString::default());
-    let textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>> = Default::default();
+    let textarea: ElementCapture<HtmlTextAreaElement> = Default::default();
     let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
 
     div(
@@ -61,7 +59,7 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
         compose_textarea(
             textarea.clone(),
             value.clone(),
-            is_open,
+            is_open.clone(),
             is_recording,
             send,
             focus_target,
@@ -79,30 +77,16 @@ fn overlay_class(#[signal] is_open: bool) -> XAttributeValue {
 #[html]
 #[template(tag = textarea)]
 fn compose_textarea(
-    textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>>,
+    textarea: ElementCapture<HtmlTextAreaElement>,
     value: XSignal<XString>,
-    #[signal] mut open: bool,
+    is_open: XSignal<bool>,
     is_recording: XSignal<bool>,
     send: Ptr<dyn Fn(String)>,
     focus_target: Ptr<dyn Fn()>,
     speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) -> XElement {
-    let _ = open;
-    let textarea = {
-        let mut lock = textarea.lock().unwrap();
-        *lock = ElementCapture::default();
-        lock.clone()
-    };
     tag(
         before_render = textarea.capture(),
-        after_render = move |element| {
-            let textarea = element
-                .dyn_ref::<HtmlTextAreaElement>()
-                .or_throw("Expected HtmlTextAreaElement");
-            if let Err(error) = textarea.focus() {
-                warn!("Failed to focus input overlay: {error:?}");
-            }
-        },
         class = style::INPUT_OVERLAY_TEXTAREA,
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-textarea",
@@ -117,6 +101,7 @@ fn compose_textarea(
             autoclone!(
                 send,
                 focus_target,
+                is_open,
                 is_recording,
                 value,
                 textarea,
@@ -124,13 +109,13 @@ fn compose_textarea(
             );
             event.stop_propagation();
             match event.key().as_str() {
-                "Escape" => open_mut.set(false),
+                "Escape" => is_open.set(false),
                 "Enter" if event.ctrl_key() || event.meta_key() => {
                     event.prevent_default();
                     send_value(
                         send.clone(),
                         focus_target.clone(),
-                        open_mut.clone(),
+                        MutableSignal::from(&is_open),
                         is_recording.clone(),
                         value.clone(),
                         textarea.clone(),
@@ -151,7 +136,7 @@ fn send_button(
     is_open: XSignal<bool>,
     is_recording: XSignal<bool>,
     value: XSignal<XString>,
-    textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>>,
+    textarea: ElementCapture<HtmlTextAreaElement>,
     speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) -> XElement {
     return tag(
@@ -168,7 +153,7 @@ fn send_button(
                 MutableSignal::from(&is_open),
                 is_recording.clone(),
                 value.clone(),
-                textarea.lock().unwrap().clone(),
+                textarea.clone(),
                 speech_recognition.clone(),
             )
         },
@@ -207,7 +192,7 @@ fn state_button(
     is_open: XSignal<bool>,
     is_recording: XSignal<bool>,
     value: XSignal<XString>,
-    textarea: Ptr<Mutex<ElementCapture<HtmlTextAreaElement>>>,
+    textarea: ElementCapture<HtmlTextAreaElement>,
     speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
 ) -> XElement {
     img(
@@ -219,9 +204,14 @@ fn state_button(
         title %= state_button_title(is_open.clone(), is_recording.clone()),
         click = move |_| {
             autoclone!(is_open, is_recording, value, textarea, speech_recognition);
-            let textarea = textarea.lock().unwrap().clone();
-            if !is_open.get_value_untracked() {
-                is_open.set(true);
+            let textarea_hidden = textarea
+                .try_with(|textarea| textarea.offset_parent().is_none())
+                .unwrap_or(true);
+            if !is_open.get_value_untracked() || textarea_hidden {
+                is_open.force(true);
+                if let Some(Err(error)) = textarea.try_with(|textarea| textarea.focus()) {
+                    warn!("Failed to focus input overlay: {error:?}");
+                }
                 return;
             }
             if is_recording.get_value_untracked() {
@@ -230,7 +220,7 @@ fn state_button(
                 start_recording(
                     is_recording.clone(),
                     value.clone(),
-                    textarea,
+                    textarea.clone(),
                     speech_recognition.clone(),
                 );
             }

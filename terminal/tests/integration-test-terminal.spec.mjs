@@ -159,8 +159,12 @@ test.describe('Terminal', () => {
         await expect(textarea).toBeHidden();
     });
 
-    test('sends mocked speech recognition input from the terminal overlay', async ({ page }) => {
+    test('sends two mocked speech recognition inputs from the terminal overlay', async ({ page }) => {
         await page.addInitScript(() => {
+            window.__speechRecognitionTranscripts = [
+                'echo speech-overlay-27182\n',
+                'echo speech-overlay-31415\n',
+            ];
             window.__speechRecognitionStops = 0;
 
             class MockSpeechRecognition {
@@ -171,9 +175,10 @@ test.describe('Terminal', () => {
                 }
 
                 start() {
+                    const transcript = window.__speechRecognitionTranscripts.shift();
                     setTimeout(() => {
                         this.onresult?.({
-                            results: [[{ transcript: 'echo speech-overlay-27182\n' }]],
+                            results: [[{ transcript }]],
                         });
                     }, 0);
                 }
@@ -204,20 +209,26 @@ test.describe('Terminal', () => {
         await expect(activeTerminal).toContainText('Welcome to Test Environment');
 
         const overlayButton = page.locator('li.selected .input-overlay-button');
-        await expect(overlayButton).toBeVisible();
-        await overlayButton.click();
-        await overlayButton.click();
-
         const textarea = page.locator('li.selected .input-overlay-textarea');
         const sendButton = page.locator('li.selected .input-overlay-send');
-        await expect(textarea).toHaveValue('echo speech-overlay-27182\n');
-        await expect(sendButton).toHaveCSS('opacity', '1');
-        await sendButton.click();
 
-        await expect(activeTerminal).toContainText('speech-overlay-27182');
-        await expect(textarea).toHaveValue('');
-        await expect(textarea).toBeHidden();
-        await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(1);
+        async function sendSpeechCommand(command, output, stops) {
+            await expect(overlayButton).toBeVisible();
+            await overlayButton.click();
+            await expect(textarea).toBeVisible();
+            await overlayButton.click();
+            await expect(textarea).toHaveValue(command);
+            await expect(sendButton).toHaveCSS('opacity', '1');
+            await sendButton.click();
+
+            await expect(activeTerminal).toContainText(output);
+            await expect(textarea).toHaveValue('');
+            await expect(textarea).toBeHidden();
+            await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(stops);
+        }
+
+        await sendSpeechCommand('echo speech-overlay-27182\n', 'speech-overlay-27182', 1);
+        await sendSpeechCommand('echo speech-overlay-31415\n', 'speech-overlay-31415', 2);
     });
 
     test('two terminals', async ({ page }) => {

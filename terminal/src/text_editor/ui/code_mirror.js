@@ -44,6 +44,7 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
+        const selection = selectionFromCursorPosition(cursorPosition, content.length);
         if (original) {
             const mergePaneExtensions = [
                 JsDeps.EditorView.theme({
@@ -72,7 +73,7 @@ class CodeMirrorJsImpl {
                 },
                 b: {
                     doc: content,
-                    selection: selectionFromCursorPosition(cursorPosition, content.length),
+                    selection,
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -96,7 +97,7 @@ class CodeMirrorJsImpl {
             this.rootView = new JsDeps.EditorView({
                 state: JsDeps.EditorState.create({
                     doc: content,
-                    selection: selectionFromCursorPosition(cursorPosition, content.length),
+                    selection,
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -106,6 +107,11 @@ class CodeMirrorJsImpl {
             });
             this.editorView = this.rootView;
         }
+        this.editorView.dispatch({
+            selection,
+            scrollIntoView: true,
+        });
+        this.editorView.focus();
         this.reloadFromDisk = false;
     }
 

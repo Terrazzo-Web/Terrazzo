@@ -6,6 +6,7 @@ use web_sys::Element;
 pub struct CodeMirrorJs {
     inner: CodeMirrorJsImpl,
     _onchange: Closure<dyn FnMut(JsValue)>,
+    _oncursor: Closure<dyn FnMut(JsValue)>,
 }
 
 impl Drop for CodeMirrorJs {
@@ -28,14 +29,24 @@ impl CodeMirrorJs {
         original: JsValue,
         content: JsValue,
         onchange: Closure<dyn FnMut(JsValue)>,
+        oncursor: Closure<dyn FnMut(JsValue)>,
+        cursor_position: JsValue,
         base_path: String,
         full_path: String,
     ) -> Self {
         Self {
             inner: CodeMirrorJsImpl::new(
-                element, original, content, &onchange, base_path, full_path,
+                element,
+                original,
+                content,
+                &onchange,
+                &oncursor,
+                cursor_position,
+                base_path,
+                full_path,
             ),
             _onchange: onchange,
+            _oncursor: oncursor,
         }
     }
 
@@ -59,6 +70,8 @@ extern "C" {
         original: JsValue,
         content: JsValue,
         onchange: &Closure<dyn FnMut(JsValue)>,
+        oncursor: &Closure<dyn FnMut(JsValue)>,
+        cursor_position: JsValue,
         base_path: String,
         full_path: String,
     ) -> CodeMirrorJsImpl;

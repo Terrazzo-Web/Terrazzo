@@ -77,7 +77,11 @@ pub fn editor(
     show_editor_diff: bool,
     show_html_preview: bool,
 ) -> XElement {
-    let EditorDataState { path, .. } = editor_state;
+    let EditorDataState {
+        path,
+        cursor_position,
+        ..
+    } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
     let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
     let html_preview = match &document {
@@ -137,6 +141,12 @@ pub fn editor(
                         original,
                         content.as_ref().into(),
                         make_on_change(&manager, &path, &writing),
+                        make_on_cursor_position_change(&manager, &path),
+                        cursor_position
+                            .and_then(|cursor_position| {
+                                serde_wasm_bindgen::to_value(&cursor_position).ok()
+                            })
+                            .unwrap_or(JsValue::null()),
                         path.base.as_ref().to_owned_string(),
                         path.as_deref().full_path().to_owned_string(),
                     )))
@@ -177,6 +187,27 @@ fn make_on_change(
                 (writing_done, synchronized_state_done),
             )
             .await;
+        };
+        spawn_local(write.in_current_span());
+    })
+}
+
+#[autoclone]
+fn make_on_cursor_position_change(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+) -> Closure<dyn FnMut(JsValue)> {
+    Closure::new(move |cursor_position: JsValue| {
+        autoclone!(manager, path);
+        let Ok(cursor_position) = serde_wasm_bindgen::from_value(cursor_position) else {
+            debug!("Changed cursor position is invalid");
+            return;
+        };
+        let write = async move {
+            autoclone!(manager, path);
+            let () =
+                fsio::client::store_cursor_position(manager.remote.clone(), path, cursor_position)
+                    .await;
         };
         spawn_local(write.in_current_span());
     })

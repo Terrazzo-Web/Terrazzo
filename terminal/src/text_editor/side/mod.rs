@@ -4,9 +4,7 @@ use std::sync::Arc;
 
 use super::fsio::FileMetadata;
 
-#[cfg(feature = "client")]
 mod mutation;
-#[cfg(feature = "client")]
 mod ui;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

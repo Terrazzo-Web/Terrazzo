@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+#![cfg(feature = "text-editor")]
 
 use std::sync::Arc;
 use std::sync::Mutex;

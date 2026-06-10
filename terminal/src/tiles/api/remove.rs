@@ -1,8 +1,10 @@
+#![cfg(feature = "server")]
+
 use std::sync::Arc;
 
-use super::state::TilesStateError;
-use super::state::TREE;
 use super::Tiles;
+use super::state::TREE;
+use super::state::TilesStateError;
 use crate::tiles::id::TileId;
 
 pub fn remove_node(id_to_remove: TileId) -> Result<Arc<Tiles>, TilesStateError> {

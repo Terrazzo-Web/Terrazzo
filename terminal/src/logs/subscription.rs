@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::collections::VecDeque;
 use std::sync::Arc;
 

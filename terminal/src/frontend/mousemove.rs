@@ -1,3 +1,5 @@
+#![cfg(feature = "client")]
+
 use std::sync::Mutex;
 
 use terrazzo::autoclone;
@@ -6,9 +8,9 @@ use terrazzo::prelude::Closure;
 use terrazzo::prelude::OrElseLog;
 use terrazzo::prelude::XSignal;
 use wasm_bindgen::JsCast;
-use web_sys::window;
 use web_sys::EventTarget;
 use web_sys::MouseEvent;
+use web_sys::window;
 
 #[envelope]
 pub struct MousemoveManagerImpl {

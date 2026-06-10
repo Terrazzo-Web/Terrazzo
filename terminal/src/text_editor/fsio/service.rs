@@ -1,3 +1,4 @@
+#![cfg(feature = "server")]
 
 use std::cmp::Reverse;
 use std::collections::HashMap;

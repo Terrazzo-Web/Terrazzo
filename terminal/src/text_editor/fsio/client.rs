@@ -1,3 +1,4 @@
+#![cfg(feature = "client")]
 
 use std::mem;
 use std::path::Path;

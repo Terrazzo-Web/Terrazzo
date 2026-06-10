@@ -1,3 +1,4 @@
+#![cfg(feature = "server")]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 pub use std::borrow::Cow;

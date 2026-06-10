@@ -1,3 +1,4 @@
+#![cfg(feature = "client")]
 
 use std::cell::RefCell;
 use std::path::Path;

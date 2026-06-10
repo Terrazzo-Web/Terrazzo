@@ -9,11 +9,8 @@ use terrazzo::server;
 use self::synthetic::SyntheticDiagnostic;
 use crate::api::client_address::ClientAddress;
 
-#[cfg(feature = "server")]
 mod messages;
-#[cfg(feature = "server")]
 mod remote;
-#[cfg(feature = "server")]
 pub mod service;
 pub mod synthetic;
 

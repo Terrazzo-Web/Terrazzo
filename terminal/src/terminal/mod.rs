@@ -1,3 +1,4 @@
+#![cfg(feature = "terminal")]
 
 mod api;
 #[cfg(feature = "client")]

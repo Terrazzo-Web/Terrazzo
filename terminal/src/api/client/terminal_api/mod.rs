@@ -1,3 +1,4 @@
+#![cfg(feature = "terminal")]
 
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
@@ -11,7 +12,6 @@ pub mod resize;
 pub mod set_order;
 pub mod set_title;
 pub mod stream;
-#[cfg(feature = "terminal")]
 pub mod write;
 
 pub type LiveTerminalDef = TerminalDefImpl<XSignal<TabTitle<XString>>>;

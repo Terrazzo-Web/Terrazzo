@@ -1,3 +1,4 @@
+#![cfg(feature = "client")]
 
 use std::collections::HashMap;
 use std::ops::Deref;

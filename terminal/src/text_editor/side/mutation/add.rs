@@ -6,12 +6,12 @@ use terrazzo::prelude::diagnostics;
 use self::diagnostics::debug;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::notify::manager::SideViewNotify;
-use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
+use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 
 pub fn add_node_rec<'l>(
     manager: &impl SideViewNotify,

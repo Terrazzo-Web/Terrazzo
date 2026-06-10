@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::fs::Metadata;
 
 use super::schema::PathSelector;

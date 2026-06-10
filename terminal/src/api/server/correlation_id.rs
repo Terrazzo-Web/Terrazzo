@@ -1,3 +1,4 @@
+#![cfg(feature = "correlation-id")]
 
 use std::sync::Arc;
 

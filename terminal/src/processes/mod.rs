@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+#![cfg(feature = "terminal")]
 
 use std::sync::Arc;
 use std::sync::OnceLock;

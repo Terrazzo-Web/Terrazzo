@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;

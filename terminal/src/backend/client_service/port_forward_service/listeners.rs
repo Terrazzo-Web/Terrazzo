@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::ops::DerefMut;

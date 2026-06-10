@@ -1,3 +1,4 @@
+#![cfg(feature = "client")]
 
 use std::ops::ControlFlow;
 use std::ops::Range;

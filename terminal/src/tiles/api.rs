@@ -9,17 +9,11 @@ use super::app::App;
 use super::id::TileId;
 use crate::api::client_address::ClientAddress;
 
-#[cfg(feature = "server")]
 mod add;
-#[cfg(feature = "server")]
 mod drop;
-#[cfg(feature = "server")]
 mod mutate;
-#[cfg(feature = "server")]
 mod remove;
-#[cfg(feature = "server")]
 mod state;
-#[cfg(feature = "server")]
 mod tests;
 
 #[server]

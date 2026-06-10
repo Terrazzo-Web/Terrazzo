@@ -7,9 +7,9 @@ use super::SvnStatus;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::notify::manager::SideViewNotify;
-use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
+use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::utils::more_path::MorePathRef as _;
 
 struct DummyManager;

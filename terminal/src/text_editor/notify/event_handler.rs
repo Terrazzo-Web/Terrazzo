@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use server_fn::ServerFnError;
 use tokio::sync::mpsc;
 use tracing::warn;

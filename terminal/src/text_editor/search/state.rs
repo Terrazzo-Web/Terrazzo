@@ -1,7 +1,9 @@
+#![cfg(feature = "client")]
+
 use std::sync::Arc;
 
-use nameth::nameth;
 use nameth::NamedType as _;
+use nameth::nameth;
 use terrazzo::prelude::*;
 
 use crate::text_editor::fsio::FileMetadata;

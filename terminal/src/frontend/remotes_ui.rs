@@ -1,3 +1,5 @@
+#![cfg(feature = "remotes-ui")]
+
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;

@@ -1,3 +1,5 @@
+#![cfg(feature = "server")]
+
 use std::future::ready;
 use std::path::Path;
 use std::sync::Arc;

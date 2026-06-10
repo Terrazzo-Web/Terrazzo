@@ -1,3 +1,5 @@
+#![cfg(feature = "tiles-state")]
+
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     $crate::tiles::state::make_state!($name, $ty, Default::default());

@@ -41,6 +41,14 @@ fn install_icons() {
         install_icon(super::icons::terminal());
     }
 
+    #[cfg(any(feature = "terminal", feature = "text-editor"))]
+    {
+        install_icon(super::icons::paragraph());
+        install_icon(super::icons::mic_fill());
+        install_icon(super::icons::mic_mute_fill());
+        install_icon(super::icons::send_fill());
+    }
+
     #[cfg(feature = "text-editor")]
     {
         install_icon(super::icons::chevron_double_right());

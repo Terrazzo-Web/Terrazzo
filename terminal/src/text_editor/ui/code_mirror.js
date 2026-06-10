@@ -144,6 +144,26 @@ class CodeMirrorJsImpl {
         }
     }
 
+    insert_text(text) {
+        const selection = this.editorView.state.selection.main;
+        this.editorView.dispatch({
+            changes: {
+                from: selection.from,
+                to: selection.to,
+                insert: text,
+            },
+            selection: {
+                anchor: selection.from + text.length,
+            },
+            scrollIntoView: true,
+        });
+        this.focus();
+    }
+
+    focus() {
+        this.editorView.focus();
+    }
+
     cargo_check(diagnostics) {
         const lints = [];
         let docLength = this.editorView.state.doc.length;

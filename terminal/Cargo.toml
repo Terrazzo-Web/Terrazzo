@@ -191,6 +191,9 @@ terminal-client = [
   "dep:wasm-streams",
   "dep:web-sys",
   "terminal",
+  "web-sys/HtmlTextAreaElement",
+  "web-sys/InputEvent",
+  "web-sys/KeyboardEvent",
 ]
 terminal-server = [
   "dep:dashmap",
@@ -216,6 +219,8 @@ text-editor-client = [
   "tiles-state-client",
   "web-sys/File",
   "web-sys/FileList",
+  "web-sys/HtmlTextAreaElement",
+  "web-sys/InputEvent",
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [

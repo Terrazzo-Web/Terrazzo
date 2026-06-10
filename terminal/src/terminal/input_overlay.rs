@@ -85,7 +85,6 @@ fn compose_textarea(
     tag(
         before_render = textarea.capture(),
         after_render = move |element| {
-            autoclone!(value);
             let textarea = element
                 .dyn_ref::<HtmlTextAreaElement>()
                 .or_throw("Expected HtmlTextAreaElement");

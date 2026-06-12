@@ -1,48 +1,75 @@
 .tabs {
     display: flex;
     flex-direction: column;
-
-    --padding: 10px;
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
 }
 
 .titles {
-    flex-grow: 0;
-    z-index: 1;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+    border-bottom: 1px solid var(--color);
 
     >ul {
-        list-style: none;
+        display: flex;
+        flex: 1 1 auto;
+        align-items: stretch;
+        min-width: 0;
         margin: 0;
         padding: 0;
+        list-style: none;
+        overflow: hidden;
     }
 }
 
 li.title {
-    border: 0;
-    margin: 0;
-    padding: var(--padding);
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 16rem;
+    padding: 0.25rem 0.5rem;
+    border-right: 1px solid var(--color);
+    cursor: default;
 
-    &:hover,
     &.selected {
-        background-color: red;
+        background: var(--color);
+        color: var(--background);
+    }
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 
 .items {
-    flex-grow: 1;
-    z-index: 0;
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
 
     &>ul {
-        list-style: none;
+        display: flex;
+        flex: 1 1 0;
+        min-height: 0;
+        min-width: 0;
+        height: 100%;
         margin: 0;
         padding: 0;
+        list-style: none;
 
         .item {
             display: none;
-            visibility: hidden;
+            flex: 1 1 0;
+            min-height: 0;
+            min-width: 0;
 
             &.selected {
-                display: block;
-                visibility: visible;
+                display: flex;
             }
         }
     }

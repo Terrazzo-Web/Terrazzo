@@ -7,91 +7,79 @@ div.tabbed-tile {
 }
 
 div.tile-tabs {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 0;
-    min-height: 0;
-    min-width: 0;
+    height: 100%;
+    --link-underline-thickness: 4px;
 }
 
 div.tile-tab-titles {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: stretch;
-    min-width: 0;
-    border-bottom: 1px solid var(--color);
+    @include trz-header;
 
-    ul {
-        display: flex;
-        flex: 1 1 auto;
-        align-items: stretch;
-        min-width: 0;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        overflow: hidden;
+    background-color: var(--background-color);
+    border: 1px solid var(--color);
+
+    @include prevent-user-select;
+
+    >ul {
+        @include trz-header;
+        overflow-x: scroll;
+        overflow-y: hidden;
+        @include no-scroll-bar;
     }
 }
 
 li.tile-tab-title {
-    display: flex;
-    align-items: center;
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 16rem;
-    padding: 0.25rem 0.5rem;
-    border-right: 1px solid var(--color);
-    cursor: default;
+    height: 100%;
 
+    padding-top: calc(var(--padding) - var(--link-underline-thickness));
+    padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
+
+    cursor: pointer;
+    color: var(--color);
+
+    &:hover,
     &.selected {
-        background: var(--color);
-        color: var(--background);
+        color: var(--selected-color);
+        background-color: var(--selected-background-color);
     }
 
-    span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    &>div {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        height: 100%;
     }
 }
 
 div.tile-tab-items {
-    flex: 1 1 0;
+    flex: 1;
     min-height: 0;
-    min-width: 0;
 
-    >ul {
-        display: flex;
-        flex: 1 1 0;
-        min-height: 0;
-        min-width: 0;
+    &>ul {
         height: 100%;
-        margin: 0;
-        padding: 0;
-        list-style: none;
+
+        &>li {
+            height: 100%;
+        }
     }
 }
 
 li.tile-tab-item {
-    display: none;
-    flex: 1 1 0;
-    min-height: 0;
-    min-width: 0;
-
-    &.selected {
-        display: flex;
-    }
+    height: 100%;
 }
 
 div.add-tile-tab {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    padding: 0.2rem 0.4rem;
+    position: relative;
+    display: inline flex;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: center;
+    flex: 1 1 auto;
+    padding: 3px;
+    margin-right: 2px;
     cursor: pointer;
 
     img {
-        width: 1rem;
-        height: 1rem;
+        @include trz-icon;
+        filter: invert(1);
     }
 }

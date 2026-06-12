@@ -236,9 +236,12 @@ fn make_on_cursor_position_change(
         };
         let write = async move {
             autoclone!(manager, path);
+            let synchronized_state_done =
+                SynchronizedState::enqueue(manager.synchronized_state.clone());
             let () =
                 fsio::client::store_cursor_position(manager.remote.clone(), path, cursor_position)
                     .await;
+            drop(synchronized_state_done);
         };
         spawn_local(write.in_current_span());
     })

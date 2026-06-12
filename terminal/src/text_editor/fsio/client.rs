@@ -52,7 +52,8 @@ pub async fn prune_side_view(
     let Some(side_view) = side_view else {
         return Ok(None);
     };
-    super::prune_side_view(remote, base, side_view).await
+    let pruned_side_view = super::prune_side_view(remote, base, side_view.clone()).await?;
+    Ok(Some(pruned_side_view.unwrap_or(side_view)))
 }
 
 pub async fn create_file(

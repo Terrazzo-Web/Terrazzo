@@ -6,8 +6,8 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::element_capture::ElementCapture;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 

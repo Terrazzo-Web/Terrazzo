@@ -30,13 +30,13 @@ impl AttributeValuesBuilder {
             len = self.values.len(),
             "{ATTRIBUTE_VALUES_BUILDER}::get_mut"
         );
-        if self.values.len() == *index {
+        while self.values.len() <= *index {
             self.values.push(Default::default());
         }
         let values_len = self.values.len();
         let values = self.values.get_mut(*index).or_else_throw(|()|
             format! { "{ATTRIBUTE_VALUES_BUILDER}::get_mut #1: index={index} vs values_len={values_len}" });
-        if values.len() == *sub_index {
+        while values.len() <= *sub_index {
             values.push(Default::default());
         }
         let values_len = values.len();

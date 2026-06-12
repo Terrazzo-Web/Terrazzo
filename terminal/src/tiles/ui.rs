@@ -88,14 +88,15 @@ pub fn show_tiles() -> XElement {
 }
 
 #[template(tag = div)]
+#[html]
 fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
-    show_tiles_rec(
+    tag(show_tiles_rec(
         &tiles,
         1,
         MousemoveManager::new(),
         XSignal::new("direction0", Direction::Horizontal),
         RcSlice::new(Rc::default(), 0..0),
-    )
+    ))
 }
 
 #[html]

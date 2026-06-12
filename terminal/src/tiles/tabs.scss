@@ -1,9 +1,6 @@
 div.tabbed-tile {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 0;
-    min-height: 0;
-    min-width: 0;
+    height: 100%;
+    width: 100%;
 }
 
 div.tile-tabs {
@@ -16,6 +13,7 @@ div.tile-tab-titles {
 
     background-color: var(--background-color);
     border: 1px solid var(--color);
+    border-radius: 2px;
 
     @include prevent-user-select;
 

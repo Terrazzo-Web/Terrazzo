@@ -8,6 +8,7 @@ use terrazzo::template;
 use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlTextAreaElement;
 use web_sys::KeyboardEvent;
 
@@ -31,8 +32,19 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
     let value = XSignal::new("input-overlay-value", XString::default());
     let textarea: ElementCapture<HtmlTextAreaElement> = Default::default();
     let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
+    let drop_is_open = scopeguard::guard(
+        (is_recording.clone(), speech_recognition.clone()),
+        |(is_recording, speech_recognition)| {
+            if is_recording.get_value_untracked() {
+                spawn_local(async move { stop_recording(is_recording, speech_recognition) });
+            }
+        },
+    );
 
     div(
+        before_render = move |_| {
+            let _ = &drop_is_open;
+        },
         class = style::INPUT_OVERLAY,
         class %= overlay_class(is_open.clone()),
         #[cfg(not(feature = "client-prod"))]
@@ -109,7 +121,10 @@ fn compose_textarea(
             );
             event.stop_propagation();
             match event.key().as_str() {
-                "Escape" => is_open.set(false),
+                "Escape" => {
+                    stop_recording(is_recording.clone(), speech_recognition.clone());
+                    is_open.set(false)
+                }
                 "Enter" if event.ctrl_key() || event.meta_key() => {
                     event.prevent_default();
                     send_value(

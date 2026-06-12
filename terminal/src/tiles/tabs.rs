@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::rc::Rc;
 
 use terrazzo::html;
@@ -95,12 +93,11 @@ impl TileTabsState {
                 RootTree::update(super::api::select_child(array_id, selected).await);
             })
         });
-        let state = Self {
+        Self {
             array_id,
             selected,
             registrations: Rc::new(sync_selection),
-        };
-        state
+        }
     }
 }
 

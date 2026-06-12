@@ -368,12 +368,14 @@ fn sample() -> XElement {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(feature = "prod")] #[cfg(not(test))]
                 gen_attributes
                     .push(XAttribute {
@@ -382,15 +384,14 @@ fn sample() -> XElement {
                                 name: "class".into(),
                                 kind: XAttributeKind::Attribute,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: "base".into(),
                     });
             }
             {
-                let attribute_index = attribute_index;
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (attribute_index, attribute_sub_index);
                 #[cfg(feature = "prod")]
                 gen_attributes
                     .push(XAttribute {
@@ -399,8 +400,8 @@ fn sample() -> XElement {
                                 name: "style".into(),
                                 kind: XAttributeKind::Attribute,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: format!("width: {}%", 100).into(),
                     });
@@ -471,12 +472,14 @@ fn sample() -> XElement {
                     value: "base".into(),
                 });
             {
-                let attribute_index = attribute_index;
-                let attribute_sub_index = {
-                    let i = attribute_sub_index;
-                    attribute_sub_index += 1;
-                    i
-                };
+                let attribute_id = (
+                    attribute_index,
+                    {
+                        let i = attribute_sub_index;
+                        attribute_sub_index += 1;
+                        i
+                    },
+                );
                 #[cfg(feature = "prod")]
                 if let Some(value) = Some("custom attribute") {
                     gen_attributes
@@ -486,20 +489,22 @@ fn sample() -> XElement {
                                     name: "data-custom".into(),
                                     kind: XAttributeKind::Attribute,
                                 },
-                                index: attribute_index,
-                                sub_index: attribute_sub_index,
+                                index: attribute_id.0,
+                                sub_index: attribute_id.1,
                             },
                             value: value.into(),
                         });
                 }
             }
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(feature = "prod")]
                 if let Some(value) = if true { Some("y") } else { None } {
                     gen_attributes
@@ -509,23 +514,25 @@ fn sample() -> XElement {
                                     name: "data-custom".into(),
                                     kind: XAttributeKind::Attribute,
                                 },
-                                index: attribute_index,
-                                sub_index: attribute_sub_index,
+                                index: attribute_id.0,
+                                sub_index: attribute_id.1,
                             },
                             value: value.into(),
                         });
                 }
             }
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = {
-                    attribute_sub_index = 0;
-                    0
-                };
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    {
+                        attribute_sub_index = 0;
+                        0
+                    },
+                );
                 #[cfg(feature = "prod")]
                 if let Some(value) = Some(format!("width: {}%", 100)) {
                     gen_attributes
@@ -535,8 +542,8 @@ fn sample() -> XElement {
                                     name: "style".into(),
                                     kind: XAttributeKind::Attribute,
                                 },
-                                index: attribute_index,
-                                sub_index: attribute_sub_index,
+                                index: attribute_id.0,
+                                sub_index: attribute_id.1,
                             },
                             value: value.into(),
                         });
@@ -606,12 +613,14 @@ fn sample() -> XElement {
                     value: "base".into(),
                 });
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(optional style)]
                 if let Some(value) = Some(format!("{}px", 250)) {
                     gen_attributes
@@ -621,16 +630,15 @@ fn sample() -> XElement {
                                     name: "height".into(),
                                     kind: XAttributeKind::Style,
                                 },
-                                index: attribute_index,
-                                sub_index: attribute_sub_index,
+                                index: attribute_id.0,
+                                sub_index: attribute_id.1,
                             },
                             value: value.into(),
                         });
                 }
             }
             {
-                let attribute_index = attribute_index;
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (attribute_index, attribute_sub_index);
                 #[cfg(style)]
                 gen_attributes
                     .push(XAttribute {
@@ -639,8 +647,8 @@ fn sample() -> XElement {
                                 name: "width".into(),
                                 kind: XAttributeKind::Style,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: format!("{}%", 100).into(),
                     });
@@ -692,12 +700,14 @@ fn sample() -> XElement {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(dynamic)]
                 gen_attributes
                     .push(XAttribute {
@@ -706,8 +716,8 @@ fn sample() -> XElement {
                                 name: "class".into(),
                                 kind: XAttributeKind::Attribute,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: XAttributeValue::Dynamic(
                             (move |t| { make_class() }).into(),
@@ -715,8 +725,7 @@ fn sample() -> XElement {
                     });
             }
             {
-                let attribute_index = attribute_index;
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (attribute_index, attribute_sub_index);
                 #[cfg(dynamic style)]
                 gen_attributes
                     .push(XAttribute {
@@ -725,8 +734,8 @@ fn sample() -> XElement {
                                 name: "width".into(),
                                 kind: XAttributeKind::Style,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: XAttributeValue::Dynamic(
                             (move |t| { make_width() }).into(),
@@ -798,12 +807,14 @@ fn sample() -> XElement {
                     value: "base".into(),
                 });
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(additional class)]
                 gen_attributes
                     .push(XAttribute {
@@ -812,8 +823,8 @@ fn sample() -> XElement {
                                 name: "class".into(),
                                 kind: XAttributeKind::Attribute,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: "additional".into(),
                     });
@@ -834,12 +845,14 @@ fn sample() -> XElement {
                     value: format!("width: {}%", 100).into(),
                 });
             {
-                let attribute_index = {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                };
-                let attribute_sub_index = attribute_sub_index;
+                let attribute_id = (
+                    {
+                        let i = attribute_index;
+                        attribute_index += 1;
+                        i
+                    },
+                    attribute_sub_index,
+                );
                 #[cfg(additional style)]
                 gen_attributes
                     .push(XAttribute {
@@ -848,8 +861,8 @@ fn sample() -> XElement {
                                 name: "style".into(),
                                 kind: XAttributeKind::Attribute,
                             },
-                            index: attribute_index,
-                            sub_index: attribute_sub_index,
+                            index: attribute_id.0,
+                            sub_index: attribute_id.1,
                         },
                         value: format!("height: {}%", 200).into(),
                     });

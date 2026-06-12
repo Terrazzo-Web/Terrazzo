@@ -144,8 +144,8 @@ impl XAttribute {
                         name: #name.into(),
                         kind: #kind,
                     },
-                    index: attribute_index,
-                    sub_index: attribute_sub_index,
+                    index: attribute_id.0,
+                    sub_index: attribute_id.1,
                 },
                 value: #runtime_value,
             }
@@ -153,8 +153,7 @@ impl XAttribute {
         let push_attribute = push_attribute(generated);
         quote! {
             {
-                let attribute_index = #index;
-                let attribute_sub_index = #sub_index;
+                let attribute_id = (#index, #sub_index);
                 #(#attrs)*
                 #push_attribute
             }

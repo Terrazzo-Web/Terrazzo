@@ -29,9 +29,15 @@ pub struct TileTabs {
 }
 
 impl TileTabs {
-    pub fn new(nodes: &[Rc<Tiles>]) -> Self {
+    pub fn new(nodes: &[Rc<Tiles>], selected: &XSignal<Option<TileId>>) -> Self {
         Self {
-            tabs: Rc::new(nodes.iter().cloned().map(TileTab::new).collect()),
+            tabs: Rc::new(
+                nodes
+                    .iter()
+                    .cloned()
+                    .map(|node| TileTab::new(node, selected))
+                    .collect(),
+            ),
         }
     }
 }
@@ -135,13 +141,20 @@ impl TabsState for TileTabsState {
 pub struct TileTab {
     id: TileId,
     node: Rc<Tiles>,
+    selected: XSignal<bool>,
 }
 
 impl TileTab {
-    fn new(node: Rc<Tiles>) -> Self {
+    fn new(node: Rc<Tiles>, selected: &XSignal<Option<TileId>>) -> Self {
+        let id = child_id(&node);
         Self {
-            id: child_id(&node),
+            id,
             node,
+            selected: selected.derive(
+                "selected-tile-tab",
+                move |selected| *selected == Some(id),
+                if_change(move |_, selected: &bool| selected.then_some(Some(id))),
+            ),
         }
     }
 }
@@ -176,12 +189,8 @@ impl TabDescriptor for TileTab {
     }
 
     fn selected(&self, state: &TileTabsState) -> XSignal<bool> {
-        let id = self.id;
-        state.selected.derive(
-            "selected-tile-tab",
-            move |selected| *selected == Some(id),
-            if_change(move |_, selected: &bool| selected.then_some(Some(id))),
-        )
+        let _ = state;
+        self.selected.clone()
     }
 }
 
@@ -191,7 +200,7 @@ pub fn show_tabbed_tiles(
     selected: XSignal<Option<TileId>>,
     nodes: &[Rc<Tiles>],
 ) -> XElement {
-    let descriptor = TileTabs::new(nodes);
+    let descriptor = TileTabs::new(nodes, &selected);
     let state = TileTabsState::new(array_id, selected, nodes);
     div(
         class = style::TABBED_TILE,

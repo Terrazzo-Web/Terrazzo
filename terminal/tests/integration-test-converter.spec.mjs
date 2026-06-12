@@ -67,7 +67,7 @@ async function expectConversionsResponse(response) {
 }
 
 async function openConverter(page) {
-    await page.locator('.app-menu-trigger').hover();
+    await page.locator('.app-menu-trigger').first().hover();
     await page.getByText('Converter', { exact: true }).click();
 
     const input = getConverterInput(page);
@@ -79,6 +79,11 @@ async function openConverter(page) {
 async function clickVerticalSplitter(page) {
     await page.locator('.app-menu-trigger').first().hover();
     await page.locator('img.split-horizontal').first().click();
+}
+
+async function clickTabbedSplitter(page) {
+    await page.locator('.app-menu-trigger').first().hover();
+    await page.locator('img.split-tabbed').first().click();
 }
 
 async function setConverterInput(page, value) {
@@ -306,5 +311,34 @@ test.describe('Converter', () => {
             const box = await getBoundingBox(leftTile);
             return Math.round(box.width - beforeDrag.width);
         }).toBeGreaterThan(90);
+    });
+
+    test('tabbed tile splitter creates a tab strip and adds tile tabs', async ({ page }) => {
+        await openConverter(page);
+
+        await clickTabbedSplitter(page);
+
+        const tabbedTile = page.locator('.tabbed-tile');
+        const tabTitles = tabbedTile.locator('.tile-tab-title');
+        const tabItems = tabbedTile.locator('.tile-tab-item');
+        await expect(tabbedTile).toBeVisible();
+        await expect(tabTitles).toHaveCount(1);
+        await expect(tabTitles.first()).toContainText('Converter');
+        await expect(tabItems).toHaveCount(1);
+        await expect(tabItems.first().locator('.converter-input')).toBeVisible();
+
+        await tabbedTile.locator('.add-tile-tab').click();
+
+        await expect(tabTitles).toHaveCount(2);
+        await expect(tabItems).toHaveCount(2);
+        await expect(tabTitles.nth(1)).toHaveClass(/selected/);
+        await expect(tabItems.nth(1)).toHaveClass(/selected/);
+        await expect(tabItems.nth(1).locator('.app-menu-trigger')).toBeVisible();
+
+        await tabTitles.filter({ hasText: /^Converter$/ }).click();
+
+        await expect(tabTitles.first()).toHaveClass(/selected/);
+        await expect(tabItems.first()).toHaveClass(/selected/);
+        await expect(tabItems.first().locator('.converter-input')).toBeVisible();
     });
 });

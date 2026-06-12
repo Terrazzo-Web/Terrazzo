@@ -13,12 +13,11 @@ use terrazzo::widgets::sleep::sleep;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::warn;
+use super::CursorPosition;
 use crate::frontend::remotes::Remote;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::ui::STORE_FILE_DEBOUNCE_DELAY;
-
-use super::CursorPosition;
 
 pub async fn load_file(
     remote: Remote,
@@ -53,7 +52,8 @@ pub async fn prune_side_view(
     let Some(side_view) = side_view else {
         return Ok(None);
     };
-    super::prune_side_view(remote, base, side_view).await
+    let pruned_side_view = super::prune_side_view(remote, base, side_view.clone()).await?;
+    Ok(Some(pruned_side_view.unwrap_or(side_view)))
 }
 
 pub async fn create_file(

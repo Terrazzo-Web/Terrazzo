@@ -378,7 +378,6 @@ impl TextEditorManager {
                 .await
                 {
                     Ok(pruned_side_view) => {
-                        let pruned_side_view = pruned_side_view.or(side_view);
                         debug!("Pruned stale side_view entries: {pruned_side_view:?}");
                         Some((base_path, pruned_side_view))
                     }

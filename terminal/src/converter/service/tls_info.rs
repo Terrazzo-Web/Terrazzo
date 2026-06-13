@@ -32,8 +32,7 @@ async fn add_tls_info_impl(input: &str, add: &mut impl AddConversionFn) -> Resul
 
     let tls: TlsStream<&mut BufferedStream> = {
         let mut root_store = RootCertStore::empty();
-        root_store
-            .add_parsable_certificates(rustls_native_certs::load_native_certs().certs.into_iter());
+        root_store.add_parsable_certificates(rustls_native_certs::load_native_certs().certs);
 
         let mut client_config = ClientConfig::builder_with_protocol_versions(&[&TLS12])
             .with_root_certificates(root_store)

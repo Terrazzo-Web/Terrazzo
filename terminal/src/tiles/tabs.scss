@@ -1,10 +1,15 @@
 div.tabbed-tile {
     height: 100%;
     width: 100%;
+    min-height: 0;
+    min-width: 0;
 }
 
 div.tile-tabs {
     height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
     --link-underline-thickness: 4px;
 }
 
@@ -27,6 +32,9 @@ div.tile-tab-titles {
 
 li.tile-tab-title {
     height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
 
     padding-top: calc(var(--padding) - var(--link-underline-thickness));
     padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
@@ -49,20 +57,31 @@ li.tile-tab-title {
 }
 
 div.tile-tab-items {
-    flex: 1;
+    height: 100%;
+    width: 100%;
     min-height: 0;
+    min-width: 0;
 
     &>ul {
         height: 100%;
+        width: 100%;
+        min-height: 0;
+        min-width: 0;
 
         &>li {
             height: 100%;
+            width: 100%;
+            min-height: 0;
+            min-width: 0;
         }
     }
 }
 
 li.tile-tab-item {
     height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
 }
 
 div.add-tile-tab {
@@ -79,5 +98,13 @@ div.add-tile-tab {
     img {
         @include trz-icon;
         filter: invert(1);
+    }
+
+    &:hover {
+        img {
+            filter: invert(0);
+        }
+
+        background-color: var(--link-color);
     }
 }

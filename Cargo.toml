@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.3"
+version = "0.2.9"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,33 +58,34 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.3", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.3", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.3", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.3", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.3", path = "framework/build" }
-terrazzo-client = { version = "0.2.3", path = "framework/client" }
-terrazzo-css = { version = "0.2.3", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.3", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.3", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.3", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.3", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.3", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.3", path = "pty" }
-terrazzo-synctex = { version = "0.2.3", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.3", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.3", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.3", path = "remote/client" }
-trz-gateway-common = { version = "0.2.3", path = "remote/common" }
-trz-gateway-server = { version = "0.2.3", path = "remote/server" }
+autoclone = { version = "0.2.9", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.9", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.9", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.9", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.9", path = "framework/build" }
+terrazzo-client = { version = "0.2.9", path = "framework/client" }
+terrazzo-css = { version = "0.2.9", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.9", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.9", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.9", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.9", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.9", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.9", path = "pty" }
+terrazzo-synctex = { version = "0.2.9", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.9", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.9", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.9", path = "remote/client" }
+trz-gateway-common = { version = "0.2.9", path = "remote/common" }
+trz-gateway-server = { version = "0.2.9", path = "remote/server" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
 base64 = { version = "0.22.1" }
-bitflags = { version = "2.11.1" }
+bitflags = { version = "2.13.0" }
 bytes = { version = "1.11.1" }
-cc = { version = "1.2.62" }
+cc = { version = "1.2.63" }
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }
@@ -96,15 +97,15 @@ futures = { version = "0.3.32" }
 heck = { version = "0.5.0" }
 hickory-client = { version = "0.25.2", features = ["serde"] }
 hostname = { version = "0.4.2" }
-http = { version = "1.4.0" }
+http = { version = "1.4.2" }
 http-body-util = { version = "0.1.3" }
 humantime = { version = "2.3.0" }
-hyper = { version = "1.9.0" }
+hyper = { version = "1.10.1" }
 hyper-util = { version = "0.1.20" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.24" }
-jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.186" }
 lru = { version = "0.18.0" }
 mime = { version = "0.3.17" }
@@ -119,21 +120,21 @@ pin-project = { version = "1.1.13" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.106" }
-prost = { version = "0.14.3" }
-prost-types = { version = "0.14.3" }
+prost = { version = "0.14.4" }
+prost-types = { version = "0.14.4" }
 quote = { version = "1.0.45" }
-rcgen = { version = "0.14.7" }
-regex = { version = "1.12.3" }
-reqwest = { version = "0.13.3" }
+rcgen = { version = "0.14.8" }
+regex = { version = "1.12.4" }
+reqwest = { version = "0.13.4" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
-rpassword = { version = "7.5.3" }
+rpassword = { version = "7.5.4" }
 rsass = { version = "0.29.2" }
 rsass-macros = { version = "0.29.0" }
 runfiles = { version = "0.2.0" }
 rustix = { version = "1.1.4" }
 rustls = { version = "0.23.40" }
-rustls-native-certs = { version = "0.8.3" }
+rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde-wasm-bindgen = { version = "0.6.5" }
@@ -170,14 +171,14 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
-uuid = { version = "1.23.1", features = ["fast-rng", "v4"] }
+uuid = { version = "1.23.3", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }
-wasm-bindgen = { version = "0.2.121" }
-wasm-bindgen-cli = { version = "0.2.121" }
-wasm-bindgen-futures = { version = "0.4.71" }
-wasm-bindgen-test = { version = "0.3.71" }
+wasm-bindgen = { version = "0.2.122" }
+wasm-bindgen-cli = { version = "0.2.122" }
+wasm-bindgen-futures = { version = "0.4.72" }
+wasm-bindgen-test = { version = "0.3.72" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.98" }
+web-sys = { version = "0.3.99" }
 winnow = { version = "1.0.3" }
 x509-parser = { version = "0.18.1" }
 

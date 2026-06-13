@@ -1,5 +1,8 @@
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum App {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "Z"))]
+    Default,
+
     #[cfg(feature = "terminal")]
     #[default]
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "T"))]
@@ -27,6 +30,7 @@ pub enum App {
 impl std::fmt::Display for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            App::Default => "Default",
             #[cfg(feature = "terminal")]
             App::Terminal => "Terminal",
             #[cfg(feature = "text-editor")]

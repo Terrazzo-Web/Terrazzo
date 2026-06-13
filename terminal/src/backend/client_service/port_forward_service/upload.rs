@@ -14,7 +14,6 @@ use tonic::transport::Body;
 use tracing::Instrument as _;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
 use super::RequestDataStream;
 use super::listeners::EndpointId;
@@ -22,6 +21,7 @@ use super::stream::GetLocalStream;
 use super::stream::GrpcStream;
 use super::stream::GrpcStreamError;
 use super::stream::stream;
+use crate::backend::Server;
 use crate::backend::protos::terrazzo::portforward::PortForwardDataRequest;
 use crate::backend::protos::terrazzo::portforward::PortForwardDataResponse;
 use crate::backend::protos::terrazzo::portforward::port_forward_service_client::PortForwardServiceClient;

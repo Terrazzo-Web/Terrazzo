@@ -7,8 +7,8 @@ use tracing::debug;
 use tracing::debug_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
+use crate::backend::Server;
 use crate::backend::protos::terrazzo::shared::ClientAddress;
 use crate::backend::protos::terrazzo::shared::ListRemotesRequest;
 use crate::backend::protos::terrazzo::shared::shared_service_client::SharedServiceClient;

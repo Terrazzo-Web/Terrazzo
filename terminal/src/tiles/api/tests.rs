@@ -12,6 +12,7 @@ fn add_remove() {
         id: TileId::for_test(1),
         app: Default::default(),
         remote: Default::default(),
+        title: Default::default(),
     }));
 
     let tree = add_node_for_tests(
@@ -54,6 +55,7 @@ fn missing_remote_defaults_to_local() {
     .unwrap();
 
     assert!(tile.remote.is_empty());
+    assert_eq!("", tile.title);
 }
 
 fn assert_tree(tree: &Tiles, expected_direction: Direction, expected_tile_ids: &[i64]) {

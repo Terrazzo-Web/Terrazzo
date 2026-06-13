@@ -8,6 +8,8 @@ use futures::future::Either;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use reqwest::Url;
+use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
 use tokio::time::error::Elapsed;
@@ -24,6 +26,8 @@ use trz_gateway_common::protos::terrazzo::remote::health::health_service_server:
 use trz_gateway_common::to_async_io::WebSocketIo;
 
 use self::tungstenite::client::IntoClientRequest as _;
+use super::config::SniOverrideError;
+use super::config::set_sni_override;
 use super::connection::Connection;
 use super::health::HealthServiceImpl;
 
@@ -36,20 +40,28 @@ impl super::Client {
         timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
-        info!(uri = self.uri, "Connecting WebSocket");
+        info!(uri = self.uri, sni = ?self.sni_override, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let mut websocket_uri = format!("ws{}", &self.uri["http".len()..])
+        let request = format!("ws{}", &self.uri["http".len()..])
             .into_client_request()
             .map_err(Box::from)?;
-        websocket_uri
+        let mut tls_request = websocket_url(&self.uri, self.sni_override.as_deref())?
+            .as_str()
+            .into_client_request()
+            .map_err(Box::from)?;
+        tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let (web_socket, response) = tokio_tungstenite::connect_async_tls_with_config(
-            websocket_uri,
+        let socket = connect_tcp(&request, disable_nagle)
+            .timeout(timeout)
+            .await
+            .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??;
+        let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
+            tls_request,
+            socket,
             web_socket_config,
-            disable_nagle,
             Some(self.tls_client.clone()),
         )
         .timeout(timeout)
@@ -129,6 +141,38 @@ trait HasTimeout: Future + Sized {
 
 impl<T: Future + Sized> HasTimeout for T {}
 
+fn websocket_url(uri: &str, sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
+    let mut url = Url::parse(&format!("ws{}", &uri["http".len()..]))?;
+    set_sni_override(&mut url, sni_override)?;
+    Ok(url)
+}
+
+async fn connect_tcp(
+    request: &tungstenite::handshake::client::Request,
+    disable_nagle: bool,
+) -> Result<TcpStream, ConnectError> {
+    let host = request
+        .uri()
+        .host()
+        .ok_or(ConnectError::MissingEndpointHost)?;
+    let port = request
+        .uri()
+        .port_u16()
+        .or_else(|| match request.uri().scheme_str() {
+            Some("wss") => Some(443),
+            Some("ws") => Some(80),
+            _ => None,
+        })
+        .ok_or(ConnectError::MissingEndpointPort)?;
+    let socket = TcpStream::connect((host, port))
+        .await
+        .map_err(ConnectError::TcpConnect)?;
+    if disable_nagle {
+        socket.set_nodelay(true).map_err(ConnectError::TcpConnect)?;
+    }
+    Ok(socket)
+}
+
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -138,6 +182,18 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     Connect(#[from] Box<tungstenite::Error>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    SniOverride(#[from] SniOverrideError),
+
+    #[error("[{n}] The Gateway endpoint must include a host", n = self.name())]
+    MissingEndpointHost,
+
+    #[error("[{n}] The Gateway endpoint must include or imply a port", n = self.name())]
+    MissingEndpointPort,
+
+    #[error("[{n}] {0}", n = self.name())]
+    TcpConnect(std::io::Error),
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),

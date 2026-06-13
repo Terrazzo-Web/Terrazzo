@@ -1,5 +1,8 @@
 use std::num::NonZero;
 
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
+
 // Basic
 #[derive(Clone, Copy, Debug)]
 // Serialization-Deserialization support
@@ -7,6 +10,7 @@ use std::num::NonZero;
 #[serde(transparent)]
 // HashMap support
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[nameth]
 pub struct TileId(NonZero<i64>);
 
 impl TileId {
@@ -25,6 +29,27 @@ impl TileId {
     #[cfg(all(test, feature = "server"))]
     pub const fn for_test(id: i64) -> Self {
         Self(NonZero::new(id).unwrap())
+    }
+}
+
+impl TryFrom<i64> for TileId {
+    type Error = TileIdError;
+
+    fn try_from(id: i64) -> Result<Self, Self::Error> {
+        NonZero::new(id).map(Self).ok_or(TileIdError::Zero)
+    }
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum TileIdError {
+    #[error("[{}] Invalid null {TILE_ID}", self.name())]
+    Zero,
+}
+
+impl From<TileId> for i64 {
+    fn from(id: TileId) -> Self {
+        id.0.get()
     }
 }
 

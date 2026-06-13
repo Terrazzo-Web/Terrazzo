@@ -30,6 +30,18 @@ pub struct Cli {
     #[arg(long)]
     pub ports: Vec<u16>,
 
+    /// The shell command to run for new terminals.
+    #[arg(long)]
+    pub terminal_shell: Option<String>,
+
+    /// The folder where deleted text-editor files are moved.
+    #[arg(long)]
+    pub trash: Option<PathBuf>,
+
+    /// The folder, relative to a Git repository root, where deleted Git files are moved.
+    #[arg(long)]
+    pub git_trash: Option<PathBuf>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,
@@ -49,6 +61,10 @@ pub struct Cli {
     /// If using mesh: the Gateway endpoint
     #[arg(long)]
     pub gateway_url: Option<String>,
+
+    /// If using mesh: the TLS server name to validate for the Gateway endpoint
+    #[arg(long)]
+    pub sni_override: Option<String>,
 
     /// If using mesh: the Gateway CA
     #[arg(long)]

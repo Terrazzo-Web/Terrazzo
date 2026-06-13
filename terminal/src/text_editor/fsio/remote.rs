@@ -1,25 +1,84 @@
 #![cfg(feature = "server")]
 
-use std::future::ready;
+use std::convert::Infallible;
+use std::path::Path;
 use std::sync::Arc;
 
+use super::CursorPosition;
 use super::File;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::file_path::FilePath;
+use crate::text_editor::side::SideViewNode;
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct LoadFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct ListFolderRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct FileExistsRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct PruneSideViewRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "b"))]
+    pub base: Arc<Path>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
+    pub node: Arc<SideViewNode<()>>,
 }
 
 #[derive(Debug, serde::Serialize, serde:: Deserialize)]
 pub struct StoreFileRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub path: FilePath<Arc<str>>,
+    pub path: FilePath<Arc<Path>>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
     pub content: String,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct LoadCursorPositionRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct StoreCursorPositionRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
+    pub position: CursorPosition,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct CreateEntryRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
+    pub name: String,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct MoveFileRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
+    pub source: FilePath<Arc<Path>>,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
+    pub destination_folder: FilePath<Arc<Path>>,
+}
+
+#[derive(Debug, serde::Serialize, serde:: Deserialize)]
+pub struct DeleteFileRequest {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
+    pub path: FilePath<Arc<Path>>,
 }
 
 remote_fn_service::unary::declare_remote_fn!(
@@ -27,9 +86,104 @@ remote_fn_service::unary::declare_remote_fn!(
     super::LOAD_FILE,
     LoadFileRequest,
     Option<File>,
-    |_server, arg: LoadFileRequest| {
-        let result = super::service::load_file(arg.path);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: LoadFileRequest| async {
+        let result = super::service::load_file(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    LOAD_FILE_METADATA_REMOTE_FN,
+    super::LOAD_FILE_METADATA,
+    LoadFileRequest,
+    Option<File>,
+    |_server, arg: LoadFileRequest| async {
+        let result = super::service::load_file_metadata(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    LIST_FOLDER_REMOTE_FN,
+    super::LIST_FOLDER,
+    ListFolderRequest,
+    Option<Arc<Vec<super::FileMetadata>>>,
+    |_server, arg: ListFolderRequest| async {
+        let result = super::service::list_folder(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    FILE_EXISTS_REMOTE_FN,
+    super::FILE_EXISTS,
+    FileExistsRequest,
+    bool,
+    |_server, arg: FileExistsRequest| async {
+        let result = super::service::file_exists(arg.path).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    PRUNE_SIDE_VIEW_REMOTE_FN,
+    super::PRUNE_SIDE_VIEW,
+    PruneSideViewRequest,
+    Option<Arc<SideViewNode<()>>>,
+    |_server, arg: PruneSideViewRequest| async {
+        let result = super::service::prune_side_view(arg.base, arg.node).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    CREATE_FILE_REMOTE_FN,
+    super::CREATE_FILE,
+    CreateEntryRequest,
+    (),
+    |_server, arg: CreateEntryRequest| async {
+        let result = super::service::create_file(arg.path, arg.name).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    CREATE_FOLDER_REMOTE_FN,
+    super::CREATE_FOLDER,
+    CreateEntryRequest,
+    (),
+    |_server, arg: CreateEntryRequest| async {
+        let result = super::service::create_folder(arg.path, arg.name).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    MOVE_FILE_REMOTE_FN,
+    super::MOVE_FILE,
+    MoveFileRequest,
+    (),
+    |_server, arg: MoveFileRequest| async {
+        let result = super::service::move_file(arg.source, arg.destination_folder).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    DELETE_FILE_REMOTE_FN,
+    super::DELETE_FILE,
+    DeleteFileRequest,
+    (),
+    |server, arg: DeleteFileRequest| {
+        let server = server.clone();
+        async move {
+            let (trash, git_trash) = server
+                .config()
+                .server
+                .with(|server| (server.trash.clone(), server.git_trash.clone()));
+            let result = super::service::delete_file(arg.path, trash, git_trash).await;
+            result.map_err(GrpcError::from)
+        }
     }
 );
 
@@ -38,8 +192,29 @@ remote_fn_service::unary::declare_remote_fn!(
     super::STORE_FILE_IMPL,
     StoreFileRequest,
     (),
-    |_server, arg: StoreFileRequest| {
-        let result = super::service::store_file(arg.path, arg.content);
-        ready(result.map_err(GrpcError::from))
+    |_server, arg: StoreFileRequest| async {
+        let result = super::service::store_file(arg.path, arg.content).await;
+        result.map_err(GrpcError::from)
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    LOAD_CURSOR_POSITION_REMOTE_FN,
+    super::LOAD_CURSOR_POSITION,
+    LoadCursorPositionRequest,
+    Option<CursorPosition>,
+    |_server, arg: LoadCursorPositionRequest| async move {
+        Ok::<_, GrpcError<Infallible>>(super::cursor_positions::load(arg.path))
+    }
+);
+
+remote_fn_service::unary::declare_remote_fn!(
+    STORE_CURSOR_POSITION_REMOTE_FN,
+    super::STORE_CURSOR_POSITION,
+    StoreCursorPositionRequest,
+    (),
+    |_server, arg: StoreCursorPositionRequest| async move {
+        let () = super::cursor_positions::store(arg.path, arg.position);
+        Ok::<_, GrpcError<Infallible>>(())
     }
 );

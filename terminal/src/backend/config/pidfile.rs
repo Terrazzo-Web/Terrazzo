@@ -46,7 +46,7 @@ impl ServerConfig {
     }
 
     fn pid_filepath(&self) -> &std::path::Path {
-        std::path::Path::new(&self.pidfile)
+        &self.pidfile
     }
 }
 

@@ -33,7 +33,7 @@ use crate::api::client::request::SendRequestError;
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
 use crate::api::shared::terminal_schema::TerminalDef;
-use crate::terminal::TerminalsState;
+use crate::terminal::ui::TerminalsState;
 use crate::terminal_id::TerminalId;
 
 mod ack;

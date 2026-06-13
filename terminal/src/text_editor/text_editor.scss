@@ -16,7 +16,8 @@ div.text_editor {
             align-items: center;
             width: 100%;
 
-            img.path-selector-icon {
+            img.path-selector-icon,
+            img.create-entry-icon {
                 @include trz-icon;
                 margin-left: var(--padding);
                 margin-right: var(--padding);
@@ -27,6 +28,13 @@ div.text_editor {
                     background-color: var(--link-color);
                     cursor: pointer;
                 }
+            }
+
+            img.create-entry-icon:hover,
+            img.create-entry-icon.active {
+                filter: invert(0);
+                background-color: var(--link-color);
+                cursor: pointer;
             }
 
             div.path-selector-widget {
@@ -65,6 +73,28 @@ div.text_editor {
             margin-left: var(--padding);
             margin-right: var(--padding);
         }
+
+        img.refresh-editor,
+        img.toggle-editor-diff,
+        img.toggle-html-preview {
+            @include trz-icon;
+            margin-left: var(--padding);
+            margin-right: var(--padding);
+            padding: 3px;
+
+            &:hover {
+                filter: invert(0);
+                background-color: var(--link-color);
+                cursor: pointer;
+            }
+        }
+
+        img.toggle-editor-diff.active,
+        img.toggle-html-preview.active {
+            filter: invert(0);
+            background-color: var(--link-color);
+            cursor: pointer;
+        }
     }
 
     div.body {
@@ -83,9 +113,21 @@ div.text_editor {
             flex: 1 1 auto;
 
             div.editor {
+                position: relative;
                 height: 100%;
                 width: 100%;
-                overflow-y: auto;
+                min-height: 0;
+                overflow: hidden;
+
+                :global(.cm-editor),
+                :global(.cm-mergeView) {
+                    height: 100%;
+                    min-height: 0;
+                }
+
+                :global(.cm-scroller) {
+                    overflow: auto;
+                }
             }
         }
     }

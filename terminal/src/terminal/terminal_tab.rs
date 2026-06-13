@@ -20,16 +20,17 @@ use self::diagnostics::Level;
 use self::diagnostics::debug;
 use self::diagnostics::enabled;
 use self::diagnostics::warn;
-use super::TerminalsState;
 use super::attach;
 use super::javascript::TerminalJs;
-use super::style;
+use super::ui::TerminalsState;
 use crate::api::client::terminal_api;
 use crate::api::client::terminal_api::LiveTerminalDef;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
+use crate::frontend::input_overlay::input_overlay;
+use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
 
 #[nameth]
@@ -55,6 +56,7 @@ impl TerminalTab {
             address,
             title,
             order,
+            tile,
         } = terminal_definition;
         let terminal_id = &address.id;
         let selected = {
@@ -108,6 +110,7 @@ impl TerminalTab {
                 address,
                 title,
                 order,
+                tile,
             },
             selected,
             xtermjs: Mutex::new(None),
@@ -154,7 +157,7 @@ impl TabDescriptor for TerminalTab {
         });
         let close_button = img(
             key = "close-icon",
-            class = super::style::CLOSE_ICON,
+            class = style::CLOSE_ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "close-icon",
             src = icons::close_tab(),
@@ -173,13 +176,40 @@ impl TabDescriptor for TerminalTab {
         div([title_link, close_button]..)
     }
 
+    #[autoclone]
     #[html]
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
         let this = self.clone();
         let state = state.clone();
+        let send_to_terminal: Ptr<dyn Fn(String)> = Ptr::new(move |data| {
+            autoclone!(this);
+            let terminal = this.address.clone();
+            spawn_local(async move {
+                if let Err(error) = terminal_api::write::write(&terminal, format!("{data}\n")).await
+                {
+                    warn!("Failed to write input overlay text to the terminal: {error}");
+                }
+            });
+        });
+        let focus_terminal: Ptr<dyn Fn()> = Ptr::new(move || {
+            autoclone!(this);
+            if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+                xtermjs.focus();
+            }
+        });
         div(
+            mouseenter = move |_| {
+                autoclone!(this);
+                if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+                    xtermjs.focus();
+                }
+            },
             class = style::TERMINAL,
-            div(move |template| attach::attach(template, state.clone(), this.clone())),
+            div(move |template| {
+                autoclone!(this);
+                attach::attach(template, state.clone(), this.clone())
+            }),
+            input_overlay(send_to_terminal, focus_terminal),
         )
     }
 
@@ -210,6 +240,7 @@ impl TerminalTabInner {
             address: self.address.clone(),
             title: self.title.get_value_untracked().map(|t| t.to_string()),
             order: self.order,
+            tile: self.tile,
         }
     }
 }
@@ -266,7 +297,7 @@ impl std::fmt::Debug for TerminalTab {
 
 impl PartialEq for TerminalTabInner {
     fn eq(&self, other: &Self) -> bool {
-        self.address.id == other.address.id
+        self.address.id == other.address.id && self.tile == other.tile
     }
 }
 

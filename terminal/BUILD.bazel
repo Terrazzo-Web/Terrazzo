@@ -157,16 +157,64 @@ playwright_matrix_test(
 )
 
 playwright_matrix_test(
-    extra_data = ["tests/PlantUML.pdf"],
+    extra_data = ["tests/text-editor-helpers.mjs"],
     overrides = {
-        "text-editor-integration-test-debug": {
+        "text-editor-basic-integration-test-debug": {
             "target_server": ":text-editor-server-debug",
         },
-        "text-editor-integration-test-release": {
+        "text-editor-basic-integration-test-release": {
             "target_server": ":text-editor-server",
             "tags": ["opt_mode"],
         },
     },
     server = "//terminal/integration:exec",
-    test = "tests/integration-test-text-editor.spec.mjs",
+    test = "tests/integration-test-text-editor-basic.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "text-editor-file-ops-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "text-editor-file-ops-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-text-editor-file-ops.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "text-editor-upload-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "text-editor-upload-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-text-editor-upload.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = [
+        "tests/PlantUML.pdf",
+        "tests/text-editor-helpers.mjs",
+    ],
+    overrides = {
+        "text-editor-viewer-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "text-editor-viewer-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-text-editor-viewer.spec.mjs",
 )

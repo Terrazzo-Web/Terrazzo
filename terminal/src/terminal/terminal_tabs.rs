@@ -6,8 +6,8 @@ use terrazzo::prelude::*;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsState;
 
-use super::TerminalsState;
 use super::terminal_tab::TerminalTab;
+use super::ui::TerminalsState;
 use crate::api::client_address::ClientAddress;
 use crate::assets::icons;
 use crate::frontend::menu::menu;
@@ -49,10 +49,10 @@ impl TabsDescriptor for TerminalTabs {
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
         let remotes_state = RemotesState::new();
         [div(
+            key = "add-tab-icon",
             class = style::ADD_TAB_ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "add-tab-icon",
-            key = "add-tab-icon",
             div(
                 class %= add_tab::active(remotes_state.remotes.clone()),
                 img(src = icons::add_tab()),
@@ -104,5 +104,13 @@ impl TabsState for TerminalsState {
 
     fn move_tab(&self, after_tab: Option<TerminalTab>, moved_tab_key: String) {
         move_tab::move_tab(self.clone(), after_tab, moved_tab_key)
+    }
+
+    fn drag_key() -> &'static str {
+        "terminal_id"
+    }
+
+    fn zone_id(&self) -> Option<String> {
+        format!("tile_id:{}", self.tile.id).into()
     }
 }

@@ -10,6 +10,7 @@ PLAYWRIGHT_ROOT="${4:?${USAGE}}"
 NODE_BIN="${5:?${USAGE}}"
 NPX_BIN="${6:?${USAGE}}"
 TEST_SPEC="${7:?${USAGE}}"
+shift 7
 
 SERVER_BIN="${TEST_SRCDIR}/${TEST_WORKSPACE}/${SERVER_BIN}"
 TERRAZZO_SERVER_MANIFEST="${TEST_SRCDIR}/${TEST_WORKSPACE}/${TERRAZZO_SERVER_MANIFEST}"
@@ -79,8 +80,11 @@ for _ in $(seq 1 30); do
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"
     ln -s "${PLAYWRIGHT_ROOT}/package-lock.json" "package-lock.json"
+    for helper in "$(dirname "${TEST_SPEC}")"/*.mjs; do
+      cp "${helper}" "$(basename "${helper}")"
+    done
     cp "${TEST_SPEC}" "$(basename "${TEST_SPEC}")"
-    BAZEL=1 BASE_URL="${SERVER_URLS}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" \
+    BAZEL=1 BASE_URL="${SERVER_URLS}" "${NPX_BIN}" playwright test "$(basename "${TEST_SPEC}")" "$@" \
       || (cat "${SERVER_LOG}" >&2 ; exit 1)
     exit 0
   fi

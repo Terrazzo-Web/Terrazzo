@@ -33,6 +33,7 @@ rust_rules_matrix(
         "//utils/css/css",
         "//utils/nameth/nameth",
         "@crates//:futures",
+        "@crates//:pin-project",
         "@crates//:scopeguard",
         "@crates//:thiserror",
         "@crates//:wasm-bindgen",
@@ -51,9 +52,6 @@ rust_rules_matrix(
     ],
     crate_features = ["server"],
     crate_name = "terrazzo",
-    deps_dev = [
-        "@crates//:scopeguard",
-    ],
     deps_proc_macro = [
         "//framework/macro:server",
         "//utils/autoclone/autoclone",

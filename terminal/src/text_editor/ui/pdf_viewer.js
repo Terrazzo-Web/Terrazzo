@@ -154,7 +154,10 @@ class PdfJsImpl {
         const textLayerElement = document.createElement("div");
         textLayerElement.dataset.layer = "text";
 
-        pageElement.append(canvas, textLayerElement);
+        const annotationLayerElement = document.createElement("div");
+        annotationLayerElement.dataset.layer = "annotations";
+
+        pageElement.append(canvas, textLayerElement, annotationLayerElement);
         this.documentElement.appendChild(pageElement);
 
         const canvasContext = canvas.getContext("2d");
@@ -164,11 +167,14 @@ class PdfJsImpl {
             container: textLayerElement,
             viewport,
         });
+        const annotations = page
+            .getAnnotations({ intent: "display" })
+            .then((annotations) => this.renderLinks(annotationLayerElement, annotations, viewport));
         const tasks = { renderTask, textLayer };
         this.activePageTasks.add(tasks);
 
         try {
-            await Promise.all([renderTask.promise, textLayer.render()]);
+            await Promise.all([renderTask.promise, textLayer.render(), annotations]);
         } catch (error) {
             if (generation === this.generation) {
                 throw error;
@@ -176,6 +182,107 @@ class PdfJsImpl {
         } finally {
             this.activePageTasks.delete(tasks);
         }
+    }
+
+    renderLinks(layerElement, annotations, viewport) {
+        const linkType = this.pdfjsLib.AnnotationType.LINK;
+        for (const annotation of annotations) {
+            if (annotation.annotationType !== linkType || !annotation.rect) {
+                continue;
+            }
+
+            const externalHref = annotation.url ?? annotation.unsafeUrl;
+            const href = externalHref ?? this.destinationHref(annotation.dest);
+            if (!href) {
+                continue;
+            }
+
+            const rect = viewport.convertToViewportRectangle(annotation.rect);
+            const left = Math.min(rect[0], rect[2]);
+            const top = Math.min(rect[1], rect[3]);
+            const width = Math.abs(rect[0] - rect[2]);
+            const height = Math.abs(rect[1] - rect[3]);
+            if (!width || !height) {
+                continue;
+            }
+
+            const link = document.createElement("a");
+            link.href = href;
+            link.title = href;
+            link.style.left = `${left}px`;
+            link.style.top = `${top}px`;
+            link.style.width = `${width}px`;
+            link.style.height = `${height}px`;
+            if (externalHref) {
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+            } else {
+                link.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    this.scrollToDestination(annotation.dest);
+                });
+            }
+            layerElement.appendChild(link);
+        }
+    }
+
+    async scrollToDestination(destination) {
+        const explicitDestination = typeof destination === "string"
+            ? await this.pdf.getDestination(destination)
+            : destination;
+        if (!explicitDestination?.length) {
+            return;
+        }
+
+        const pageNumber = await this.destinationPageNumber(explicitDestination[0]);
+        if (!pageNumber) {
+            return;
+        }
+
+        const pageElement = this.documentElement?.querySelector(`div[data-page-number="${pageNumber}"]`);
+        if (!pageElement) {
+            return;
+        }
+
+        const scrollTop = await this.destinationScrollTop(pageElement, pageNumber, explicitDestination);
+        this.scrollElement.scrollTo({ top: scrollTop, behavior: "smooth" });
+    }
+
+    async destinationPageNumber(pageReference) {
+        if (Number.isInteger(pageReference)) {
+            return pageReference + 1;
+        }
+
+        try {
+            return await this.pdf.getPageIndex(pageReference) + 1;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async destinationScrollTop(pageElement, pageNumber, explicitDestination) {
+        const destinationKind = explicitDestination[1]?.name;
+        const destinationTop = explicitDestination[3];
+        if ((destinationKind !== "XYZ" && destinationKind !== "FitH" && destinationKind !== "FitBH")
+            || typeof destinationTop !== "number") {
+            return pageElement.offsetTop;
+        }
+
+        const page = await this.pdf.getPage(pageNumber);
+        const unscaledViewport = page.getViewport({ scale: 1 });
+        const scale = pageElement.getBoundingClientRect().width / unscaledViewport.width;
+        const viewport = page.getViewport({ scale });
+        return pageElement.offsetTop + viewport.convertToViewportPoint(0, destinationTop)[1];
+    }
+
+    destinationHref(destination) {
+        if (!destination) {
+            return null;
+        }
+        if (typeof destination === "string") {
+            return `#${encodeURIComponent(destination)}`;
+        }
+        return `#${encodeURIComponent(JSON.stringify(destination))}`;
     }
 
     totalScaleFactor(viewport) {

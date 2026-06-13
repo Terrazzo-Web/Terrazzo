@@ -26,7 +26,6 @@ use crate::text_editor::rust_lang::service::CargoCheckError;
 use crate::text_editor::rust_lang::service::cargo_check;
 use crate::text_editor::rust_lang::synthetic::SyntheticDiagnostic;
 use crate::utils::async_throttle::Throttle;
-use crate::utils::more_path::MorePath;
 
 pub struct ExtendedWatcher {
     inotify: RecommendedWatcher,
@@ -152,7 +151,7 @@ impl CargoWorkspaces {
                             Err(error) => return warn!("Cargo check failed with: {error}"),
                         };
                         let _ = tx.send(Ok(NotifyResponse {
-                            path: cargo_path.to_owned_string(),
+                            path: cargo_path,
                             kind: EventKind::CargoCheck(diagnostics.into()),
                         }));
                     };

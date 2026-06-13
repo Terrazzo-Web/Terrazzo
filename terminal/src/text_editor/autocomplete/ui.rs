@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -18,6 +19,7 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::info;
 use super::server_fn::AutocompleteItem;
 use super::server_fn::autocomplete_path;
+use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::path_selector::schema::PathSelector;
 use crate::text_editor::style;
@@ -28,11 +30,11 @@ use crate::text_editor::style;
 pub fn show_autocomplete(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete_sig: XSignal<Option<Vec<AutocompleteItem>>>,
     #[signal] autocomplete: Option<Vec<AutocompleteItem>>,
-    path: XSignal<Arc<str>>,
+    path: XSignal<Arc<Path>>,
 ) -> XElement {
     let Some(autocomplete) = autocomplete else {
         return tag(style::visibility = "hidden", style::display = "none");
@@ -41,6 +43,7 @@ pub fn show_autocomplete(
         let item_display = if item.is_dir && item.path != "/" {
             format!("{}/", item.path)
         } else if item.path.trim().is_empty() {
+            // Unicode character U+00A0, called NO-BREAK SPACE.
             "\u{00A0}".into()
         } else {
             item.path.to_owned()
@@ -53,7 +56,7 @@ pub fn show_autocomplete(
                 ev.stop_propagation();
                 {
                     input.with(|i| i.set_value(&item.path));
-                    path.set(item.path.as_str());
+                    path.set(Arc::from(Path::new(item.path.as_str().trim())));
                 }
                 do_autocomplete_impl(
                     manager.clone(),
@@ -68,16 +71,20 @@ pub fn show_autocomplete(
     tag(class = style::PATH_SELECTOR_AUTOCOMPLETE, items..)
 }
 
+#[autoclone]
 pub fn start_autocomplete(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
+    path: XSignal<Arc<Path>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
     move |_| {
-        let input_element_blur = scopeguard::guard(input.clone(), |input| {
-            let () = input.get().blur().or_throw("Can't blur() input element");
+        info!("Start autocomplete {kind:?}");
+        let input_element_blur = scopeguard::guard(input.clone(), move |input| {
+            autoclone!(path, autocomplete);
+            do_stop_autocomplete(kind, &path, &input, &autocomplete);
         });
         let before_menu = &manager.tile.menu.before;
         before_menu.add(move || drop(input_element_blur));
@@ -93,16 +100,27 @@ pub fn start_autocomplete(
 }
 
 pub fn stop_autocomplete(
-    path: XSignal<Arc<str>>,
+    kind: PathSelector,
+    path: XSignal<Arc<Path>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) -> impl Fn(FocusEvent) {
-    move |_| {
-        let value = input.with(|i| i.value());
-        info!("Update path to {value}");
-        path.set(value);
-        autocomplete.set(None);
-    }
+    move |_| do_stop_autocomplete(kind, &path, &input, &autocomplete)
+}
+
+pub fn do_stop_autocomplete(
+    kind: PathSelector,
+    path: &XSignal<Arc<Path>>,
+    input: &ElementCapture<HtmlInputElement>,
+    autocomplete: &XSignal<Option<Vec<AutocompleteItem>>>,
+) {
+    let Some(value) = input.try_with(|i| i.value()) else {
+        return;
+    };
+    let value = value.trim();
+    info!("Update {kind:?} path to {value}");
+    path.set(Arc::from(Path::new(value)));
+    autocomplete.set(None);
 }
 
 pub fn do_autocomplete(
@@ -110,7 +128,7 @@ pub fn do_autocomplete(
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
 ) -> impl Fn(()) {
     Duration::from_millis(250).debounce(move |()| {
         do_autocomplete_impl(
@@ -127,7 +145,7 @@ pub fn do_autocomplete(
 fn do_autocomplete_impl(
     manager: Ptr<TextEditorManager>,
     kind: PathSelector,
-    prefix: Option<XSignal<Arc<str>>>,
+    prefix: Option<XSignal<Arc<Path>>>,
     input: ElementCapture<HtmlInputElement>,
     autocomplete: XSignal<Option<Vec<AutocompleteItem>>>,
 ) {
@@ -140,7 +158,7 @@ fn do_autocomplete_impl(
             prefix
                 .as_ref()
                 .map(XSignal::get_value_untracked)
-                .unwrap_or_default(),
+                .unwrap_or(ROOT_FILE_PATH.clone()),
             value,
         )
         .await

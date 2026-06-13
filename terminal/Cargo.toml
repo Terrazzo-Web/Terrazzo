@@ -24,6 +24,7 @@ required-features = ["server"]
 axum-extra = { workspace = true, optional = true, features = ["cookie"] }
 base64 = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 cms = { workspace = true, optional = true }
 const_format = { workspace = true, optional = true }
@@ -190,6 +191,9 @@ terminal-client = [
   "dep:wasm-streams",
   "dep:web-sys",
   "terminal",
+  "web-sys/HtmlTextAreaElement",
+  "web-sys/InputEvent",
+  "web-sys/KeyboardEvent",
 ]
 terminal-server = [
   "dep:dashmap",
@@ -197,6 +201,7 @@ terminal-server = [
   "dep:static_assertions",
   "dep:terrazzo-pty",
   "dep:tracing-futures",
+  "remote-fn-unary",
   "server",
   "terminal",
 ]
@@ -212,9 +217,14 @@ text-editor-client = [
   "remotes-ui",
   "text-editor",
   "tiles-state-client",
+  "web-sys/File",
+  "web-sys/FileList",
+  "web-sys/HtmlTextAreaElement",
+  "web-sys/InputEvent",
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [
+  "dep:chrono",
   "dep:libc",
   "dep:lru",
   "dep:notify",
@@ -289,7 +299,7 @@ logs-panel-server = [
 ]
 
 tiles-state = []
-tiles-state-client = ["tiles-state"]
+tiles-state-client = ["dep:futures", "tiles-state"]
 tiles-state-server = ["dep:const_format", "tiles-state"]
 
 remote-fn = []

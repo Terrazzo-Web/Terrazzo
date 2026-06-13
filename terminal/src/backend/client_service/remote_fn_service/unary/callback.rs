@@ -6,10 +6,10 @@ use tonic::codegen::Bytes;
 use tonic::codegen::StdError;
 use tonic::transport::Body;
 use tracing::debug;
-use trz_gateway_server::server::Server;
 
 use super::REMOTE_FNS;
 use super::RemoteFnError;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service::RemoteFnServerError;
 use crate::backend::client_service::routing::DistributedCallback;
 use crate::backend::protos::terrazzo::remotefn::RemoteFnRequest;

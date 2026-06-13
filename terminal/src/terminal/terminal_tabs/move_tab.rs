@@ -5,8 +5,8 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::warn;
 use super::TerminalTabs;
 use crate::api::client::terminal_api;
-use crate::terminal::TerminalsState;
 use crate::terminal::terminal_tab::TerminalTab;
+use crate::terminal::ui::TerminalsState;
 
 pub fn move_tab(state: TerminalsState, after_tab: Option<TerminalTab>, moved_tab_key: String) {
     let tabs = state

@@ -94,6 +94,40 @@ fn menu_items(
             show_menu_mut.clone(),
             hide_menu.clone(),
         ));
+        items.push(li(
+            class = style::SPLITS,
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "split-horizontal",
+                src = icons::split_horz(),
+                click = tile.split_horz(),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "split-vertical",
+                src = icons::split_vert(),
+                click = tile.split_vert(),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "split-tabbed",
+                src = icons::window_stack(),
+                click = tile.tabify(),
+            )),
+        ));
+        items.push(li(
+            class = style::SPLITS,
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "tile-close",
+                src = icons::close_app(),
+                click = tile.close(),
+            )),
+        ));
         tag(
             class = style::MENU_ITEMS,
             mouseover = move |_: MouseEvent| {
@@ -135,6 +169,7 @@ fn menu_item(
 impl App {
     pub fn icon(&self) -> icons::Icon {
         match self {
+            App::Default => icons::menu(),
             #[cfg(feature = "terminal")]
             App::Terminal => icons::terminal(),
             #[cfg(feature = "text-editor")]

@@ -3,20 +3,24 @@ use std::sync::Arc;
 use terrazzo::axum::extract::Json;
 use trz_gateway_common::http_error::HttpError;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 use uuid::Uuid;
 
-use crate::api::client_address::ClientAddress;
+use crate::api::shared::terminal_schema::NewTerminalRequest;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 
 pub async fn new_id(
     my_client_name: Option<ClientName>,
     server: Arc<Server>,
-    Json(client_address): Json<ClientAddress>,
+    Json(request): Json<NewTerminalRequest>,
 ) -> Result<Json<TerminalDef>, HttpError<self::terminal_service::new_id::NewIdError>> {
+    let NewTerminalRequest {
+        address: client_address,
+        tile,
+    } = request;
     let next = self::terminal_service::new_id::new_id(&server, &client_address).await?;
     let client_name = client_address.last().or(my_client_name.as_ref());
 
@@ -44,5 +48,6 @@ pub async fn new_id(
             override_title: None,
         },
         order: next,
+        tile,
     }))
 }

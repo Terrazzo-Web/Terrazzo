@@ -2,5 +2,5 @@
 
 pub mod login;
 pub mod remotes_api;
-mod request;
+pub(crate) mod request;
 pub mod terminal_api;

@@ -14,6 +14,7 @@ use crate::backend::protos::terrazzo::notify::notify_response::FileEventKind as 
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
+use crate::utils::more_path::MorePath as _;
 
 #[pin_project(project = RemoteReaderProj)]
 pub struct RemoteResponseStream(#[pin] pub HybridResponseStream);
@@ -58,7 +59,7 @@ fn poll_next_remote_some(
         ),
     };
     Ok(NotifyResponseProto {
-        path: response.path,
+        path: response.path.as_ref().to_owned_string(),
         kind: event_kind.into(),
     })
 }

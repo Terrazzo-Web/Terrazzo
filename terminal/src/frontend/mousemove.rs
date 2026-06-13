@@ -1,4 +1,4 @@
-#![cfg(any(feature = "converter", feature = "logs-panel"))]
+#![cfg(feature = "client")]
 
 use std::sync::Mutex;
 
@@ -17,9 +17,12 @@ pub struct MousemoveManagerImpl {
     start: Mutex<Option<Position>>,
     pub delta: XSignal<Option<Position>>,
     events: Mutex<Vec<RegisteredEvent<MouseEvent>>>,
+    mouseup: Option<Box<dyn Fn()>>,
 }
 
 pub use MousemoveManagerImplPtr as MousemoveManager;
+
+use crate::tiles::api::Direction;
 
 unsafe impl Send for MousemoveManager {}
 unsafe impl Sync for MousemoveManager {}
@@ -30,6 +33,17 @@ impl MousemoveManager {
             start: Default::default(),
             delta: XSignal::new("mousemove-delta", Default::default()),
             events: Default::default(),
+            mouseup: None,
+        }
+        .into()
+    }
+
+    pub fn new2(mouseup: impl Fn() + 'static) -> Self {
+        MousemoveManagerImpl {
+            start: Default::default(),
+            delta: XSignal::new("mousemove-delta", Default::default()),
+            events: Default::default(),
+            mouseup: Some(Box::new(mouseup)),
         }
         .into()
     }
@@ -57,6 +71,9 @@ impl MousemoveManager {
                 autoclone!(this);
                 *this.start.lock().or_throw("start") = None;
                 this.events.lock().or_throw("events").clear();
+                if let Some(mouseup) = &this.mouseup {
+                    mouseup()
+                }
             });
             let mouseup = RegisteredEvent::register(window.clone(), "mouseup", mouseup);
 
@@ -71,6 +88,16 @@ impl MousemoveManager {
 pub struct Position {
     pub x: i32,
     pub y: i32,
+}
+
+impl Position {
+    pub fn get(&self, direction: Direction) -> i32 {
+        match direction {
+            Direction::Horizontal => self.x,
+            Direction::Vertical => self.y,
+            Direction::Tabbed => 0,
+        }
+    }
 }
 
 impl From<MouseEvent> for Position {

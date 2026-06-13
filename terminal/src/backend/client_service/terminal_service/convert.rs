@@ -1,3 +1,4 @@
+use tracing::warn;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
@@ -12,6 +13,7 @@ use crate::backend::protos::terrazzo::terminal::RegisterTerminalRequest as Regis
 use crate::backend::protos::terrazzo::terminal::TerminalAddress as TerminalAddressProto;
 use crate::backend::protos::terrazzo::terminal::TerminalDef as TerminalDefProto;
 use crate::backend::protos::terrazzo::terminal::register_terminal_request::RegisterTerminalMode as RegisterTerminalModeProto;
+use crate::tiles::id::TileId;
 
 impl From<TerminalDefProto> for TerminalDef {
     fn from(proto: TerminalDefProto) -> Self {
@@ -22,6 +24,10 @@ impl From<TerminalDefProto> for TerminalDef {
                 override_title: proto.override_title.map(|s| s.s),
             },
             order: proto.order,
+            tile: TileId::try_from(proto.tile).unwrap_or_else(|error| {
+                warn!("{error}");
+                TileId::first_tile_id()
+            }),
         }
     }
 }
@@ -33,6 +39,7 @@ impl From<TerminalDef> for TerminalDefProto {
             shell_title: terminal_def.title.shell_title,
             override_title: terminal_def.title.override_title.map(|s| MaybeString { s }),
             order: terminal_def.order,
+            tile: terminal_def.tile.into(),
         }
     }
 }

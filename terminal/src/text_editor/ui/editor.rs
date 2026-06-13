@@ -18,9 +18,10 @@ use self::diagnostics::debug_span;
 use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
 use super::fsio;
-use super::fsio::ui::store_file;
+use super::fsio::client::store_file;
 use super::pdf_viewer::PdfJs;
 use super::style;
+use crate::frontend::input_overlay::input_overlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
@@ -28,6 +29,7 @@ use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
+use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
@@ -42,12 +44,24 @@ pub(super) enum EditorDocument {
 trait EditorBody {
     fn set_content(&self, content: String);
 
+    fn insert_text(&self, _text: String) {}
+
+    fn focus(&self) {}
+
     fn cargo_check(&self, _diagnostics: JsValue) {}
 }
 
 impl EditorBody for CodeMirrorJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
+    }
+
+    fn insert_text(&self, text: String) {
+        self.insert_text(text);
+    }
+
+    fn focus(&self) {
+        self.focus();
     }
 
     fn cargo_check(&self, diagnostics: JsValue) {
@@ -73,15 +87,115 @@ pub fn editor(
     manager: Ptr<TextEditorManager>,
     editor_state: EditorDataState,
     document: EditorDocument,
+    show_editor_diff: bool,
+    show_html_preview: bool,
 ) -> XElement {
-    let EditorDataState { path, .. } = editor_state;
+    let EditorDataState {
+        path,
+        cursor_position,
+        ..
+    } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
+    let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
+    let html_preview = match &document {
+        EditorDocument::Text { content, .. } if is_html_preview => {
+            super::html_viewer::html_viewer(content.clone())
+        }
+        _ => span(style::display = "none", style::visibility = "hidden"),
+    };
 
     // Count edits waiting (debounced) to be committed. Notifications can arrive
     // out of causal order, so don't refresh CodeMirror while local edits are pending.
     let writing = Arc::new(AtomicU32::new(0));
 
-    let on_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |content: JsValue| {
+    let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
+    let input_overlay = if !is_pdf && !is_html_preview {
+        let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
+            autoclone!(editor_body);
+            if let Some(editor_body) = &*editor_body.lock().unwrap() {
+                editor_body.insert_text(text);
+            }
+        });
+        let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
+            autoclone!(editor_body);
+            if let Some(editor_body) = &*editor_body.lock().unwrap() {
+                editor_body.focus();
+            }
+        });
+        input_overlay(send_to_editor, focus_editor)
+    } else {
+        span(style::display = "none", style::visibility = "hidden")
+    };
+
+    let edits_notify_registration = manager.notify_service.watch_file(
+        &path,
+        make_edits_notify_handler(&manager, &editor_body, &path, &writing),
+    );
+    let base_path = FilePath {
+        base: path.base.clone(),
+        file: ROOT_FILE_PATH.clone(),
+    };
+    let diagnostics_notify_registration = manager.notify_service.watch_file(
+        &base_path,
+        make_diagnostics_notify_handler(&editor_body, &base_path),
+    );
+
+    tag(
+        class = style::EDITOR,
+        class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
+        class = is_html_preview.then_some(super::html_viewer::style::HTML_VIEWER),
+        #[cfg(not(feature = "client-prod"))]
+        class = is_pdf.then_some("pdf-viewer"),
+        #[cfg(not(feature = "client-prod"))]
+        class = is_html_preview.then_some("html-viewer"),
+        #[cfg(not(feature = "client-prod"))]
+        class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
+        html_preview,
+        input_overlay,
+        after_render = move |element| {
+            autoclone!(path);
+            let _moved = &edits_notify_registration;
+            let _moved = &diagnostics_notify_registration;
+            let body: Option<Box<dyn EditorBody>> = match &document {
+                EditorDocument::Text { .. } if is_html_preview => None,
+                EditorDocument::Text { original, content } => {
+                    let original = if show_editor_diff {
+                        original
+                            .as_deref()
+                            .map(JsValue::from)
+                            .unwrap_or(JsValue::null())
+                    } else {
+                        JsValue::null()
+                    };
+                    Some(Box::new(CodeMirrorJs::new(
+                        element.clone(),
+                        original,
+                        content.as_ref().into(),
+                        make_on_change(&manager, &path, &writing),
+                        make_on_cursor_position_change(&manager, &path),
+                        cursor_position
+                            .and_then(|cursor_position| {
+                                serde_wasm_bindgen::to_value(&cursor_position).ok()
+                            })
+                            .unwrap_or(JsValue::null()),
+                        path.base.as_ref().to_owned_string(),
+                        path.as_deref().full_path().to_owned_string(),
+                    )))
+                }
+                EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
+            };
+            *editor_body.lock().unwrap() = body;
+        },
+    )
+}
+
+#[autoclone]
+fn make_on_change(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+    writing: &Arc<AtomicU32>,
+) -> Closure<dyn FnMut(JsValue)> {
+    Closure::new(move |content: JsValue| {
         autoclone!(manager, path, writing);
         let Some(content) = content.as_string() else {
             debug!("Changed content is not a string");
@@ -106,58 +220,38 @@ pub fn editor(
             .await;
         };
         spawn_local(write.in_current_span());
-    });
+    })
+}
 
-    let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
-
-    let edits_notify_registration = manager.notify_service.watch_file(
-        &path,
-        make_edits_notify_handler(&manager, &editor_body, &path, &writing),
-    );
-    let base_path = FilePath {
-        base: path.base.clone(),
-        file: Default::default(),
-    };
-    let diagnostics_notify_registration = manager.notify_service.watch_file(
-        &base_path,
-        make_diagnostics_notify_handler(&editor_body, &base_path),
-    );
-
-    tag(
-        class = style::EDITOR,
-        class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
-        #[cfg(not(feature = "client-prod"))]
-        class = is_pdf.then_some("pdf-viewer"),
-        #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf).then_some("code-mirror-editor"),
-        after_render = move |element| {
-            autoclone!(path);
-            let _moved = &edits_notify_registration;
-            let _moved = &diagnostics_notify_registration;
-            let body: Box<dyn EditorBody> = match &document {
-                EditorDocument::Text { original, content } => Box::new(CodeMirrorJs::new(
-                    element.clone(),
-                    original
-                        .as_deref()
-                        .map(JsValue::from)
-                        .unwrap_or(JsValue::null()),
-                    content.as_ref().into(),
-                    &on_change,
-                    path.base.to_string(),
-                    path.as_deref().full_path().to_owned_string(),
-                )),
-                EditorDocument::Pdf(base64) => Box::new(PdfJs::new(element.clone(), base64)),
-            };
-            *editor_body.lock().unwrap() = Some(body);
-        },
-    )
+#[autoclone]
+fn make_on_cursor_position_change(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+) -> Closure<dyn FnMut(JsValue)> {
+    Closure::new(move |cursor_position: JsValue| {
+        autoclone!(manager, path);
+        let Ok(cursor_position) = serde_wasm_bindgen::from_value(cursor_position) else {
+            debug!("Changed cursor position is invalid");
+            return;
+        };
+        let write = async move {
+            autoclone!(manager, path);
+            let synchronized_state_done =
+                SynchronizedState::enqueue(manager.synchronized_state.clone());
+            let () =
+                fsio::client::store_cursor_position(manager.remote.clone(), path, cursor_position)
+                    .await;
+            drop(synchronized_state_done);
+        };
+        spawn_local(write.in_current_span());
+    })
 }
 
 #[autoclone]
 fn make_edits_notify_handler(
     manager: &Ptr<TextEditorManager>,
     editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
@@ -181,11 +275,11 @@ fn make_edits_notify_handler(
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     writing: Arc<AtomicU32>,
 ) {
     debug!("Loading modified file");
-    match fsio::ui::load_file(manager.remote.clone(), path.clone()).await {
+    match fsio::client::load_file(manager.remote.clone(), path.clone()).await {
         Ok(Some(fsio::File::TextFile {
             metadata: _,
             original: _,
@@ -193,6 +287,8 @@ async fn notify_edit(
         })) => {
             debug!("Loaded modified file");
             let Some(editor_body) = &*editor_body.lock().unwrap() else {
+                debug!("The modified file has no mutable editor body, force reload");
+                manager.path.file.force(path.file);
                 return;
             };
             if writing.load(SeqCst) == 0 {
@@ -209,9 +305,8 @@ async fn notify_edit(
         Ok(None) => {
             debug!("The modified file is gone");
             manager.path.file.update(|file_path| {
-                let file_path = Path::new(file_path.as_ref());
                 let parent = file_path.parent().unwrap_or_else(|| "/".as_ref());
-                Some(parent.to_owned_string().into())
+                Some(Arc::from(parent))
             })
         }
         Ok(Some(fsio::File::Folder { .. })) => {
@@ -230,7 +325,7 @@ async fn notify_edit(
 #[autoclone]
 fn make_diagnostics_notify_handler(
     editor_body: &Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
-    path: &FilePath<Arc<str>>,
+    path: &FilePath<Arc<Path>>,
 ) -> impl Fn(&NotifyResponse) + 'static {
     move |event| {
         autoclone!(editor_body, path);

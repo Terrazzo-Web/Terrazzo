@@ -42,6 +42,8 @@ fn mutate_node_aux(
         Tiles::Array {
             id,
             direction,
+            title,
+            selected,
             nodes,
         } => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
@@ -51,6 +53,8 @@ fn mutate_node_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                title: title.clone(),
+                selected: *selected,
                 nodes: nodes2,
             })
         }

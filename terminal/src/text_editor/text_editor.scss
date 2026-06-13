@@ -9,8 +9,6 @@ div.text_editor {
         border: 1px solid var(--color);
         box-sizing: border-box;
         flex: 0 0 auto;
-        overflow-x: scroll;
-        @include no-scroll-bar;
 
         div.path-selector {
             display: flex;
@@ -113,6 +111,7 @@ div.text_editor {
             width: 100%;
             min-height: 0;
             flex: 1 1 auto;
+            overflow-x: scroll;
 
             div.editor {
                 position: relative;

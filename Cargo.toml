@@ -173,7 +173,7 @@ unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.3", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }
-wasm-bindgen = { version = "0.2.125"}
+wasm-bindgen = { version = "0.2.125" }
 wasm-bindgen-cli = { version = "0.2.125" }
 wasm-bindgen-futures = { version = "0.4.75" }
 wasm-bindgen-test = { version = "0.3.75" }

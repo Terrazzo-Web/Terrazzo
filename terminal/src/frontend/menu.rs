@@ -117,6 +117,9 @@ fn menu_items(
                 src = icons::window_stack(),
                 click = tile.tabify(),
             )),
+        ));
+        items.push(li(
+            class = style::SPLITS,
             div(img(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]

@@ -1,6 +1,7 @@
 #![cfg(feature = "server")]
 
 use std::future::ready;
+use std::path::Path;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -16,7 +17,7 @@ pub struct AutoCompletePathRequest {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "k"))]
     pub kind: PathSelector,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "p"))]
-    pub prefix: Arc<str>,
+    pub prefix: Arc<Path>,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
     pub input: String,
 }

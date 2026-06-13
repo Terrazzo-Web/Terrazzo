@@ -6,12 +6,17 @@ use std::rc::Rc;
 
 use terrazzo::envelope;
 use terrazzo::prelude::XSignal;
+use terrazzo::prelude::XString;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::MouseEvent;
 
 use super::api::Direction;
+use super::api::Side;
 use super::api::Tile as TileDto;
 use super::api::Tiles as TilesDto;
 use super::app::App;
 use super::id::TileId;
+use super::ui::RootTree;
 use super::visitor::TilesTreeVisitor;
 use super::visitor::UiStateVisitor;
 use crate::frontend::menu::MenuState;
@@ -22,6 +27,8 @@ pub enum Tiles {
     Array {
         id: TileId,
         direction: XSignal<Direction>,
+        title: XSignal<XString>,
+        selected: XSignal<Option<TileId>>,
         nodes: Vec<Rc<Tiles>>,
     },
 }
@@ -31,6 +38,7 @@ pub struct Tile {
     pub id: TileId,
     pub app: XSignal<App>,
     pub remote: XSignal<Remote>,
+    pub title: XSignal<XString>,
     pub menu: MenuState,
 }
 
@@ -44,16 +52,23 @@ impl Tiles {
 
 fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
     match tile_tree_dto {
-        TilesDto::Tile(TileDto { id, app, remote }) => {
+        TilesDto::Tile(TileDto {
+            id,
+            app,
+            remote,
+            title,
+        }) => {
             let ui_tile = if let Some(ui_tile) = signals.tile_ids.remove(id) {
                 ui_tile.app.set(*app);
                 ui_tile.remote.set(remote.clone());
+                ui_tile.title.set(title.clone());
                 ui_tile
             } else {
                 Tile {
                     id: *id,
                     app: XSignal::new("app", *app),
                     remote: XSignal::new("remote", remote.clone()),
+                    title: XSignal::new("title", title.clone().into()),
                     menu: MenuState::default(),
                 }
                 .into()
@@ -63,6 +78,8 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
         TilesDto::Array {
             id,
             direction,
+            title,
+            selected,
             nodes,
         } => {
             let ui_direction = if let Some(ui_direction) = signals.directions.remove(id) {
@@ -71,6 +88,18 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             } else {
                 XSignal::new("direction", *direction)
             };
+            let ui_title = if let Some(ui_title) = signals.titles.remove(id) {
+                ui_title.set(XString::from(title.clone()));
+                ui_title
+            } else {
+                XSignal::new("title", title.clone().into())
+            };
+            let ui_selected = if let Some(ui_selected) = signals.selected.remove(id) {
+                ui_selected.set(*selected);
+                ui_selected
+            } else {
+                XSignal::new("selected-tile-tab", *selected)
+            };
             let mut ui_nodes = Vec::with_capacity(nodes.len());
             for node in nodes {
                 ui_nodes.push(transform(signals, node).into());
@@ -78,6 +107,8 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             Tiles::Array {
                 id: *id,
                 direction: ui_direction,
+                title: ui_title,
+                selected: ui_selected,
                 nodes: ui_nodes,
             }
         }
@@ -91,6 +122,7 @@ impl Default for Tiles {
             id,
             app: XSignal::new("app", App::default()),
             remote: XSignal::new("remote", Remote::default()),
+            title: XSignal::new("title", format!("New tile {id}").into()),
             menu: MenuState::default(),
         }
         .into()
@@ -106,12 +138,20 @@ impl From<Tile> for Tiles {
 #[derive(Default)]
 struct TileSignals {
     directions: HashMap<TileId, XSignal<Direction>>,
+    titles: HashMap<TileId, XSignal<XString>>,
+    selected: HashMap<TileId, XSignal<Option<TileId>>>,
     tile_ids: HashMap<TileId, TilePtr>,
 }
 
 impl<'l> TilesTreeVisitor<UiStateVisitor<'l>> for TileSignals {
     fn visit_tree(&mut self, id: TileId, direction: &XSignal<Direction>) {
         self.directions.insert(id, direction.clone());
+    }
+    fn visit_selected(&mut self, id: TileId, selected: &XSignal<Option<TileId>>) {
+        self.selected.insert(id, selected.clone());
+    }
+    fn visit_title(&mut self, id: TileId, title: &XSignal<XString>) {
+        self.titles.insert(id, title.clone());
     }
     fn visit_tile(&mut self, tile: &TilePtr) {
         self.tile_ids.insert(tile.id, tile.clone());
@@ -172,5 +212,33 @@ impl<T> Deref for TilesCmp<T> {
 impl<T> std::fmt::Debug for TilesCmp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Tiles(...)")
+    }
+}
+
+impl Tile {
+    pub fn split_horz(&self) -> impl Fn(MouseEvent) + 'static {
+        self.split(Direction::Horizontal)
+    }
+
+    pub fn split_vert(&self) -> impl Fn(MouseEvent) + 'static {
+        self.split(Direction::Vertical)
+    }
+
+    pub fn tabify(&self) -> impl Fn(MouseEvent) + 'static {
+        self.split(Direction::Tabbed)
+    }
+
+    fn split(&self, direction: Direction) -> impl Fn(MouseEvent) + 'static {
+        let tile_id = self.id;
+        move |_| {
+            spawn_local(async move {
+                RootTree::update(super::api::add(direction, tile_id, Side::After).await)
+            })
+        }
+    }
+
+    pub fn close(&self) -> impl Fn(MouseEvent) + 'static {
+        let tile_id = self.id;
+        move |_| spawn_local(async move { RootTree::update(super::api::remove(tile_id).await) })
     }
 }

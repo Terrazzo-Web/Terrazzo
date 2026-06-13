@@ -9,8 +9,6 @@ use web_sys::HtmlElement;
 
 terrazzo_css::import_style!(style, "tabs.scss");
 
-const DRAG_KEY: &str = "id";
-
 /// Describes a list of tabs.
 pub trait TabsDescriptor: Clone + 'static {
     type State: TabsState<TabDescriptor = Self::TabDescriptor>;
@@ -35,13 +33,19 @@ pub trait TabsDescriptor: Clone + 'static {
 pub trait TabsState: Clone + 'static {
     type TabDescriptor: TabDescriptor<State = Self>;
     fn move_tab(&self, after_tab: Option<Self::TabDescriptor>, moved_tab_key: String);
+    fn drag_key() -> &'static str {
+        "tab_id"
+    }
+    fn zone_id(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Describes a single tab.
 ///
 /// This includes how to display the tab title and the tab page item, which is displayed when the item is selected.
 pub trait TabDescriptor: Clone + 'static {
-    type State: Clone + 'static;
+    type State: TabsState;
     fn key(&self) -> XString;
     fn title(&self, state: &Self::State) -> impl Into<XNode>;
     fn item(&self, state: &Self::State) -> impl Into<XNode>;
@@ -189,7 +193,7 @@ fn drop_zone<S: TabsState>(
                 autoclone!(state);
                 ev.prevent_default();
                 let dt = ev.data_transfer().or_throw("data_transfer");
-                let dragged_tab_key = dt.get_data(DRAG_KEY).or_throw("Get DRAG_KEY");
+                let dragged_tab_key = dt.get_data(S::drag_key()).or_throw("Get DRAG_KEY");
                 state.move_tab(prev_tab.clone(), dragged_tab_key);
             },
             dragover = |ev: web_sys::DragEvent| {
@@ -264,7 +268,13 @@ fn tab_title<T: TabDescriptor + 'static>(
         dragstart = move |ev: web_sys::DragEvent| {
             autoclone!(is_dragging);
             let dt = ev.data_transfer().or_throw("data_transfer");
-            dt.set_data(DRAG_KEY, &key).or_throw("Set DRAG_KEY");
+            let drag_key = T::State::drag_key();
+            dt.set_data(drag_key, &key)
+                .or_else_throw(|e| format!("Set drag_key={drag_key}: {e:?}"));
+            if let Some(zone_id) = state.zone_id() {
+                dt.set_data(&zone_id, "1")
+                    .or_else_throw(|e| format!("Set zone_id={zone_id}: {e:?}"));
+            }
             dt.set_effect_allowed("move");
             is_dragging.set(true);
         },

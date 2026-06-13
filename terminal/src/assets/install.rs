@@ -30,26 +30,38 @@ fn install_icons() {
     #[cfg(feature = "client")]
     fn install_icon(_: &'static str) {}
 
-    #[cfg(any(feature = "terminal", feature = "text-editor"))]
     install_icon(super::icons::close_tab());
     install_icon(super::icons::key_icon());
     install_icon(super::icons::menu());
 
+    install_icon(super::icons::add_tab());
+
     #[cfg(feature = "terminal")]
+    install_icon(super::icons::terminal());
+
+    #[cfg(any(feature = "terminal", feature = "text-editor"))]
     {
-        install_icon(super::icons::add_tab());
-        install_icon(super::icons::terminal());
+        install_icon(super::icons::paragraph());
+        install_icon(super::icons::mic_fill());
+        install_icon(super::icons::mic_mute_fill());
+        install_icon(super::icons::send_fill());
     }
 
     #[cfg(feature = "text-editor")]
     {
         install_icon(super::icons::chevron_double_right());
+        install_icon(super::icons::collapse_vert());
+        install_icon(super::icons::diff());
+        install_icon(super::icons::download());
         install_icon(super::icons::file());
         install_icon(super::icons::folder());
         install_icon(super::icons::loading());
+        install_icon(super::icons::new_file());
+        install_icon(super::icons::new_folder());
+        install_icon(super::icons::refresh());
+        install_icon(super::icons::search());
         install_icon(super::icons::slash());
         install_icon(super::icons::text_editor());
-        install_icon(super::icons::search());
     }
 
     #[cfg(feature = "converter")]
@@ -68,14 +80,21 @@ fn install_icons() {
         install_icon(super::icons::port_forward_loading());
         install_icon(super::icons::port_forward_pending());
         install_icon(super::icons::port_forward_synchronized());
-        install_icon(super::icons::trash());
     }
+
+    #[cfg(any(feature = "port-forward", feature = "text-editor"))]
+    install_icon(super::icons::trash());
 
     #[cfg(feature = "logs-panel")]
     {
         install_icon(super::icons::chevron_bar_up());
         install_icon(super::icons::chevron_bar_down());
     }
+
+    install_icon(super::icons::split_horz());
+    install_icon(super::icons::split_vert());
+    install_icon(super::icons::window_stack());
+    install_icon(super::icons::close_app());
 }
 
 fn install_xterm() {

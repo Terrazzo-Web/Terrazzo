@@ -4,6 +4,7 @@ use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
@@ -13,11 +14,10 @@ const LRU_CACHE_SIZE: NonZero<usize> = NonZero::new(10_000).expect("LRU_CACHE_SI
 
 static GIT_REPOS: LazyLock<GitReposCache<StdFs>> = LazyLock::new(|| GitReposCache::new(StdFs));
 
-pub fn is_in_git_repo(path: impl AsRef<Path>) -> bool {
-    GIT_REPOS.is_in_git_repo(path.as_ref())
+pub fn git_repo_root(path: impl AsRef<Path>) -> Option<Arc<Path>> {
+    GIT_REPOS.git_repo_root(path.as_ref())
 }
 
-#[allow(dead_code)]
 pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::Result<String> {
     let path = path.as_ref().canonicalize()?;
     let parent = path.parent().ok_or_else(|| {
@@ -42,7 +42,6 @@ pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::
     git_output(&repo_root, ["show", object.as_str()])
 }
 
-#[allow(dead_code)]
 fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<String> {
     let output = Command::new("git").args(args).current_dir(cwd).output()?;
     if !output.status.success() {
@@ -71,7 +70,7 @@ impl GitRepoFs for StdFs {
 
 struct GitReposCache<F> {
     fs: F,
-    cache: Mutex<LruCache<PathBuf, bool>>,
+    cache: Mutex<LruCache<PathBuf, Option<Arc<Path>>>>,
 }
 
 impl<F> GitReposCache<F> {
@@ -84,35 +83,38 @@ impl<F> GitReposCache<F> {
 }
 
 impl<F: GitRepoFs> GitReposCache<F> {
-    fn is_in_git_repo(&self, path: impl AsRef<Path>) -> bool {
+    fn git_repo_root(&self, path: impl AsRef<Path>) -> Option<Arc<Path>> {
         let mut cache = self.cache.lock().unwrap();
 
         let ancestors = path.as_ref().ancestors();
         let mut backfill = vec![];
-        let mut result = false;
+        let mut result = None;
         for ancestor in ancestors {
-            if let Some(t) = self.maybe_in_git_repo(ancestor, &mut cache, &mut backfill) {
-                result = t;
+            if let Some(root) = self.maybe_git_repo_root(ancestor, &mut cache, &mut backfill) {
+                result = root;
                 break;
             }
         }
         for ancestor in backfill {
-            cache.push(ancestor.to_owned(), result);
+            cache.push(ancestor.to_owned(), result.clone());
         }
         return result;
     }
 
-    fn maybe_in_git_repo<'l>(
+    fn maybe_git_repo_root<'l>(
         &self,
         path: &'l Path,
-        cache: &mut LruCache<PathBuf, bool>,
+        cache: &mut LruCache<PathBuf, Option<Arc<Path>>>,
         backfill: &mut Vec<&'l Path>,
-    ) -> Option<bool> {
-        if let Some(is_in_git_repo) = cache.get(path) {
-            return Some(*is_in_git_repo);
+    ) -> Option<Option<Arc<Path>>> {
+        if let Some(root) = cache.get(path) {
+            return Some(root.clone());
         }
         backfill.push(path);
-        return self.fs.is_dir(&path.join(".git")).then_some(true);
+        return self
+            .fs
+            .is_dir(&path.join(".git"))
+            .then(|| Some(Arc::from(path.to_owned())));
     }
 }
 
@@ -145,28 +147,37 @@ mod tests {
     }
 
     #[test]
-    fn file_uses_cached_parent_result() {
+    fn file_uses_cached_repo_root() {
         let fs = MockFs::default()
             .with_dir("/repo")
             .with_dir("/repo/src")
             .with_dir("/repo/.git");
         let cache = GitReposCache::new(fs);
 
-        assert!(cache.is_in_git_repo("/repo/src"));
+        assert_eq!(
+            Path::new("/repo"),
+            cache.git_repo_root("/repo/src").unwrap().as_ref()
+        );
         assert_eq!(
             &["/repo/src/.git", "/repo/.git"].map(PathBuf::from),
             cache.fs.calls.borrow().as_slice()
         );
         cache.fs.calls.borrow_mut().clear();
 
-        assert!(cache.is_in_git_repo("/repo/src/main.rs"));
+        assert_eq!(
+            Path::new("/repo"),
+            cache.git_repo_root("/repo/src/main.rs").unwrap().as_ref()
+        );
         assert_eq!(
             &["/repo/src/main.rs/.git"].map(PathBuf::from),
             cache.fs.calls.borrow().as_slice()
         );
         cache.fs.calls.borrow_mut().clear();
 
-        assert!(cache.is_in_git_repo("/repo/src/main.rs"));
+        assert_eq!(
+            Path::new("/repo"),
+            cache.git_repo_root("/repo/src/main.rs").unwrap().as_ref()
+        );
         assert!(cache.fs.calls.borrow().is_empty());
         cache.fs.calls.borrow_mut().clear();
     }
@@ -178,7 +189,7 @@ mod tests {
             .with_dir("/workspace/src");
         let cache = GitReposCache::new(fs);
 
-        assert!(!cache.is_in_git_repo("/workspace/src/lib.rs"));
+        assert!(cache.git_repo_root("/workspace/src/lib.rs").is_none());
         assert_eq!(
             &[
                 "/workspace/src/lib.rs/.git",
@@ -191,14 +202,14 @@ mod tests {
         );
         cache.fs.calls.borrow_mut().clear();
 
-        assert!(!cache.is_in_git_repo("/workspace/src/main.rs"));
+        assert!(cache.git_repo_root("/workspace/src/main.rs").is_none());
         assert_eq!(
             &["/workspace/src/main.rs/.git"].map(PathBuf::from),
             cache.fs.calls.borrow().as_slice()
         );
         cache.fs.calls.borrow_mut().clear();
 
-        assert!(!cache.is_in_git_repo("/workspace/src/main.rs"));
+        assert!(cache.git_repo_root("/workspace/src/main.rs").is_none());
         assert!(cache.fs.calls.borrow().is_empty());
         cache.fs.calls.borrow_mut().clear();
     }

@@ -1,0 +1,139 @@
+div.tabbed-tile {
+    flex: 1 1 0;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+div.tile-tabs {
+    flex: 1 1 0;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+    --link-underline-thickness: 4px;
+}
+
+div.tile-tab-titles {
+    @include trz-header;
+
+    background-color: var(--background-color);
+    border: 1px solid var(--color);
+    border-radius: 2px;
+
+    @include prevent-user-select;
+
+    >ul {
+        @include trz-header;
+        overflow-x: scroll;
+        overflow-y: hidden;
+        @include no-scroll-bar;
+    }
+}
+
+li.tile-tab-title {
+    height: 100%;
+    width: 100%;
+
+    padding-top: calc(var(--padding) - var(--link-underline-thickness));
+    padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
+
+    cursor: pointer;
+    color: var(--color);
+
+    &:hover,
+    &.selected {
+        color: var(--selected-color);
+        background-color: var(--selected-background-color);
+    }
+
+    &>div {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        height: 100%;
+    }
+
+    .close-icon {
+        height: 15px;
+        filter: invert(1);
+        visibility: hidden;
+
+        &:hover {
+            background-color: var(--link-color);
+            filter: invert(0);
+        }
+
+        margin-left: var(--padding);
+        cursor: pointer;
+        padding: 3px;
+    }
+
+    &:hover .close-icon {
+        visibility: visible;
+    }
+}
+
+.title-span {
+    white-space: nowrap;
+}
+
+div.tile-tab-items {
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+
+    &>ul {
+        height: 100%;
+        width: 100%;
+        min-height: 0;
+        min-width: 0;
+
+        &>li {
+            height: 100%;
+            width: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+    }
+}
+
+li.tile-tab-item {
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+div.add-tile-tab {
+    position: relative;
+    display: inline flex;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: center;
+    flex: 1 1 auto;
+
+    border: 0;
+    margin: 0px;
+    padding: 0px;
+
+    >div {
+        padding: 3px;
+        margin-right: 2px;
+
+        img {
+            @include trz-icon;
+        }
+
+        &:hover {
+            img {
+                filter: invert(0);
+            }
+
+            background-color: var(--link-color);
+            cursor: pointer;
+        }
+    }
+}

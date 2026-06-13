@@ -8,6 +8,7 @@ use super::Tile;
 use super::Tiles;
 use super::state::TREE;
 use super::state::TilesStateError;
+use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 
 pub fn add_node(
@@ -35,16 +36,27 @@ fn add_node_aux(
 ) -> Result<Arc<Tiles>, TilesStateError> {
     Ok(match &*tree {
         Tiles::Tile(node) if node.id == next_to => {
+            let id = new_id
+                .take()
+                .ok_or(TilesStateError::DuplicateTileId(next_to))?;
             let new = Arc::new(Tiles::Tile(Tile {
-                id: new_id
-                    .take()
-                    .ok_or(TilesStateError::DuplicateTileId(next_to))?,
-                app: node.app,
+                id,
+                app: App::Default,
                 remote: node.remote.clone(),
+                title: format!("New tile {id}"),
             }));
+            let new_id = TileId::new();
             Arc::new(Tiles::Array {
-                id: TileId::new(),
+                id: new_id,
                 direction: with_direction,
+                title: format!("New {with_direction:?} {new_id}").into(),
+                selected: (with_direction == Direction::Tabbed).then(|| match side {
+                    Side::Before => node.id,
+                    Side::After => match &*new {
+                        Tiles::Tile(tile) => tile.id,
+                        Tiles::Array { .. } => unreachable!(),
+                    },
+                }),
                 nodes: match side {
                     Side::Before => vec![new, tree],
                     Side::After => vec![tree, new],
@@ -54,6 +66,8 @@ fn add_node_aux(
         Tiles::Array {
             id,
             direction,
+            title,
+            selected,
             nodes,
         } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
@@ -70,6 +84,8 @@ fn add_node_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                title: title.clone(),
+                selected: *selected,
                 nodes: nodes2,
             })
         }
@@ -92,6 +108,8 @@ fn add_node_flatten(
     if let Tiles::Array {
         id: _,
         direction,
+        title: _,
+        selected: _,
         nodes,
     } = &*tree
         && *direction == flatten_direction

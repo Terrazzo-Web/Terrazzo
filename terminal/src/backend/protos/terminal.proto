@@ -27,6 +27,7 @@ message TerminalDef {
   string shell_title = 2;
   MaybeString override_title = 3;
   int32 order = 4;
+  int64 tile = 5;
 }
 
 message MaybeString { string s = 1; }

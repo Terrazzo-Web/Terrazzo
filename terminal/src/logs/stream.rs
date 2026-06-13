@@ -27,7 +27,7 @@ mod imp {
     use crate::backend::client_service::remote_fn_service;
     use crate::logs::event::LogEvent;
     use crate::logs::state::LogState;
-    use crate::utils::ndjson::serialize_line;
+    use crate::utils::ndjson_utils::serialize_line;
 
     #[nameth]
     pub(super) async fn stream_logs(

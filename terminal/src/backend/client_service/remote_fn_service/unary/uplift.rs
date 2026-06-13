@@ -6,9 +6,9 @@ use std::task::ready;
 
 use pin_project::pin_project;
 use tonic::Result;
-use trz_gateway_server::server::Server;
 
 use super::RemoteFnError;
+use crate::backend::Server;
 
 /// Helper to uplift a remote function into a String -> String server_fn.
 pub const fn uplift<Req, F, Res, E>(

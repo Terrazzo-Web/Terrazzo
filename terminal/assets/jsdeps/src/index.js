@@ -8,6 +8,7 @@ import { basicSetup } from "codemirror";
 import { EditorState } from '@codemirror/state';
 import { EditorView, tooltips } from "@codemirror/view";
 import { MergeView } from "@codemirror/merge";
+import { search } from "@codemirror/search";
 
 import { oneDark } from '@codemirror/theme-one-dark';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
@@ -50,6 +51,7 @@ export {
     EditorState,
     EditorView,
     MergeView,
+    search,
     tooltips,
 
     oneDark,

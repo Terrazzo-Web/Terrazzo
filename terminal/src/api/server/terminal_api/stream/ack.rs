@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use terrazzo::axum::Json;
 use trz_gateway_common::http_error::HttpError;
-use trz_gateway_server::server::Server;
 
 use crate::api::shared::terminal_schema::AckRequest;
+use crate::backend::Server;
 use crate::backend::client_service::terminal_service;
 use crate::backend::protos::terrazzo::terminal::AckRequest as AckRequestProto;
 

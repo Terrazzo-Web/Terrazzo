@@ -8,9 +8,9 @@ use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::client_address::ClientAddress;
+use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::shared_service::remotes::list_remotes;

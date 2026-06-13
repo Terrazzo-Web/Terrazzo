@@ -8,7 +8,6 @@ use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_server::server::Server;
 
 use crate::api::server::terminal_api::new_id;
 use crate::api::server::terminal_api::resize;
@@ -17,6 +16,7 @@ use crate::api::server::terminal_api::set_title;
 use crate::api::server::terminal_api::stream;
 use crate::api::server::terminal_api::terminals;
 use crate::api::server::terminal_api::write;
+use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::config::DynConfig;

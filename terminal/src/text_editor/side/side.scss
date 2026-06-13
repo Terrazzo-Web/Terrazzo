@@ -1,5 +1,4 @@
 div.side {
-    flex: 0 0 200px;
     height: 100%;
     overflow: auto;
     margin: 5px;
@@ -22,23 +21,28 @@ div.side {
         display: flex;
         flex-direction: row;
 
-        img.close {
-            @include trz-icon($display: none);
-            visibility: hidden;
-        }
-
-        &:hover img.close {
-            display: block;
-            visibility: visible;
+        img.button-icon,
+        img.button-hover-icon {
+            @include trz-icon;
+            cursor: pointer;
 
             &:hover {
                 background-color: var(--link-color);
                 filter: invert(0);
-                cursor: pointer;
             }
         }
 
+        img.button-hover-icon {
+            display: none;
+            visibility: hidden;
+        }
+
+        &:hover img.button-hover-icon {
+            display: block;
+            visibility: visible;
+        }
     }
+
 
     div.label,
     div.selected_label {
@@ -54,6 +58,14 @@ div.side {
                 background-color: var(--link-color);
             }
         }
+
+        &.move-dragover>span {
+            background-color: var(--link-color);
+
+            &:hover {
+                cursor: move;
+            }
+        }
     }
 
     div.selected_label>span {
@@ -67,5 +79,10 @@ div.side {
     img.icon {
         @include trz-icon;
         margin-right: var(--padding);
+    }
+
+    .show-only-item {
+        font-style: italic;
+        opacity: 80%;
     }
 }

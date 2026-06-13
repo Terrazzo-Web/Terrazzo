@@ -143,7 +143,7 @@ fn resize_bar(show_logs_panel: XSignal<bool>) -> XElement {
 }
 
 #[template(wrap = true)]
-pub fn resize_icon_class(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
+fn resize_icon_class(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
     if show_logs_panel {
         style::RESIZE_ICON_SHOW
     } else {
@@ -152,7 +152,7 @@ pub fn resize_icon_class(#[signal] mut show_logs_panel: bool) -> XAttributeValue
 }
 
 #[template(wrap = true)]
-pub fn resize_icon_src(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
+fn resize_icon_src(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
     if show_logs_panel {
         icons::chevron_bar_down()
     } else {
@@ -161,7 +161,7 @@ pub fn resize_icon_src(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
 }
 
 #[template(wrap = true)]
-pub fn resize_bar_visibility(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
+fn resize_bar_visibility(#[signal] mut show_logs_panel: bool) -> XAttributeValue {
     (!show_logs_panel).then_some(style::RESIZE_BAR_HIDDEN)
 }
 

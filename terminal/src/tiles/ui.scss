@@ -2,25 +2,72 @@ div.app-tile {
     display: flex;
     flex-direction: column;
     position: relative;
-    width: 100%;
+
+    flex: 1 1 0;
     height: 100%;
+    width: 100%;
     min-height: 0;
-    isolation: isolate;
+    min-width: 0;
 }
 
 div.app-content {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
     position: relative;
     z-index: 0;
+}
+
+div.horizontal-tile,
+div.vertical-tile {
+    display: flex;
+    position: relative;
+    height: 100%;
+    width: 100%;
     min-height: 0;
+    min-width: 0;
+}
+
+div.horizontal-tile,
+div.vertical-tile,
+.app-tile {
+    flex: 1 1 0;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
 }
 
 div.horizontal-tile {
-    display: flex;
     flex-direction: row;
 }
 
 div.vertical-tile {
-    display: flex;
     flex-direction: column;
+}
+
+div.resize-bar-horizontal {
+    >div>div {
+        border-left: 1px dotted var(--color);
+    }
+
+    &:hover {
+        >div>div {
+            border-left: 0;
+        }
+    }
+}
+
+div.resize-bar-vertical {
+    >div>div {
+        border-top: 1px dotted var(--color);
+    }
+
+    &:hover {
+        >div>div {
+            border-top: 0;
+        }
+    }
 }

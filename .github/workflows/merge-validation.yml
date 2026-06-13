@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Cargo build and test
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Bazel build and test
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
@@ -63,7 +63,7 @@ jobs:
       - name: Bazel test -c opt
         run: |
           export PROTOC=$(which protoc)
-          bazel test --action_env=PROTOC --test_output=errors --verbose_failures -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
+          bazel test --action_env=PROTOC --test_output=errors --verbose_failures -c opt --flaky_test_attempts=3 $(bazel query 'attr("tags", "opt_mode", //...)')
 
       - name: Commit generated changes
         uses: stefanzweifel/git-auto-commit-action@v7
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Format
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}

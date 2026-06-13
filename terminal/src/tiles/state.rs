@@ -2,6 +2,9 @@
 
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
+    $crate::tiles::state::make_state!($name, $ty, Default::default());
+};
+($name:ident, $ty:ty, $default:expr) => {
     pub mod $name {
         use server_fn::ServerFnError;
         use terrazzo::server;
@@ -11,6 +14,14 @@ macro_rules! make_state {
 
             #[allow(unused)]
             pub use super::super::*;
+        }
+
+        #[cfg(feature = "server")]
+        fn default_value() -> ty::Type {
+            #[allow(unused)]
+            pub use super::*;
+
+            $default
         }
 
         #[cfg(feature = "server")]
@@ -51,11 +62,12 @@ macro_rules! make_state {
             use std::pin::Pin;
             use std::sync::OnceLock;
             use std::time::Duration;
+            use futures::future::Shared;
             use terrazzo::prelude::diagnostics::warn;
             use terrazzo::widgets::debounce::DoDebounce as _;
 
             struct ThreadSafe(
-                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Pin<Box<dyn Future<Output = ()>>>>,
+                Box<dyn Fn((Option<TileId>, Remote, ty::Type)) -> Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>>,
             );
 
             unsafe impl Send for ThreadSafe {}
@@ -110,7 +122,7 @@ macro_rules! make_state {
                 pub(super) tile: Option<TileId>,
             }
 
-            #[derive(Debug, Default, Serialize, Deserialize)]
+            #[derive(Debug, Serialize, Deserialize)]
             #[serde(default)]
             pub struct SetRequest {
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
@@ -118,6 +130,15 @@ macro_rules! make_state {
 
                 #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
                 pub(super) value: super::ty::Type,
+            }
+
+            impl Default for SetRequest {
+                fn default() -> Self {
+                    Self {
+                        tile: Default::default(),
+                        value: super::default_value(),
+                    }
+                }
             }
 
             remote_fn_service::unary::declare_remote_fn!(
@@ -128,7 +149,10 @@ macro_rules! make_state {
                 |_server, request: GetRequest| {
                     let state = super::state::STATE.lock().expect(stringify!($name));
                     ready(Ok::<super::ty::Type, StateError>(
-                        state.get(&request.tile).cloned().unwrap_or_default(),
+                        state
+                            .get(&request.tile)
+                            .cloned()
+                            .unwrap_or_else(super::default_value),
                     ))
                 }
             );

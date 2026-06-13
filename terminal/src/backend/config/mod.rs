@@ -59,7 +59,7 @@ impl Deref for DynConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Config(ConfigImpl<RuntimeTypes>);
 
 impl Deref for Config {
@@ -76,10 +76,20 @@ impl From<ConfigImpl<RuntimeTypes>> for Config {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConfigImpl<T: ConfigTypes> {
     pub server: DiffArc<ServerConfig<T>>,
     pub mesh: DiffOption<DiffArc<MeshConfig<T>>>,
     pub letsencrypt: DiffOption<DiffArc<AcmeConfig>>,
+}
+
+impl Default for ConfigImpl<ConfigFileTypes> {
+    fn default() -> Self {
+        Self {
+            server: Default::default(),
+            mesh: Default::default(),
+            letsencrypt: Default::default(),
+        }
+    }
 }

@@ -9,6 +9,8 @@ class CodeMirrorJsImpl {
         original,
         content,
         onchange,
+        oncursor,
+        cursorPosition,
         basePath,
         fullPath,
     ) {
@@ -20,12 +22,21 @@ class CodeMirrorJsImpl {
                 const content = update.state.doc.toString();
                 onchange(content);
             }
+            if (!this.reloadFromDisk && update.selectionSet) {
+                const selection = update.state.selection.main;
+                oncursor({
+                    anchor: selection.anchor,
+                    head: selection.head,
+                });
+            }
         });
 
         let extensions = [
             JsDeps.basicSetup,
+            JsDeps.search({ top: true }),
             JsDeps.lintGutter(),
             JsDeps.oneDark,
+            JsDeps.EditorView.lineWrapping,
             updateListener,
         ];
         const language = getLanguage(fullPath);
@@ -33,9 +44,9 @@ class CodeMirrorJsImpl {
             extensions.push(language());
         }
 
+        const selection = selectionFromCursorPosition(cursorPosition, content.length);
         if (original) {
             const mergePaneExtensions = [
-                JsDeps.EditorView.lineWrapping,
                 JsDeps.EditorView.theme({
                     "&": {
                         minWidth: "0",
@@ -62,6 +73,7 @@ class CodeMirrorJsImpl {
                 },
                 b: {
                     doc: content,
+                    selection,
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -85,6 +97,7 @@ class CodeMirrorJsImpl {
             this.rootView = new JsDeps.EditorView({
                 state: JsDeps.EditorState.create({
                     doc: content,
+                    selection,
                     tooltips: JsDeps.tooltips({
                         position: "absolute",
                     }),
@@ -94,6 +107,11 @@ class CodeMirrorJsImpl {
             });
             this.editorView = this.rootView;
         }
+        this.editorView.dispatch({
+            selection,
+            scrollIntoView: true,
+        });
+        this.editorView.focus();
         this.reloadFromDisk = false;
     }
 
@@ -124,6 +142,26 @@ class CodeMirrorJsImpl {
         } finally {
             this.reloadFromDisk = false;
         }
+    }
+
+    insert_text(text) {
+        const selection = this.editorView.state.selection.main;
+        this.editorView.dispatch({
+            changes: {
+                from: selection.from,
+                to: selection.to,
+                insert: text,
+            },
+            selection: {
+                anchor: selection.from + text.length,
+            },
+            scrollIntoView: true,
+        });
+        this.focus();
+    }
+
+    focus() {
+        this.editorView.focus();
     }
 
     cargo_check(diagnostics) {
@@ -163,6 +201,23 @@ function getLanguage(fileName) {
 
     const ext = fileName.slice(lastDotIndex + 1).toLowerCase();
     return JsDeps.languages[ext] || null;
+}
+
+function selectionFromCursorPosition(cursorPosition, docLength) {
+    if (!cursorPosition) {
+        return undefined;
+    }
+    return {
+        anchor: clampCursorOffset(cursorPosition.anchor, docLength),
+        head: clampCursorOffset(cursorPosition.head, docLength),
+    };
+}
+
+function clampCursorOffset(offset, docLength) {
+    if (!Number.isInteger(offset)) {
+        return 0;
+    }
+    return Math.max(0, Math.min(offset, docLength));
 }
 
 export {

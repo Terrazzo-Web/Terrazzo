@@ -118,7 +118,7 @@ pub async fn make_client_certificate<C: ClientConfig>(
     auth_code: AuthCode,
 ) -> Result<X509CertificateInfo, MakeClientCertificateError<C::GatewayPki>> {
     let key = make_key()?;
-    let http_client = make_http_client(client_config.gateway_pki())?;
+    let http_client = make_http_client(client_config)?;
     let certificate = get_certifiate(client_config, http_client, auth_code, &key).await?;
     let certificate =
         X509::from_pem(certificate.as_bytes()).map_err(MakeClientCertificateError::ParsePem)?;

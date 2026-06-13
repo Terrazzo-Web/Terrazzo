@@ -1,11 +1,12 @@
-use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 
 use super::version::Version;
-use crate::prelude::OrElseLog as _;
 use crate::prelude::diagnostics::debug;
 use crate::prelude::diagnostics::debug_span;
-use crate::prelude::diagnostics::span::EnteredSpan;
+use crate::prelude::diagnostics::error;
+use crate::prelude::diagnostics::span::Span;
 
 /// Allows batching several signal writes into one refresh.
 ///
@@ -33,44 +34,58 @@ use crate::prelude::diagnostics::span::EnteredSpan;
 pub struct Batch {
     prev: Option<BatchedCallbacks>,
     forget: bool,
-    _span: EnteredSpan,
+    span: Span,
     _not_send: PhantomData<*mut u8>,
 }
 
 #[derive(Default)]
 struct BatchedCallbacks(Vec<Box<dyn FnOnce(Version)>>);
 
-thread_local! {
-    static WAITING_BATCH: RefCell<Option<BatchedCallbacks>> = const { RefCell::new(None) };
-}
+/// Safe because Javascript is single-threaded.
+unsafe impl Send for BatchedCallbacks {}
+
+static WAITING_BATCH: LazyLock<Mutex<Option<BatchedCallbacks>>> =
+    LazyLock::new(|| Mutex::new(None));
 
 impl Batch {
     pub fn use_batch(name: &str) -> Self {
-        let span = debug_span!("Batch", batch = name).entered();
+        let span = debug_span!("Batch", batch = name);
+        let _span = span.clone().entered();
         debug!("Starting batch");
-        WAITING_BATCH.with_borrow_mut(move |batch| {
-            let new_batch = Self {
-                prev: batch.take(),
-                forget: false,
-                _span: span,
+        let Ok(mut batch) = WAITING_BATCH.lock().map_err(|error| {
+            error!("Batch::use_batch failed to lock WAITING_BATCH: {error}");
+        }) else {
+            return Self {
+                prev: None,
+                forget: true,
+                span,
                 _not_send: PhantomData,
             };
-            *batch = Some(BatchedCallbacks::default());
-            return new_batch;
-        })
+        };
+        let new_batch = Self {
+            prev: batch.take(),
+            forget: false,
+            span,
+            _not_send: PhantomData,
+        };
+        *batch = Some(BatchedCallbacks::default());
+        return new_batch;
     }
 
     pub(super) fn try_push<M: FnOnce() -> P, P: FnOnce(Version) + 'static>(
         make_callback: M,
     ) -> Result<(), NotBatched> {
-        WAITING_BATCH.with_borrow_mut(|batch| {
-            if let Some(batch) = batch {
-                batch.0.push(Box::new(make_callback()));
-                return Ok(());
-            } else {
-                return Err(NotBatched(()));
-            };
-        })
+        let Ok(mut batch) = WAITING_BATCH.lock().map_err(|error| {
+            error!("Batch::try_push failed to lock WAITING_BATCH: {error}");
+        }) else {
+            return Err(NotBatched(()));
+        };
+        if let Some(batch) = &mut *batch {
+            batch.0.push(Box::new(make_callback()));
+            return Ok(());
+        } else {
+            return Err(NotBatched(()));
+        };
     }
 
     pub fn forget(&mut self) {
@@ -87,10 +102,20 @@ pub(super) struct NotBatched(());
 
 impl Drop for Batch {
     fn drop(&mut self) {
+        let _span = self.span.enter();
         debug!("Processing batch...");
-        let callbacks = WAITING_BATCH
-            .replace(self.prev.take())
-            .or_throw("WAITING_BATCH");
+        let callbacks = {
+            let Ok(mut waiting_batch) = WAITING_BATCH.lock().map_err(|error| {
+                error!("Batch::drop failed to lock WAITING_BATCH: {error}");
+            }) else {
+                return;
+            };
+            let Some(callbacks) = std::mem::replace(&mut *waiting_batch, self.prev.take()) else {
+                error!("Batch::drop failed because WAITING_BATCH was empty");
+                return;
+            };
+            callbacks
+        };
         if self.forget {
             debug!("Processing batch: Skipped");
             return;
@@ -105,15 +130,20 @@ impl Drop for Batch {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
+    use std::sync::LazyLock;
+    use std::sync::Mutex;
 
     use autoclone::autoclone;
 
     use super::Batch;
     use crate::utils::Ptr;
 
+    static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
     #[test]
     #[autoclone]
     fn batch() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 
@@ -155,6 +185,7 @@ mod tests {
     #[test]
     #[autoclone]
     fn forget() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let v = Ptr::new(RefCell::new(vec![]));
         v.borrow_mut().push("init");
 

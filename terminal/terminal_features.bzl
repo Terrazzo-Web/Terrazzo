@@ -17,7 +17,7 @@ REMOTES_UI_DEPS = []
 REMOTES_UI_FEATURES = ["remotes-ui"]
 TILES_STATE_DEPS = []
 TILES_STATE_FEATURES = ["tiles-state"]
-TILES_STATE_CLIENT_DEPS = TILES_STATE_DEPS
+TILES_STATE_CLIENT_DEPS = TILES_STATE_DEPS + ["@crates//:futures"]
 TILES_STATE_CLIENT_FEATURES = TILES_STATE_FEATURES + ["tiles-state-client"]
 CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + TILES_STATE_CLIENT_DEPS + ["@crates//:web-sys"]
 CONVERTER_CLIENT_FEATURES = CLIENT_FEATURES + CONVERTER_FEATURES + REMOTES_UI_FEATURES + TILES_STATE_CLIENT_FEATURES + ["converter-client"]
@@ -133,15 +133,16 @@ NO_WASM_BUILD_DEPS = []
 NO_WASM_BUILD_FEATURES = ["no_wasm_build"]
 PORT_FORWARD_SERVER_DEPS = PORT_FORWARD_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS
 PORT_FORWARD_SERVER_FEATURES = PORT_FORWARD_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + ["port-forward-server"]
-TERMINAL_SERVER_DEPS = SERVER_DEPS + TERMINAL_DEPS + [
+TERMINAL_SERVER_DEPS = REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TERMINAL_DEPS + [
     "//pty",
     "@crates//:dashmap",
     "@crates//:pin-project",
     "@crates//:static_assertions",
     "@crates//:tracing-futures",
 ]
-TERMINAL_SERVER_FEATURES = SERVER_FEATURES + TERMINAL_FEATURES + ["terminal-server"]
+TERMINAL_SERVER_FEATURES = REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TERMINAL_FEATURES + ["terminal-server"]
 TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_SERVER_DEPS + [
+    "@crates//:chrono",
     "@crates//:libc",
     "@crates//:lru",
     "@crates//:notify",
@@ -183,15 +184,15 @@ _EXCLUSION_MAP = [
     {"feature": "tiles-state-client", "delta": []},
     {"feature": "tiles-state-server", "delta": []},
     {"feature": "remote-fn-streaming", "delta": [150, 9]},
-    {"feature": "remote-fn", "delta": [168, 6, 503]},
-    {"feature": "remote-fn-unary", "delta": [-501, -166, 9]},
+    {"feature": "remote-fn", "delta": [168, 6, 549]},
+    {"feature": "remote-fn-unary", "delta": [-547, -166, 9]},
     {"feature": "converter", "delta": [-178, 6, 246, 2, 252, 15]},
-    {"feature": "logs-panel", "delta": [-280, 15, -248, 2, 304, 4, 314, 5]},
-    {"feature": "port-forward", "delta": [-322, 5, -310, 4, 134, 4, 144, 2, 324, 3, 332, 4]},
-    {"feature": "text-editor", "delta": [-338, 4, -328, 3, -146, 2, -140, 4, 112, 4, 122, 6, 296, 3, 374, 14, 404, 15, 438, 14]},
-    {"feature": "client", "delta": [-456, 10, -432, 15, -400, 14, -132, 6, -118, 4, 3, 6, 17, 282, 2, 288, 4, 305, 309, 358, 2, 364, 4]},
-    {"feature": "terminal", "delta": [-464, 4, -307, -303, -300, 7, -284, 2, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 340, 3, 348, 4]},
-    {"feature": "server", "delta": [-370, 4, -360, 2, -38, 13, -9, 46, 4, 57, 94, 47, 199, 212, 11, 236, 5, 254, 13, 327]},
+    {"feature": "logs-panel", "delta": [-280, 15, -248, 2, 310, 4, 320, 5, 544, 2]},
+    {"feature": "port-forward", "delta": [-546, 2, -328, 5, -316, 4, 134, 4, 144, 2, 330, 3, 338, 4]},
+    {"feature": "text-editor", "delta": [-344, 4, -334, 3, -146, 2, -140, 4, 112, 4, 122, 6, 302, 3, 386, 17, 422, 16, 458, 21]},
+    {"feature": "client", "delta": [-486, 4, -468, 6, -452, 16, -418, 17, -132, 6, -118, 4, 3, 6, 17, 282, 3, 290, 6, 311, 315, 366, 2, 374, 5, 533, 545]},
+    {"feature": "terminal", "delta": [-543, -531, -498, 6, -478, 5, -313, -309, -306, 9, -286, 3, -11, -8, 2, -1, 58, 13, 188, 5, 200, 6, 346, 3, 354, 4, 365, 373]},
+    {"feature": "server", "delta": [-382, 5, -368, 3, -38, 13, -9, 46, 4, 57, 94, 47, 199, 212, 11, 236, 5, 254, 13, 333, 395, 403, 547]},
 ]
 
 def compute_srcs(features):

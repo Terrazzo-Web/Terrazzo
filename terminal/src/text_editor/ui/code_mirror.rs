@@ -3,7 +3,11 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 
-pub struct CodeMirrorJs(CodeMirrorJsImpl);
+pub struct CodeMirrorJs {
+    inner: CodeMirrorJsImpl,
+    _onchange: Closure<dyn FnMut(JsValue)>,
+    _oncursor: Closure<dyn FnMut(JsValue)>,
+}
 
 impl Drop for CodeMirrorJs {
     fn drop(&mut self) {
@@ -15,7 +19,7 @@ impl std::ops::Deref for CodeMirrorJs {
     type Target = CodeMirrorJsImpl;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.inner
     }
 }
 
@@ -24,21 +28,42 @@ impl CodeMirrorJs {
         element: Element,
         original: JsValue,
         content: JsValue,
-        onchange: &Closure<dyn FnMut(JsValue)>,
+        onchange: Closure<dyn FnMut(JsValue)>,
+        oncursor: Closure<dyn FnMut(JsValue)>,
+        cursor_position: JsValue,
         base_path: String,
         full_path: String,
     ) -> Self {
-        Self(CodeMirrorJsImpl::new(
-            element, original, content, onchange, base_path, full_path,
-        ))
+        Self {
+            inner: CodeMirrorJsImpl::new(
+                element,
+                original,
+                content,
+                &onchange,
+                &oncursor,
+                cursor_position,
+                base_path,
+                full_path,
+            ),
+            _onchange: onchange,
+            _oncursor: oncursor,
+        }
     }
 
     pub fn set_content(&self, content: String) {
-        self.0.set_content(content);
+        self.inner.set_content(content);
+    }
+
+    pub fn insert_text(&self, text: String) {
+        self.inner.insert_text(text);
+    }
+
+    pub fn focus(&self) {
+        self.inner.focus();
     }
 
     pub fn cargo_check(&self, diagnostics: JsValue) {
-        self.0.cargo_check(diagnostics);
+        self.inner.cargo_check(diagnostics);
     }
 }
 
@@ -53,6 +78,8 @@ extern "C" {
         original: JsValue,
         content: JsValue,
         onchange: &Closure<dyn FnMut(JsValue)>,
+        oncursor: &Closure<dyn FnMut(JsValue)>,
+        cursor_position: JsValue,
         base_path: String,
         full_path: String,
     ) -> CodeMirrorJsImpl;
@@ -62,6 +89,12 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn set_content(this: &CodeMirrorJsImpl, content: String);
+
+    #[wasm_bindgen(method)]
+    pub fn insert_text(this: &CodeMirrorJsImpl, text: String);
+
+    #[wasm_bindgen(method)]
+    pub fn focus(this: &CodeMirrorJsImpl);
 
     #[wasm_bindgen(method)]
     pub fn cargo_check(this: &CodeMirrorJsImpl, diagnostics: JsValue);

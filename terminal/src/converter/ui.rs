@@ -24,6 +24,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
+use crate::frontend::resize_bar::resize_bar_horz;
 use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(pub(super) style, "converter.scss");
@@ -70,7 +71,7 @@ fn converter_impl(
                 conversions.clone(),
                 resize_manager.clone(),
             ),
-            show_resize_bar(resize_manager),
+            resize_bar_horz(resize_manager, Default::default()),
             show_conversions(conversions, preferred_language),
         ),
     )
@@ -107,8 +108,9 @@ fn show_input(
                     warn!("Failed to load converter content");
                     return;
                 };
-                element.with(|e| e.set_value(&content));
-                get_conversions(remote.clone(), content, conversions.clone());
+                if element.try_with(|e| e.set_value(&content)).is_some() {
+                    get_conversions(remote.clone(), content, conversions.clone());
+                }
             });
         },
     )
@@ -196,13 +198,3 @@ struct GetConversionsUiRequest {
 struct DebouncedGetConversions(Box<dyn Fn(GetConversionsUiRequest)>);
 unsafe impl Send for DebouncedGetConversions {}
 unsafe impl Sync for DebouncedGetConversions {}
-
-#[html]
-fn show_resize_bar(resize_manager: MousemoveManager) -> XElement {
-    div(
-        class = style::RESIZE_BAR,
-        mousedown = resize_manager.mousedown(),
-        dblclick = move |_| resize_manager.delta.set(None),
-        div(div()),
-    )
-}

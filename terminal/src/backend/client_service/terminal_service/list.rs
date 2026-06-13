@@ -4,8 +4,8 @@ use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_server::server::Server;
 
+use crate::backend::Server;
 use crate::backend::protos::terrazzo::terminal::ListTerminalsRequest;
 use crate::backend::protos::terrazzo::terminal::MaybeString;
 use crate::backend::protos::terrazzo::terminal::TerminalDef;
@@ -24,6 +24,7 @@ pub async fn list_terminals(server: &Server, visited: Vec<String>) -> Vec<Termin
                 shell_title: title.shell_title.clone(),
                 override_title: title.override_title.clone().map(|s| MaybeString { s }),
                 order: terminal.order,
+                tile: terminal.tile.into(),
             }
         }));
         for client_name in server.connections().clients() {

@@ -313,6 +313,21 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
             let result = get_or_init(old, &mut result);
             result.config_file_poll_strategy = new.config_file_poll_strategy.clone();
         }
+        if new.terminal_shell != old.terminal_shell {
+            info!("Changed: terminal_shell");
+            let result = get_or_init(old, &mut result);
+            result.terminal_shell = new.terminal_shell.clone();
+        }
+        if new.trash != old.trash {
+            info!("Changed: trash");
+            let result = get_or_init(old, &mut result);
+            result.trash = new.trash.clone();
+        }
+        if new.git_trash != old.git_trash {
+            info!("Changed: git_trash");
+            let result = get_or_init(old, &mut result);
+            result.git_trash = new.git_trash.clone();
+        }
 
         return result.map(DiffArc::from);
     });

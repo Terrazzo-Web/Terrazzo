@@ -1,23 +1,35 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::DragEvent;
 use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
+use self::diagnostics::warn;
+use crate::assets::icons;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
 use crate::frontend::timestamp::display_timestamp;
+use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
-use crate::utils::more_path::MorePath as _;
+use crate::text_editor::ui::ROOT_FILE_PATH;
+use crate::text_editor::ui::drag::encode_query_path;
+use crate::text_editor::ui::drag::on_move_dragover;
+use crate::text_editor::ui::drag::on_move_dragstart;
+use crate::text_editor::ui::drag::on_move_drop;
+use crate::tiles::app::App;
 
 terrazzo_css::import_style!(style, "folder.scss");
 
@@ -32,7 +44,7 @@ pub fn folder(
     let FolderState {
         parent,
         notify_registration,
-        file_path,
+        file_path: folder_path,
     } = process_folder_state(&manager, editor_state);
     let mut rows = vec![];
     for file in parent.iter().chain(list.iter()) {
@@ -61,25 +73,21 @@ pub fn folder(
                 )
             })
             .unwrap_or_default();
+        let file_path = FilePath {
+            base: manager.path.base.get_value_untracked(),
+            file: folder_entry_path(&folder_path, name).into(),
+        };
         rows.push(tr(
             id = "{name}",
             #[cfg(not(feature = "client-prod"))]
             class = "folder-row",
             click = move |_| {
-                autoclone!(manager, file_path, name);
-                let file_path = &*file_path;
-                let file_path = file_path.trim_start_matches('/');
-                let file = if &*name == ".." {
-                    Path::new(file_path)
-                        .parent()
-                        .map(Path::to_owned)
-                        .unwrap_or_default()
-                } else {
-                    Path::new(file_path).join(&*name)
-                };
-                manager.path.file.set(file.to_owned_string())
+                autoclone!(manager, file_path);
+                manager.path.file.set(file_path.file.clone())
             },
             td(
+                draggable = (name.as_ref() != "..").then_some("true"),
+                dragstart = on_move_dragstart(&file_path),
                 #[cfg(not(feature = "client-prod"))]
                 class = "folder-name",
                 "{display_name}",
@@ -89,10 +97,48 @@ pub fn folder(
             td("{user}"),
             td("{group}"),
             td("{permissions}"),
+            td(
+                class = style::FOLDER_ACTIONS,
+                download_action(file_path.clone(), name.clone(), is_dir),
+                trash_action(
+                    manager.clone(),
+                    folder_path.clone(),
+                    file_path.clone(),
+                    name.clone(),
+                ),
+            ),
         ));
     }
+
+    let destination_folder = FilePath {
+        base: manager.path.base.get_value_untracked(),
+        file: folder_path.clone(),
+    };
+    let dragover_class: XSignal<Option<&'static str>> = XSignal::new("folder-view-dragover", None);
+    #[template(wrap = true)]
+    fn get_dragover_class(#[signal] dragover_class: Option<&'static str>) -> XAttributeValue {
+        dragover_class
+    }
+    let on_move_drop = on_move_drop(&manager, &destination_folder);
+
     tag(
         class = style::FOLDER,
+        dragover = move |event: DragEvent| {
+            autoclone!(dragover_class);
+            if !on_move_dragover(event) {
+                return;
+            }
+            dragover_class.set(style::MOVE_DRAGOVER);
+        },
+        dragleave = move |_| {
+            autoclone!(dragover_class);
+            dragover_class.set(None)
+        },
+        drop = move |event| {
+            dragover_class.set(None);
+            on_move_drop(event);
+        },
+        class %= get_dragover_class(dragover_class.clone()),
         table(
             thead(tr(
                 th("Name"),
@@ -101,6 +147,7 @@ pub fn folder(
                 th("User"),
                 th("Group"),
                 th("Permissions"),
+                th(""),
             )),
             tbody(
                 mouseover = move |_: MouseEvent| {
@@ -115,11 +162,104 @@ pub fn folder(
     )
 }
 
-#[derive(Default)]
+#[html]
+fn download_action(file_path: FilePath<Arc<Path>>, name: Arc<str>, is_dir: bool) -> XElement {
+    if is_dir || &*name == ".." {
+        return span();
+    }
+    a(
+        href = download_url(&file_path),
+        download = name,
+        click = move |event: MouseEvent| {
+            event.stop_propagation();
+        },
+        img(
+            class = style::DOWNLOAD_ACTION,
+            #[cfg(not(feature = "client-prod"))]
+            class = "folder-download-icon",
+            src = icons::download(),
+            title = "Download",
+        ),
+    )
+}
+
+#[autoclone]
+#[html]
+fn trash_action(
+    manager: Ptr<TextEditorManager>,
+    folder_path: Arc<Path>,
+    file_path: FilePath<Arc<Path>>,
+    name: Arc<str>,
+) -> XElement {
+    if &*name == ".." {
+        return span();
+    }
+    img(
+        class = style::TRASH_ACTION,
+        #[cfg(not(feature = "client-prod"))]
+        class = "folder-trash-icon",
+        src = icons::trash(),
+        title = "Move to trash",
+        click = move |event: MouseEvent| {
+            autoclone!(manager, folder_path, file_path);
+            event.stop_propagation();
+            spawn_local(delete_file(
+                manager.clone(),
+                folder_path.clone(),
+                file_path.clone(),
+            ));
+        },
+    )
+}
+
+fn download_url(file_path: &FilePath<Arc<Path>>) -> String {
+    format!(
+        "/api/text_editor/fsio/download?base={}&file={}",
+        encode_query_path(file_path.base.as_ref()),
+        encode_query_path(file_path.file.as_ref())
+    )
+}
+
+async fn delete_file(
+    manager: Ptr<TextEditorManager>,
+    folder_path: Arc<Path>,
+    file_path: FilePath<Arc<Path>>,
+) {
+    let result = fsio::client::delete_file(manager.remote.clone(), file_path).await;
+    if let Err(error) = result {
+        warn!("Failed to move entry to trash: {error}");
+        return;
+    }
+    if manager.path.file.get_value_untracked() == folder_path {
+        manager.path.file.force(folder_path);
+    } else {
+        manager.tile.app.force(App::TextEditor);
+    }
+}
+
+fn folder_entry_path(folder_path: &Path, name: &str) -> PathBuf {
+    let folder_path = folder_path.strip_prefix("/").unwrap_or(folder_path);
+    if name == ".." {
+        folder_path.parent().map(Path::to_owned).unwrap_or_default()
+    } else {
+        folder_path.join(name)
+    }
+}
+
 struct FolderState {
     parent: Option<FileMetadata>,
     notify_registration: Option<Ptr<NotifyRegistration>>,
-    file_path: Arc<str>,
+    file_path: Arc<Path>,
+}
+
+impl Default for FolderState {
+    fn default() -> Self {
+        Self {
+            parent: Default::default(),
+            notify_registration: Default::default(),
+            file_path: ROOT_FILE_PATH.clone(),
+        }
+    }
 }
 
 #[autoclone]
@@ -134,7 +274,7 @@ fn process_folder_state(
     let path = &editor_state.path;
     let file_path = &path.file;
 
-    let parent_path = Path::new(file_path.as_ref()).parent();
+    let parent_path = file_path.parent();
     let parent = parent_path.map(|_| FileMetadata {
         name: "..".into(),
         is_dir: true,
@@ -150,7 +290,8 @@ fn process_folder_state(
                 let EventKind::File(kind) = event.kind else {
                     return;
                 };
-                match (Path::new(&event.path) == path.as_deref().full_path(), kind) {
+                let full_path = path.as_deref().full_path();
+                match (event.path.as_ref() == full_path.as_path(), kind) {
                     (
                         false,
                         FileEventKind::Create | FileEventKind::Modify | FileEventKind::Delete,
@@ -167,9 +308,8 @@ fn process_folder_state(
                     (true, FileEventKind::Delete) => {
                         debug!("The folder was deleted");
                         manager.path.file.update(|file_path| {
-                            let file_path = Path::new(file_path.as_ref());
                             let parent = file_path.parent().unwrap_or_else(|| "/".as_ref());
-                            Some(parent.to_owned_string().into())
+                            Some(Arc::from(parent))
                         });
                         return;
                     }

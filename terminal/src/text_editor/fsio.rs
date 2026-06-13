@@ -1,4 +1,6 @@
+use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use nameth::NamedEnumValues as _;
@@ -9,14 +11,27 @@ use server_fn::codec::Json;
 use terrazzo::server;
 
 use super::file_path::FilePath;
+use super::side::SideViewNode;
 use crate::api::client_address::ClientAddress;
 
-pub mod canonical;
+#[cfg(feature = "server")]
+pub mod api;
+pub mod client;
+mod cursor_positions;
 mod fsmetadata;
 mod git;
 mod remote;
 mod service;
-pub mod ui;
+pub mod ux;
+
+pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
+pub static ROOT_FILE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("").into());
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CursorPosition {
+    pub anchor: u32,
+    pub head: u32,
+}
 
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -38,7 +53,7 @@ pub enum File {
     Error(String),
 }
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct FileMetadata {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: Arc<str>,
@@ -77,7 +92,7 @@ impl std::fmt::Debug for File {
 #[nameth]
 async fn load_file(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
 ) -> Result<Option<File>, ServerFnError> {
     Ok(remote::LOAD_FILE_REMOTE_FN
         .call(remote, remote::LoadFileRequest { path })
@@ -86,14 +101,138 @@ async fn load_file(
 
 #[server(protocol = Http<Json, Json>)]
 #[nameth]
+async fn load_file_metadata(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<File>, ServerFnError> {
+    Ok(remote::LOAD_FILE_METADATA_REMOTE_FN
+        .call(remote, remote::LoadFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn list_folder(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<Arc<Vec<FileMetadata>>>, ServerFnError> {
+    Ok(remote::LIST_FOLDER_REMOTE_FN
+        .call(remote, remote::ListFolderRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn file_exists(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<bool, ServerFnError> {
+    Ok(remote::FILE_EXISTS_REMOTE_FN
+        .call(remote, remote::FileExistsRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn prune_side_view(
+    remote: ClientAddress,
+    base: Arc<Path>,
+    node: Arc<SideViewNode<()>>,
+) -> Result<Option<Arc<SideViewNode<()>>>, ServerFnError> {
+    Ok(remote::PRUNE_SIDE_VIEW_REMOTE_FN
+        .call(remote, remote::PruneSideViewRequest { base, node })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn create_file(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+    name: String,
+) -> Result<(), ServerFnError> {
+    Ok(remote::CREATE_FILE_REMOTE_FN
+        .call(remote, remote::CreateEntryRequest { path, name })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn create_folder(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+    name: String,
+) -> Result<(), ServerFnError> {
+    Ok(remote::CREATE_FOLDER_REMOTE_FN
+        .call(remote, remote::CreateEntryRequest { path, name })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn move_file(
+    remote: ClientAddress,
+    source: FilePath<Arc<Path>>,
+    destination_folder: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
+    Ok(remote::MOVE_FILE_REMOTE_FN
+        .call(
+            remote,
+            remote::MoveFileRequest {
+                source,
+                destination_folder,
+            },
+        )
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn delete_file(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<(), ServerFnError> {
+    Ok(remote::DELETE_FILE_REMOTE_FN
+        .call(remote, remote::DeleteFileRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
 async fn store_file_impl(
     remote: ClientAddress,
-    path: FilePath<Arc<str>>,
+    path: FilePath<Arc<Path>>,
     content: String,
 ) -> Result<(), ServerFnError> {
     #[cfg(debug_assertions)]
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     Ok(remote::STORE_FILE_REMOTE_FN
         .call(remote, remote::StoreFileRequest { path, content })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn load_cursor_position(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+) -> Result<Option<CursorPosition>, ServerFnError> {
+    Ok(remote::LOAD_CURSOR_POSITION_REMOTE_FN
+        .call(remote, remote::LoadCursorPositionRequest { path })
+        .await?)
+}
+
+#[server(protocol = Http<Json, Json>)]
+#[nameth]
+async fn store_cursor_position(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+    position: CursorPosition,
+) -> Result<(), ServerFnError> {
+    Ok(remote::STORE_CURSOR_POSITION_REMOTE_FN
+        .call(
+            remote,
+            remote::StoreCursorPositionRequest { path, position },
+        )
         .await?)
 }

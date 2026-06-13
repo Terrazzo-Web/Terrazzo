@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use nameth::nameth;
@@ -14,7 +15,7 @@ use crate::text_editor::path_selector::schema::PathSelector;
 pub(super) async fn autocomplete_path(
     remote: ClientAddress,
     kind: PathSelector,
-    prefix: Arc<str>,
+    prefix: Arc<Path>,
     input: String,
 ) -> Result<Vec<AutocompleteItem>, ServerFnError> {
     use scopeguard::defer;

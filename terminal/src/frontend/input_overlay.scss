@@ -1,0 +1,68 @@
+.input-overlay {
+    position: absolute;
+    left: calc(var(--padding) / 2);
+    right: calc(var(--padding) / 2);
+    bottom: calc(var(--padding) / 2);
+    margin: calc(var(--padding) / 2);
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.input-overlay-buttons {
+    display: flex;
+    flex-direction: column;
+    margin-left: calc(var(--padding) / 2);
+}
+
+.input-overlay-button,
+.input-overlay-send {
+    flex: 0 0 auto;
+    width: 1.5rem;
+    height: 1.5rem;
+    filter: invert(1);
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+    margin-top: calc(var(--padding) / 2);
+}
+
+.input-overlay-button {
+    cursor: pointer;
+    opacity: 0.3;
+}
+
+.input-overlay-button:hover,
+.input-overlay-button.active {
+    opacity: 1;
+}
+
+.input-overlay:not(.active) .input-overlay-textarea,
+.input-overlay:not(.active) .input-overlay-send {
+    display: none;
+    visibility: hidden;
+}
+
+.input-overlay-textarea {
+    flex: 1 1 auto;
+    min-height: 4rem;
+    padding: var(--padding);
+    border: 1px solid var(--color);
+    border-radius: 0.5rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--color);
+    pointer-events: auto;
+    resize: none;
+    outline: none;
+}
+
+.input-overlay-send {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.input-overlay-send.active {
+    opacity: 1;
+    cursor: pointer;
+}

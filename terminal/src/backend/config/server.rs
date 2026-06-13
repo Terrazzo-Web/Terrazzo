@@ -17,6 +17,18 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
 
     /// The TCP ports to listen to.
     pub ports: T::Ports,
+
+    /// The shell command to run for new terminals.
+    #[serde(rename = "terminal-shell", alias = "terminal_shell")]
+    pub terminal_shell: Option<String>,
+
+    /// The folder where deleted text-editor files are moved.
+    pub trash: T::Path,
+
+    /// The folder, relative to a Git repository root, where deleted Git files are moved.
+    #[serde(rename = "git-trash", alias = "git_trash")]
+    pub git_trash: T::MaybePath,
+
     pub set_current_endpoint: T::MaybePath,
 
     /// The file to store the pid of the daemon while it is running,

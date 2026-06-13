@@ -30,6 +30,8 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use uuid::Uuid;
 
+use self::config::SniOverrideError;
+use self::config::url;
 use self::service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
@@ -48,7 +50,12 @@ pub mod service;
 pub struct Client {
     /// The client name for troubleshooting purposes
     pub client_name: ClientName,
+
+    /// The URL used to open the TCP connection.
     uri: String,
+
+    /// The TLS server name to validate when it differs from [Self::uri].
+    sni_override: Option<String>,
 
     /// The TLS client is used to create the secure WebSocket tunnel.
     ///
@@ -81,13 +88,12 @@ impl Client {
             .gateway_pki()
             .to_tls_client(ChainOnlyServerCertificateVerifier)?;
         let tls_server = config.client_certificate().to_tls_server()?;
+        let client_name = config.client_name();
+        let tunnel_path = format!("/remote/tunnel/{client_name}");
         Ok(Arc::new(Client {
-            client_name: config.client_name(),
-            uri: format!(
-                "{}/remote/tunnel/{}",
-                config.base_url(),
-                config.client_name()
-            ),
+            client_name,
+            uri: url(&config, &tunnel_path)?.to_string(),
+            sni_override: config.sni_override().map(ToOwned::to_owned),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),
@@ -186,6 +192,9 @@ fn is_shutdown(shutdown_rx: Shared<impl Future<Output = ()> + Send + 'static>) -
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum NewClientError<C: TunnelConfig> {
+    #[error("[{n}] {0}", n = self.name())]
+    SniOverride(#[from] SniOverrideError),
+
     #[error("[{n}] {0}", n = self.name())]
     ToTlsClient(#[from] ToTlsClientError<<C::GatewayPki as TrustedStoreConfig>::Error>),
 

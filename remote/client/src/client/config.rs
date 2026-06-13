@@ -1,9 +1,12 @@
 //! Configuration for the Terrazzo [Client](super::Client).
 
 use std::ffi::OsString;
+use std::net::IpAddr;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+use reqwest::Url;
 use tracing::debug;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::is_global::IsGlobal;
@@ -50,6 +53,14 @@ pub trait ClientConfig: IsGlobal {
 
     /// The trust anchors for the Terrazzo Gateway server certificate.
     fn gateway_pki(&self) -> Self::GatewayPki;
+
+    /// The TLS server name to validate, when it differs from [ClientConfig::base_url].
+    ///
+    /// This is useful when connecting to an IP address while validating the
+    /// certificate against a DNS name.
+    fn sni_override(&self) -> Option<&str> {
+        None
+    }
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
@@ -65,4 +76,57 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
     fn gateway_pki(&self) -> Self::GatewayPki {
         self.as_ref().gateway_pki()
     }
+
+    fn sni_override(&self) -> Option<&str> {
+        self.as_ref().sni_override()
+    }
+}
+
+pub(crate) fn url<C: ClientConfig>(client_config: &C, path: &str) -> Result<Url, SniOverrideError> {
+    Ok(Url::parse(&format!("{}{path}", client_config.base_url()))?)
+}
+
+pub(crate) fn set_sni_override(
+    url: &mut Url,
+    sni_override: Option<&str>,
+) -> Result<(), SniOverrideError> {
+    if let Some(sni_override) = sni_override {
+        url.set_host(Some(sni_override))
+            .map_err(|_| SniOverrideError::InvalidSniOverride(sni_override.to_owned()))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn sni_override_resolution<C: ClientConfig>(
+    client_config: &C,
+) -> Result<Option<(String, SocketAddr)>, SniOverrideError> {
+    let Some(sni_override) = client_config.sni_override() else {
+        return Ok(None);
+    };
+    let url = Url::parse(&client_config.base_url().to_string())?;
+    let Some(host) = url.host_str() else {
+        return Err(SniOverrideError::MissingBaseUrlHost);
+    };
+    let Ok(ip) = host.parse::<IpAddr>() else {
+        return Ok(None);
+    };
+    let port = url
+        .port_or_known_default()
+        .ok_or(SniOverrideError::MissingBaseUrlPort)?;
+    Ok(Some((sni_override.to_owned(), SocketAddr::new(ip, port))))
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SniOverrideError {
+    #[error("{0}")]
+    Url(#[from] url::ParseError),
+
+    #[error("The Gateway URL must include a host when using SNI override")]
+    MissingBaseUrlHost,
+
+    #[error("The Gateway URL must include or imply a port when using SNI override")]
+    MissingBaseUrlPort,
+
+    #[error("Invalid SNI override: {0}")]
+    InvalidSniOverride(String),
 }

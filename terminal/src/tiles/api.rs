@@ -16,6 +16,7 @@ mod move_child;
 mod mutate;
 mod remove;
 mod select_child;
+mod set_tab_title;
 mod state;
 mod tests;
 
@@ -48,6 +49,11 @@ pub async fn move_child(
     moved_child: TileId,
 ) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(move_child::move_child(array_id, after_child, moved_child)?)
+}
+
+#[server]
+pub async fn set_tab_title(array_id: TileId, title: String) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(set_tab_title::set_tab_title(array_id, title)?)
 }
 
 #[server]

@@ -146,7 +146,7 @@ pub(crate) fn show_tiles_rec(
         Tiles::Array {
             id,
             direction,
-            title: is_this_used,
+            title: _,
             selected,
             nodes,
         } if direction.get_value_untracked() == Direction::Tabbed => {

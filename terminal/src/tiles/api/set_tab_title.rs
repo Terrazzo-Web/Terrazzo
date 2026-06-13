@@ -7,28 +7,25 @@ use super::state::TREE;
 use super::state::TilesStateError;
 use crate::tiles::id::TileId;
 
-pub fn select_child(
-    array_id: TileId,
-    selected_child: Option<TileId>,
-) -> Result<Arc<Tiles>, TilesStateError> {
+pub fn set_tab_title(array_id: TileId, title: String) -> Result<Arc<Tiles>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.take().unwrap_or_default();
-    let mut selected = false;
-    let tree = select_child_aux(tree, array_id, selected_child, &mut selected)?;
-    if !selected {
+    let mut done = false;
+    let tree = set_tab_title_aux(tree, array_id, &title, &mut done)?;
+    if !done {
         return Err(TilesStateError::TileIdNotFound(array_id));
     }
     *lock = tree.clone().into();
     Ok(tree)
 }
 
-fn select_child_aux(
+fn set_tab_title_aux(
     tree: Arc<Tiles>,
     array_id: TileId,
-    selected_child: Option<TileId>,
-    selected: &mut bool,
+    new_title: &str,
+    done: &mut bool,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    if *selected {
+    if *done {
         return Ok(tree);
     }
     Ok(match &*tree {
@@ -36,21 +33,16 @@ fn select_child_aux(
         Tiles::Array {
             id,
             direction,
-            title,
-            selected: old_selected,
+            title: _old_title,
+            selected,
             nodes,
         } if *id == array_id => {
-            if let Some(selected_child) = selected_child
-                && !nodes.iter().any(|node| child_id(node) == selected_child)
-            {
-                return Err(TilesStateError::TileIdNotFound(selected_child));
-            }
-            *selected = true;
+            *done = true;
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
-                title: title.clone(),
-                selected: selected_child.or(*old_selected),
+                title: new_title.into(),
+                selected: *selected,
                 nodes: nodes.clone(),
             })
         }
@@ -67,15 +59,8 @@ fn select_child_aux(
             selected: *old_selected,
             nodes: nodes
                 .iter()
-                .map(|node| select_child_aux(node.clone(), array_id, selected_child, selected))
+                .map(|node| set_tab_title_aux(node.clone(), array_id, new_title, done))
                 .collect::<Result<_, _>>()?,
         }),
     })
-}
-
-fn child_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

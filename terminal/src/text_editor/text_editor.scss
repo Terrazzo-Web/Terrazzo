@@ -10,7 +10,6 @@ div.text_editor {
         box-sizing: border-box;
         flex: 0 0 auto;
         overflow-x: scroll;
-        overflow-y: hidden;
         @include no-scroll-bar;
 
         div.path-selector {

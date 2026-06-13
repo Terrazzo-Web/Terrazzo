@@ -113,7 +113,7 @@ mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.80" }
+openssl = { version = "0.10.81" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "3.0.6" }
 pin-project = { version = "1.1.13" }

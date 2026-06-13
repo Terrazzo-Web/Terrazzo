@@ -54,6 +54,25 @@ li.tile-tab-title {
         align-items: center;
         height: 100%;
     }
+
+    .close-icon {
+        height: 15px;
+        filter: invert(1);
+        visibility: hidden;
+
+        &:hover {
+            background-color: var(--link-color);
+            filter: invert(0);
+        }
+
+        margin-left: var(--padding);
+        cursor: pointer;
+        padding: 3px;
+    }
+
+    &:hover .close-icon {
+        visibility: visible;
+    }
 }
 
 .title-span {

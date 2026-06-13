@@ -270,25 +270,20 @@ fn tile_title(
             },
         )
     });
-    // let close_button = img(
-    //     key = "close-icon",
-    //     class = style::CLOSE_ICON,
-    //     #[cfg(not(feature = "client-prod"))]
-    //     class = "close-icon",
-    //     src = icons::close_tab(),
-    //     click = move |ev: web_sys::MouseEvent| {
-    //         autoclone!(terminal);
-    //         ev.stop_propagation();
-    //         let close_task = async move {
-    //             autoclone!(terminal);
-    //             terminal_api::stream::try_restart_pipe();
-    //             terminal_api::stream::close(&terminal, None).await;
-    //         };
-    //         spawn_local(close_task.in_current_span());
-    //     },
-    // );
+    let close_button = img(
+        key = "close-icon",
+        class = style::CLOSE_ICON,
+        #[cfg(not(feature = "client-prod"))]
+        class = "close-icon",
+        src = icons::close_tab(),
+        click = move |ev: web_sys::MouseEvent| {
+            ev.stop_propagation();
+            let close_task = async move { RootTree::update(super::api::remove(tile_id).await) };
+            spawn_local(close_task);
+        },
+    );
 
-    div([title_link /* close_button */]..)
+    div([title_link, close_button]..)
 }
 
 #[html]

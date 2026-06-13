@@ -30,7 +30,6 @@ fn install_icons() {
     #[cfg(feature = "client")]
     fn install_icon(_: &'static str) {}
 
-    #[cfg(any(feature = "terminal", feature = "text-editor"))]
     install_icon(super::icons::close_tab());
     install_icon(super::icons::key_icon());
     install_icon(super::icons::menu());

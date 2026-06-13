@@ -36,7 +36,7 @@ declare_icon!(chevron_bar_down, "/icons/chevron-bar-down.svg"; feature = "logs-p
 declare_icon!(chevron_bar_up, "/icons/chevron-bar-up.svg"; feature = "logs-panel");
 declare_icon!(chevron_double_right, "/icons/chevron-double-right.svg"; feature = "text-editor");
 declare_icon!(close_app, "/icons/trash3-fill.svg");
-declare_icon!(close_tab, "/icons/x-lg.svg"; any(feature = "terminal", feature = "text-editor"));
+declare_icon!(close_tab, "/icons/x-lg.svg");
 declare_icon!(collapse_vert, "/icons/arrows-collapse.svg"; feature = "text-editor");
 declare_icon!(converter, "/icons/regex.svg"; feature = "converter");
 declare_icon!(copy, "/icons/copy.svg"; feature = "converter");

@@ -9,6 +9,9 @@ div.text_editor {
         border: 1px solid var(--color);
         box-sizing: border-box;
         flex: 0 0 auto;
+        overflow-x: scroll;
+        overflow-y: hidden;
+        @include no-scroll-bar;
 
         div.path-selector {
             display: flex;

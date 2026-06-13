@@ -13,6 +13,7 @@
 
         background-color: var(--background-color);
         border: 1px solid var(--color);
+        box-sizing: border-box;
 
         @include prevent-user-select;
     }

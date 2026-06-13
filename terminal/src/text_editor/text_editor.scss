@@ -111,6 +111,7 @@ div.text_editor {
             width: 100%;
             min-height: 0;
             flex: 1 1 auto;
+            overflow-x: scroll;
 
             div.editor {
                 position: relative;

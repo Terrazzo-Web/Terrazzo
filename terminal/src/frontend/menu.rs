@@ -101,25 +101,22 @@ fn menu_items(
                 #[cfg(not(feature = "client-prod"))]
                 class = "split-horizontal",
                 src = icons::split_horz(),
-                click = tile.split_horz(),
+                click = tile.split_horz(show_menu_mut.clone(), hide_menu.clone()),
             )),
             div(img(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]
                 class = "split-vertical",
                 src = icons::split_vert(),
-                click = tile.split_vert(),
+                click = tile.split_vert(show_menu_mut.clone(), hide_menu.clone()),
             )),
             div(img(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]
                 class = "split-tabbed",
                 src = icons::window_stack(),
-                click = tile.tabify(),
+                click = tile.tabify(show_menu_mut.clone(), hide_menu.clone()),
             )),
-        ));
-        items.push(li(
-            class = style::SPLITS,
             div(img(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]

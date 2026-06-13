@@ -3,10 +3,14 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::Duration;
 
 use terrazzo::envelope;
+use terrazzo::prelude::Batch;
+use terrazzo::prelude::MutableSignal;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
+use terrazzo::widgets::cancellable::Cancellable;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 
@@ -216,21 +220,42 @@ impl<T> std::fmt::Debug for TilesCmp<T> {
 }
 
 impl Tile {
-    pub fn split_horz(&self) -> impl Fn(MouseEvent) + 'static {
-        self.split(Direction::Horizontal)
+    pub fn split_horz(
+        &self,
+        show_menu_mut: MutableSignal<bool>,
+        hide_menu: Cancellable<Duration>,
+    ) -> impl Fn(MouseEvent) + 'static {
+        self.split(show_menu_mut, hide_menu, Direction::Horizontal)
     }
 
-    pub fn split_vert(&self) -> impl Fn(MouseEvent) + 'static {
-        self.split(Direction::Vertical)
+    pub fn split_vert(
+        &self,
+        show_menu_mut: MutableSignal<bool>,
+        hide_menu: Cancellable<Duration>,
+    ) -> impl Fn(MouseEvent) + 'static {
+        self.split(show_menu_mut, hide_menu, Direction::Vertical)
     }
 
-    pub fn tabify(&self) -> impl Fn(MouseEvent) + 'static {
-        self.split(Direction::Tabbed)
+    pub fn tabify(
+        &self,
+        show_menu_mut: MutableSignal<bool>,
+        hide_menu: Cancellable<Duration>,
+    ) -> impl Fn(MouseEvent) + 'static {
+        self.split(show_menu_mut, hide_menu, Direction::Tabbed)
     }
 
-    fn split(&self, direction: Direction) -> impl Fn(MouseEvent) + 'static {
+    fn split(
+        &self,
+        show_menu_mut: MutableSignal<bool>,
+        hide_menu: Cancellable<Duration>,
+        direction: Direction,
+    ) -> impl Fn(MouseEvent) + 'static {
         let tile_id = self.id;
         move |_| {
+            let batch = Batch::use_batch("select-app");
+            hide_menu.cancel();
+            show_menu_mut.set(false);
+            drop(batch);
             spawn_local(async move {
                 RootTree::update(super::api::add(direction, tile_id, Side::After).await)
             })

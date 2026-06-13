@@ -37,7 +37,7 @@ pub struct Tile {
     pub id: TileId,
     pub app: XSignal<App>,
     pub remote: XSignal<Remote>,
-    pub title: XSignal<Option<XString>>,
+    pub title: XSignal<XString>,
     pub menu: MenuState,
 }
 
@@ -60,14 +60,14 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             let ui_tile = if let Some(ui_tile) = signals.tile_ids.remove(id) {
                 ui_tile.app.set(*app);
                 ui_tile.remote.set(remote.clone());
-                ui_tile.title.set(title.clone().map(Into::into));
+                ui_tile.title.set(title.clone());
                 ui_tile
             } else {
                 Tile {
                     id: *id,
                     app: XSignal::new("app", *app),
                     remote: XSignal::new("remote", remote.clone()),
-                    title: XSignal::new("title", title.clone().map(Into::into)),
+                    title: XSignal::new("title", title.clone().into()),
                     menu: MenuState::default(),
                 }
                 .into()
@@ -113,7 +113,7 @@ impl Default for Tiles {
             id,
             app: XSignal::new("app", App::default()),
             remote: XSignal::new("remote", Remote::default()),
-            title: XSignal::new("title", Option::<XString>::default()),
+            title: XSignal::new("title", format!("New tile {id}").into()),
             menu: MenuState::default(),
         }
         .into()
@@ -212,8 +212,7 @@ impl Tile {
     }
 
     pub fn tabify(&self) -> impl Fn(MouseEvent) + 'static {
-        let tile_id = self.id;
-        move |_| spawn_local(async move { RootTree::update(super::api::tabify(tile_id).await) })
+        self.split(Direction::Tabbed)
     }
 
     fn split(&self, direction: Direction) -> impl Fn(MouseEvent) + 'static {

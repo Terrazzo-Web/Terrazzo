@@ -52,24 +52,27 @@ impl TabsDescriptor for TileTabs {
     #[html]
     fn after_titles(&self, state: &TileTabsState) -> impl IntoIterator<Item = impl Into<XNode>> {
         [div(
+            key = "add-tile-icon",
             class = style::ADD_TILE_TAB,
             #[cfg(not(feature = "client-prod"))]
             class = "add-tile-tab",
-            img(src = icons::add_tab()),
-            click = move |_| {
-                autoclone!(state);
-                spawn_local(async move {
+            div(
+                img(src = icons::add_tab()),
+                click = move |_| {
                     autoclone!(state);
-                    let after_child = state.selected.get_value_untracked();
-                    match super::api::add_tab(state.array_id, after_child).await {
-                        Ok((tree, new_id)) => {
-                            state.selected.set(Some(new_id));
-                            RootTree::update(Ok::<_, String>(tree));
+                    spawn_local(async move {
+                        autoclone!(state);
+                        let after_child = state.selected.get_value_untracked();
+                        match super::api::add_tab(state.array_id, after_child).await {
+                            Ok((tree, new_id)) => {
+                                state.selected.set(Some(new_id));
+                                RootTree::update(Ok::<_, String>(tree));
+                            }
+                            Err(error) => warn!("Failed to add tile tab: {error}"),
                         }
-                        Err(error) => warn!("Failed to add tile tab: {error}"),
-                    }
-                });
-            },
+                    });
+                },
+            ),
         )]
     }
 }
@@ -165,10 +168,14 @@ impl TabDescriptor for TileTab {
     #[html]
     fn title(&self, state: &TileTabsState) -> impl Into<XNode> {
         match &*self.node {
-            Tiles::Tile(tile) => tile_title(tile.clone(), state.selected.clone()),
+            Tiles::Tile(tile) => tile_title(tile.id, tile.title.clone(), state.selected.clone()),
             Tiles::Array { direction, .. } => {
                 let title = format!("{:?}", direction.get_value_untracked());
-                span("{title}")
+                tile_title(
+                    self.id,
+                    XSignal::new("dummy-title", title.into()),
+                    state.selected.clone(),
+                )
             }
         }
     }
@@ -231,32 +238,17 @@ fn get_class_name(name: &'static str, class: &'static str) -> XString {
 
 #[autoclone]
 #[html]
-fn tile_title(tile: super::signals::TilePtr, selected: XSignal<Option<TileId>>) -> XElement {
-    let tile_id = tile.id;
-    let title = tile.title.derive(
-        "resolve-tile-title",
-        move |title| {
-            autoclone!(tile);
-            if let Some(title) = title {
-                title.clone()
-            } else {
-                tile.app.get_value_untracked().to_string().into()
-            }
-        },
-        if_change(move |_, title: &XString| {
-            autoclone!(tile);
-            if title.is_empty() || title.to_string() == tile.app.get_value_untracked().to_string() {
-                Some(None)
-            } else {
-                Some(Some(title.clone()))
-            }
-        }),
-    );
+fn tile_title(
+    tile_id: TileId,
+    title: XSignal<XString>,
+    selected: XSignal<Option<TileId>>,
+) -> XElement {
     let editing = XSignal::new("editing-tile-title", false);
     let is_editable = selected.view("tile-title-editable", move |selected| {
         *selected == Some(tile_id)
     });
-    span(move |template| {
+    let title_link = span(move |template| {
+        autoclone!(title);
         editable(
             template,
             title.clone(),
@@ -264,16 +256,45 @@ fn tile_title(tile: super::signals::TilePtr, selected: XSignal<Option<TileId>>) 
             editing.clone(),
             move || {
                 autoclone!(title);
-                [print_title(title.clone())]
+                [terrazzo::widgets::link::link(
+                    move |_ev| {},
+                    move || {
+                        autoclone!(title);
+                        [print_title(title.clone())]
+                    },
+                )]
             },
         )
-    })
+    });
+    // let close_button = img(
+    //     key = "close-icon",
+    //     class = style::CLOSE_ICON,
+    //     #[cfg(not(feature = "client-prod"))]
+    //     class = "close-icon",
+    //     src = icons::close_tab(),
+    //     click = move |ev: web_sys::MouseEvent| {
+    //         autoclone!(terminal);
+    //         ev.stop_propagation();
+    //         let close_task = async move {
+    //             autoclone!(terminal);
+    //             terminal_api::stream::try_restart_pipe();
+    //             terminal_api::stream::close(&terminal, None).await;
+    //         };
+    //         spawn_local(close_task.in_current_span());
+    //     },
+    // );
+
+    div([title_link /* close_button */]..)
 }
 
 #[html]
 #[template(tag = span)]
 fn print_title(#[signal] title: XString) -> XElement {
-    span("{title}")
+    if title.is_empty() {
+        span("UNNAMED", class = style::TITLE_SPAN)
+    } else {
+        span("{title}", class = style::TITLE_SPAN)
+    }
 }
 
 fn child_id(node: &Tiles) -> TileId {

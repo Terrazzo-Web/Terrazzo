@@ -17,7 +17,6 @@ mod mutate;
 mod remove;
 mod select_child;
 mod state;
-mod tabify;
 mod tests;
 
 #[server]
@@ -32,11 +31,6 @@ pub async fn add(
     side: Side,
 ) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(add::add_node(with_direction, next_to, side)?)
-}
-
-#[server]
-pub async fn tabify(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
-    Ok(tabify::tabify_node(id)?)
 }
 
 #[server]
@@ -80,7 +74,7 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
 }
 
 #[server]
-pub async fn set_title(id: TileId, title: Option<String>) -> Result<Arc<Tiles>, ServerFnError> {
+pub async fn set_title(id: TileId, title: String) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
@@ -147,7 +141,7 @@ pub struct Tile {
     #[serde(default)]
     pub remote: ClientAddress,
     #[serde(default)]
-    pub title: Option<String>,
+    pub title: String,
 }
 
 impl Default for Tiles {
@@ -156,7 +150,7 @@ impl Default for Tiles {
             id: TileId::first_tile_id(),
             app: Default::default(),
             remote: Default::default(),
-            title: Default::default(),
+            title: "New tile".into(),
         }
         .into()
     }

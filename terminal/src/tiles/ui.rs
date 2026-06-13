@@ -116,10 +116,10 @@ pub(crate) fn show_tiles_rec(
             let update_remote = tile.remote.add_subscriber(move |remote| {
                 spawn_local(async move { RootTree::update(set_remote(tile_id, remote).await) })
             });
-            let update_title = tile.title.add_subscriber(move |title: Option<XString>| {
-                spawn_local(async move {
-                    RootTree::update(set_title(tile_id, title.map(|title| title.to_string())).await)
-                })
+            let update_title = tile.title.add_subscriber(move |title: XString| {
+                spawn_local(
+                    async move { RootTree::update(set_title(tile_id, title.to_string()).await) },
+                )
             });
             div(
                 key = tile.id,

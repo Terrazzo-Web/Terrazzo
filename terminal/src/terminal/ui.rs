@@ -43,12 +43,13 @@ static REFRESH: LazyLock<XSignal<()>> = LazyLock::new(|| XSignal::new("refresh-t
 
 #[autoclone]
 pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
+    let tile_id = tile.id;
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
     let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
     let state = TerminalsState {
         tile,
-        selected_tab,
+        selected_tab: selected_tab.clone(),
         terminal_tabs,
     };
     refresh_terminal_tabs(state.clone());
@@ -64,10 +65,12 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
             state.tile.remote.set(client_address.clone())
         }))
         .append(REFRESH.add_subscriber(move |()| refresh_terminal_tabs(state.clone())))
-        .append(state.selected_tab.add_subscriber(|selected_tab| {
+        .append(selected_tab.add_subscriber(move |selected_tab| {
             spawn_local(
-                selected_tab::set(tile.id.into(), Default::default(), selected_tab.into())
-                    .unwrap_or_else(|error| warn!("Unable to record selected terminal tab")),
+                selected_tab::set(tile_id.into(), Default::default(), selected_tab.into())
+                    .unwrap_or_else(|error| {
+                        warn!("Unable to record selected terminal tab: {error}")
+                    }),
             );
         }))
 }

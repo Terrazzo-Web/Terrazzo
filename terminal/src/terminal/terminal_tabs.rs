@@ -49,10 +49,10 @@ impl TabsDescriptor for TerminalTabs {
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
         let remotes_state = RemotesState::new();
         [div(
+            key = "add-tab-icon",
             class = style::ADD_TAB_ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "add-tab-icon",
-            key = "add-tab-icon",
             div(
                 class %= add_tab::active(remotes_state.remotes.clone()),
                 img(src = icons::add_tab()),

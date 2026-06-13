@@ -28,6 +28,8 @@ pub fn main() {
         println!("cargo::warning=Can't enable both 'client' and 'server' features");
     }
 
+    terrazzo_build::build_css();
+
     let cargo_manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let server_dir = cargo_manifest_dir.join("target");
     std::fs::create_dir_all(server_dir.join("assets")).expect("server_dir");
@@ -70,7 +72,6 @@ pub fn main() {
         wasm_pack_options,
     })
     .unwrap();
-    terrazzo_build::build_css();
 
     drop(disable_server_feature);
     drop(disable_server_features);

@@ -84,7 +84,7 @@ axum-server = { version = "0.8.0" }
 base64 = { version = "0.22.1" }
 bitflags = { version = "2.13.0" }
 bytes = { version = "1.11.1" }
-cc = { version = "1.2.63" }
+cc = { version = "1.2.64" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -113,7 +113,7 @@ mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
 notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.80" }
+openssl = { version = "0.10.81" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "3.0.6" }
 pin-project = { version = "1.1.13" }

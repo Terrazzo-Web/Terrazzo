@@ -79,7 +79,7 @@ def _target_with_suffix(target, suffix):
 
     fail("Expected a target label with an explicit target name, got %s" % target)
 
-def playwright_test(name, server, test, target_server = None, extra_data = [], **kwargs):
+def playwright_test(name, server, test, target_server = None, extra_data = [], tags = [], **kwargs):
     """Defines a Playwright test.
 
     Args:
@@ -120,5 +120,6 @@ def playwright_test(name, server, test, target_server = None, extra_data = [], *
             "$(rootpath %s)" % test,
         ],
         data = data,
+        tags = tags + ["playwright"],
         **kwargs
     )

@@ -125,6 +125,7 @@ pub enum Tiles {
     Array {
         id: TileId,
         direction: Direction,
+        title: Arc<str>,
         #[serde(default)]
         selected: Option<TileId>,
         nodes: Vec<Arc<Tiles>>,

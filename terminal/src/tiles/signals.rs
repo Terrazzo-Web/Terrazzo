@@ -27,6 +27,7 @@ pub enum Tiles {
     Array {
         id: TileId,
         direction: XSignal<Direction>,
+        title: XSignal<XString>,
         selected: XSignal<Option<TileId>>,
         nodes: Vec<Rc<Tiles>>,
     },
@@ -77,6 +78,7 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
         TilesDto::Array {
             id,
             direction,
+            title,
             selected,
             nodes,
         } => {
@@ -85,6 +87,12 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
                 ui_direction
             } else {
                 XSignal::new("direction", *direction)
+            };
+            let ui_title = if let Some(ui_title) = signals.titles.remove(id) {
+                ui_title.set(XString::from(title.clone()));
+                ui_title
+            } else {
+                XSignal::new("title", title.clone().into())
             };
             let ui_selected = if let Some(ui_selected) = signals.selected.remove(id) {
                 ui_selected.set(*selected);
@@ -99,6 +107,7 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
             Tiles::Array {
                 id: *id,
                 direction: ui_direction,
+                title: ui_title,
                 selected: ui_selected,
                 nodes: ui_nodes,
             }
@@ -129,6 +138,7 @@ impl From<Tile> for Tiles {
 #[derive(Default)]
 struct TileSignals {
     directions: HashMap<TileId, XSignal<Direction>>,
+    titles: HashMap<TileId, XSignal<XString>>,
     selected: HashMap<TileId, XSignal<Option<TileId>>>,
     tile_ids: HashMap<TileId, TilePtr>,
 }
@@ -139,6 +149,9 @@ impl<'l> TilesTreeVisitor<UiStateVisitor<'l>> for TileSignals {
     }
     fn visit_selected(&mut self, id: TileId, selected: &XSignal<Option<TileId>>) {
         self.selected.insert(id, selected.clone());
+    }
+    fn visit_title(&mut self, id: TileId, title: &XSignal<XString>) {
+        self.titles.insert(id, title.clone());
     }
     fn visit_tile(&mut self, tile: &TilePtr) {
         self.tile_ids.insert(tile.id, tile.clone());

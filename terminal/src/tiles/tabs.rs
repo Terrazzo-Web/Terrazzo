@@ -169,13 +169,8 @@ impl TabDescriptor for TileTab {
     fn title(&self, state: &TileTabsState) -> impl Into<XNode> {
         match &*self.node {
             Tiles::Tile(tile) => tile_title(tile.id, tile.title.clone(), state.selected.clone()),
-            Tiles::Array { direction, .. } => {
-                let title = format!("{:?}", direction.get_value_untracked());
-                tile_title(
-                    self.id,
-                    XSignal::new("dummy-title", title.into()),
-                    state.selected.clone(),
-                )
+            Tiles::Array { title, .. } => {
+                tile_title(self.id, title.clone(), state.selected.clone())
             }
         }
     }

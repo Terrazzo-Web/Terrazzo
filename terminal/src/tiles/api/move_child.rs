@@ -39,6 +39,7 @@ fn move_child_aux(
         Tiles::Array {
             id,
             direction,
+            title,
             selected,
             nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
@@ -61,6 +62,7 @@ fn move_child_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                title: title.clone(),
                 selected: selected.or(Some(moved_child)),
                 nodes,
             })
@@ -68,11 +70,13 @@ fn move_child_aux(
         Tiles::Array {
             id,
             direction,
+            title,
             selected,
             nodes,
         } => Arc::new(Tiles::Array {
             id: *id,
             direction: *direction,
+            title: title.clone(),
             selected: *selected,
             nodes: nodes
                 .iter()

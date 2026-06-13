@@ -2,9 +2,12 @@
 
 use std::sync::Arc;
 
+use super::Direction;
+use super::Tile;
 use super::Tiles;
 use super::state::TREE;
 use super::state::TilesStateError;
+use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 
 pub fn add_tab(
@@ -38,11 +41,45 @@ fn add_tab_aux(
         Tiles::Array {
             id,
             direction,
+            title,
+            selected,
+            nodes,
+        } if *id == array_id && *direction == Direction::Tabbed => {
+            let new = Arc::new(Tiles::Tile(Tile {
+                id: new_id,
+                app: App::Default,
+                remote: Default::default(),
+                title: format!("New tab {new_id}"),
+            }));
+            let mut nodes = nodes.clone();
+            let insert_at = after_child
+                .and_then(|after_child| {
+                    nodes
+                        .iter()
+                        .position(|node| child_id(node) == after_child)
+                        .map(|index| index + 1)
+                })
+                .unwrap_or(nodes.len());
+            nodes.insert(insert_at, new);
+            *inserted = true;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: Some(new_id),
+                nodes,
+            })
+        }
+        Tiles::Array {
+            id,
+            direction,
+            title,
             selected,
             nodes,
         } => Arc::new(Tiles::Array {
             id: *id,
             direction: *direction,
+            title: title.clone(),
             selected: *selected,
             nodes: nodes
                 .iter()
@@ -50,4 +87,11 @@ fn add_tab_aux(
                 .collect::<Result<_, _>>()?,
         }),
     })
+}
+
+fn child_id(node: &Tiles) -> TileId {
+    match node {
+        Tiles::Tile(tile) => tile.id,
+        Tiles::Array { id, .. } => *id,
+    }
 }

@@ -45,9 +45,11 @@ fn add_node_aux(
                 remote: node.remote.clone(),
                 title: format!("New tile {id}"),
             }));
+            let new_id = TileId::new();
             Arc::new(Tiles::Array {
-                id: TileId::new(),
+                id: new_id,
                 direction: with_direction,
+                title: format!("New {with_direction:?} {new_id}").into(),
                 selected: (with_direction == Direction::Tabbed).then(|| match side {
                     Side::Before => node.id,
                     Side::After => match &*new {
@@ -64,6 +66,7 @@ fn add_node_aux(
         Tiles::Array {
             id,
             direction,
+            title,
             selected,
             nodes,
         } if new_id.is_some() => {
@@ -81,6 +84,7 @@ fn add_node_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                title: title.clone(),
                 selected: *selected,
                 nodes: nodes2,
             })
@@ -104,6 +108,7 @@ fn add_node_flatten(
     if let Tiles::Array {
         id: _,
         direction,
+        title: _,
         selected: _,
         nodes,
     } = &*tree

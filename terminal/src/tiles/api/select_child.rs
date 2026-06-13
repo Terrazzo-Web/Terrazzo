@@ -37,6 +37,7 @@ fn select_child_aux(
         Tiles::Array {
             id,
             direction,
+            title,
             selected: old_selected,
             nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
@@ -49,6 +50,7 @@ fn select_child_aux(
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
+                title: title.clone(),
                 selected: selected_child.or(*old_selected),
                 nodes: nodes.clone(),
             })
@@ -56,11 +58,13 @@ fn select_child_aux(
         Tiles::Array {
             id,
             direction,
+            title,
             selected: old_selected,
             nodes,
         } => Arc::new(Tiles::Array {
             id: *id,
             direction: *direction,
+            title: title.clone(),
             selected: *old_selected,
             nodes: nodes
                 .iter()

@@ -67,7 +67,7 @@ async function expectConversionsResponse(response) {
 }
 
 async function openConverter(page) {
-    await page.locator('.app-menu-trigger').hover();
+    await page.locator('.app-menu-trigger').first().hover();
     await page.getByText('Converter', { exact: true }).click();
 
     const input = getConverterInput(page);
@@ -78,7 +78,16 @@ async function openConverter(page) {
 
 async function clickVerticalSplitter(page) {
     await page.locator('.app-menu-trigger').first().hover();
-    await page.locator('img.split-horizontal').first().click();
+    const button = page.locator('img.split-horizontal').first();
+    await button.waitFor({ state: 'visible' });
+    await button.click();
+}
+
+async function clickTabbedSplitter(page) {
+    await page.locator('.app-menu-trigger').first().hover();
+    const button = page.locator('img.split-tabbed').first();
+    await button.waitFor({ state: 'visible' });
+    await button.click();
 }
 
 async function setConverterInput(page, value) {
@@ -181,6 +190,7 @@ test.describe('Converter', () => {
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
+        await page.route('**/*', (route) => route.continue());
         await page.goto(BASE_URL, { waitUntil: 'networkidle' });
     });
 
@@ -306,5 +316,28 @@ test.describe('Converter', () => {
             const box = await getBoundingBox(leftTile);
             return Math.round(box.width - beforeDrag.width);
         }).toBeGreaterThan(90);
+    });
+
+    test('tabbed tile splitter creates a tab strip and adds tile tabs', async ({ page }) => {
+        await openConverter(page);
+
+        await clickTabbedSplitter(page);
+
+        const tabbedTile = page.locator('.tabbed-tile');
+        const tabTitles = tabbedTile.locator('.tile-tab-title');
+        const tabItems = tabbedTile.locator('.tile-tab-item');
+        await expect(tabbedTile).toBeVisible();
+        await expect(tabTitles).toHaveCount(2);
+        await expect(tabItems).toHaveCount(2);
+        await expect(tabTitles.first()).toContainText('New tile');
+        await expect(tabItems.first().locator('.app-menu-trigger')).toBeAttached();
+        await expect(tabbedTile.locator('.converter-input')).toBeAttached();
+
+        await tabbedTile.locator('.add-tile-tab > div').click();
+
+        await expect(tabTitles).toHaveCount(3);
+        await expect(tabItems).toHaveCount(3);
+        await expect(tabbedTile.locator('.tile-tab-title.selected')).toHaveCount(1);
+        await expect(tabbedTile.locator('.tile-tab-item.selected .app-menu-trigger')).toBeVisible();
     });
 });

@@ -17,6 +17,7 @@ use super::api::Direction;
 use super::api::Tiles as TilesDto;
 use super::api::set_app;
 use super::api::set_remote;
+use super::api::set_title;
 use super::app::App;
 use super::signals::TilePtr;
 use super::signals::Tiles;
@@ -87,18 +88,19 @@ pub fn show_tiles() -> XElement {
 }
 
 #[template(tag = div)]
+#[html]
 fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
-    show_tiles_rec(
+    tag(show_tiles_rec(
         &tiles,
         1,
         MousemoveManager::new(),
         XSignal::new("direction0", Direction::Horizontal),
         RcSlice::new(Rc::default(), 0..0),
-    )
+    ))
 }
 
 #[html]
-fn show_tiles_rec(
+pub(crate) fn show_tiles_rec(
     tiles: &Tiles,
     siblings: usize,
     parent_resize_manager: MousemoveManager,
@@ -114,11 +116,17 @@ fn show_tiles_rec(
             let update_remote = tile.remote.add_subscriber(move |remote| {
                 spawn_local(async move { RootTree::update(set_remote(tile_id, remote).await) })
             });
+            let update_title = tile.title.add_subscriber(move |title: XString| {
+                spawn_local(
+                    async move { RootTree::update(set_title(tile_id, title.to_string()).await) },
+                )
+            });
             div(
                 key = tile.id,
                 before_render = move |_| {
                     let _ = &update_app;
                     let _ = &update_remote;
+                    let _ = &update_title;
                 },
                 key = tile.id.to_string(),
                 class = style::APP_TILE,
@@ -136,8 +144,19 @@ fn show_tiles_rec(
             )
         }
         Tiles::Array {
+            id,
+            direction,
+            title: _,
+            selected,
+            nodes,
+        } if direction.get_value_untracked() == Direction::Tabbed => {
+            crate::tiles::tabs::show_tabbed_tiles(*id, selected.clone(), nodes)
+        }
+        Tiles::Array {
             id: _,
             direction,
+            title: _,
+            selected: _,
             nodes,
         } => {
             let count = nodes.len();
@@ -176,13 +195,13 @@ fn show_tiles_rec(
 }
 
 #[derive(Clone)]
-struct RcSlice<T> {
+pub(crate) struct RcSlice<T> {
     data: Rc<[T]>,
     range: Range<usize>,
 }
 
 impl<T> RcSlice<T> {
-    fn new(data: Rc<[T]>, range: Range<usize>) -> Self {
+    pub(crate) fn new(data: Rc<[T]>, range: Range<usize>) -> Self {
         assert!(range.end <= data.len());
         Self { data, range }
     }
@@ -195,8 +214,9 @@ impl<T> RcSlice<T> {
 #[template(wrap = true)]
 pub fn direction_class(#[signal] direction: Direction) -> XAttributeValue {
     match direction {
-        Direction::Horizontal => style::HORIZONTAL_TILE,
-        Direction::Vertical => style::VERTICAL_TILE,
+        Direction::Horizontal => Some(style::HORIZONTAL_TILE),
+        Direction::Vertical => Some(style::VERTICAL_TILE),
+        Direction::Tabbed => None,
     }
 }
 
@@ -264,5 +284,6 @@ pub fn resize_bar(resize_manager: MousemoveManager, #[signal] direction: Directi
                 class: Some(style::RESIZE_BAR_VERTICAL),
             },
         ),
+        Direction::Tabbed => div(),
     }
 }

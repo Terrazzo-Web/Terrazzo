@@ -37,6 +37,7 @@ ASSETS = [
     "assets/icons/terminal-dash.svg",
     "assets/icons/trash3-fill.svg",
     "assets/icons/trash3.svg",
+    "assets/icons/window-stack.svg",
     "assets/icons/x-lg.svg",
     "assets/images/favicon.ico",
     "assets/index.html",

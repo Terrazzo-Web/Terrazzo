@@ -6,6 +6,9 @@ use terrazzo::server;
 use crate::api::client_address::ClientAddress;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
+use crate::tiles::state::make_state;
+
+make_state!(selected_tab, Option<TerminalId>);
 
 #[server(protocol = Http<Json, Json>)]
 #[cfg_attr(feature = "server", nameth::nameth)]

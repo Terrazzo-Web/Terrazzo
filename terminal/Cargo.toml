@@ -191,6 +191,7 @@ terminal-client = [
   "dep:wasm-streams",
   "dep:web-sys",
   "terminal",
+  "tiles-state-client",
   "web-sys/HtmlTextAreaElement",
   "web-sys/InputEvent",
   "web-sys/KeyboardEvent",
@@ -204,6 +205,7 @@ terminal-server = [
   "remote-fn-unary",
   "server",
   "terminal",
+  "tiles-state-server",
 ]
 
 text-editor = []

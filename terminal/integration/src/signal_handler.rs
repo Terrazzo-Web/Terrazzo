@@ -12,7 +12,7 @@ pub fn install_signal_handlers() -> Result<(), RunError> {
 }
 
 fn install_signal_handler(signal: libc::c_int) -> Result<(), RunError> {
-    let previous_handler = unsafe { libc::signal(signal, handle_signal as libc::sighandler_t) };
+    let previous_handler = unsafe { libc::signal(signal, handle_signal as *const std::ffi::c_void as libc::sighandler_t) };
     if previous_handler == libc::SIG_ERR {
         return Err(RunError::InstallSignalHandler {
             signal,

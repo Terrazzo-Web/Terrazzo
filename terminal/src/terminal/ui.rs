@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use futures::TryFutureExt as _;
 use terrazzo::autoclone;
+use terrazzo::envelope;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
@@ -32,12 +33,14 @@ use crate::tiles::ui::RootTree;
 
 terrazzo_css::import_style!(pub(super) style, "terminal.scss");
 
-#[derive(Clone)]
-pub struct TerminalsState {
+#[envelope]
+pub struct TerminalsStateImpl {
     pub tile: TilePtr,
     pub selected_tab: XSignal<TerminalId>,
     pub terminal_tabs: XSignal<TerminalTabs>,
 }
+
+pub type TerminalsState = TerminalsStateImplPtr;
 
 static REFRESH: LazyLock<XSignal<()>> = LazyLock::new(|| XSignal::new("refresh-terminal-tabs", ()));
 
@@ -47,11 +50,11 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let terminal_id = TerminalId::from("Terminal");
     let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
     let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
-    let state = TerminalsState {
+    let state = TerminalsState::from(TerminalsStateImpl {
         tile,
-        selected_tab: selected_tab.clone(),
+        selected_tab,
         terminal_tabs,
-    };
+    });
     refresh_terminal_tabs(state.clone());
 
     render_terminals(template, state.clone(), state.terminal_tabs.clone())
@@ -64,8 +67,11 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
             let client_address = &current.address.via;
             state.tile.remote.set(client_address.clone())
         }))
-        .append(REFRESH.add_subscriber(move |()| refresh_terminal_tabs(state.clone())))
-        .append(selected_tab.add_subscriber(move |selected_tab| {
+        .append(REFRESH.add_subscriber(move |()| {
+            autoclone!(state);
+            refresh_terminal_tabs(state.clone())
+        }))
+        .append(state.selected_tab.add_subscriber(move |selected_tab| {
             spawn_local(
                 selected_tab::set(tile_id.into(), Default::default(), selected_tab.into())
                     .unwrap_or_else(|error| {
@@ -264,11 +270,11 @@ impl TerminalsState {
     pub fn on_eos(&self, terminal_id: &TerminalId) {
         debug!("Closing the terminal tab");
         let _batch = Batch::use_batch("close-tab");
-        let TerminalsState {
+        let TerminalsStateImpl {
             tile: _,
             selected_tab,
             terminal_tabs,
-        } = self;
+        } = &**self;
         if selected_tab.get_value_untracked() == *terminal_id
             && let Some(next_selected_tab) = next_selected_tab(terminal_tabs, terminal_id)
         {

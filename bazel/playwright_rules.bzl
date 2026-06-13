@@ -88,6 +88,7 @@ def playwright_test(name, server, test, target_server = None, extra_data = [], t
       test: Label of the Playwright test entrypoint to execute.
       target_server: Optional server binary managed by the launcher.
       extra_data: Additional runtime files needed by the Playwright test.
+      tags: Additional Bazel tags to apply to the generated test.
       **kwargs: Additional arguments forwarded to `sh_test`.
     """
     terrazzo_server = target_server if target_server else server

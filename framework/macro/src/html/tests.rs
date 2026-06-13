@@ -367,6 +367,7 @@ fn sample() -> XElement {
         {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
+            #[cfg(feature = "prod")] #[cfg(not(test))]
             {
                 let attribute_id = (
                     {
@@ -376,7 +377,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(feature = "prod")] #[cfg(not(test))]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -390,9 +390,9 @@ fn sample() -> XElement {
                         value: "base".into(),
                     });
             }
+            #[cfg(feature = "prod")]
             {
                 let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(feature = "prod")]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -471,6 +471,7 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
+            #[cfg(feature = "prod")]
             {
                 let attribute_id = (
                     attribute_index,
@@ -480,7 +481,6 @@ fn sample() -> XElement {
                         i
                     },
                 );
-                #[cfg(feature = "prod")]
                 if let Some(value) = Some("custom attribute") {
                     gen_attributes
                         .push(XAttribute {
@@ -496,6 +496,7 @@ fn sample() -> XElement {
                         });
                 }
             }
+            #[cfg(feature = "prod")]
             {
                 let attribute_id = (
                     {
@@ -505,7 +506,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(feature = "prod")]
                 if let Some(value) = if true { Some("y") } else { None } {
                     gen_attributes
                         .push(XAttribute {
@@ -521,6 +521,7 @@ fn sample() -> XElement {
                         });
                 }
             }
+            #[cfg(feature = "prod")]
             {
                 let attribute_id = (
                     {
@@ -533,7 +534,6 @@ fn sample() -> XElement {
                         0
                     },
                 );
-                #[cfg(feature = "prod")]
                 if let Some(value) = Some(format!("width: {}%", 100)) {
                     gen_attributes
                         .push(XAttribute {
@@ -612,6 +612,7 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
+            #[cfg(optional style)]
             {
                 let attribute_id = (
                     {
@@ -621,7 +622,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(optional style)]
                 if let Some(value) = Some(format!("{}px", 250)) {
                     gen_attributes
                         .push(XAttribute {
@@ -637,9 +637,9 @@ fn sample() -> XElement {
                         });
                 }
             }
+            #[cfg(style)]
             {
                 let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(style)]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -699,6 +699,7 @@ fn sample() -> XElement {
         {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
+            #[cfg(dynamic)]
             {
                 let attribute_id = (
                     {
@@ -708,7 +709,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(dynamic)]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -724,9 +724,9 @@ fn sample() -> XElement {
                         ),
                     });
             }
+            #[cfg(dynamic style)]
             {
                 let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(dynamic style)]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -806,6 +806,7 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
+            #[cfg(additional class)]
             {
                 let attribute_id = (
                     {
@@ -815,7 +816,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(additional class)]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
@@ -844,6 +844,7 @@ fn sample() -> XElement {
                     },
                     value: format!("width: {}%", 100).into(),
                 });
+            #[cfg(additional style)]
             {
                 let attribute_id = (
                     {
@@ -853,7 +854,6 @@ fn sample() -> XElement {
                     },
                     attribute_sub_index,
                 );
-                #[cfg(additional style)]
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {

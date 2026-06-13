@@ -19,6 +19,7 @@ use super::ui::RcSlice;
 use super::ui::RootTree;
 use crate::assets::icons;
 use crate::frontend::mousemove::MousemoveManager;
+use crate::tiles::api::set_tab_title;
 use crate::tiles::id::TileId;
 
 terrazzo_css::import_style!(style, "tabs.scss");
@@ -168,9 +169,11 @@ impl TabDescriptor for TileTab {
     #[html]
     fn title(&self, state: &TileTabsState) -> impl Into<XNode> {
         match &*self.node {
-            Tiles::Tile(tile) => tile_title(tile.id, tile.title.clone(), state.selected.clone()),
+            Tiles::Tile(tile) => {
+                tile_title(tile.id, tile.title.clone(), state.selected.clone(), false)
+            }
             Tiles::Array { title, .. } => {
-                tile_title(self.id, title.clone(), state.selected.clone())
+                tile_title(self.id, title.clone(), state.selected.clone(), true)
             }
         }
     }
@@ -237,6 +240,7 @@ fn tile_title(
     tile_id: TileId,
     title: XSignal<XString>,
     selected: XSignal<Option<TileId>>,
+    update_title: bool,
 ) -> XElement {
     let editing = XSignal::new("editing-tile-title", false);
     let is_editable = selected.view("tile-title-editable", move |selected| {
@@ -255,7 +259,12 @@ fn tile_title(
                     move |_ev| {},
                     move || {
                         autoclone!(title);
-                        [print_title(title.clone())]
+                        [print_title(
+                            tile_id,
+                            title.clone(),
+                            title.clone(),
+                            update_title,
+                        )]
                     },
                 )]
             },
@@ -284,12 +293,33 @@ fn tile_title(
 
 #[html]
 #[template(tag = span)]
-fn print_title(#[signal] title: XString) -> XElement {
-    if title.is_empty() {
-        span("UNNAMED", class = style::TITLE_SPAN)
+fn print_title(
+    array_id: TileId,
+    title_signal: XSignal<XString>,
+    #[signal] mut title: XString,
+    update_title: bool,
+) -> XElement {
+    let update_title = if update_title {
+        title_signal.add_subscriber(move |title: XString| {
+            spawn_local(async move {
+                RootTree::update(set_tab_title(array_id, title.to_string()).await)
+            })
+        })
     } else {
-        span("{title}", class = style::TITLE_SPAN)
-    }
+        Default::default()
+    };
+    let title = if title.is_empty() {
+        XString::from("UNNAMED")
+    } else {
+        title
+    };
+    span(
+        after_render = move |_| {
+            let _ = &update_title;
+        },
+        "{title}",
+        class = style::TITLE_SPAN,
+    )
 }
 
 fn child_id(node: &Tiles) -> TileId {

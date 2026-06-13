@@ -35,7 +35,7 @@ impl IssuerConfig {
             .next()
             .ok_or(IssuerConfigError::SignerNameNotFound)?
             .data()
-            .as_utf8()
+            .to_string()
             .map_err(IssuerConfigError::SignerNameInvalid)?
             .to_string();
         let intermediates = client_certificate_issuer

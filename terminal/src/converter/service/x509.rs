@@ -56,7 +56,7 @@ fn get_certificate_common_name(x509: &X509Ref) -> Option<String> {
             .entries_by_nid(Nid::COMMONNAME)
             .next()?
             .data()
-            .as_utf8()
+            .to_string()
             .ok()?
             .to_string(),
     )

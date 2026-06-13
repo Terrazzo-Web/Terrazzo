@@ -71,3 +71,10 @@ div.resize-bar-vertical {
         }
     }
 }
+
+div.default-header {
+    @include trz-header;
+    border: 1px solid var(--color);
+    box-sizing: border-box;
+    flex: 0 0 auto;
+}

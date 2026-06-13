@@ -190,8 +190,8 @@ terminal-client = [
   "dep:scopeguard",
   "dep:wasm-streams",
   "dep:web-sys",
-  "tiles-state-client",
   "terminal",
+  "tiles-state-client",
   "web-sys/HtmlTextAreaElement",
   "web-sys/InputEvent",
   "web-sys/KeyboardEvent",
@@ -203,9 +203,9 @@ terminal-server = [
   "dep:terrazzo-pty",
   "dep:tracing-futures",
   "remote-fn-unary",
-  "tiles-state-server",
   "server",
   "terminal",
+  "tiles-state-server",
 ]
 
 text-editor = []

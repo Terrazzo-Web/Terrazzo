@@ -50,7 +50,11 @@ pub(crate) fn fsio_routes(
             You need to create a new gRPC API in terminal/src/backend/client_service/text_editor_service.
             Follow example terminal/src/backend/client_service/notify_service
 
-            The goal is the
+            The remote has been added as a query parameter already in the UI, as JSON-encoded query parameter string.
+
+            I will test the feature manually.
+
+            The goal is that the backend implementatio should stream either the request (for upload) or the response (for download), to handle large files and have them upload/download through the clientaddress remote system.
 
             */
             Router::new()

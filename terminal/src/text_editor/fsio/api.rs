@@ -24,6 +24,35 @@ pub(crate) fn fsio_routes(
     Router::new()
         .nest(
             "/text_editor/fsio",
+            /* TODO
+
+            See how terminal API sends the ClientAddress as part of the request.
+
+                    pub async fn set_title(
+                        server: Arc<Server>,
+                        Json(request): Json<SetTitleRequest>,
+                    ) -> Result<(), HttpError<self::terminal_service::set_title::SetTitleError>> {
+                        let client_address = request.terminal.via.to_vec();
+                        Ok(self::terminal_service::set_title::set_title(
+                            &server,
+                            &client_address,
+                            SetTitleRequestProto {
+                                address: Some(request.terminal.into()),
+                                shell_title: request.title.shell_title,
+                                override_title: request.title.override_title.map(|s| MaybeString { s }),
+                            },
+                        )
+                        .await?)
+                    }
+
+            I want the download and upload API to behave the same: the file should be uploaded and downloaded from potentially a remote, not from the local server.
+
+            You need to create a new gRPC API in terminal/src/backend/client_service/text_editor_service.
+            Follow example terminal/src/backend/client_service/notify_service
+
+            The goal is the
+
+            */
             Router::new()
                 .route("/download", get(download_file))
                 .route("/upload", post(upload_file)),

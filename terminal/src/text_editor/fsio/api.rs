@@ -22,6 +22,7 @@ use crate::backend::Server;
 use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::text_editor_service;
+use crate::backend::client_service::text_editor_service::TextEditorFsioError;
 use crate::text_editor::file_path::FilePath;
 
 pub(crate) fn fsio_routes(
@@ -67,9 +68,7 @@ async fn upload_file(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let (remote, path) = path.into_remote_and_file_path();
     let content = content.into_data_stream().map(|chunk| {
-        chunk.map_err(|error| {
-            text_editor_service::TextEditorFsioError::IO(std::io::Error::other(error.to_string()))
-        })
+        chunk.map_err(|error| TextEditorFsioError::IO(std::io::Error::other(error.to_string())))
     });
     text_editor_service::upload(&server, &remote, path, content)
         .await
@@ -77,7 +76,7 @@ async fn upload_file(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn api_error(error: text_editor_service::TextEditorFsioError) -> (StatusCode, String) {
+fn api_error(error: TextEditorFsioError) -> (StatusCode, String) {
     (error.status_code(), error.to_string())
 }
 

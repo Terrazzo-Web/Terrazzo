@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.9"
+version = "0.2.10"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,25 +58,25 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.9", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.9", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.9", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.9", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.9", path = "framework/build" }
-terrazzo-client = { version = "0.2.9", path = "framework/client" }
-terrazzo-css = { version = "0.2.9", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.9", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.9", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.9", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.9", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.9", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.9", path = "pty" }
-terrazzo-synctex = { version = "0.2.9", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.9", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.9", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.9", path = "remote/client" }
-trz-gateway-common = { version = "0.2.9", path = "remote/common" }
-trz-gateway-server = { version = "0.2.9", path = "remote/server" }
+autoclone = { version = "0.2.10", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.10", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.10", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.10", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.10", path = "framework/build" }
+terrazzo-client = { version = "0.2.10", path = "framework/client" }
+terrazzo-css = { version = "0.2.10", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.10", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.10", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.10", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.10", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.10", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.10", path = "pty" }
+terrazzo-synctex = { version = "0.2.10", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.10", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.10", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.10", path = "remote/client" }
+trz-gateway-common = { version = "0.2.10", path = "remote/common" }
+trz-gateway-server = { version = "0.2.10", path = "remote/server" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }

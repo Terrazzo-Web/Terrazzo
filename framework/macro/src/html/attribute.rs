@@ -152,9 +152,9 @@ impl XAttribute {
         };
         let push_attribute = push_attribute(generated);
         quote! {
-            #(#attrs)*
             {
                 let attribute_id = (#index, #sub_index);
+                #(#attrs)*
                 #push_attribute
             }
         }

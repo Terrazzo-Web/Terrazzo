@@ -42,16 +42,9 @@ impl XElement {
                     &name,
                     XAttributeKind::Attribute,
                     move |this| {
-                        if this.has_attrs() {
-                            this.to_guarded_tokens(
-                                value,
-                                |generated| quote! { gen_attributes.push(#generated); },
-                            )
-                        } else {
-                            let generated = this.to_tokens(value);
-                            quote! {
-                                gen_attributes.push(#generated);
-                            }
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
                         }
                     },
                     attrs,
@@ -81,13 +74,12 @@ impl XElement {
                     &name,
                     XAttributeKind::Attribute,
                     move |this| {
-                        this.to_guarded_tokens(quote! { value.into() }, |generated| {
-                            quote! {
-                                if let Some(value) = #value {
-                                    gen_attributes.push(#generated);
-                                }
+                        let generated = this.to_tokens(quote! { value.into() });
+                        quote! {
+                            if let Some(value) = #value {
+                                gen_attributes.push(#generated);
                             }
-                        })
+                        }
                     },
                     attrs,
                 ));
@@ -107,16 +99,9 @@ impl XElement {
             &name,
             XAttributeKind::Style,
             move |this| {
-                if this.has_attrs() {
-                    this.to_guarded_tokens(
-                        value,
-                        |generated| quote! { gen_attributes.push(#generated); },
-                    )
-                } else {
-                    let generated = this.to_tokens(value);
-                    quote! {
-                        gen_attributes.push(#generated);
-                    }
+                let generated = this.to_tokens(value);
+                quote! {
+                    gen_attributes.push(#generated);
                 }
             },
             attrs,
@@ -135,13 +120,12 @@ impl XElement {
             &name,
             XAttributeKind::Style,
             move |this| {
-                this.to_guarded_tokens(quote! { value.into() }, |generated| {
-                    quote! {
-                        if let Some(value) = #value {
-                            gen_attributes.push(#generated);
-                        }
+                let generated = this.to_tokens(quote! { value.into() });
+                quote! {
+                    if let Some(value) = #value {
+                        gen_attributes.push(#generated);
                     }
-                })
+                }
             },
             attrs,
         ));
@@ -178,16 +162,9 @@ impl XElement {
                     &name,
                     kind,
                     move |this| {
-                        if this.has_attrs() {
-                            this.to_guarded_tokens(
-                                value,
-                                |generated| quote! { gen_attributes.push(#generated); },
-                            )
-                        } else {
-                            let generated = this.to_tokens(value);
-                            quote! {
-                                gen_attributes.push(#generated);
-                            }
+                        let generated = this.to_tokens(value);
+                        quote! {
+                            gen_attributes.push(#generated);
                         }
                     },
                     attrs,

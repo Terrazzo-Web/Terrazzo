@@ -82,12 +82,13 @@ impl XAttribute {
     }
 
     pub fn generate(mut self) -> proc_macro2::TokenStream {
+        let attrs = std::mem::take(&mut self.attrs);
         let generator = self.generator.take().expect("generator");
-        generator(self)
-    }
-
-    pub fn has_attrs(&self) -> bool {
-        !self.attrs.is_empty()
+        let code = generator(self);
+        quote! {
+            #(#attrs)*
+            #code
+        }
     }
 
     pub fn to_tokens(&self, runtime_value: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
@@ -102,66 +103,7 @@ impl XAttribute {
             attrs: _,
         } = self;
         let kind = kind.to_tokens();
-        let index = self.index_tokens(*post_increment_index);
-        let sub_index = self.sub_index_tokens(*post_increment_sub_index, *pre_reset_sub_index);
-        quote! {
-            XAttribute {
-                id: XAttributeId {
-                    name: XAttributeName {
-                        name: #name.into(),
-                        kind: #kind,
-                    },
-                    index: #index,
-                    sub_index: #sub_index,
-                },
-                value: #runtime_value,
-            }
-        }
-    }
-
-    pub fn to_guarded_tokens(
-        &self,
-        runtime_value: proc_macro2::TokenStream,
-        push_attribute: impl FnOnce(proc_macro2::TokenStream) -> proc_macro2::TokenStream,
-    ) -> proc_macro2::TokenStream {
-        let XAttribute {
-            name,
-            is_dynamic: _,
-            kind,
-            generator: _,
-            post_increment_index,
-            post_increment_sub_index,
-            pre_reset_sub_index,
-            attrs,
-        } = self;
-        let kind = kind.to_tokens();
-        let index = self.index_tokens(*post_increment_index);
-        let sub_index = self.sub_index_tokens(*post_increment_sub_index, *pre_reset_sub_index);
-        let generated = quote! {
-            XAttribute {
-                id: XAttributeId {
-                    name: XAttributeName {
-                        name: #name.into(),
-                        kind: #kind,
-                    },
-                    index: attribute_id.0,
-                    sub_index: attribute_id.1,
-                },
-                value: #runtime_value,
-            }
-        };
-        let push_attribute = push_attribute(generated);
-        quote! {
-            {
-                let attribute_id = (#index, #sub_index);
-                #(#attrs)*
-                #push_attribute
-            }
-        }
-    }
-
-    fn index_tokens(&self, post_increment_index: bool) -> proc_macro2::TokenStream {
-        if post_increment_index {
+        let index = if *post_increment_index {
             quote! {
                 {
                     let i = attribute_index;
@@ -171,15 +113,8 @@ impl XAttribute {
             }
         } else {
             quote! { attribute_index }
-        }
-    }
-
-    fn sub_index_tokens(
-        &self,
-        post_increment_sub_index: bool,
-        pre_reset_sub_index: bool,
-    ) -> proc_macro2::TokenStream {
-        match (post_increment_sub_index, pre_reset_sub_index) {
+        };
+        let sub_index = match (post_increment_sub_index, pre_reset_sub_index) {
             (true, true) => quote! {
                 {
                     // post_increment_sub_index, pre_reset_sub_index
@@ -206,6 +141,19 @@ impl XAttribute {
                 // None of post_increment_sub_index, pre_reset_sub_index
                 attribute_sub_index
             },
+        };
+        quote! {
+            XAttribute {
+                id: XAttributeId {
+                    name: XAttributeName {
+                        name: #name.into(),
+                        kind: #kind,
+                    },
+                    index: #index,
+                    sub_index: #sub_index,
+                },
+                value: #runtime_value,
+            }
         }
     }
 }

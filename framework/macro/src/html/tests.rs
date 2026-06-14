@@ -367,45 +367,36 @@ fn sample() -> XElement {
         {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
+            #[cfg(feature = "prod")] #[cfg(not(test))]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "class".into(),
+                            kind: XAttributeKind::Attribute,
+                        },
+                        index: {
+                            let i = attribute_index;
+                            attribute_index += 1;
+                            i
+                        },
+                        sub_index: attribute_sub_index,
                     },
-                    attribute_sub_index,
-                );
-                #[cfg(feature = "prod")] #[cfg(not(test))]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "class".into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
+                    value: "base".into(),
+                });
+            #[cfg(feature = "prod")]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "style".into(),
+                            kind: XAttributeKind::Attribute,
                         },
-                        value: "base".into(),
-                    });
-            }
-            {
-                let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(feature = "prod")]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "style".into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
-                        },
-                        value: format!("width: {}%", 100).into(),
-                    });
-            }
+                        index: attribute_index,
+                        sub_index: attribute_sub_index,
+                    },
+                    value: format!("width: {}%", 100).into(),
+                });
         }
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
@@ -471,83 +462,65 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
-            {
-                let attribute_id = (
-                    attribute_index,
-                    {
-                        let i = attribute_sub_index;
-                        attribute_sub_index += 1;
-                        i
-                    },
-                );
-                #[cfg(feature = "prod")]
-                if let Some(value) = Some("custom attribute") {
-                    gen_attributes
-                        .push(XAttribute {
-                            id: XAttributeId {
-                                name: XAttributeName {
-                                    name: "data-custom".into(),
-                                    kind: XAttributeKind::Attribute,
-                                },
-                                index: attribute_id.0,
-                                sub_index: attribute_id.1,
+            #[cfg(feature = "prod")]
+            if let Some(value) = Some("custom attribute") {
+                gen_attributes
+                    .push(XAttribute {
+                        id: XAttributeId {
+                            name: XAttributeName {
+                                name: "data-custom".into(),
+                                kind: XAttributeKind::Attribute,
                             },
-                            value: value.into(),
-                        });
-                }
+                            index: attribute_index,
+                            sub_index: {
+                                let i = attribute_sub_index;
+                                attribute_sub_index += 1;
+                                i
+                            },
+                        },
+                        value: value.into(),
+                    });
             }
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
-                    },
-                    attribute_sub_index,
-                );
-                #[cfg(feature = "prod")]
-                if let Some(value) = if true { Some("y") } else { None } {
-                    gen_attributes
-                        .push(XAttribute {
-                            id: XAttributeId {
-                                name: XAttributeName {
-                                    name: "data-custom".into(),
-                                    kind: XAttributeKind::Attribute,
-                                },
-                                index: attribute_id.0,
-                                sub_index: attribute_id.1,
+            #[cfg(feature = "prod")]
+            if let Some(value) = if true { Some("y") } else { None } {
+                gen_attributes
+                    .push(XAttribute {
+                        id: XAttributeId {
+                            name: XAttributeName {
+                                name: "data-custom".into(),
+                                kind: XAttributeKind::Attribute,
                             },
-                            value: value.into(),
-                        });
-                }
+                            index: {
+                                let i = attribute_index;
+                                attribute_index += 1;
+                                i
+                            },
+                            sub_index: attribute_sub_index,
+                        },
+                        value: value.into(),
+                    });
             }
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
-                    },
-                    {
-                        attribute_sub_index = 0;
-                        0
-                    },
-                );
-                #[cfg(feature = "prod")]
-                if let Some(value) = Some(format!("width: {}%", 100)) {
-                    gen_attributes
-                        .push(XAttribute {
-                            id: XAttributeId {
-                                name: XAttributeName {
-                                    name: "style".into(),
-                                    kind: XAttributeKind::Attribute,
-                                },
-                                index: attribute_id.0,
-                                sub_index: attribute_id.1,
+            #[cfg(feature = "prod")]
+            if let Some(value) = Some(format!("width: {}%", 100)) {
+                gen_attributes
+                    .push(XAttribute {
+                        id: XAttributeId {
+                            name: XAttributeName {
+                                name: "style".into(),
+                                kind: XAttributeKind::Attribute,
                             },
-                            value: value.into(),
-                        });
-                }
+                            index: {
+                                let i = attribute_index;
+                                attribute_index += 1;
+                                i
+                            },
+                            sub_index: {
+                                attribute_sub_index = 0;
+                                0
+                            },
+                        },
+                        value: value.into(),
+                    });
             }
         }
         let mut gen_children = vec![];
@@ -612,47 +585,38 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
-                    },
-                    attribute_sub_index,
-                );
-                #[cfg(optional style)]
-                if let Some(value) = Some(format!("{}px", 250)) {
-                    gen_attributes
-                        .push(XAttribute {
-                            id: XAttributeId {
-                                name: XAttributeName {
-                                    name: "height".into(),
-                                    kind: XAttributeKind::Style,
-                                },
-                                index: attribute_id.0,
-                                sub_index: attribute_id.1,
-                            },
-                            value: value.into(),
-                        });
-                }
-            }
-            {
-                let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(style)]
+            #[cfg(optional style)]
+            if let Some(value) = Some(format!("{}px", 250)) {
                 gen_attributes
                     .push(XAttribute {
                         id: XAttributeId {
                             name: XAttributeName {
-                                name: "width".into(),
+                                name: "height".into(),
                                 kind: XAttributeKind::Style,
                             },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
+                            index: {
+                                let i = attribute_index;
+                                attribute_index += 1;
+                                i
+                            },
+                            sub_index: attribute_sub_index,
                         },
-                        value: format!("{}%", 100).into(),
+                        value: value.into(),
                     });
             }
+            #[cfg(style)]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "width".into(),
+                            kind: XAttributeKind::Style,
+                        },
+                        index: attribute_index,
+                        sub_index: attribute_sub_index,
+                    },
+                    value: format!("{}%", 100).into(),
+                });
         }
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
@@ -699,49 +663,36 @@ fn sample() -> XElement {
         {
             let mut attribute_index = 0;
             const attribute_sub_index: usize = 0;
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
+            #[cfg(dynamic)]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "class".into(),
+                            kind: XAttributeKind::Attribute,
+                        },
+                        index: {
+                            let i = attribute_index;
+                            attribute_index += 1;
+                            i
+                        },
+                        sub_index: attribute_sub_index,
                     },
-                    attribute_sub_index,
-                );
-                #[cfg(dynamic)]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "class".into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
+                    value: XAttributeValue::Dynamic((move |t| { make_class() }).into()),
+                });
+            #[cfg(dynamic style)]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "width".into(),
+                            kind: XAttributeKind::Style,
                         },
-                        value: XAttributeValue::Dynamic(
-                            (move |t| { make_class() }).into(),
-                        ),
-                    });
-            }
-            {
-                let attribute_id = (attribute_index, attribute_sub_index);
-                #[cfg(dynamic style)]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "width".into(),
-                                kind: XAttributeKind::Style,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
-                        },
-                        value: XAttributeValue::Dynamic(
-                            (move |t| { make_width() }).into(),
-                        ),
-                    });
-            }
+                        index: attribute_index,
+                        sub_index: attribute_sub_index,
+                    },
+                    value: XAttributeValue::Dynamic((move |t| { make_width() }).into()),
+                });
         }
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));
@@ -806,29 +757,23 @@ fn sample() -> XElement {
                     },
                     value: "base".into(),
                 });
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
-                    },
-                    attribute_sub_index,
-                );
-                #[cfg(additional class)]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "class".into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
+            #[cfg(additional class)]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "class".into(),
+                            kind: XAttributeKind::Attribute,
                         },
-                        value: "additional".into(),
-                    });
-            }
+                        index: {
+                            let i = attribute_index;
+                            attribute_index += 1;
+                            i
+                        },
+                        sub_index: attribute_sub_index,
+                    },
+                    value: "additional".into(),
+                });
             gen_attributes
                 .push(XAttribute {
                     id: XAttributeId {
@@ -844,29 +789,23 @@ fn sample() -> XElement {
                     },
                     value: format!("width: {}%", 100).into(),
                 });
-            {
-                let attribute_id = (
-                    {
-                        let i = attribute_index;
-                        attribute_index += 1;
-                        i
-                    },
-                    attribute_sub_index,
-                );
-                #[cfg(additional style)]
-                gen_attributes
-                    .push(XAttribute {
-                        id: XAttributeId {
-                            name: XAttributeName {
-                                name: "style".into(),
-                                kind: XAttributeKind::Attribute,
-                            },
-                            index: attribute_id.0,
-                            sub_index: attribute_id.1,
+            #[cfg(additional style)]
+            gen_attributes
+                .push(XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: "style".into(),
+                            kind: XAttributeKind::Attribute,
                         },
-                        value: format!("height: {}%", 200).into(),
-                    });
-            }
+                        index: {
+                            let i = attribute_index;
+                            attribute_index += 1;
+                            i
+                        },
+                        sub_index: attribute_sub_index,
+                    },
+                    value: format!("height: {}%", 200).into(),
+                });
         }
         let mut gen_children = vec![];
         gen_children.push(XNode::from(XText(format!("Root text").into())));

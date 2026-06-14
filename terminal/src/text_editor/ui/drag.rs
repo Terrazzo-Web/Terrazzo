@@ -12,6 +12,7 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
 use self::diagnostics::debug_span;
 use self::diagnostics::error;
+use self::diagnostics::warn;
 use crate::api::client::request;
 use crate::api::client::request::Method;
 use crate::text_editor::file_path::FilePath;
@@ -177,7 +178,9 @@ async fn upload_dropped_file(
     };
     debug!("Uploading dropped file to {destination_file:?}");
 
-    let url = upload_url(&destination_file);
+    let Some(url) = upload_url(&manager, &destination_file) else {
+        return;
+    };
     let result = request::send_request(Method::POST, url, move |request| {
         request.set_body(JsValue::from(file).as_ref());
     })
@@ -192,16 +195,25 @@ async fn upload_dropped_file(
     }
 }
 
-fn upload_url(file_path: &FilePath<Arc<Path>>) -> String {
+fn upload_url(manager: &TextEditorManager, file_path: &FilePath<Arc<Path>>) -> Option<String> {
+    let remote = serde_json::to_string(&manager.remote)
+        .inspect_err(|error| warn!("Failed to JSON serialize the remote: {error}"))
+        .ok()?;
     format!(
-        "/api/text_editor/fsio/upload?base={}&file={}",
+        "/api/text_editor/fsio/upload?base={}&file={}&remote={}",
         encode_query_path(file_path.base.as_ref()),
-        encode_query_path(file_path.file.as_ref())
+        encode_query_path(file_path.file.as_ref()),
+        encode_query(&remote),
     )
+    .into()
 }
 
 pub fn encode_query_path(path: &Path) -> String {
-    path.to_string_lossy()
+    encode_query(&path.to_string_lossy())
+}
+
+pub fn encode_query(string: &str) -> String {
+    string
         .bytes()
         .map(|byte| match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {

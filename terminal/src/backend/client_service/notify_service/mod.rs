@@ -1,4 +1,3 @@
-#![cfg(feature = "text-editor")]
 //! Backend implementation for the Notify service.
 
 mod callback;

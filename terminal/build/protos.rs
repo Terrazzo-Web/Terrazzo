@@ -3,12 +3,15 @@ pub fn main() {
         .bytes(".terrazzo.terminal.LeaseItem.data")
         .bytes(".terrazzo.portforward.PortForwardDataRequest.data")
         .bytes(".terrazzo.portforward.PortForwardDataResponse.data")
+        .bytes(".terrazzo.texteditor.DownloadResponse.data")
+        .bytes(".terrazzo.texteditor.UploadRequest.data")
         .compile_protos(
             &[
                 "src/backend/protos/notify.proto",
                 "src/backend/protos/portforward.proto",
                 "src/backend/protos/remote_fn.proto",
                 "src/backend/protos/shared.proto",
+                "src/backend/protos/text_editor.proto",
                 "src/backend/protos/terminal.proto",
             ],
             &["src/backend/protos/"],

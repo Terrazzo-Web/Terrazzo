@@ -19,8 +19,8 @@ fn sample(__generated_template: <XElement as IsTemplated>::Template) -> Consumer
         .named("sample")
         .closure(move || {
             let __generated_template = __generated_template.clone();
-            let generated_body = move || { div(key = "root", "Root text") };
-            __generated_template.apply(generated_body)
+            let __generated_body = move || { div(key = "root", "Root text") };
+            __generated_template.apply(__generated_body)
         })
         .register(__generated_template1)
 }"#;
@@ -51,8 +51,8 @@ fn sample(
         .closure(move || {
             let __generated_template = __generated_template.clone();
             move |signal: String| {
-                let generated_body = move || { div(key = "root", "Root text") };
-                __generated_template.apply(generated_body)
+                let __generated_body = move || { div(key = "root", "Root text") };
+                __generated_template.apply(__generated_body)
             }
         })
         .bind(signal)
@@ -87,10 +87,10 @@ fn sample(
             let __generated_template = __generated_template.clone();
             move |signal1: String| {
                 move |signal2: &'static str| {
-                    let generated_body = move || {
+                    let __generated_body = move || {
                         div(key = "root", "{signal1}", "{signal2}")
                     };
-                    __generated_template.apply(generated_body)
+                    __generated_template.apply(__generated_body)
                 }
             }
         })
@@ -137,10 +137,10 @@ fn sample(
             let constant = constant.clone();
             move |signal1: String| {
                 move |signal2: &'static str| {
-                    let generated_body = move || {
+                    let __generated_body = move || {
                         div(key = "root", "{signal1}", "{signal2}")
                     };
-                    __generated_template.apply(generated_body)
+                    __generated_template.apply(__generated_body)
                 }
             }
         })
@@ -179,8 +179,8 @@ pub fn sample(arg: &str) -> XElement {
             .closure(move || {
                 let __generated_template = __generated_template.clone();
                 let arg = arg.clone();
-                let generated_body = move || { div(key = "root", "Root text") };
-                __generated_template.apply(generated_body)
+                let __generated_body = move || { div(key = "root", "Root text") };
+                __generated_template.apply(__generated_body)
             })
             .register(__generated_template1)
     }
@@ -225,8 +225,8 @@ pub fn sample(arg: XSignal<String>) -> impl Fn(XAttributeTemplate) -> Consumers 
             .closure(move || {
                 let __generated_template = __generated_template.clone();
                 move |arg: String| {
-                    let generated_body = move || { format!("KEY={arg}") };
-                    __generated_template.apply(generated_body)
+                    let __generated_body = move || { format!("KEY={arg}") };
+                    __generated_template.apply(__generated_body)
                 }
             })
             .bind(arg)

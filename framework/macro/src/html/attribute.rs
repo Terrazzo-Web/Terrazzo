@@ -7,9 +7,7 @@ pub struct XAttribute {
     is_dynamic: bool,
     kind: XAttributeKind,
     generator: Option<Box<dyn FnOnce(Self) -> proc_macro2::TokenStream>>,
-    pub post_increment_index: bool,
-    pub post_increment_sub_index: bool,
-    pub pre_reset_sub_index: bool,
+    index: usize,
     attrs: Vec<syn::Attribute>,
 }
 
@@ -25,9 +23,7 @@ impl XAttribute {
             is_dynamic: false,
             kind,
             generator: Some(Box::new(generator)),
-            post_increment_index: false,
-            post_increment_sub_index: false,
-            pre_reset_sub_index: false,
+            index: 0,
             attrs: attrs.to_vec(),
         }
     }
@@ -43,9 +39,7 @@ impl XAttribute {
             is_dynamic: true,
             kind,
             generator: Some(Box::new(generator)),
-            post_increment_index: false,
-            post_increment_sub_index: false,
-            pre_reset_sub_index: false,
+            index: 0,
             attrs: attrs.to_vec(),
         }
     }
@@ -63,21 +57,15 @@ impl XAttribute {
                 attribute.kind,
             )
         });
-        let attributes_len = attributes.len();
-        let mut prev_group_is_composite = false;
         for (index, chunk) in attributes
             .chunk_by_mut(|a, b| (&a.name, a.kind) == (&b.name, b.kind))
             .enumerate()
         {
             let chunk_len = chunk.len();
             assert!(chunk_len != 0, "Empty attribute group");
-            for (sub_index, attribute) in chunk.iter_mut().enumerate() {
-                attribute.post_increment_index =
-                    index != attributes_len - 1 && sub_index == chunk_len - 1;
-                attribute.post_increment_sub_index = sub_index != chunk_len - 1;
-                attribute.pre_reset_sub_index = sub_index == 0 && prev_group_is_composite
+            for attribute in chunk.iter_mut() {
+                attribute.index = index;
             }
-            prev_group_is_composite = chunk_len != 1;
         }
     }
 
@@ -97,62 +85,34 @@ impl XAttribute {
             is_dynamic: _,
             kind,
             generator: _,
-            post_increment_index,
-            post_increment_sub_index,
-            pre_reset_sub_index,
+            index,
             attrs: _,
         } = self;
         let kind = kind.to_tokens();
-        let index = if *post_increment_index {
-            quote! {
-                {
-                    let i = attribute_index;
-                    attribute_index += 1;
-                    i
-                }
-            }
-        } else {
-            quote! { attribute_index }
-        };
-        let sub_index = match (post_increment_sub_index, pre_reset_sub_index) {
-            (true, true) => quote! {
-                {
-                    // post_increment_sub_index, pre_reset_sub_index
-                    attribute_sub_index = 1;
-                    0
-                }
-            },
-            (true, false) => quote! {
-                {
-                    // post_increment_sub_index
-                    let i = attribute_sub_index;
-                    attribute_sub_index += 1;
-                    i
-                }
-            },
-            (false, true) => quote! {
-                {
-                    // pre_reset_sub_index
-                    attribute_sub_index = 0;
-                    0
-                }
-            },
-            (false, false) => quote! {
-                // None of post_increment_sub_index, pre_reset_sub_index
-                attribute_sub_index
-            },
-        };
         quote! {
-            XAttribute {
-                id: XAttributeId {
-                    name: XAttributeName {
-                        name: #name.into(),
-                        kind: #kind,
+            {
+                if __attribute_index != usize::MAX {
+                    if #index != __attribute_index {
+                        __attribute_id = #index;
+                        __attribute_index += 1;
+                        __attribute_sub_index = 0;
+                    } else {
+                        __attribute_sub_index += 1;
+                    }
+                } else {
+                    __attribute_index = 0;
+                }
+                XAttribute {
+                    id: XAttributeId {
+                        name: XAttributeName {
+                            name: #name.into(),
+                            kind: #kind,
+                        },
+                        index: __attribute_index,
+                        sub_index: __attribute_sub_index,
                     },
-                    index: #index,
-                    sub_index: #sub_index,
-                },
-                value: #runtime_value,
+                    value: #runtime_value,
+                }
             }
         }
     }

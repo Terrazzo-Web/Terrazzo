@@ -213,20 +213,10 @@ impl HtmlElementVisitor {
                     XAttribute::sort_attributes(&mut attributes);
                     attributes
                 };
-                let attribute_index = if attributes
-                    .iter()
-                    .any(|attribute| attribute.post_increment_index)
-                {
-                    quote! { let mut attribute_index = 0; }
-                } else {
-                    quote! { const attribute_index: usize = 0; }
-                };
-                let attribute_sub_index = if attributes.iter().any(|attribute| {
-                    attribute.pre_reset_sub_index || attribute.post_increment_sub_index
-                }) {
-                    quote! { let mut attribute_sub_index = 0; }
-                } else {
-                    quote! { const attribute_sub_index: usize = 0; }
+                let attribute_index = quote! {
+                   let mut __attribute_id = 0;
+                   let mut __attribute_index = usize::MAX;
+                   let mut __attribute_sub_index = 0;
                 };
                 let attributes = {
                     attributes
@@ -237,10 +227,7 @@ impl HtmlElementVisitor {
                 let init_attribute_indices = if attributes.is_empty() {
                     quote! {}
                 } else {
-                    quote! {
-                        #attribute_index
-                        #attribute_sub_index
-                    }
+                    quote! { #attribute_index }
                 };
                 let gen_attributes = if attributes.is_empty() {
                     quote! {

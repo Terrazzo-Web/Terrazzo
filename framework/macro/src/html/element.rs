@@ -44,7 +44,7 @@ impl XElement {
                     move |this| {
                         let generated = this.to_tokens(value);
                         quote! {
-                            gen_attributes.push(#generated);
+                            __gen_attributes.push(#generated);
                         }
                     },
                     attrs,
@@ -77,7 +77,7 @@ impl XElement {
                         let generated = this.to_tokens(quote! { value.into() });
                         quote! {
                             if let Some(value) = #value {
-                                gen_attributes.push(#generated);
+                                __gen_attributes.push(#generated);
                             }
                         }
                     },
@@ -101,7 +101,7 @@ impl XElement {
             move |this| {
                 let generated = this.to_tokens(value);
                 quote! {
-                    gen_attributes.push(#generated);
+                    __gen_attributes.push(#generated);
                 }
             },
             attrs,
@@ -123,7 +123,7 @@ impl XElement {
                 let generated = this.to_tokens(quote! { value.into() });
                 quote! {
                     if let Some(value) = #value {
-                        gen_attributes.push(#generated);
+                        __gen_attributes.push(#generated);
                     }
                 }
             },
@@ -164,7 +164,7 @@ impl XElement {
                     move |this| {
                         let generated = this.to_tokens(value);
                         quote! {
-                            gen_attributes.push(#generated);
+                            __gen_attributes.push(#generated);
                         }
                     },
                     attrs,
@@ -220,7 +220,7 @@ impl XElement {
         };
         self.children.push(quote! {
             #(#attrs)*
-            gen_children.push(#child);
+            __gen_children.push(#child);
         });
     }
 
@@ -229,7 +229,7 @@ impl XElement {
         let attrs = std::mem::take(children.attrs_mut().unwrap());
         self.children.push(quote! {
             #(#attrs)*
-            gen_children.extend(#children.into_iter().map(XNode::from));
+            __gen_children.extend(#children.into_iter().map(XNode::from));
         });
     }
 }

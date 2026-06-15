@@ -213,20 +213,9 @@ impl HtmlElementVisitor {
                     XAttribute::sort_attributes(&mut attributes);
                     attributes
                 };
-                let attribute_index = if attributes
-                    .iter()
-                    .any(|attribute| attribute.post_increment_index)
-                {
-                    quote! { let mut attribute_index = 0; }
-                } else {
-                    quote! { const attribute_index: usize = 0; }
-                };
-                let attribute_sub_index = if attributes.iter().any(|attribute| {
-                    attribute.pre_reset_sub_index || attribute.post_increment_sub_index
-                }) {
-                    quote! { let mut attribute_sub_index = 0; }
-                } else {
-                    quote! { const attribute_sub_index: usize = 0; }
+                let attribute_index = quote! {
+                   let mut __attribute_index = usize::MAX;
+                   let mut __attribute_sub_index = 0;
                 };
                 let attributes = {
                     attributes
@@ -237,42 +226,39 @@ impl HtmlElementVisitor {
                 let init_attribute_indices = if attributes.is_empty() {
                     quote! {}
                 } else {
-                    quote! {
-                        #attribute_index
-                        #attribute_sub_index
-                    }
+                    quote! { #attribute_index }
                 };
-                let gen_attributes = if attributes.is_empty() {
+                let __gen_attributes = if attributes.is_empty() {
                     quote! {
-                        let gen_attributes = vec![];
+                        let __gen_attributes = vec![];
                     }
                 } else {
                     quote! {
-                        let mut gen_attributes = vec![];
+                        let mut __gen_attributes = vec![];
                         {
                             #init_attribute_indices
                             #(#attributes)*
                         }
                     }
                 };
-                let gen_children = if children.is_empty() {
-                    quote! { let gen_children = vec![]; }
+                let __gen_children = if children.is_empty() {
+                    quote! { let __gen_children = vec![]; }
                 } else {
                     quote! {
-                        let mut gen_children = vec![];
+                        let mut __gen_children = vec![];
                         #(#children)*
                     }
                 };
                 let value = quote! {
                     XElementValue::Static {
-                        attributes: gen_attributes,
-                        children: gen_children,
+                        attributes: __gen_attributes,
+                        children: __gen_children,
                         events: vec![#(#events),*],
                     }
                 };
                 let generators = quote! {
-                    #gen_attributes
-                    #gen_children
+                    #__gen_attributes
+                    #__gen_children
                 };
                 (generators, value)
             }

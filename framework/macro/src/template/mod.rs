@@ -27,8 +27,8 @@ pub fn template(
     let mut bind_signals = vec![];
 
     body = quote! {
-        let generated_body = move || #body;
-        __generated_template.apply(generated_body)
+        let __generated_body = move || #body;
+        __generated_template.apply(__generated_body)
     };
     let mut inputs: Vec<_> = item_fn.sig.inputs.iter_mut().collect();
     inputs.reverse();

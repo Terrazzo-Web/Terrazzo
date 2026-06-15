@@ -93,7 +93,6 @@ impl XAttribute {
             {
                 if __attribute_index != usize::MAX {
                     if #index != __attribute_index {
-                        __attribute_id = #index;
                         __attribute_index += 1;
                         __attribute_sub_index = 0;
                     } else {

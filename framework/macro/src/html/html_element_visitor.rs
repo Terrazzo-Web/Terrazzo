@@ -214,7 +214,6 @@ impl HtmlElementVisitor {
                     attributes
                 };
                 let attribute_index = quote! {
-                   let mut __attribute_id = 0;
                    let mut __attribute_index = usize::MAX;
                    let mut __attribute_sub_index = 0;
                 };

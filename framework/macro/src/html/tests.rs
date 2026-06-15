@@ -64,8 +64,10 @@ fn sample() -> XElement {
                 XNode::from({
                     let __gen_attributes = vec![];
                     let mut __gen_children = vec![];
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 1").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 2").into())));
                     XElement {
                         tag_name: Some("span".into()),
                         key: XKey::Named("inner".into()),
@@ -1022,7 +1024,8 @@ fn sample() -> XElement {
                 XNode::from({
                     let __gen_attributes = vec![];
                     let mut __gen_children = vec![];
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 1").into())));
                     XElement {
                         tag_name: Some("span".into()),
                         key: XKey::default(),
@@ -1041,7 +1044,8 @@ fn sample() -> XElement {
                 XNode::from({
                     let __gen_attributes = vec![];
                     let mut __gen_children = vec![];
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 2").into())));
                     XElement {
                         tag_name: Some("span".into()),
                         key: XKey::default(),
@@ -1191,8 +1195,10 @@ fn sample() -> XElement {
                 XNode::from({
                     let __gen_attributes = vec![];
                     let mut __gen_children = vec![];
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 1").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 2").into())));
                     XElement {
                         tag_name: Some("span".into()),
                         key: XKey::Named("inner".into()),
@@ -1254,8 +1260,10 @@ fn sample() -> XElement {
                 XNode::from({
                     let __gen_attributes = vec![];
                     let mut __gen_children = vec![];
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 1").into())));
-                    __gen_children.push(XNode::from(XText(format!("Paragraph 2").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 1").into())));
+                    __gen_children
+                        .push(XNode::from(XText(format!("Paragraph 2").into())));
                     XElement {
                         tag_name: Some("span".into()),
                         key: XKey::Named("inner".into()),

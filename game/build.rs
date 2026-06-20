@@ -51,5 +51,5 @@ fn main() {
     })
     .unwrap();
 
-    terrazzo_build::build_css();
+    terrazzo_build::build_css(env::var(DEBUG).is_ok());
 }

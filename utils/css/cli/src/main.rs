@@ -20,6 +20,10 @@ struct ScssCli {
     /// Generate a file with all scss modules concatenated
     #[arg(long)]
     output_file: Option<PathBuf>,
+
+    /// Debug mode
+    #[arg(long)]
+    debug: bool,
 }
 
 #[nameth]
@@ -49,18 +53,20 @@ fn main() -> Result<(), ScssCliError> {
 }
 
 fn run(cli: ScssCli) -> Result<(), ScssCliError> {
-    let config = Config::load(&cli.manifest_dir)?;
+    let config = {
+        let mut config = Config::load(&cli.manifest_dir)?;
+        config.debug |= cli.debug;
+        config
+    };
     let files = get_hashed_scss(&config)?;
 
     let mut scss_bundle = String::new();
     let mut first = true;
     for (path, content) in files {
-        if first {
-            first = false;
-        } else {
+        if !std::mem::take(&mut first) {
             scss_bundle.push('\n');
         }
-        if cfg!(debug_assertions) {
+        if cli.debug {
             scss_bundle.push_str(&format!("/* {} */\n", path.to_string_lossy()));
         }
         scss_bundle.push_str(content.trim());
@@ -91,7 +97,7 @@ fn get_hashed_scss(config: &Config) -> Result<Vec<(PathBuf, String)>, ScssCliErr
                     let file_content = std::fs::read_to_string(entry.path()).map_err(|error| {
                         ScssCliError::ReadFileError(entry.path().to_owned(), error)
                     })?;
-                    let hasher = ClassNameHasher::new(&file_content);
+                    let hasher = ClassNameHasher::new(entry.path(), &file_content, config.debug);
                     hashed_scss_files.push((
                         entry.path().to_owned(),
                         rewrite_classes(&file_content, |class| hasher.hash(class))?,
@@ -123,6 +129,40 @@ mod tests {
         let cli = super::ScssCli {
             manifest_dir: temp_dir.to_owned(),
             output_file: None,
+            debug: false,
+        };
+        super::run(cli).unwrap();
+        let output =
+            std::fs::read_to_string(temp_dir.join("target/css/terrazzo-terminal.scss")).unwrap();
+        assert_eq!(
+            r#"
+div>.HnhCUtD9>.HnhCZxyk {
+    font-family: "client";
+}
+
+div>.AKR7UtD9 {
+    font-family: "root";
+}"#
+            .trim(),
+            output
+                .replace(temp_dir.to_string_lossy().as_ref(), "$TEMP_DIR")
+                .trim()
+        );
+    }
+
+    #[test]
+    fn test_debug() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path();
+        let source_manifest_dir: PathBuf =
+            format!("{}/test_data/crate", env!("CARGO_MANIFEST_DIR")).into();
+
+        copy_dir_contents(&source_manifest_dir, temp_dir);
+
+        let cli = super::ScssCli {
+            manifest_dir: temp_dir.to_owned(),
+            output_file: None,
+            debug: true,
         };
         super::run(cli).unwrap();
         let output =
@@ -130,12 +170,12 @@ mod tests {
         assert_eq!(
             r#"
 /* $TEMP_DIR/src/client/client.scss */
-div>.HnhCUtD9>.HnhCZxyk {
+div>.root-A4ZBUtD9>.client-A4ZBZxyk {
     font-family: "client";
 }
 
 /* $TEMP_DIR/src/root.scss */
-div>.AKR7UtD9 {
+div>.root-zq12UtD9 {
     font-family: "root";
 }"#
             .trim(),

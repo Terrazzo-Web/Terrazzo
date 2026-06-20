@@ -136,13 +136,46 @@ mod tests {
             std::fs::read_to_string(temp_dir.join("target/css/terrazzo-terminal.scss")).unwrap();
         assert_eq!(
             r#"
-/* $TEMP_DIR/src/client/client.scss */
 div>.HnhCUtD9>.HnhCZxyk {
     font-family: "client";
 }
 
-/* $TEMP_DIR/src/root.scss */
 div>.AKR7UtD9 {
+    font-family: "root";
+}"#
+            .trim(),
+            output
+                .replace(temp_dir.to_string_lossy().as_ref(), "$TEMP_DIR")
+                .trim()
+        );
+    }
+
+    #[test]
+    fn test_debug() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path();
+        let source_manifest_dir: PathBuf =
+            format!("{}/test_data/crate", env!("CARGO_MANIFEST_DIR")).into();
+
+        copy_dir_contents(&source_manifest_dir, temp_dir);
+
+        let cli = super::ScssCli {
+            manifest_dir: temp_dir.to_owned(),
+            output_file: None,
+            debug: true,
+        };
+        super::run(cli).unwrap();
+        let output =
+            std::fs::read_to_string(temp_dir.join("target/css/terrazzo-terminal.scss")).unwrap();
+        assert_eq!(
+            r#"
+/* $TEMP_DIR/src/client/client.scss */
+div>.root-A4ZBUtD9>.client-A4ZBZxyk {
+    font-family: "client";
+}
+
+/* $TEMP_DIR/src/root.scss */
+div>.root-zq12UtD9 {
     font-family: "root";
 }"#
             .trim(),

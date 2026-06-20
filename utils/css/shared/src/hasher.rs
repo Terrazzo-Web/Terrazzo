@@ -89,7 +89,7 @@ mod tests {
             ".hello .world { font-weight: bold; }",
             true,
         );
-        assert_eq!("hello-EbZH3bWc", hasher.hash("hello"));
-        assert_eq!("world-EbZHCgTI", hasher.hash("world"));
+        assert_eq!("hello-lO0h3bWc", hasher.hash("hello"));
+        assert_eq!("world-lO0hCgTI", hasher.hash("world"));
     }
 }

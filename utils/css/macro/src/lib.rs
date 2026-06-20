@@ -55,7 +55,7 @@ fn try_import_style_classes(
 ) -> Result<TokenStream, ImportStyleError> {
     let file_content = std::fs::read_to_string(&file_path)
         .map_err(|error| ImportStyleError::ReadFileError(file_path.clone(), error))?;
-    let hasher = ClassNameHasher::new(&file_path, &file_content, true);
+    let hasher = ClassNameHasher::new(&file_path, &file_content, false);
     let hasher_debug = ClassNameHasher::new(&file_path, &file_content, true);
     let output_fields = terrazzo_css_shared::list_classes(&file_content)?.map(|class| {
         let class_ident = Ident::new(&class.to_shouty_snake_case(), identifier_span);

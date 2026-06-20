@@ -55,13 +55,13 @@ li.title {
     margin: 0;
     padding: 0;
     height: 100%;
+    z-index: 100;
 
     --sep-zone: 50px;
 
     .title-drop-zone {
         height: 100px;
         position: absolute;
-        z-index: 100;
         width: var(--sep-zone);
     }
 

@@ -42,17 +42,15 @@ test.describe('Text editor file ops', () => {
 
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);
-        await getSideViewFolder(page, '').locator('span').first().evaluate((node) => node.parentElement.click());
-        await expect(getFolderFile(page, fileName)).toBeVisible({ timeout: 10 * SECOND });
 
-        await getCreateFileIcon(page).evaluate((node) => node.click());
+        await getCreateFileIcon(page).click();
         await getCreateEntryField(page).fill(' notes with spaces.txt ');
         await getCreateEntryField(page).press('Enter');
 
         await expect(getFolderFile(page, 'notes with spaces.txt')).toBeVisible({ timeout: 10 * SECOND });
         await expect.poll(async () => readFile(path.join(baseDir, 'notes with spaces.txt'), 'utf8')).toBe('-- notes with spaces.txt --');
 
-        await getCreateFolderIcon(page).evaluate((node) => node.click());
+        await getCreateFolderIcon(page).click();
         await getCreateEntryField(page).fill(' drafts ');
         await getCreateEntryField(page).press('Enter');
 
@@ -69,7 +67,7 @@ test.describe('Text editor file ops', () => {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, 'destfolder/');
         await openFolderFile(page, 'destfolder/');
-        await getSideViewFolder(page, '').locator('span').first().evaluate((node) => node.parentElement.click());
+        await getSideViewFolder(page, '').locator('span').first().click();
         await expect(getFolderFile(page, 'srcfolder/')).toBeVisible({ timeout: 10 * SECOND });
         await openFolderFile(page, 'srcfolder/');
         await expandSideViewFolder(page, '');

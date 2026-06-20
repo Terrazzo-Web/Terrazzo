@@ -86,8 +86,8 @@ test.describe('Terminal', () => {
     test('opens a new terminal tab and runs a command', async ({ page }) => {
         const addTabButton = getAddTabButton(page);
         await addTabButton.waitFor({ timeout: 10 * SECOND });
-        await expect(addTabButton).toHaveCSS('height', '16px');
-        await expect(addTabButton).toHaveCSS('filter', 'none');
+        await expect(addTabButton).toHaveCSS('height', '15px');
+        await expect(addTabButton).toHaveCSS('filter', 'invert(1)');
         await addTabButton.click();
 
         const tabs = getTabs(page);
@@ -141,18 +141,22 @@ test.describe('Terminal', () => {
 
         const overlayButton = page.locator('li.selected .input-overlay-button');
         await expect(overlayButton).toBeVisible();
+        await expect(overlayButton).toHaveCSS('filter', 'invert(1)');
+        await expect(overlayButton).toHaveCSS('opacity', '0.3');
         await overlayButton.click();
 
         const textarea = page.locator('li.selected .input-overlay-textarea');
         const sendButton = page.locator('li.selected .input-overlay-send');
         await expect(textarea).toBeVisible();
+        await expect(sendButton).toHaveCSS('filter', 'invert(1)');
+        await expect(sendButton).toHaveCSS('opacity', '0.3');
         await textarea.fill('echo overlay-input-31415\n');
         await expect(sendButton).toHaveCSS('opacity', '1');
         await sendButton.click();
 
         await expect(activeTerminal).toContainText('overlay-input-31415');
         await expect(textarea).toHaveValue('');
-        await expect(overlayButton).toHaveAttribute('title', 'Compose input');
+        await expect(textarea).toBeHidden();
     });
 
     test('sends two mocked speech recognition inputs from the terminal overlay', async ({ page }) => {
@@ -219,7 +223,7 @@ test.describe('Terminal', () => {
 
             await expect(activeTerminal).toContainText(output);
             await expect(textarea).toHaveValue('');
-            await expect(overlayButton).toHaveAttribute('title', 'Compose input');
+            await expect(textarea).toBeHidden();
             await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(stops);
         }
 

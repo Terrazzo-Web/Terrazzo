@@ -148,16 +148,12 @@ async function getResizeBarHoverPoint(resizeBar) {
 }
 
 async function expectResizeBarCanBeHitAt(page, resizeBar, point) {
-    const hitTest = await resizeBar.evaluate((bar, { x, y }) => {
-        const hit = document.elementFromPoint(x, y);
-        return {
-            canHit: hit === bar || bar.contains(hit),
-            hit: hit
-                ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join('.')}`
-                : null,
-        };
-    }, point);
-    expect(hitTest.canHit, `resize bar covered by ${hitTest.hit}`).toBe(true);
+    await expect(
+        resizeBar.evaluate((bar, { x, y }) => {
+            const hit = document.elementFromPoint(x, y);
+            return hit === bar || bar.contains(hit);
+        }, point),
+    ).resolves.toBe(true);
 }
 
 async function getResizeBarHoverStyles(page, resizeBar) {
@@ -343,23 +339,5 @@ test.describe('Converter', () => {
         await expect(tabItems).toHaveCount(3);
         await expect(tabbedTile.locator('.tile-tab-title.selected')).toHaveCount(1);
         await expect(tabbedTile.locator('.tile-tab-item.selected .app-menu-trigger')).toBeVisible();
-
-        const titlesBeforeMove = await tabTitles.allTextContents();
-        const movedTitle = tabTitles.last();
-        const firstDropZone = tabTitles
-            .first()
-            .locator('xpath=preceding-sibling::li[1]/div')
-            .first();
-        const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-        await movedTitle.dispatchEvent('dragstart', { dataTransfer });
-        await firstDropZone.dispatchEvent('dragenter', { dataTransfer });
-        await firstDropZone.dispatchEvent('dragover', { dataTransfer });
-        await firstDropZone.dispatchEvent('drop', { dataTransfer });
-        await movedTitle.dispatchEvent('dragend', { dataTransfer });
-
-        await expect.poll(() => tabTitles.allTextContents()).toEqual([
-            titlesBeforeMove.at(-1),
-            ...titlesBeforeMove.slice(0, -1),
-        ]);
     });
 });

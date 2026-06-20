@@ -16,7 +16,6 @@ div.tile-tabs {
 }
 
 div.tile-tab-titles {
-    --selected-background-color: color-mix(in srgb, var(--background-color) 65%, var(--color) 35%);
     --tile-tab-shape-width: 25px;
     // Adapted from https://tympanus.net/Development/TabStylesInspiration/
     --tile-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 60' preserveAspectRatio='none'%3E%3Cpath d='M80 60C34 53.5 64.417 0 0 0v60h80z' fill='white'/%3E%3C/svg%3E");
@@ -57,13 +56,16 @@ li.tile-tab-title {
     cursor: pointer;
     color: var(--color);
 
+    --tile-background-color: inherit;
+    background-color: var(--tile-background-color);
+
     &::before,
     &::after {
         position: absolute;
         top: 0;
         bottom: 0;
         width: var(--tile-tab-shape-width);
-        background-color: var(--color);
+        background-color: var(--tile-background-color);
         content: "";
         pointer-events: none;
         -webkit-mask: var(--tile-tab-shape) center / 100% 100% no-repeat;
@@ -82,13 +84,14 @@ li.tile-tab-title {
     &:hover {
         z-index: 4;
         color: var(--background-color);
-        background-color: var(--link-color);
+        --tile-background-color: color-mix(in srgb, var(--background-color) 35%, var(--color) 65%);
     }
 
     &.selected {
         z-index: 3;
-        color: var(--color);
-        background-color: var(--selected-background-color);
+        color: var(--background-color);
+        --tile-background-color: var(--link-color-base);
+        --link-color: var(--background-color-base);
     }
 
     &>div {

@@ -20,11 +20,6 @@ li.title {
     border: 0;
     margin: 0;
     padding: var(--padding);
-
-    &:hover,
-    &.selected {
-        background-color: red;
-    }
 }
 
 .items {

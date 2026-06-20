@@ -28,7 +28,7 @@ pub fn main() {
         println!("cargo::warning=Can't enable both 'client' and 'server' features");
     }
 
-    terrazzo_build::build_css();
+    terrazzo_build::build_css(Feature::Debug.is_set());
 
     let cargo_manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let server_dir = cargo_manifest_dir.join("target");

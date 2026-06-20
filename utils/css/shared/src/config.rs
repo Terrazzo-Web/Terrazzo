@@ -11,6 +11,8 @@ pub struct Config {
     pub output_file: PathBuf,
     pub extensions: Vec<String>,
     pub folders: Vec<PathBuf>,
+    #[serde(default)]
+    pub debug: bool,
 }
 
 #[nameth]

@@ -118,6 +118,128 @@ Cargo-side demo integration validation is also part of merge validation:
 ./demo/scripts/integration-test.sh target/release/demo-server
 ```
 
+## Editing CSS
+
+Terminal styles are authored as SCSS files under `terminal/src/`. Do not edit
+`terminal/target/css/terrazzo-terminal.scss` or the CSS served at
+`/static/terrazzo-terminal.css` directly: they are generated files.
+
+### Match rendered classes to SCSS classes
+
+`terrazzo-css` scopes SCSS class names by appending a generated hash. For
+example, this rendered class:
+
+```text
+tile-tab-title-yzRarmGI
+```
+
+comes from:
+
+```scss
+.tile-tab-title {
+    // ...
+}
+```
+
+Use the browser inspector to find the class on the rendered element, then match
+the unhashed name with an SCSS selector under `terminal/src/`. The generated
+selector can also be found in `terminal/target/css/terrazzo-terminal.scss` or
+the served `/static/terrazzo-terminal.css` when the mapping is ambiguous. Use
+the element type, parent classes, and nearby selectors to disambiguate repeated
+short names such as `.title` or `.item`.
+
+### Edit and regenerate the stylesheet
+
+Edit the source `.scss` file, then run the CSS CLI from the repository root:
+
+```sh
+terrazzo-css --debug terminal
+```
+
+The command reads the `[package.metadata.css]` configuration in
+`terminal/Cargo.toml` and regenerates:
+
+```text
+terminal/target/css/terrazzo-terminal.scss
+```
+
+The running development server exposes the compiled result at:
+
+```text
+http://localhost:3100/static/terrazzo-terminal.css
+```
+
+Reload the page after regenerating the stylesheet. Run `terrazzo-css --help`
+for the complete CLI usage, including `--output-file`.
+
+### Prefer CSS custom properties
+
+Use the existing CSS custom properties when changing theme-related values. Set
+the property at the narrowest shared ancestor that needs the override and keep
+the actual declaration expressed through `var(...)`:
+
+```scss
+li.tile-tab-title {
+    --background-color: gray;
+    background-color: var(--background-color);
+
+    &.selected {
+        background-color: var(--selected-background-color);
+    }
+}
+```
+
+Custom properties inherit, so a local override changes descendants without
+duplicating every declaration. Do not replace a selected, hover, or component
+state variable unless that state is also intended to use the new value.
+
+### Common CSS custom properties
+
+These properties form the shared theme and layout vocabulary in
+`terminal/src/_common.scss`:
+
+| Property | Default | Purpose |
+| --- | --- | --- |
+| `--font-family` | `courier-new, courier, monospace` | Application font stack |
+| `--font-size` | `15px` | Base application font size |
+| `--font-kerning` | `none` | Base font kerning |
+| `--color` | `green` | Primary foreground and border color |
+| `--link-color` | `green` | Links, hover fills, and interactive accents |
+| `--background-color` | `black` | Base surface background |
+| `--padding` | `5px` | Shared spacing unit |
+| `--header-height` | `30px` | Height established by the `trz-header` mixin |
+
+The following properties are also already declared by terminal components:
+
+| Property | Current value or definition | Scope and purpose |
+| --- | --- | --- |
+| `--link-underline-thickness` | `4px` | Tile, terminal, and converter tab spacing |
+| `--half-padding` | `calc(var(--padding) / 2)` | Port-forward component spacing |
+| `--width` | `5px` | Resize bars and the logs-panel resize handle |
+| `--height` | `5px` | Horizontal resize bar |
+| `--size` | `20px` or `24px` | Port-forward controls and status indicators |
+| `--scale-round-x` | `1px` | PDF text-layer horizontal scale rounding |
+| `--scale-round-y` | `1px` | PDF text-layer vertical scale rounding |
+| `--min-font-size` | `1` | PDF text-layer minimum font scaling |
+| `--min-font-size-inv` | `calc(1 / var(--min-font-size))` | Inverse PDF minimum font scale |
+| `--text-scale-factor` | `calc(var(--total-scale-factor) * var(--min-font-size))` | PDF text-layer scale |
+
+Some SCSS rules consume custom properties supplied by a state, parent, or
+third-party renderer rather than defining a terminal-wide default:
+
+| Property | Used for |
+| --- | --- |
+| `--selected-color` | Selected and hovered tab foreground |
+| `--selected-background-color` | Selected and hovered tab background |
+| `--total-scale-factor` | PDF text rendering |
+| `--scale-x` | PDF text horizontal scaling |
+| `--rotate` | PDF text rotation |
+| `--font-height` | PDF text line height |
+
+When adding a reusable visual value, prefer extending this custom-property
+vocabulary over repeating literal colors, sizes, or spacing throughout the
+SCSS.
+
 ## Source map
 
 - `src/terminal/`: terminal UI, xterm.js attachment, terminal tabs, and terminal

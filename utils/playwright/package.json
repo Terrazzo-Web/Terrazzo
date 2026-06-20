@@ -1,0 +1,13 @@
+{
+  "name": "terrazzo-playwright",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "open": "playwright open",
+    "codegen": "playwright codegen",
+    "install:browsers": "playwright install"
+  },
+  "devDependencies": {
+    "playwright": "1.61.0"
+  }
+}

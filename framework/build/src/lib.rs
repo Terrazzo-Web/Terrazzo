@@ -191,11 +191,14 @@ enum BuildErrorInner {
 }
 
 /// Invokes terrazzo-css at compile time.
-pub fn build_css() {
+pub fn build_css(debug: bool) {
     let dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
-    let status = std::process::Command::new("terrazzo-css")
-        .current_dir(&dir)
-        .arg(".")
-        .status();
+    let mut command = std::process::Command::new("terrazzo-css");
+    command.current_dir(&dir);
+    if debug {
+        command.arg("--debug");
+    }
+    command.arg(".");
+    let status = command.status();
     assert!(status.unwrap().success());
 }

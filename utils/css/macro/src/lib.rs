@@ -10,6 +10,7 @@ use quote::quote;
 use quote::quote_spanned;
 use syn::parse_macro_input;
 use terrazzo_css_shared::ScssError;
+use terrazzo_css_shared::hasher::ClassNameHasher;
 
 #[proc_macro]
 pub fn import_style(input: TokenStream) -> TokenStream {
@@ -53,13 +54,19 @@ fn try_import_style_classes(
     identifier_span: Span,
 ) -> Result<TokenStream, ImportStyleError> {
     let file_content = std::fs::read_to_string(&file_path)
-        .map_err(|error| ImportStyleError::ReadFileError(file_path, error))?;
-    let hasher = terrazzo_css_shared::hasher::ClassNameHasher::new(&file_content);
+        .map_err(|error| ImportStyleError::ReadFileError(file_path.clone(), error))?;
+    let hasher = ClassNameHasher::new(&file_path, &file_content, true);
+    let hasher_debug = ClassNameHasher::new(&file_path, &file_content, true);
     let output_fields = terrazzo_css_shared::list_classes(&file_content)?.map(|class| {
         let class_ident = Ident::new(&class.to_shouty_snake_case(), identifier_span);
         let class_str = hasher.hash(class);
+        let class_str_debug = hasher_debug.hash(class);
         quote_spanned!(identifier_span =>
+            #[cfg(not(feature = "debug"))]
             pub const #class_ident: &str = #class_str;
+
+            #[cfg(feature = "debug")]
+            pub const #class_ident: &str = #class_str_debug;
         )
     });
 

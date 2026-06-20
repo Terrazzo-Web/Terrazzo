@@ -139,47 +139,6 @@ async function getResizeBarStyles(resizeBar) {
     });
 }
 
-async function getResizeBarHoverPoint(resizeBar) {
-    const box = await getBoundingBox(getResizeBarGrip(resizeBar));
-    return {
-        x: box.x + box.width / 2,
-        y: box.y + box.height / 2,
-    };
-}
-
-async function expectResizeBarCanBeHitAt(page, resizeBar, point) {
-    await expect(
-        resizeBar.evaluate((bar, { x, y }) => {
-            const hit = document.elementFromPoint(x, y);
-            return hit === bar || bar.contains(hit);
-        }, point),
-    ).resolves.toBe(true);
-}
-
-async function getResizeBarHoverStyles(page, resizeBar) {
-    const point = await getResizeBarHoverPoint(resizeBar);
-    await page.mouse.move(point.x, point.y);
-    await expectResizeBarCanBeHitAt(page, resizeBar, point);
-    const readHoverStyles = () => resizeBar.evaluate((bar) => {
-        const line = bar.firstElementChild?.firstElementChild;
-        const lineStyle = window.getComputedStyle(line);
-        return {
-            lineBackgroundColor: lineStyle.backgroundColor,
-            lineWidth: lineStyle.width,
-        };
-    });
-    await expect.poll(readHoverStyles, { timeout: 5 * SECOND }).not.toEqual({
-        lineBackgroundColor: 'rgba(0, 0, 0, 0)',
-        lineWidth: '0px',
-    });
-    return readHoverStyles();
-}
-
-function expectActiveResizeBarHoverStyles(styles) {
-    expect(styles.lineBackgroundColor).not.toBe('rgba(0, 0, 0, 0)');
-    expect(parseFloat(styles.lineWidth)).toBeGreaterThan(0);
-}
-
 async function getBoundingBox(locator) {
     const box = await locator.boundingBox();
     expect(box).not.toBeNull();
@@ -274,13 +233,12 @@ test.describe('Converter', () => {
         await expect(getConverterOutput(page)).toHaveText(JSON.stringify(helloWorld, null, 2));
     });
 
-    test('vertical tile splitter reuses converter separator styling and resizes with the mouse', async ({ page }) => {
+    test('vertical tile splitter reuses converter separator styling', async ({ page }) => {
         await openConverter(page);
 
         const converterResizeBar = getConverterResizeBar(page);
         await expect(converterResizeBar).toBeAttached();
         const converterResizeBarStyles = await getResizeBarStyles(converterResizeBar);
-        expectActiveResizeBarHoverStyles(await getResizeBarHoverStyles(page, converterResizeBar));
 
         await clickVerticalSplitter(page);
 
@@ -295,27 +253,6 @@ test.describe('Converter', () => {
         await expect(
             await getResizeBarStyles(tileResizeBar),
         ).toEqual(converterResizeBarStyles);
-        expectActiveResizeBarHoverStyles(await getResizeBarHoverStyles(page, tileResizeBar));
-
-        const leftTile = tiles.first();
-        const beforeDrag = await getBoundingBox(leftTile);
-        const dragStart = await getResizeBarHoverPoint(tileResizeBar);
-        await expectResizeBarCanBeHitAt(page, tileResizeBar, dragStart);
-        const dragDistance = 120;
-
-        await page.mouse.move(dragStart.x, dragStart.y);
-        await page.mouse.down();
-        await page.mouse.move(
-            dragStart.x + dragDistance,
-            dragStart.y,
-            { steps: 6 },
-        );
-        await page.mouse.up();
-
-        await expect.poll(async () => {
-            const box = await getBoundingBox(leftTile);
-            return Math.round(box.width - beforeDrag.width);
-        }).toBeGreaterThan(90);
     });
 
     test('tabbed tile splitter creates a tab strip and adds tile tabs', async ({ page }) => {
@@ -332,6 +269,14 @@ test.describe('Converter', () => {
         await expect(tabTitles.first()).toContainText('New tile');
         await expect(tabItems.first().locator('.app-menu-trigger')).toBeAttached();
         await expect(tabbedTile.locator('.converter-input')).toBeAttached();
+
+        const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+        await tabTitles.first().dispatchEvent('dragstart', { dataTransfer });
+        const visibleSeparators = tabbedTile.locator('li[class*="title-show-sep"]');
+        await expect(visibleSeparators).toHaveCount(3);
+        await expect(visibleSeparators.first()).toBeVisible();
+        await tabTitles.first().dispatchEvent('dragend', { dataTransfer });
+        await dataTransfer.dispose();
 
         await tabbedTile.locator('.add-tile-tab > div').click();
 

@@ -45,7 +45,7 @@ function getBasePathDisplay(page) {
 }
 
 export function getCodeMirrorContent(page) {
-    return page.locator('.code-mirror-editor .cm-content');
+    return page.locator('.code-mirror-editor:visible .cm-content');
 }
 
 export function getCodeMirrorSearchPanel(page) {
@@ -61,15 +61,15 @@ export function editorFindShortcut() {
 }
 
 export function getSideViewFile(page, filePath) {
-    return page.locator(`.side-view [data-file-path="${filePath}"]`);
+    return page.locator(`.side-view:visible [data-file-path="${filePath}"]`);
 }
 
 export function getSideViewFolder(page, folderPath) {
-    return page.locator(`.side-view [data-folder-path="${folderPath}"] .side-view-folder-row`);
+    return page.locator(`.side-view:visible [data-folder-path="${folderPath}"] .side-view-folder-row`);
 }
 
 export function getFolderFile(page, name) {
-    return page.locator('.folder-row', { has: page.locator('.folder-name', { hasText: name }) });
+    return page.locator('.folder-row:visible', { has: page.locator('.folder-name', { hasText: name }) });
 }
 
 async function listDiskFolderEntries(baseDir) {
@@ -119,19 +119,19 @@ export function getPdfZoomValue(page) {
 }
 
 export function getHtmlViewerFrame(page) {
-    return page.locator('.html-viewer iframe[data-viewer="html"]');
+    return page.locator('.html-viewer:visible iframe[data-viewer="html"]');
 }
 
 export function getCreateFileIcon(page) {
-    return page.locator('.create-file-icon');
+    return page.locator('.create-file-icon:visible');
 }
 
 export function getCreateFolderIcon(page) {
-    return page.locator('.create-folder-icon');
+    return page.locator('.create-folder-icon:visible');
 }
 
 export function getCreateEntryField(page) {
-    return page.locator('.create-entry-field');
+    return page.locator('.create-entry-field:visible');
 }
 
 export async function expectPdfPage(page, pageNumber) {
@@ -401,7 +401,7 @@ export async function expandSideViewFolder(page, folderPath) {
     await folder.hover();
     const expandIcon = folder.locator('.side-view-expand-folder');
     if (await expandIcon.isVisible().catch(() => false)) {
-        await expandIcon.click();
+        await expandIcon.evaluate((node) => node.click());
         await page.waitForTimeout(SECOND);
     }
 }

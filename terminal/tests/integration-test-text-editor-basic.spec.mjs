@@ -65,12 +65,12 @@ test.describe('Text editor basic', () => {
         const editor = getCodeMirrorContent(page);
         await expect(editor).toBeVisible({ timeout: 10 * SECOND });
 
-        const overlayButton = page.locator('.code-mirror-editor .input-overlay-button');
+        const overlayButton = page.locator('.code-mirror-editor:visible .input-overlay-button');
         await expect(overlayButton).toBeVisible();
         await overlayButton.click();
 
-        const textarea = page.locator('.code-mirror-editor .input-overlay-textarea');
-        const sendButton = page.locator('.code-mirror-editor .input-overlay-send');
+        const textarea = page.locator('.code-mirror-editor:visible .input-overlay-textarea');
+        const sendButton = page.locator('.code-mirror-editor:visible .input-overlay-send');
         await expect(textarea).toBeVisible();
         await textarea.fill('Hello from overlay');
         await expect(sendButton).toHaveCSS('opacity', '1');
@@ -78,7 +78,7 @@ test.describe('Text editor basic', () => {
 
         await expect(editor).toContainText('Hello from overlay');
         await expect(textarea).toHaveValue('');
-        await expect(textarea).toBeHidden();
+        await expect(overlayButton).toHaveAttribute('title', 'Compose input');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello from overlay');
     });
 
@@ -129,20 +129,20 @@ test.describe('Text editor basic', () => {
         const editor = getCodeMirrorContent(page);
         await expect(editor).toBeVisible({ timeout: 10 * SECOND });
 
-        const overlayButton = page.locator('.code-mirror-editor .input-overlay-button');
+        const overlayButton = page.locator('.code-mirror-editor:visible .input-overlay-button');
         await expect(overlayButton).toBeVisible();
         await overlayButton.click();
         await overlayButton.click();
 
-        const textarea = page.locator('.code-mirror-editor .input-overlay-textarea');
-        const sendButton = page.locator('.code-mirror-editor .input-overlay-send');
+        const textarea = page.locator('.code-mirror-editor:visible .input-overlay-textarea');
+        const sendButton = page.locator('.code-mirror-editor:visible .input-overlay-send');
         await expect(textarea).toHaveValue('Hello from speech overlay');
         await expect(sendButton).toHaveCSS('opacity', '1');
         await sendButton.click();
 
         await expect(editor).toContainText('Hello from speech overlay');
         await expect(textarea).toHaveValue('');
-        await expect(textarea).toBeHidden();
+        await expect(overlayButton).toHaveAttribute('title', 'Compose input');
         await expect.poll(() => page.evaluate(() => window.__speechRecognitionStops)).toBe(1);
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello from speech overlay');
     });

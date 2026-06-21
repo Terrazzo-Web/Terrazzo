@@ -159,7 +159,13 @@ pub fn tabs<T: TabsDescriptor>(
                     ever_selected.set(true);
                 }
             }));
-            tab_item(tab.clone(), state.clone(), ever_selected, options.clone())
+            tab_item(
+                tab.clone(),
+                state.clone(),
+                selected,
+                ever_selected,
+                options.clone(),
+            )
         });
         div(class = options.items_class.clone(), ul(li_list..))
     };
@@ -296,13 +302,29 @@ fn tab_title<T: TabDescriptor + 'static>(
 fn tab_item<T: TabDescriptor + 'static>(
     tab: T,
     state: T::State,
+    selected: XSignal<bool>,
     #[signal] ever_selected: bool,
     options: Ptr<TabsOptions<XString>>,
 ) -> XElement {
     if !ever_selected {
         return tag(style::visibility = "hidden", style::display = "none");
     }
-    tag(class = options.item_class.clone(), tab.item(&state).into())
+    return tag(
+        class %= tab_item_class(options, selected),
+        tab.item(&state).into(),
+    );
+
+    #[template(wrap = true)]
+    fn tab_item_class(
+        options: Ptr<TabsOptions<XString>>,
+        #[signal] selected: bool,
+    ) -> XAttributeValue {
+        if selected {
+            format!("{} {}", options.item_class, options.selected_class).into()
+        } else {
+            options.item_class.clone()
+        }
+    }
 }
 
 mod tab_options {

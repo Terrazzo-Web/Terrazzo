@@ -1,5 +1,3 @@
-#![cfg(feature = "port-forward")]
-
 use futures::Stream;
 use terrazzo::declare_trait_aliias;
 

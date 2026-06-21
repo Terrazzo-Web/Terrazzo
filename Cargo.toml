@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.9"
+version = "0.2.11"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,33 +58,33 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.9", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.9", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.9", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.9", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.9", path = "framework/build" }
-terrazzo-client = { version = "0.2.9", path = "framework/client" }
-terrazzo-css = { version = "0.2.9", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.9", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.9", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.9", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.9", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.9", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.9", path = "pty" }
-terrazzo-synctex = { version = "0.2.9", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.9", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.9", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.9", path = "remote/client" }
-trz-gateway-common = { version = "0.2.9", path = "remote/common" }
-trz-gateway-server = { version = "0.2.9", path = "remote/server" }
+autoclone = { version = "0.2.11", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.11", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.11", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.11", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.11", path = "framework/build" }
+terrazzo-client = { version = "0.2.11", path = "framework/client" }
+terrazzo-css = { version = "0.2.11", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.11", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.11", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.11", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.11", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.11", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.11", path = "pty" }
+terrazzo-synctex = { version = "0.2.11", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.11", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.11", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.11", path = "remote/client" }
+trz-gateway-common = { version = "0.2.11", path = "remote/common" }
+trz-gateway-server = { version = "0.2.11", path = "remote/server" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
 base64 = { version = "0.22.1" }
 bitflags = { version = "2.13.0" }
-bytes = { version = "1.11.1" }
-cc = { version = "1.2.64" }
+bytes = { version = "1.12.0" }
+cc = { version = "1.2.65" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -147,7 +147,7 @@ sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
-syn = { version = "2.0.117" }
+syn = { version = "2.0.118" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.18" }
@@ -173,12 +173,12 @@ unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
 uuid = { version = "1.23.3", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }
-wasm-bindgen = { version = "0.2.122" }
-wasm-bindgen-cli = { version = "0.2.122" }
-wasm-bindgen-futures = { version = "0.4.72" }
-wasm-bindgen-test = { version = "0.3.72" }
+wasm-bindgen = { version = "0.2.125" }
+wasm-bindgen-cli = { version = "0.2.125" }
+wasm-bindgen-futures = { version = "0.4.75" }
+wasm-bindgen-test = { version = "0.3.75" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.99" }
+web-sys = { version = "0.3.102" }
 winnow = { version = "1.0.3" }
 x509-parser = { version = "0.18.1" }
 

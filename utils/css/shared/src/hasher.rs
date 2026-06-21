@@ -1,13 +1,31 @@
+use std::path::Path;
+
+use siphasher::sip::SipHasher24;
+
 const FILE_HASH_LEN: usize = 4;
 const CLASS_HASH_LEN: usize = 4;
 
 pub struct ClassNameHasher {
     file_hash: String,
+    debug: bool,
 }
 
 impl ClassNameHasher {
-    pub fn new(file_content: &str) -> Self {
-        let mut file_hash = siphasher::sip::SipHasher24::new().hash(file_content.as_bytes());
+    pub fn new(file_path: &Path, file_content: &str, debug: bool) -> Self {
+        let mut file_hash = if debug {
+            let file_path = file_path
+                .parent()
+                .and_then(|parent| {
+                    parent
+                        .ancestors()
+                        .find(|directory| directory.join("Cargo.toml").is_file())
+                })
+                .and_then(|crate_directory| file_path.strip_prefix(crate_directory).ok())
+                .unwrap_or(file_path);
+            SipHasher24::new().hash(file_path.to_string_lossy().as_bytes())
+        } else {
+            SipHasher24::new().hash(file_content.as_bytes())
+        };
         let file_hash = loop {
             let h = hash_to_string(file_hash, FILE_HASH_LEN);
             if h.starts_with(|c: char| c.is_ascii_alphabetic()) {
@@ -15,12 +33,17 @@ impl ClassNameHasher {
             }
             file_hash += 1;
         };
-        Self { file_hash }
+        Self { file_hash, debug }
     }
 
     pub fn hash(&self, class: &str) -> String {
-        let class_hash = siphasher::sip::SipHasher24::new().hash(class.as_bytes());
-        self.file_hash.clone() + &hash_to_string(class_hash, CLASS_HASH_LEN)
+        let class_hash = SipHasher24::new().hash(class.as_bytes());
+        let hash = self.file_hash.clone() + &hash_to_string(class_hash, CLASS_HASH_LEN);
+        if self.debug {
+            format!("{class}-{hash}")
+        } else {
+            hash
+        }
     }
 }
 
@@ -50,8 +73,23 @@ mod tests {
 
     #[test]
     fn hash() {
-        let hasher = super::ClassNameHasher::new(".hello .world { font-weight: bold; }");
+        let hasher = super::ClassNameHasher::new(
+            "/style.scss".as_ref(),
+            ".hello .world { font-weight: bold; }",
+            false,
+        );
         assert_eq!("EbZH3bWc", hasher.hash("hello"));
         assert_eq!("EbZHCgTI", hasher.hash("world"));
+    }
+
+    #[test]
+    fn hash_debug() {
+        let hasher = super::ClassNameHasher::new(
+            "/style.scss".as_ref(),
+            ".hello .world { font-weight: bold; }",
+            true,
+        );
+        assert_eq!("hello-lO0h3bWc", hasher.hash("hello"));
+        assert_eq!("world-lO0hCgTI", hasher.hash("world"));
     }
 }

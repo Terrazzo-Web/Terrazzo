@@ -1,9 +1,9 @@
 .input-overlay {
     position: absolute;
-    left: calc(var(--padding) / 2);
-    right: calc(var(--padding) / 2);
-    bottom: calc(var(--padding) / 2);
-    margin: calc(var(--padding) / 2);
+    left: var(--half-padding);
+    right: var(--half-padding);
+    bottom: var(--half-padding);
+    margin: var(--half-padding);
     display: flex;
     flex-direction: row-reverse;
     align-items: flex-end;
@@ -14,7 +14,7 @@
 .input-overlay-buttons {
     display: flex;
     flex-direction: column;
-    margin-left: calc(var(--padding) / 2);
+    margin-left: var(--half-padding);
 }
 
 .input-overlay-button,
@@ -25,7 +25,7 @@
     filter: invert(1);
     pointer-events: auto;
     transition: opacity 0.2s ease;
-    margin-top: calc(var(--padding) / 2);
+    margin-top: var(--half-padding);
 }
 
 .input-overlay-button {

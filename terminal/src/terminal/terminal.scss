@@ -31,6 +31,9 @@
         padding-top: calc(var(--padding) - var(--link-underline-thickness));
         padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
 
+        padding-left: calc(var(--half-padding) + 2px);
+        padding-right: var(--half-padding);
+
         cursor: pointer;
         color: var(--color);
 
@@ -58,7 +61,7 @@
             filter: invert(0);
         }
 
-        margin-left: var(--padding);
+        margin-left: var(--half-padding);
         cursor: pointer;
         padding: 3px;
     }

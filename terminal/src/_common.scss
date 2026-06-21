@@ -31,6 +31,7 @@ body {
     --background-color: var(--background-color-base);
     --padding-base: 5px;
     --padding: var(--padding-base);
+    --half-padding: calc(var(--padding) / 2);
     background-color: var(--background-color);
 }
 

@@ -162,7 +162,7 @@ tonic = { version = "0.14.6" }
 tonic-prost = { version = "0.14.6" }
 tonic-prost-build = { version = "0.14.6" }
 tower = { version = "0.5.3" }
-tower-http = { version = "0.6.11" }
+tower-http = { version = "0.7.0" }
 tower-layer = { version = "0.3.3" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }

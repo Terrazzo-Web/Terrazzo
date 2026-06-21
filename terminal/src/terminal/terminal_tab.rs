@@ -185,8 +185,10 @@ impl TabDescriptor for TerminalTab {
             autoclone!(this);
             let terminal = this.address.clone();
             spawn_local(async move {
-                if let Err(error) = terminal_api::write::write(&terminal, format!("{data}\n")).await
-                {
+                if let Err(error) = terminal_api::write::write(&terminal, data).await {
+                    warn!("Failed to write input overlay text to the terminal: {error}");
+                }
+                if let Err(error) = terminal_api::write::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
             });

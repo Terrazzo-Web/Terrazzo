@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Mutex;
 
 use terrazzo::autoclone;
 use terrazzo::html;
@@ -25,9 +26,30 @@ struct SpeechRecognitionHandle {
     _on_error: Closure<dyn FnMut(JsValue)>,
 }
 
+pub static OPEN_COUNT: Mutex<i32> = Mutex::new(0);
+
+#[derive(Debug, PartialEq, Eq)]
+struct IsOpenToggle;
+
+impl IsOpenToggle {
+    fn new() -> Self {
+        *OPEN_COUNT.lock().unwrap() += 1;
+        Self
+    }
+}
+
+impl Drop for IsOpenToggle {
+    fn drop(&mut self) {
+        *OPEN_COUNT.lock().unwrap() -= 1;
+    }
+}
+
 #[html]
 pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> XElement {
     let is_open = XSignal::new("input-overlay-open", false);
+    let is_open_toggle = is_open.view("is-overlay-open-toggle", |t| {
+        if *t { Some(IsOpenToggle::new()) } else { None }
+    });
     let is_recording = XSignal::new("input-overlay-recording", false);
     let value = XSignal::new("input-overlay-value", XString::default());
     let textarea: ElementCapture<HtmlTextAreaElement> = Default::default();
@@ -44,6 +66,7 @@ pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> 
     div(
         before_render = move |_| {
             let _ = &drop_is_open;
+            let _ = &is_open_toggle;
         },
         class = style::INPUT_OVERLAY,
         class %= overlay_class(is_open.clone()),

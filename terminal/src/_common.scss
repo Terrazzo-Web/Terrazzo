@@ -129,3 +129,9 @@ body {
     box-shadow: none;
     outline: none;
 }
+
+@mixin trz-focusable {
+    &:not(:focus-within) {
+        opacity: 0.8;
+    }
+}

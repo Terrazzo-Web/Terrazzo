@@ -101,6 +101,10 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         class = style::TEXT_EDITOR,
         #[cfg(not(feature = "client-prod"))]
         class = "text-editor-app",
+        class %= is_focusable(
+            manager.editor_state.clone(),
+            manager.show_html_preview.clone(),
+        ),
         div(
             class = style::HEADER,
             menu(manager.tile.clone()),
@@ -524,4 +528,19 @@ impl TextEditorManager {
 pub enum RemoveBehavior {
     Hard,
     Soft,
+}
+
+#[template(wrap = true)]
+fn is_focusable(
+    #[signal] state: EditorState,
+    #[signal] show_html_preview: bool,
+) -> XAttributeValue {
+    if !show_html_preview
+        && let EditorState::Data(EditorDataState { data, .. }) = &state
+        && let fsio::File::TextFile { .. } = **data
+    {
+        Some(style::IS_FOCUSABLE)
+    } else {
+        None
+    }
 }

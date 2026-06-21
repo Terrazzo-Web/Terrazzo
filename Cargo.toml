@@ -147,7 +147,7 @@ sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
-syn = { version = "2.0.117" }
+syn = { version = "2.0.118" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.18" }

@@ -122,13 +122,12 @@ pub(crate) fn show_tiles_rec(
                 )
             });
             div(
-                key = tile.id,
+                key = tile.id.to_string(),
                 before_render = move |_| {
                     let _ = &update_app;
                     let _ = &update_remote;
                     let _ = &update_title;
                 },
-                key = tile.id.to_string(),
                 class = style::APP_TILE,
                 #[cfg(not(feature = "client-prod"))]
                 class = "app-tile",

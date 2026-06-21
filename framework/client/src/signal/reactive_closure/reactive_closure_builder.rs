@@ -206,4 +206,8 @@ impl Consumers {
         self.0.append(&mut other.0);
         return self;
     }
+    pub fn append_mut(&mut self, mut other: Self) -> &mut Self {
+        self.0.append(&mut other.0);
+        return self;
+    }
 }

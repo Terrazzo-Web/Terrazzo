@@ -83,8 +83,8 @@ axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
 base64 = { version = "0.22.1" }
 bitflags = { version = "2.13.0" }
-bytes = { version = "1.11.1" }
-cc = { version = "1.2.64" }
+bytes = { version = "1.12.0" }
+cc = { version = "1.2.65" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.1", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -147,7 +147,7 @@ sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
-syn = { version = "2.0.117" }
+syn = { version = "2.0.118" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.18" }

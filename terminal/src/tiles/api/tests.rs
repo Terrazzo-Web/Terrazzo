@@ -55,7 +55,7 @@ fn missing_remote_defaults_to_local() {
     .unwrap();
 
     assert!(tile.remote.is_empty());
-    assert_eq!("", tile.title);
+    assert_eq!("", tile.title.as_ref());
 }
 
 fn assert_tree(tree: &Tiles, expected_direction: Direction, expected_tile_ids: &[i64]) {

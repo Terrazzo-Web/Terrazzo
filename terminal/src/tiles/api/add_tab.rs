@@ -49,14 +49,14 @@ fn add_tab_aux(
                 id: new_id,
                 app: App::Default,
                 remote: Default::default(),
-                title: format!("New tab {new_id}"),
+                title: format!("New tab {new_id}").into(),
             }));
             let mut nodes = nodes.clone();
             let insert_at = after_child
                 .and_then(|after_child| {
                     nodes
                         .iter()
-                        .position(|node| child_id(node) == after_child)
+                        .position(|node| node_id(node) == after_child)
                         .map(|index| index + 1)
                 })
                 .unwrap_or(nodes.len());
@@ -89,7 +89,7 @@ fn add_tab_aux(
     })
 }
 
-fn child_id(node: &Tiles) -> TileId {
+pub fn node_id(node: &Tiles) -> TileId {
     match node {
         Tiles::Tile(tile) => tile.id,
         Tiles::Array { id, .. } => *id,

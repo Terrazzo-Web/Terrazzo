@@ -6,6 +6,7 @@ use super::Direction;
 use super::Side;
 use super::Tile;
 use super::Tiles;
+use super::add_tab::node_id;
 use super::state::TREE;
 use super::state::TilesStateError;
 use crate::tiles::app::App;
@@ -36,27 +37,20 @@ fn add_node_aux(
 ) -> Result<Arc<Tiles>, TilesStateError> {
     Ok(match &*tree {
         Tiles::Tile(node) if node.id == next_to => {
-            let id = new_id
+            let new_id = new_id
                 .take()
                 .ok_or(TilesStateError::DuplicateTileId(next_to))?;
             let new = Arc::new(Tiles::Tile(Tile {
-                id,
+                id: new_id,
                 app: App::Default,
                 remote: node.remote.clone(),
-                title: format!("New tile {id}"),
+                title: format!("New tile {new_id}").into(),
             }));
-            let new_id = TileId::new();
             Arc::new(Tiles::Array {
-                id: new_id,
+                id: TileId::new(),
                 direction: with_direction,
-                title: format!("New {with_direction:?} {new_id}").into(),
-                selected: (with_direction == Direction::Tabbed).then(|| match side {
-                    Side::Before => node.id,
-                    Side::After => match &*new {
-                        Tiles::Tile(tile) => tile.id,
-                        Tiles::Array { .. } => unreachable!(),
-                    },
-                }),
+                title: node.title.clone(),
+                selected: (with_direction == Direction::Tabbed).then_some(node.id),
                 nodes: match side {
                     Side::Before => vec![new, tree],
                     Side::After => vec![tree, new],
@@ -71,21 +65,35 @@ fn add_node_aux(
             nodes,
         } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
+            let mut new_selected = selected.clone();
             for node in nodes {
-                nodes2.extend(add_node_flatten(
+                let list = add_node_flatten(
                     node.clone(),
                     with_direction,
                     *direction,
                     next_to,
                     side,
                     new_id,
-                )?)
+                )?;
+                {
+                    let id = match &**node {
+                        Tiles::Tile(tile) => tile.id,
+                        Tiles::Array { id, .. } => *id,
+                    };
+                    if selected == &Some(id) {
+                        new_selected = match side {
+                            Side::Before => list.first().map(|first| node_id(first)),
+                            Side::After => list.last().map(|last| node_id(last)),
+                        };
+                    }
+                }
+                nodes2.extend(list)
             }
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
                 title: title.clone(),
-                selected: *selected,
+                selected: new_selected,
                 nodes: nodes2,
             })
         }

@@ -5,6 +5,7 @@ use scopeguard::defer;
 const SERVER_FEATURE: &str = "CARGO_FEATURE_SERVER";
 const CLIENT_FEATURE: &str = "CARGO_FEATURE_CLIENT";
 const RUSTDOC_FEATURE: &str = "CARGO_FEATURE_RUSTDOC";
+const DEBUG_FEATURE: &str = "CARGO_FEATURE_DEBUG";
 
 fn main() {
     if env::var(RUSTDOC_FEATURE).is_ok() {
@@ -21,5 +22,5 @@ fn main() {
         println!("cargo::warning=Can't enable both 'client' and 'server' features");
     }
 
-    terrazzo_build::build_css();
+    terrazzo_build::build_css(env::var(DEBUG_FEATURE).is_ok());
 }

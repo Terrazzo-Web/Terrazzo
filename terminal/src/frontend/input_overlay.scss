@@ -1,9 +1,9 @@
 .input-overlay {
     position: absolute;
-    left: calc(var(--padding) / 2);
-    right: calc(var(--padding) / 2);
-    bottom: calc(var(--padding) / 2);
-    margin: calc(var(--padding) / 2);
+    left: var(--half-padding);
+    right: var(--half-padding);
+    bottom: var(--half-padding);
+    margin: var(--half-padding);
     display: flex;
     flex-direction: row-reverse;
     align-items: flex-end;
@@ -14,18 +14,18 @@
 .input-overlay-buttons {
     display: flex;
     flex-direction: column;
-    margin-left: calc(var(--padding) / 2);
+    margin-left: var(--half-padding);
 }
 
 .input-overlay-button,
 .input-overlay-send {
     flex: 0 0 auto;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     filter: invert(1);
     pointer-events: auto;
-    transition: opacity 0.2s ease;
-    margin-top: calc(var(--padding) / 2);
+    transition: opacity 0.3s ease;
+    margin-top: var(--half-padding);
 }
 
 .input-overlay-button {
@@ -46,15 +46,16 @@
 
 .input-overlay-textarea {
     flex: 1 1 auto;
-    min-height: 4rem;
+    min-height: 6rem;
     padding: var(--padding);
     border: 1px solid var(--color);
     border-radius: 0.5rem;
     background: rgba(0, 0, 0, 0.8);
-    color: var(--color);
+    color: color-mix(in srgb, white 50%, var(--color) 50%);
     pointer-events: auto;
-    resize: none;
+    resize: vertical;
     outline: none;
+    @include trz-font;
 }
 
 .input-overlay-send {

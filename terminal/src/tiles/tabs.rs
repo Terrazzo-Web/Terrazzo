@@ -189,8 +189,7 @@ impl TabDescriptor for TileTab {
         )
     }
 
-    fn selected(&self, state: &TileTabsState) -> XSignal<bool> {
-        let _ = state;
+    fn selected(&self, _state: &TileTabsState) -> XSignal<bool> {
         self.selected.clone()
     }
 }

@@ -65,7 +65,7 @@ fn add_node_aux(
             nodes,
         } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
-            let mut new_selected = selected.clone();
+            let mut new_selected = *selected;
             for node in nodes {
                 let list = add_node_flatten(
                     node.clone(),

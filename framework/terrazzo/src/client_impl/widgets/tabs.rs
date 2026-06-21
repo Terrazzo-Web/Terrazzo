@@ -307,7 +307,11 @@ fn tab_item<T: TabDescriptor + 'static>(
     options: Ptr<TabsOptions<XString>>,
 ) -> XElement {
     if !ever_selected {
-        return tag(style::visibility = "hidden", style::display = "none");
+        return tag(
+            class = options.item_class.clone(),
+            style::visibility = "hidden",
+            style::display = "none",
+        );
     }
     return tag(
         class %= tab_item_class(options, selected),

@@ -45,6 +45,8 @@
             background-color: var(--selected-background-color);
         }
 
+        @include trz-bg-transition;
+
         &>div {
             display: flex;
             flex-direction: row;
@@ -62,6 +64,8 @@
             background-color: var(--link-color);
             filter: invert(0);
         }
+
+        @include trz-bg-transition;
 
         margin-left: var(--half-padding);
         cursor: pointer;

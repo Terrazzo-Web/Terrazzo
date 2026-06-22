@@ -24,6 +24,7 @@ div.resize-bar {
             filter: invert(1);
 
             opacity: 30%;
+            transition: opacity 0.2s linear;
 
             &:hover {
                 opacity: 100%;

@@ -52,7 +52,7 @@ Add a small interaction overlay inside the terminal container that lets users ty
    - A send icon element hidden or semi-transparent by default.
 
 3. Add CSS rules.
-   - `position: absolute; right: calc(var(--padding) / 2); bottom: calc(var(--padding) / 2);` for the main icon.
+   - `position: absolute; right: var(--half-padding); bottom: var(--half-padding);` for the main icon.
    - `opacity: 0.3` default, `opacity: 1` on hover/clickable states.
    - `cursor: pointer` for all active icons.
    - Textarea position: absolute bottom within terminal, left/right inset by `--padding`, and right inset enough for the icon.

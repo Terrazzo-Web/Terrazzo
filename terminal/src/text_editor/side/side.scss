@@ -30,6 +30,8 @@ div.side {
                 background-color: var(--link-color);
                 filter: invert(0);
             }
+
+            @include trz-bg-transition;
         }
 
         img.button-hover-icon {
@@ -52,11 +54,13 @@ div.side {
 
         >span {
             white-space: nowrap;
+            cursor: pointer;
 
             &:hover {
-                cursor: pointer;
                 background-color: var(--link-color);
             }
+
+            @include trz-bg-transition;
         }
 
         &.move-dragover>span {

@@ -31,6 +31,7 @@ body {
     --background-color: var(--background-color-base);
     --padding-base: 5px;
     --padding: var(--padding-base);
+    --half-padding: calc(var(--padding) / 2);
     background-color: var(--background-color);
 }
 
@@ -106,6 +107,8 @@ body {
             cursor: pointer;
         }
 
+        @include trz-bg-transition;
+
         padding: var(--padding);
         margin: 0px;
 
@@ -127,4 +130,16 @@ body {
     -moz-appearance: none;
     box-shadow: none;
     outline: none;
+}
+
+@mixin trz-focusable {
+    &:not(:focus-within) {
+        opacity: 0.8;
+    }
+
+    transition: opacity 0.2s ease;
+}
+
+@mixin trz-bg-transition {
+    transition: background-color 0.2s linear;
 }

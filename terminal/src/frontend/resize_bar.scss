@@ -23,6 +23,7 @@
             transform: translateX(-50%) scaleX(1);
             transform-origin: center;
             transition-duration: 0.2s;
+            @include trz-bg-transition;
         }
 
         &:hover>div {
@@ -57,6 +58,7 @@
             transform: translateY(-50%) scaleY(1);
             transform-origin: center;
             transition-duration: 0.2s;
+            @include trz-bg-transition;
         }
 
         &:hover>div {

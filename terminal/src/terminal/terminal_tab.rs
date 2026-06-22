@@ -29,6 +29,7 @@ use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
+use crate::frontend::input_overlay;
 use crate::frontend::input_overlay::input_overlay;
 use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
@@ -185,8 +186,10 @@ impl TabDescriptor for TerminalTab {
             autoclone!(this);
             let terminal = this.address.clone();
             spawn_local(async move {
-                if let Err(error) = terminal_api::write::write(&terminal, format!("{data}\n")).await
-                {
+                if let Err(error) = terminal_api::write::write(&terminal, data).await {
+                    warn!("Failed to write input overlay text to the terminal: {error}");
+                }
+                if let Err(error) = terminal_api::write::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
             });
@@ -200,6 +203,9 @@ impl TabDescriptor for TerminalTab {
         div(
             mouseenter = move |_| {
                 autoclone!(this);
+                if *input_overlay::OPEN_COUNT.lock().unwrap() > 0 {
+                    return;
+                }
                 if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
                     xtermjs.focus();
                 }

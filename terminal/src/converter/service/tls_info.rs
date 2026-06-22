@@ -19,7 +19,6 @@ pub async fn add_tls_info(input: &str, add: &mut impl AddConversionFn) -> bool {
 }
 
 async fn add_tls_info_impl(input: &str, add: &mut impl AddConversionFn) -> Result<(), ()> {
-    let input = input.trim();
     let url = Url::parse(input).ignore_err("url")?;
     let host = url.host_str().ignore_err("host")?;
     let port = url.port_or_known_default().ignore_err("port")?;

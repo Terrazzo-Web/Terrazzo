@@ -8,6 +8,8 @@
         cursor: pointer;
     }
 
+    @include trz-bg-transition;
+
     >div {
         @include trz-header;
 

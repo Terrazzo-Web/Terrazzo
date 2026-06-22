@@ -28,6 +28,8 @@ div.menu {
             background-color: var(--link-color);
             cursor: pointer;
         }
+
+        @include trz-bg-transition;
     }
 }
 
@@ -53,6 +55,10 @@ ul.menu-items {
             }
         }
     }
+
+    >li {
+        @include trz-bg-transition;
+    }
 }
 
 div.menu>ul.menu-items>li.splits {
@@ -68,6 +74,8 @@ div.menu>ul.menu-items>li.splits {
             background-color: var(--link-color);
             cursor: pointer;
         }
+
+        @include trz-bg-transition;
     }
 
     >div {

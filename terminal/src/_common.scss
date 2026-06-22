@@ -107,6 +107,8 @@ body {
             cursor: pointer;
         }
 
+        @include trz-bg-transition;
+
         padding: var(--padding);
         margin: 0px;
 
@@ -134,4 +136,10 @@ body {
     &:not(:focus-within) {
         opacity: 0.8;
     }
+
+    transition: opacity 0.2s ease;
+}
+
+@mixin trz-bg-transition {
+    transition: background-color 0.2s linear;
 }

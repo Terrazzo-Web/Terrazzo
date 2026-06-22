@@ -188,8 +188,10 @@ div.add-tile-tab {
                 filter: invert(0);
             }
 
-            --background-color: var(--link-color);
+            background-color: var(--link-color);
             cursor: pointer;
         }
+
+        @include trz-bg-transition;
     }
 }

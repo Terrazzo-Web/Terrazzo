@@ -58,6 +58,8 @@
                 &:hover {
                     background-color: var(--color);
                 }
+
+                @include trz-bg-transition;
             }
 
             img.status,
@@ -187,6 +189,10 @@
                     filter: invert(1);
                 }
             }
+        }
+
+        div {
+            @include trz-bg-transition;
         }
     }
 }

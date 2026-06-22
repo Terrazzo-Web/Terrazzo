@@ -103,6 +103,8 @@
             background-color: var(--selected-background-color);
         }
 
+        @include trz-bg-transition;
+
         &>div {
             display: flex;
             flex-direction: row;

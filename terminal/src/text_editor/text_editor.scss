@@ -32,6 +32,8 @@ div.text_editor {
                     background-color: var(--link-color);
                     cursor: pointer;
                 }
+
+                @include trz-bg-transition;
             }
 
             img.create-entry-icon:hover,
@@ -39,6 +41,10 @@ div.text_editor {
                 filter: invert(0);
                 background-color: var(--link-color);
                 cursor: pointer;
+            }
+
+            img {
+                @include trz-bg-transition;
             }
 
             div.path-selector-widget {
@@ -91,6 +97,8 @@ div.text_editor {
                 background-color: var(--link-color);
                 cursor: pointer;
             }
+
+            @include trz-bg-transition;
         }
 
         img.toggle-editor-diff.active,

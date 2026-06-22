@@ -23,12 +23,14 @@ body {
 
     @include trz-font;
 
-    --color-base: green;
+    --color-base: #d4d4d4;
     --color: var(--color-base);
-    --link-color-base: green;
+    --link-color-base: #007acc;
     --link-color: var(--link-color-base);
-    --background-color-base: black;
+    --background-color-base: #1e1e1e;
     --background-color: var(--background-color-base);
+    --selected-color: black;
+    --selected-background-color: #75beff;
     --padding-base: 5px;
     --padding: var(--padding-base);
     --half-padding: calc(var(--padding) / 2);

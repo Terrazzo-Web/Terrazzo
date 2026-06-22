@@ -83,14 +83,14 @@ li.tile-tab-title {
         z-index: 4;
         --color: var(--background-color-base);
         --link-color: var(--background-color-base);
-        --background-color: color-mix(in srgb, var(--background-color-base) 35%, var(--color-base) 65%);
+        --background-color: color-mix(in srgb, var(--background-color-base) 30%, var(--link-color-base) 70%);
     }
 
     &.selected {
         z-index: 3;
-        --color: var(--background-color-base);
+        --color: var(--selected-color);
         --link-color: var(--background-color-base);
-        --background-color: var(--link-color-base);
+        --background-color: var(--selected-background-color);
     }
 
     &>div {

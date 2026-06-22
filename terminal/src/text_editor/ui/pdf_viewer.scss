@@ -5,7 +5,7 @@ div.pdf-viewer {
     overflow: hidden;
     background-color: rgb(38, 38, 38);
 
-    > [data-layer="pages"] {
+    >[data-layer="pages"] {
         position: absolute;
         inset: 0;
         box-sizing: border-box;
@@ -17,7 +17,7 @@ div.pdf-viewer {
         padding: calc(2 * var(--padding));
     }
 
-    > [data-layer="pages"] > div[data-page-number] {
+    >[data-layer="pages"]>div[data-page-number] {
         position: relative;
         margin-inline: auto;
         background-color: white;
@@ -60,9 +60,7 @@ div.pdf-viewer {
                 z-index: 1;
                 font-size: calc(var(--text-scale-factor) * var(--font-height));
                 transform:
-                    rotate(var(--rotate, 0deg))
-                    scaleX(var(--scale-x, 1))
-                    scale(var(--min-font-size-inv));
+                    rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1)) scale(var(--min-font-size-inv));
             }
 
             [class~="markedContent"] {
@@ -98,7 +96,7 @@ div.pdf-viewer {
         }
     }
 
-    > [data-control="zoom"] {
+    >[data-control="zoom"] {
         position: absolute;
         right: calc(3 * var(--padding));
         bottom: calc(3 * var(--padding));
@@ -106,7 +104,7 @@ div.pdf-viewer {
         display: flex;
         align-items: center;
         gap: var(--padding);
-        padding: calc(var(--padding) / 2) var(--padding);
+        padding: var(--half-padding) var(--padding);
         color: white;
         background-color: rgba(20, 20, 20, 0.86);
         border: 1px solid rgba(255, 255, 255, 0.24);

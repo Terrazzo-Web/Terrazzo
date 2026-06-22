@@ -4,6 +4,10 @@ div.text_editor {
     display: flex;
     flex-direction: column;
 
+    .is_focusable {
+        @include trz-focusable;
+    }
+
     div.header {
         @include trz-header;
         border: 1px solid var(--color);
@@ -28,6 +32,8 @@ div.text_editor {
                     background-color: var(--link-color);
                     cursor: pointer;
                 }
+
+                @include trz-bg-transition;
             }
 
             img.create-entry-icon:hover,
@@ -35,6 +41,10 @@ div.text_editor {
                 filter: invert(0);
                 background-color: var(--link-color);
                 cursor: pointer;
+            }
+
+            img {
+                @include trz-bg-transition;
             }
 
             div.path-selector-widget {
@@ -87,6 +97,8 @@ div.text_editor {
                 background-color: var(--link-color);
                 cursor: pointer;
             }
+
+            @include trz-bg-transition;
         }
 
         img.toggle-editor-diff.active,

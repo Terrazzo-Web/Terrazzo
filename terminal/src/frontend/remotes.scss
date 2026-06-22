@@ -17,6 +17,7 @@ ul.remotes-list {
             background-color: var(--link-color);
             cursor: pointer;
         }
+        @include trz-bg-transition;
 
         padding: var(--padding);
         margin: 0px;

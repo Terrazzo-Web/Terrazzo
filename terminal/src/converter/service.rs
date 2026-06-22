@@ -29,14 +29,14 @@ pub async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
     let mut add_conversion = |language, content| {
         conversions.push(Conversion::new(language, content));
     };
-    add_conversions(&input, &mut add_conversion).await;
+    add_conversions(input.trim(), &mut add_conversion).await;
     return Ok(Conversions {
         conversions: conversions.into(),
     });
 }
 
 async fn add_conversions(input: &str, add: &mut impl AddConversionFn) {
-    if input.trim().is_empty() {
+    if input.is_empty() {
         return;
     }
     if self::x509::add_x509_pem(input, add) {

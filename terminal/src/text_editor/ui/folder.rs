@@ -12,6 +12,12 @@ use web_sys::MouseEvent;
 
 use self::diagnostics::debug;
 use self::diagnostics::warn;
+use super::ROOT_FILE_PATH;
+use super::drag::encode_query;
+use super::drag::encode_query_path;
+use super::drag::on_move_dragover;
+use super::drag::on_move_dragstart;
+use super::drag::on_move_drop;
 use crate::assets::icons;
 use crate::frontend::timestamp;
 use crate::frontend::timestamp::datetime::DateTime;
@@ -24,11 +30,6 @@ use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
-use crate::text_editor::ui::ROOT_FILE_PATH;
-use crate::text_editor::ui::drag::encode_query_path;
-use crate::text_editor::ui::drag::on_move_dragover;
-use crate::text_editor::ui::drag::on_move_dragstart;
-use crate::text_editor::ui::drag::on_move_drop;
 use crate::tiles::app::App;
 
 terrazzo_css::import_style!(style, "folder.scss");
@@ -99,7 +100,7 @@ pub fn folder(
             td("{permissions}"),
             td(
                 class = style::FOLDER_ACTIONS,
-                download_action(file_path.clone(), name.clone(), is_dir),
+                download_action(&manager, file_path.clone(), name.clone(), is_dir),
                 trash_action(
                     manager.clone(),
                     folder_path.clone(),
@@ -163,12 +164,17 @@ pub fn folder(
 }
 
 #[html]
-fn download_action(file_path: FilePath<Arc<Path>>, name: Arc<str>, is_dir: bool) -> XElement {
+fn download_action(
+    manager: &TextEditorManager,
+    file_path: FilePath<Arc<Path>>,
+    name: Arc<str>,
+    is_dir: bool,
+) -> XElement {
     if is_dir || &*name == ".." {
         return span();
     }
     a(
-        href = download_url(&file_path),
+        href = download_url(manager, &file_path),
         download = name,
         click = move |event: MouseEvent| {
             event.stop_propagation();
@@ -183,7 +189,6 @@ fn download_action(file_path: FilePath<Arc<Path>>, name: Arc<str>, is_dir: bool)
     )
 }
 
-#[autoclone]
 #[html]
 fn trash_action(
     manager: Ptr<TextEditorManager>,
@@ -201,7 +206,6 @@ fn trash_action(
         src = icons::trash(),
         title = "Move to trash",
         click = move |event: MouseEvent| {
-            autoclone!(manager, folder_path, file_path);
             event.stop_propagation();
             spawn_local(delete_file(
                 manager.clone(),
@@ -212,12 +216,17 @@ fn trash_action(
     )
 }
 
-fn download_url(file_path: &FilePath<Arc<Path>>) -> String {
+fn download_url(manager: &TextEditorManager, file_path: &FilePath<Arc<Path>>) -> Option<String> {
+    let remote = serde_json::to_string(&manager.remote)
+        .inspect_err(|error| warn!("Failed to JSON serialize the remote: {error}"))
+        .ok()?;
     format!(
-        "/api/text_editor/fsio/download?base={}&file={}",
+        "/api/text_editor/fsio/download?base={}&file={}&remote={}",
         encode_query_path(file_path.base.as_ref()),
-        encode_query_path(file_path.file.as_ref())
+        encode_query_path(file_path.file.as_ref()),
+        encode_query(&remote),
     )
+    .into()
 }
 
 async fn delete_file(

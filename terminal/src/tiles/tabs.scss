@@ -16,16 +16,21 @@ div.tile-tabs {
 }
 
 div.tile-tab-titles {
+    --tile-tab-shape-width: 25px;
+    // Adapted from https://tympanus.net/Development/TabStylesInspiration/
+    --tile-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 60' preserveAspectRatio='none'%3E%3Cpath d='M80 60C34 53.5 64.417 0 0 0v60h80z' fill='white'/%3E%3C/svg%3E");
+
     @include trz-header;
-
-    background-color: var(--background-color);
-    border: 1px solid var(--color);
-    border-radius: 2px;
-
     @include prevent-user-select;
+
+    box-sizing: border-box;
 
     >ul {
         @include trz-header;
+        --header-height: inherit;
+        height: 100%;
+        flex: 0 1 auto;
+        min-width: 0;
         overflow-x: scroll;
         overflow-y: hidden;
         @include no-scroll-bar;
@@ -33,22 +38,64 @@ div.tile-tab-titles {
 }
 
 li.tile-tab-title {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    box-sizing: border-box;
     height: 100%;
-    width: 100%;
+    width: auto;
+    margin-inline-start: var(--tile-tab-shape-width);
 
-    padding-top: calc(var(--padding) - var(--link-underline-thickness));
-    padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
+    &:nth-last-child(2) {
+        margin-inline-end: var(--tile-tab-shape-width);
+    }
+
+    padding: 0;
+    padding-right: 10px;
 
     cursor: pointer;
     color: var(--color);
+    background-color: var(--background-color);
 
-    &:hover,
+    &::before,
+    &::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: var(--tile-tab-shape-width);
+        background-color: var(--background-color);
+        content: "";
+        pointer-events: none;
+        -webkit-mask: var(--tile-tab-shape) center / 100% 100% no-repeat;
+        mask: var(--tile-tab-shape) center / 100% 100% no-repeat;
+    }
+
+    &::before {
+        right: 100%;
+        transform: scaleX(-1);
+    }
+
+    &::after {
+        left: 100%;
+    }
+
+    &:hover {
+        z-index: 4;
+        --color: var(--background-color-base);
+        --link-color: var(--background-color-base);
+        --background-color: color-mix(in srgb, var(--background-color-base) 35%, var(--color-base) 65%);
+    }
+
     &.selected {
-        color: var(--selected-color);
-        background-color: var(--selected-background-color);
+        z-index: 3;
+        --color: var(--background-color-base);
+        --link-color: var(--background-color-base);
+        --background-color: var(--link-color-base);
     }
 
     &>div {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -57,21 +104,30 @@ li.tile-tab-title {
 
     .close-icon {
         height: 15px;
-        filter: invert(1);
+        filter: invert(0);
         visibility: hidden;
+        position: absolute;
+        right: -22px;
 
         &:hover {
-            background-color: var(--link-color);
-            filter: invert(0);
+            filter: invert(1);
         }
 
-        margin-left: var(--padding);
+        margin-left: var(--half-padding);
         cursor: pointer;
-        padding: 3px;
+        padding: 1px;
     }
 
     &:hover .close-icon {
         visibility: visible;
+    }
+
+    &.selected:hover .close-icon {
+        filter: invert(0.6);
+
+        &:hover {
+            filter: invert(1);
+        }
     }
 }
 
@@ -135,5 +191,7 @@ div.add-tile-tab {
             background-color: var(--link-color);
             cursor: pointer;
         }
+
+        @include trz-bg-transition;
     }
 }

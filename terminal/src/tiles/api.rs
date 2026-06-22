@@ -80,7 +80,7 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
 }
 
 #[server]
-pub async fn set_title(id: TileId, title: String) -> Result<Arc<Tiles>, ServerFnError> {
+pub async fn set_title(id: TileId, title: Arc<str>) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
@@ -148,7 +148,7 @@ pub struct Tile {
     #[serde(default)]
     pub remote: ClientAddress,
     #[serde(default)]
-    pub title: String,
+    pub title: Arc<str>,
 }
 
 impl Default for Tiles {

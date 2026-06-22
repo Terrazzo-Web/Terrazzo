@@ -98,6 +98,15 @@ impl From<Arc<str>> for XString {
     }
 }
 
+impl From<XString> for Arc<str> {
+    fn from(string: XString) -> Self {
+        match string {
+            XString::Str(str) => str.into(),
+            XString::Ref(arc) => arc.clone(),
+        }
+    }
+}
+
 impl<'t> From<&'t XString> for &'t str {
     fn from(value: &'t XString) -> Self {
         value.as_str()

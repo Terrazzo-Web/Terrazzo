@@ -3,6 +3,8 @@
     height: 100%;
     overflow-y: hidden;
 
+    @include trz-focusable;
+
     .tabs {
         --link-underline-thickness: 4px;
         height: 100%;
@@ -31,6 +33,9 @@
         padding-top: calc(var(--padding) - var(--link-underline-thickness));
         padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
 
+        padding-left: calc(var(--half-padding) + 2px);
+        padding-right: var(--half-padding);
+
         cursor: pointer;
         color: var(--color);
 
@@ -39,6 +44,8 @@
             color: var(--selected-color);
             background-color: var(--selected-background-color);
         }
+
+        @include trz-bg-transition;
 
         &>div {
             display: flex;
@@ -58,7 +65,9 @@
             filter: invert(0);
         }
 
-        margin-left: var(--padding);
+        @include trz-bg-transition;
+
+        margin-left: var(--half-padding);
         cursor: pointer;
         padding: 3px;
     }

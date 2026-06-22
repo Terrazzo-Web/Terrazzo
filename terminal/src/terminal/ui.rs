@@ -166,7 +166,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                         warn!("Failed to set terminal tile: {error}");
                         return;
                     }
-                    state.selected_tab.force(terminal_id);
+                    state.selected_tab.set(terminal_id);
                     REFRESH.force(());
                 });
             },
@@ -242,7 +242,7 @@ fn set_terminal_defs(
             .iter()
             .any(|def| def.address.id == selected_tab_value)
         {
-            state.selected_tab.force(first_terminal.address.id.clone());
+            state.selected_tab.set(first_terminal.address.id.clone());
         }
     }
     state.terminal_tabs.set(TerminalTabs::from(Ptr::new(

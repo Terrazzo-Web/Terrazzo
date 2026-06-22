@@ -103,6 +103,8 @@ pub fn tabs<T: TabsDescriptor>(
         drop_zone(e, state.clone(), tab, is_dragging.clone(), options.clone())
     };
 
+    let mut registrations = Consumers::default();
+
     let tab_titles = {
         let li_list = tab_descriptors().map(|tab| {
             let selected = tab.selected(&state);
@@ -150,10 +152,18 @@ pub fn tabs<T: TabsDescriptor>(
     let tab_items = {
         let li_list = tab_descriptors().map(|tab| {
             let selected = tab.selected(&state);
+            let ever_selected = XSignal::new("ever-selected", selected.get_value_untracked());
+            registrations.append_mut(selected.add_subscriber(move |selected_value| {
+                autoclone!(ever_selected);
+                if selected_value {
+                    ever_selected.set(true);
+                }
+            }));
             tab_item(
                 tab.clone(),
                 state.clone(),
-                selected.clone(),
+                selected,
+                ever_selected,
                 options.clone(),
             )
         });
@@ -161,6 +171,9 @@ pub fn tabs<T: TabsDescriptor>(
     };
 
     tag(
+        after_render = move |_| {
+            let _ = &registrations;
+        },
         class = options.tabs_class.clone(),
         [tab_titles, tab_items]..,
     )
@@ -289,15 +302,33 @@ fn tab_title<T: TabDescriptor + 'static>(
 fn tab_item<T: TabDescriptor + 'static>(
     tab: T,
     state: T::State,
-    #[signal] selected: bool,
+    selected: XSignal<bool>,
+    #[signal] ever_selected: bool,
     options: Ptr<TabsOptions<XString>>,
 ) -> XElement {
-    let class = if selected {
-        format!("{} {}", options.item_class, options.selected_class).into()
-    } else {
-        options.item_class.clone()
-    };
-    tag(class = class, [tab.item(&state).into()]..)
+    if !ever_selected {
+        return tag(
+            class = options.item_class.clone(),
+            style::visibility = "hidden",
+            style::display = "none",
+        );
+    }
+    return tag(
+        class %= tab_item_class(options, selected),
+        tab.item(&state).into(),
+    );
+
+    #[template(wrap = true)]
+    fn tab_item_class(
+        options: Ptr<TabsOptions<XString>>,
+        #[signal] selected: bool,
+    ) -> XAttributeValue {
+        if selected {
+            format!("{} {}", options.item_class, options.selected_class).into()
+        } else {
+            options.item_class.clone()
+        }
+    }
 }
 
 mod tab_options {

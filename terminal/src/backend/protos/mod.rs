@@ -28,6 +28,11 @@ pub mod terrazzo {
         include!(concat!(env!("OUT_DIR"), "/terrazzo.terminal.rs"));
     }
 
+    #[cfg(feature = "text-editor")]
+    pub mod texteditor {
+        include!(concat!(env!("OUT_DIR"), "/terrazzo.texteditor.rs"));
+    }
+
     #[cfg(feature = "port-forward")]
     pub mod portforward {
         include!(concat!(env!("OUT_DIR"), "/terrazzo.portforward.rs"));

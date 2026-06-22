@@ -1,6 +1,7 @@
 [server]
 host = "localhost"
 ports = [3101]
+trash = "~/.terrazzo/trash"
 pidfile = "~/.terrazzo/terminal-3101.pid"
 private_root_ca = "~/.terrazzo/root_ca"
 token_lifetime = "5m"

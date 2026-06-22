@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package terrazzo.texteditor;
+
+import "shared.proto";
+
+service TextEditorService {
+  rpc Download(DownloadRequest) returns (stream DownloadResponse);
+  rpc Upload(stream UploadRequest) returns (terrazzo.shared.Empty);
+}
+
+message FilePath {
+  string base = 1;
+  string file = 2;
+}
+
+message DownloadRequest {
+  terrazzo.shared.ClientAddress address = 1;
+  FilePath path = 2;
+}
+
+message DownloadResponse { bytes data = 1; }
+
+message UploadRequest {
+  oneof kind {
+    terrazzo.shared.ClientAddress address = 1;
+    FilePath path = 2;
+    bytes data = 3;
+  }
+}

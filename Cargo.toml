@@ -122,7 +122,7 @@ prettyplease = { version = "0.2.37" }
 proc-macro2 = { version = "1.0.106" }
 prost = { version = "0.14.4" }
 prost-types = { version = "0.14.4" }
-quote = { version = "1.0.45" }
+quote = { version = "1.0.46" }
 rcgen = { version = "0.14.8" }
 regex = { version = "1.12.4" }
 reqwest = { version = "0.13.4" }

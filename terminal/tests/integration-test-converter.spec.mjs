@@ -168,10 +168,11 @@ async function getResizeBarHoverStyles(page, resizeBar) {
             lineWidth: lineStyle.width,
         };
     });
-    await expect.poll(readHoverStyles, { timeout: 5 * SECOND }).not.toEqual({
-        lineBackgroundColor: 'rgba(0, 0, 0, 0)',
-        lineWidth: '0px',
-    });
+    await expect.poll(async () => {
+        const styles = await readHoverStyles();
+        return styles.lineBackgroundColor !== 'rgba(0, 0, 0, 0)' &&
+            parseFloat(styles.lineWidth) > 0;
+    }, { timeout: 5 * SECOND }).toBe(true);
     return readHoverStyles();
 }
 

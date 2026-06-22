@@ -30,12 +30,6 @@
     .title {
         height: 100%;
 
-        padding-top: calc(var(--padding) - var(--link-underline-thickness));
-        padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
-
-        padding-left: calc(var(--half-padding) + 2px);
-        padding-right: var(--half-padding);
-
         cursor: pointer;
         color: var(--color);
 
@@ -47,11 +41,25 @@
 
         @include trz-bg-transition;
 
+        margin: 0;
+        padding: 0;
+
         &>div {
             display: flex;
             flex-direction: row;
             align-items: center;
             height: 100%;
+
+            border-top: 1px solid var(--color);
+            border-bottom: 1px solid var(--color);
+            box-sizing: border-box;
+
+            padding-top: calc(var(--padding) - var(--link-underline-thickness));
+            padding-bottom: calc(var(--padding) - var(--link-underline-thickness));
+
+            padding-left: calc(var(--half-padding) + 2px);
+            padding-right: var(--half-padding);
+
         }
     }
 

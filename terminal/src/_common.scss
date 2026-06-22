@@ -124,6 +124,7 @@ body {
     align-items: center;
     --header-height: 30px;
     height: var(--header-height);
+    background-color: var(--background-color);
 }
 
 @mixin trz-no-outline {

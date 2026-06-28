@@ -45,10 +45,28 @@ pub fn set_floating_position(
     x: i32,
     y: i32,
 ) -> Result<Arc<Tiles>, TilesStateError> {
+    set_floating_geometry(array_id, floating_id, Some((x, y)), None)
+}
+
+pub fn set_floating_size(
+    array_id: TileId,
+    floating_id: TileId,
+    width: i32,
+    height: i32,
+) -> Result<Arc<Tiles>, TilesStateError> {
+    set_floating_geometry(array_id, floating_id, None, Some((width, height)))
+}
+
+fn set_floating_geometry(
+    array_id: TileId,
+    floating_id: TileId,
+    position: Option<(i32, i32)>,
+    size: Option<(i32, i32)>,
+) -> Result<Arc<Tiles>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.take().unwrap_or_default();
     let mut updated = false;
-    let tree = set_floating_position_aux(tree, array_id, floating_id, x, y, &mut updated);
+    let tree = set_floating_geometry_aux(tree, array_id, floating_id, position, size, &mut updated);
     if !updated {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
@@ -340,12 +358,12 @@ fn raise_floating_aux(
     }
 }
 
-fn set_floating_position_aux(
+fn set_floating_geometry_aux(
     tree: Arc<Tiles>,
     array_id: TileId,
     floating_id: TileId,
-    x: i32,
-    y: i32,
+    position: Option<(i32, i32)>,
+    size: Option<(i32, i32)>,
     updated: &mut bool,
 ) -> Arc<Tiles> {
     match &*tree {
@@ -366,11 +384,13 @@ fn set_floating_position_aux(
             };
             let mut floating_nodes = floating_nodes.clone();
             let floating = &floating_nodes[index];
+            let (x, y) = position.unwrap_or((floating.x, floating.y));
+            let (width, height) = size.unwrap_or((floating.width, floating.height));
             floating_nodes[index] = Arc::new(FloatingTile {
                 x,
                 y,
-                width: floating.width,
-                height: floating.height,
+                width,
+                height,
                 z_index: floating.z_index,
                 tile: floating.tile.clone(),
             });
@@ -395,18 +415,25 @@ fn set_floating_position_aux(
             let nodes = nodes
                 .iter()
                 .map(|node| {
-                    set_floating_position_aux(node.clone(), array_id, floating_id, x, y, updated)
+                    set_floating_geometry_aux(
+                        node.clone(),
+                        array_id,
+                        floating_id,
+                        position,
+                        size,
+                        updated,
+                    )
                 })
                 .collect();
             let floating_nodes = floating_nodes
                 .iter()
                 .map(|floating| {
-                    let tile = set_floating_position_aux(
+                    let tile = set_floating_geometry_aux(
                         floating.tile.clone(),
                         array_id,
                         floating_id,
-                        x,
-                        y,
+                        position,
+                        size,
                         updated,
                     );
                     Arc::new(floating.update(|_| tile))
@@ -577,7 +604,14 @@ mod tests {
         });
         let mut updated = false;
 
-        let tree = set_floating_position_aux(tree, array_id, floating_id, 120, 140, &mut updated);
+        let tree = set_floating_geometry_aux(
+            tree,
+            array_id,
+            floating_id,
+            Some((120, 140)),
+            None,
+            &mut updated,
+        );
         let Tiles::Array { floating_nodes, .. } = &*tree else {
             panic!("expected array");
         };

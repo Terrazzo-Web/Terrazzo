@@ -11,6 +11,7 @@ use terrazzo::widgets::tabs::TabsOptions;
 use terrazzo::widgets::tabs::TabsState;
 use terrazzo::widgets::tabs::tabs;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::MouseEvent;
 
 use self::diagnostics::warn;
 use super::api::Direction;
@@ -278,10 +279,38 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                 }
             });
             let drag_handle: DragHandle = Rc::new(drag_manager.mousedown());
+            let width = floating.width.clone();
+            let height = floating.height.clone();
+            let persist_width = width.clone();
+            let persist_height = height.clone();
+            let resize_manager = MousemoveManager::new2(move || {
+                let width = persist_width.get_value_untracked();
+                let height = persist_height.get_value_untracked();
+                spawn_local(async move {
+                    RootTree::update(
+                        super::api::set_floating_size(array_id, floating_id, width, height).await,
+                    )
+                });
+            });
+            let initial_width = width.get_value_untracked();
+            let initial_height = height.get_value_untracked();
+            let update_size = resize_manager.delta.add_subscriber(move |delta| {
+                if let Some(Position {
+                    x: delta_x,
+                    y: delta_y,
+                }) = delta
+                {
+                    let _batch = Batch::use_batch("resize-floating-tile");
+                    width.set(100.max(initial_width + delta_x));
+                    height.set(100.max(initial_height + delta_y));
+                }
+            });
+            let resize_handle = resize_manager.mousedown();
             div(
                 key = format!("floating-{floating_id}"),
                 before_render = move |_| {
                     let _ = &update_position;
+                    let _ = &update_size;
                 },
                 class = style::FLOATING_TILE,
                 #[cfg(not(feature = "client-prod"))]
@@ -310,6 +339,16 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                     XSignal::new("floating-tile-parent-direction", Direction::Horizontal),
                     RcSlice::new(Rc::default(), 0..0),
                     Some(drag_handle),
+                ),
+                img(
+                    class = style::RESIZE_HANDLE,
+                    #[cfg(not(feature = "client-prod"))]
+                    class = "floating-resize-handle",
+                    src = icons::drag_handle_corner(),
+                    mousedown = move |ev: MouseEvent| {
+                        ev.prevent_default();
+                        resize_handle(ev);
+                    },
                 ),
             )
         })

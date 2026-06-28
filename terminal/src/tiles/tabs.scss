@@ -20,6 +20,23 @@ div.floating-tile {
     box-shadow: 0 4px 16px color-mix(in srgb, black 35%, transparent);
 }
 
+img.resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    filter: invert(1);
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    opacity: 30%;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+        opacity: 100%;
+    }
+}
+
 div.tile-tabs {
     position: relative;
     z-index: 0;

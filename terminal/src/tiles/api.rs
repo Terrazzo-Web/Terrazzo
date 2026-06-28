@@ -94,6 +94,21 @@ pub async fn set_floating_position(
 }
 
 #[server]
+pub async fn set_floating_size(
+    array_id: TileId,
+    floating_id: TileId,
+    width: i32,
+    height: i32,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::set_floating_size(
+        array_id,
+        floating_id,
+        width,
+        height,
+    )?)
+}
+
+#[server]
 pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,

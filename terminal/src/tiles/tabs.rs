@@ -14,6 +14,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::warn;
 use super::api::Direction;
+use super::signals::FloatingTile;
 use super::signals::Tiles;
 use super::ui::RcSlice;
 use super::ui::RootTree;
@@ -89,7 +90,7 @@ pub struct TileTabsState {
 impl TileTabsState {
     pub fn new(array_id: TileId, selected: XSignal<Option<TileId>>, nodes: &[Rc<Tiles>]) -> Self {
         if selected.get_value_untracked().is_none() {
-            selected.set(nodes.first().map(|node| child_id(node)));
+            selected.set(nodes.first().map(|node| node.id()));
         }
         let sync_selection = selected.add_subscriber(move |selected| {
             spawn_local(async move {
@@ -146,7 +147,7 @@ pub struct TileTab {
 
 impl TileTab {
     fn new(node: Rc<Tiles>, selected: &XSignal<Option<TileId>>) -> Self {
-        let id = child_id(&node);
+        let id = node.id();
         Self {
             id,
             node,
@@ -199,6 +200,7 @@ pub fn show_tabbed_tiles(
     array_id: TileId,
     selected: XSignal<Option<TileId>>,
     nodes: &[Rc<Tiles>],
+    floating_nodes: &[Rc<FloatingTile>],
 ) -> XElement {
     let descriptor = TileTabs::new(nodes, &selected);
     let state = TileTabsState::new(array_id, selected, nodes);
@@ -219,7 +221,69 @@ pub fn show_tabbed_tiles(
                 ..TabsOptions::default()
             }),
         ),
+        show_floating_tiles(array_id, floating_nodes),
     )
+}
+
+#[html]
+fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) -> XElement {
+    let z_indices: Rc<[XSignal<i32>]> = floating_nodes
+        .iter()
+        .map(|floating| floating.z_index.clone())
+        .collect();
+    div(floating_nodes
+        .iter()
+        .map(|floating| {
+            let floating = floating.clone();
+            let floating_id = floating.tile.id();
+            let z_indices = z_indices.clone();
+            div(
+                key = format!("floating-{floating_id}"),
+                class = style::FLOATING_TILE,
+                #[cfg(not(feature = "client-prod"))]
+                class = "floating-tile",
+                style::left %= percent(floating.x1.clone()),
+                style::top %= percent(floating.y1.clone()),
+                style::width %= span_percent(floating.x1.clone(), floating.x2.clone()),
+                style::height %= span_percent(floating.y1.clone(), floating.y2.clone()),
+                style::z_index %= integer(floating.z_index.clone()),
+                mousedown = move |_| {
+                    let next = z_indices
+                        .iter()
+                        .map(XSignal::get_value_untracked)
+                        .max()
+                        .unwrap_or_default()
+                        + 1;
+                    floating.z_index.set(next);
+                    spawn_local(async move {
+                        RootTree::update(super::api::raise_floating(array_id, floating_id).await)
+                    });
+                },
+                super::ui::show_tiles_rec(
+                    &floating.tile,
+                    1,
+                    MousemoveManager::new(),
+                    XSignal::new("floating-tile-parent-direction", Direction::Horizontal),
+                    RcSlice::new(Rc::default(), 0..0),
+                ),
+            )
+        })
+        .collect::<Vec<_>>()..)
+}
+
+#[template(wrap = true)]
+fn percent(#[signal] value: i32) -> XAttributeValue {
+    format!("{value}%")
+}
+
+#[template(wrap = true)]
+fn span_percent(#[signal] start: i32, #[signal] end: i32) -> XAttributeValue {
+    format!("{}%", end - start)
+}
+
+#[template(wrap = true)]
+fn integer(#[signal] value: i32) -> XAttributeValue {
+    value.to_string()
 }
 
 fn get_class_name(name: &'static str, class: &'static str) -> XString {
@@ -314,11 +378,4 @@ fn print_title(
         "{title}",
         class = style::TITLE_SPAN,
     )
-}
-
-fn child_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

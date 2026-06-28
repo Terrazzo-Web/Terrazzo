@@ -36,6 +36,7 @@ fn set_tab_title_aux(
             title: _old_title,
             selected,
             nodes,
+            floating_nodes,
         } if *id == array_id => {
             *done = true;
             Arc::new(Tiles::Array {
@@ -44,6 +45,7 @@ fn set_tab_title_aux(
                 title: new_title.into(),
                 selected: *selected,
                 nodes: nodes.clone(),
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -52,15 +54,27 @@ fn set_tab_title_aux(
             title,
             selected: old_selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *old_selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| set_tab_title_aux(node.clone(), array_id, new_title, done))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile = set_tab_title_aux(floating.tile.clone(), array_id, new_title, done)?;
+                    Ok(Arc::new(floating.update(|_| tile)))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *old_selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
 }

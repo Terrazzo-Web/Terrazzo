@@ -42,8 +42,9 @@ fn move_child_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
-            let Some(from) = nodes.iter().position(|node| child_id(node) == moved_child) else {
+            let Some(from) = nodes.iter().position(|node| node.id() == moved_child) else {
                 return Err(TilesStateError::TileIdNotFound(moved_child));
             };
             let moved_node = nodes[from].clone();
@@ -53,7 +54,7 @@ fn move_child_aux(
                 .and_then(|after_child| {
                     nodes
                         .iter()
-                        .position(|node| child_id(node) == after_child)
+                        .position(|node| node.id() == after_child)
                         .map(|index| index + 1)
                 })
                 .unwrap_or(0);
@@ -65,6 +66,7 @@ fn move_child_aux(
                 title: title.clone(),
                 selected: selected.or(Some(moved_child)),
                 nodes,
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -73,22 +75,33 @@ fn move_child_aux(
             title,
             selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| move_child_aux(node.clone(), array_id, after_child, moved_child, moved))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile = move_child_aux(
+                        floating.tile.clone(),
+                        array_id,
+                        after_child,
+                        moved_child,
+                        moved,
+                    )?;
+                    Ok(Arc::new(floating.update(|_| tile)))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
-}
-
-fn child_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

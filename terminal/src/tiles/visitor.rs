@@ -7,6 +7,7 @@ use terrazzo::prelude::XString;
 
 use super::api::Direction;
 use super::id::TileId;
+use super::signals::FloatingTile as UiFloatingTile;
 use super::signals::TilePtr as UiTilePtr;
 use super::signals::Tiles as UiTileTree;
 
@@ -16,6 +17,7 @@ pub trait TilesVisitorKind: Sized {
     type Direction;
     type Selected;
     type Title;
+    type Floating;
 
     fn do_visit_node<V: TilesTreeVisitor<Self> + ?Sized>(visitor: &mut V, tree: Self::Node);
 }
@@ -38,6 +40,7 @@ pub trait TilesTreeVisitor<K: TilesVisitorKind> {
     ) {
     }
     fn visit_title(&mut self, #[expect(unused)] id: TileId, #[expect(unused)] title: K::Title) {}
+    fn visit_floating(&mut self, #[expect(unused)] floating: K::Floating) {}
 }
 
 pub struct UiStateVisitor<'l> {
@@ -50,6 +53,7 @@ impl<'l> TilesVisitorKind for UiStateVisitor<'l> {
     type Direction = &'l XSignal<Direction>;
     type Selected = &'l XSignal<Option<TileId>>;
     type Title = &'l XSignal<XString>;
+    type Floating = &'l std::rc::Rc<UiFloatingTile>;
 
     fn do_visit_node<V: TilesTreeVisitor<Self> + ?Sized>(visitor: &mut V, tree: Self::Node) {
         match tree {
@@ -60,12 +64,17 @@ impl<'l> TilesVisitorKind for UiStateVisitor<'l> {
                 title,
                 selected,
                 nodes,
+                floating_nodes,
             } => {
                 visitor.visit_tree(*id, direction);
                 visitor.visit_selected(*id, selected);
                 visitor.visit_title(*id, title);
                 for node in nodes {
                     visitor.visit_node(node);
+                }
+                for floating in floating_nodes {
+                    visitor.visit_floating(floating);
+                    visitor.visit_node(&floating.tile);
                 }
             }
         }

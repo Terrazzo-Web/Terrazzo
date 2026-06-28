@@ -11,14 +11,18 @@ use terrazzo::widgets::tabs::TabsOptions;
 use terrazzo::widgets::tabs::TabsState;
 use terrazzo::widgets::tabs::tabs;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::MouseEvent;
 
 use self::diagnostics::warn;
 use super::api::Direction;
+use super::signals::FloatingTile;
 use super::signals::Tiles;
 use super::ui::RcSlice;
 use super::ui::RootTree;
 use crate::assets::icons;
+use crate::frontend::menu::DragHandle;
 use crate::frontend::mousemove::MousemoveManager;
+use crate::frontend::mousemove::Position;
 use crate::tiles::api::set_tab_title;
 use crate::tiles::id::TileId;
 
@@ -30,10 +34,14 @@ pub struct TileTabs {
 }
 
 impl TileTabs {
-    pub fn new(nodes: &[Rc<Tiles>], selected: &XSignal<Option<TileId>>) -> Self {
+    pub fn new(
+        nodes: &[Rc<Tiles>],
+        selected: &XSignal<Option<TileId>>,
+        drag_handle: Option<DragHandle>,
+    ) -> Self {
         let tabs = nodes
             .iter()
-            .map(|node| TileTab::new(node.clone(), selected))
+            .map(|node| TileTab::new(node.clone(), selected, drag_handle.clone()))
             .collect();
         Self {
             tabs: Rc::new(tabs),
@@ -89,7 +97,7 @@ pub struct TileTabsState {
 impl TileTabsState {
     pub fn new(array_id: TileId, selected: XSignal<Option<TileId>>, nodes: &[Rc<Tiles>]) -> Self {
         if selected.get_value_untracked().is_none() {
-            selected.set(nodes.first().map(|node| child_id(node)));
+            selected.set(nodes.first().map(|node| node.id()));
         }
         let sync_selection = selected.add_subscriber(move |selected| {
             spawn_local(async move {
@@ -142,14 +150,20 @@ pub struct TileTab {
     id: TileId,
     node: Rc<Tiles>,
     selected: XSignal<bool>,
+    drag_handle: Option<DragHandle>,
 }
 
 impl TileTab {
-    fn new(node: Rc<Tiles>, selected: &XSignal<Option<TileId>>) -> Self {
-        let id = child_id(&node);
+    fn new(
+        node: Rc<Tiles>,
+        selected: &XSignal<Option<TileId>>,
+        drag_handle: Option<DragHandle>,
+    ) -> Self {
+        let id = node.id();
         Self {
             id,
             node,
+            drag_handle,
             selected: selected.derive(
                 "selected-tile-tab",
                 move |selected| *selected == Some(id),
@@ -186,6 +200,7 @@ impl TabDescriptor for TileTab {
             MousemoveManager::new(),
             XSignal::new("tile-tab-parent-direction", Direction::Horizontal),
             RcSlice::new(Rc::default(), 0..0),
+            self.drag_handle.clone(),
         )
     }
 
@@ -199,8 +214,10 @@ pub fn show_tabbed_tiles(
     array_id: TileId,
     selected: XSignal<Option<TileId>>,
     nodes: &[Rc<Tiles>],
+    floating_nodes: &[Rc<FloatingTile>],
+    drag_handle: Option<DragHandle>,
 ) -> XElement {
-    let descriptor = TileTabs::new(nodes, &selected);
+    let descriptor = TileTabs::new(nodes, &selected, drag_handle);
     let state = TileTabsState::new(array_id, selected, nodes);
     div(
         class = style::TABBED_TILE,
@@ -219,7 +236,133 @@ pub fn show_tabbed_tiles(
                 ..TabsOptions::default()
             }),
         ),
+        show_floating_tiles(array_id, floating_nodes),
     )
+}
+
+#[html]
+fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) -> XElement {
+    let z_indices: Rc<[XSignal<i32>]> = floating_nodes
+        .iter()
+        .map(|floating| floating.z_index.clone())
+        .collect();
+    div(floating_nodes
+        .iter()
+        .map(|floating| {
+            let floating = floating.clone();
+            let floating_id = floating.tile.id();
+            let z_indices = z_indices.clone();
+            let x = floating.x.clone();
+            let y = floating.y.clone();
+            let persist_x = x.clone();
+            let persist_y = y.clone();
+            let drag_manager = MousemoveManager::new2(move || {
+                let x = persist_x.get_value_untracked();
+                let y = persist_y.get_value_untracked();
+                spawn_local(async move {
+                    RootTree::update(
+                        super::api::set_floating_position(array_id, floating_id, x, y).await,
+                    )
+                });
+            });
+            let initial_x = x.get_value_untracked();
+            let initial_y = y.get_value_untracked();
+            let update_position = drag_manager.delta.add_subscriber(move |delta| {
+                if let Some(Position {
+                    x: delta_x,
+                    y: delta_y,
+                }) = delta
+                {
+                    let _batch = Batch::use_batch("move-floating-tile");
+                    x.set(0.max(initial_x + delta_x));
+                    y.set(0.max(initial_y + delta_y));
+                }
+            });
+            let drag_handle: DragHandle = Rc::new(drag_manager.mousedown());
+            let width = floating.width.clone();
+            let height = floating.height.clone();
+            let persist_width = width.clone();
+            let persist_height = height.clone();
+            let resize_manager = MousemoveManager::new2(move || {
+                let width = persist_width.get_value_untracked();
+                let height = persist_height.get_value_untracked();
+                spawn_local(async move {
+                    RootTree::update(
+                        super::api::set_floating_size(array_id, floating_id, width, height).await,
+                    )
+                });
+            });
+            let initial_width = width.get_value_untracked();
+            let initial_height = height.get_value_untracked();
+            let update_size = resize_manager.delta.add_subscriber(move |delta| {
+                if let Some(Position {
+                    x: delta_x,
+                    y: delta_y,
+                }) = delta
+                {
+                    let _batch = Batch::use_batch("resize-floating-tile");
+                    width.set(100.max(initial_width + delta_x));
+                    height.set(100.max(initial_height + delta_y));
+                }
+            });
+            let resize_handle = resize_manager.mousedown();
+            div(
+                key = format!("floating-{floating_id}"),
+                before_render = move |_| {
+                    let _ = &update_position;
+                    let _ = &update_size;
+                },
+                class = style::FLOATING_TILE,
+                #[cfg(not(feature = "client-prod"))]
+                class = "floating-tile",
+                style::left %= pixels(floating.x.clone()),
+                style::top %= pixels(floating.y.clone()),
+                style::width %= pixels(floating.width.clone()),
+                style::height %= pixels(floating.height.clone()),
+                style::z_index %= integer(floating.z_index.clone()),
+                mousedown = move |_| {
+                    let next = z_indices
+                        .iter()
+                        .map(XSignal::get_value_untracked)
+                        .max()
+                        .unwrap_or_default()
+                        + 1;
+                    floating.z_index.set(next);
+                    spawn_local(async move {
+                        RootTree::update(super::api::raise_floating(array_id, floating_id).await)
+                    });
+                },
+                super::ui::show_tiles_rec(
+                    &floating.tile,
+                    1,
+                    MousemoveManager::new(),
+                    XSignal::new("floating-tile-parent-direction", Direction::Horizontal),
+                    RcSlice::new(Rc::default(), 0..0),
+                    Some(drag_handle),
+                ),
+                img(
+                    class = style::RESIZE_HANDLE,
+                    #[cfg(not(feature = "client-prod"))]
+                    class = "floating-resize-handle",
+                    src = icons::drag_handle_corner(),
+                    mousedown = move |ev: MouseEvent| {
+                        ev.prevent_default();
+                        resize_handle(ev);
+                    },
+                ),
+            )
+        })
+        .collect::<Vec<_>>()..)
+}
+
+#[template(wrap = true)]
+fn pixels(#[signal] value: i32) -> XAttributeValue {
+    format!("{value}px")
+}
+
+#[template(wrap = true)]
+fn integer(#[signal] value: i32) -> XAttributeValue {
+    value.to_string()
 }
 
 fn get_class_name(name: &'static str, class: &'static str) -> XString {
@@ -314,11 +457,4 @@ fn print_title(
         "{title}",
         class = style::TITLE_SPAN,
     )
-}
-
-fn child_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

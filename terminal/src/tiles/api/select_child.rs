@@ -39,9 +39,10 @@ fn select_child_aux(
             title,
             selected: old_selected,
             nodes,
+            floating_nodes,
         } if *id == array_id => {
             if let Some(selected_child) = selected_child
-                && !nodes.iter().any(|node| child_id(node) == selected_child)
+                && !nodes.iter().any(|node| node.id() == selected_child)
             {
                 return Err(TilesStateError::TileIdNotFound(selected_child));
             }
@@ -52,6 +53,7 @@ fn select_child_aux(
                 title: title.clone(),
                 selected: selected_child.or(*old_selected),
                 nodes: nodes.clone(),
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -60,22 +62,32 @@ fn select_child_aux(
             title,
             selected: old_selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *old_selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| select_child_aux(node.clone(), array_id, selected_child, selected))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile = select_child_aux(
+                        floating.tile.clone(),
+                        array_id,
+                        selected_child,
+                        selected,
+                    )?;
+                    Ok(Arc::new(floating.update(|_| tile)))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *old_selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
-}
-
-fn child_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

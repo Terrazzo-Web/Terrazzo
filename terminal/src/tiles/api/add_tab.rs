@@ -44,6 +44,7 @@ fn add_tab_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
             let new = Arc::new(Tiles::Tile(Tile {
                 id: new_id,
@@ -56,7 +57,7 @@ fn add_tab_aux(
                 .and_then(|after_child| {
                     nodes
                         .iter()
-                        .position(|node| node_id(node) == after_child)
+                        .position(|node| node.id() == after_child)
                         .map(|index| index + 1)
                 })
                 .unwrap_or(nodes.len());
@@ -68,6 +69,7 @@ fn add_tab_aux(
                 title: title.clone(),
                 selected: Some(new_id),
                 nodes,
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -76,22 +78,33 @@ fn add_tab_aux(
             title,
             selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| add_tab_aux(node.clone(), array_id, after_child, new_id, inserted))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile = add_tab_aux(
+                        floating.tile.clone(),
+                        array_id,
+                        after_child,
+                        new_id,
+                        inserted,
+                    )?;
+                    Ok(Arc::new(floating.update(|_| tile)))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
-}
-
-pub fn node_id(node: &Tiles) -> TileId {
-    match node {
-        Tiles::Tile(tile) => tile.id,
-        Tiles::Array { id, .. } => *id,
-    }
 }

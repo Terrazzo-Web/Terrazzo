@@ -12,6 +12,7 @@ use crate::api::client_address::ClientAddress;
 mod add;
 mod add_tab;
 mod drop;
+mod float;
 mod move_child;
 mod mutate;
 mod remove;
@@ -67,6 +68,44 @@ pub async fn select_child(
 #[server]
 pub async fn remove(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(remove::remove_node(id)?)
+}
+
+#[server]
+pub async fn float(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::float_node(id)?)
+}
+
+#[server]
+pub async fn raise_floating(
+    array_id: TileId,
+    floating_id: TileId,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::raise_floating(array_id, floating_id)?)
+}
+
+#[server]
+pub async fn set_floating_position(
+    array_id: TileId,
+    floating_id: TileId,
+    x: i32,
+    y: i32,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::set_floating_position(array_id, floating_id, x, y)?)
+}
+
+#[server]
+pub async fn set_floating_size(
+    array_id: TileId,
+    floating_id: TileId,
+    width: i32,
+    height: i32,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::set_floating_size(
+        array_id,
+        floating_id,
+        width,
+        height,
+    )?)
 }
 
 #[server]
@@ -135,7 +174,18 @@ pub enum Tiles {
         #[serde(default)]
         selected: Option<TileId>,
         nodes: Vec<Arc<Tiles>>,
+        #[serde(default)]
+        floating_nodes: Vec<Arc<FloatingTile>>,
     },
+}
+
+impl Tiles {
+    pub fn id(&self) -> TileId {
+        match self {
+            Tiles::Tile(tile) => tile.id,
+            Tiles::Array { id, .. } => *id,
+        }
+    }
 }
 
 // Basic
@@ -149,6 +199,19 @@ pub struct Tile {
     pub remote: ClientAddress,
     #[serde(default)]
     pub title: Arc<str>,
+}
+
+// Basic
+#[derive(Debug, PartialEq, Eq)]
+// Serde
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FloatingTile {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub z_index: i32,
+    pub tile: Arc<Tiles>,
 }
 
 impl Default for Tiles {

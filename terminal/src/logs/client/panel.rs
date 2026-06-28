@@ -130,6 +130,7 @@ fn resize_bar(show_logs_panel: XSignal<bool>) -> XElement {
         mousedown = RESIZE_MANAGER.mousedown(),
         dblclick = |_| RESIZE_MANAGER.delta.set(None),
         div(
+            class %= resize_bar_visibility,
             img(
                 class = style::RESIZE_ICON,
                 class %= resize_icon_class(show_logs_panel.clone()),
@@ -137,7 +138,7 @@ fn resize_bar(show_logs_panel: XSignal<bool>) -> XElement {
                 alt = "Resize logs panel",
                 click = move |_| show_logs_panel.update(|t| Some(!t)),
             ),
-            div(class %= resize_bar_visibility),
+            div(),
         ),
     )
 }

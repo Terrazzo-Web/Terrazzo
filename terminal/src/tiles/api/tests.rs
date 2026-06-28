@@ -66,13 +66,7 @@ fn assert_tree(tree: &Tiles, expected_direction: Direction, expected_tile_ids: &
         panic!("expected array tree, got {tree:?}");
     };
     assert_eq!(expected_direction, *direction);
-    let tile_ids = nodes
-        .iter()
-        .map(|node| match &**node {
-            Tiles::Tile(tile) => tile.id,
-            Tiles::Array { .. } => panic!("expected flattened tile, got {node:?}"),
-        })
-        .collect::<Vec<_>>();
+    let tile_ids = nodes.iter().map(|node| node.id()).collect::<Vec<_>>();
     assert_eq!(
         expected_tile_ids
             .iter()

@@ -70,6 +70,7 @@ fn search_selector_input(
     let editor_state = manager.editor_state.clone();
     tag(
         class = style::PATH_SELECTOR_WIDGET,
+        class = style::PATH_SELECTOR_INPUT,
         key = "search",
         input(
             before_render = input.capture(),

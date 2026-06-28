@@ -114,8 +114,15 @@ fn menu_items(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]
                 class = "split-tabbed",
-                src = icons::window_stack(),
+                src = icons::collection(),
                 click = tile.tabify(show_menu_mut.clone(), hide_menu.clone()),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "float-tile",
+                src = icons::window_stack(),
+                click = tile.float(show_menu_mut.clone(), hide_menu.clone()),
             )),
             div(img(
                 class = style::SPLIT_ICON,

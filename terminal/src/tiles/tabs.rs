@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::rc::Rc;
 
 use terrazzo::autoclone;
@@ -99,9 +100,25 @@ impl TileTabsState {
         if selected.get_value_untracked().is_none() {
             selected.set(nodes.first().map(|node| node.id()));
         }
+        let pending_selection = Rc::new(Cell::new(None));
+        let syncing_selection = Rc::new(Cell::new(false));
         let sync_selection = selected.add_subscriber(move |selected| {
+            pending_selection.set(Some(selected));
+            if syncing_selection.replace(true) {
+                return;
+            }
+            let pending_selection = pending_selection.clone();
+            let syncing_selection = syncing_selection.clone();
             spawn_local(async move {
-                RootTree::update(super::api::select_child(array_id, selected).await);
+                loop {
+                    let Some(selected) = pending_selection.take() else {
+                        syncing_selection.set(false);
+                        return;
+                    };
+                    if let Err(error) = super::api::select_child(array_id, selected).await {
+                        warn!("Failed to select tile tab: {error}");
+                    }
+                }
             })
         });
         Self {

@@ -84,6 +84,16 @@ pub async fn raise_floating(
 }
 
 #[server]
+pub async fn set_floating_position(
+    array_id: TileId,
+    floating_id: TileId,
+    x: i32,
+    y: i32,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::set_floating_position(array_id, floating_id, x, y)?)
+}
+
+#[server]
 pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,

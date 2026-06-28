@@ -15,6 +15,16 @@ div.resize-bar {
         cursor: row-resize;
         z-index: 1;
 
+        &.resize-bar-hidden {
+            --padding: 0px;
+            cursor: default;
+
+            >div {
+                display: none;
+                visibility: hidden;
+            }
+        }
+
         >img.resize-icon {
             position: absolute;
             right: 0;
@@ -36,7 +46,7 @@ div.resize-bar {
             }
 
             &.resize-icon-hide {
-                bottom: var(--width);
+                bottom: 0;
                 cursor: n-resize;
             }
         }
@@ -49,11 +59,6 @@ div.resize-bar {
             transform: translateY(-50%) scaleY(1);
             transform-origin: center;
             transition-duration: 0.2s;
-
-            &.resize-bar-hidden {
-                display: none;
-                visibility: hidden;
-            }
         }
 
         &:hover>div {
@@ -68,6 +73,7 @@ div.logs-panel {
     position: relative;
     max-height: 14rem;
     overflow: auto;
+    @include no-scroll-bar;
     padding: var(--half-padding) var(--padding);
     border-top: 1px solid var(--color);
     background: color-mix(in srgb, var(--background-color) 92%, var(--color) 8%);
@@ -75,7 +81,7 @@ div.logs-panel {
 
 ol.logs-list {
     margin: 0;
-    padding-left: calc(var(--padding) * 2);
+    padding: 0;
 
     li.log-item {
         margin: 0;

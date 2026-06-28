@@ -39,6 +39,23 @@ pub fn raise_floating(
     Ok(tree)
 }
 
+pub fn set_floating_position(
+    array_id: TileId,
+    floating_id: TileId,
+    x: i32,
+    y: i32,
+) -> Result<Arc<Tiles>, TilesStateError> {
+    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let tree = lock.take().unwrap_or_default();
+    let mut updated = false;
+    let tree = set_floating_position_aux(tree, array_id, floating_id, x, y, &mut updated);
+    if !updated {
+        return Err(TilesStateError::TileIdNotFound(floating_id));
+    }
+    *lock = Some(tree.clone());
+    Ok(tree)
+}
+
 fn find_nearest_tabbed(
     tree: &Tiles,
     tile_id: TileId,
@@ -308,6 +325,90 @@ fn raise_floating_aux(
     }
 }
 
+fn set_floating_position_aux(
+    tree: Arc<Tiles>,
+    array_id: TileId,
+    floating_id: TileId,
+    x: i32,
+    y: i32,
+    updated: &mut bool,
+) -> Arc<Tiles> {
+    match &*tree {
+        Tiles::Tile(_) => tree,
+        Tiles::Array {
+            id,
+            direction,
+            title,
+            selected,
+            nodes,
+            floating_nodes,
+        } if *id == array_id => {
+            let Some(index) = floating_nodes
+                .iter()
+                .position(|floating| floating.tile.id() == floating_id)
+            else {
+                return tree;
+            };
+            let mut floating_nodes = floating_nodes.clone();
+            let floating = &floating_nodes[index];
+            floating_nodes[index] = Arc::new(FloatingTile {
+                x,
+                y,
+                width: floating.width,
+                height: floating.height,
+                z_index: floating.z_index,
+                tile: floating.tile.clone(),
+            });
+            *updated = true;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes: nodes.clone(),
+                floating_nodes,
+            })
+        }
+        Tiles::Array {
+            id,
+            direction,
+            title,
+            selected,
+            nodes,
+            floating_nodes,
+        } => {
+            let nodes = nodes
+                .iter()
+                .map(|node| {
+                    set_floating_position_aux(node.clone(), array_id, floating_id, x, y, updated)
+                })
+                .collect();
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile = set_floating_position_aux(
+                        floating.tile.clone(),
+                        array_id,
+                        floating_id,
+                        x,
+                        y,
+                        updated,
+                    );
+                    Arc::new(floating.update(|_| tile))
+                })
+                .collect();
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes,
+                floating_nodes,
+            })
+        }
+    }
+}
+
 fn new_floating(tile: Arc<Tiles>, floating_nodes: &[Arc<FloatingTile>]) -> Arc<FloatingTile> {
     Arc::new(FloatingTile {
         x: 10,
@@ -434,6 +535,42 @@ mod tests {
         assert_eq!(1, nodes.len());
         assert_eq!(App::Default, app(&nodes[0]));
         assert_eq!(TileId::for_test(1), floating_nodes[0].tile.id());
+    }
+
+    #[test]
+    fn setting_floating_position_preserves_other_properties() {
+        let array_id = TileId::for_test(10);
+        let floating_id = TileId::for_test(2);
+        let tree = Arc::new(Tiles::Array {
+            id: array_id,
+            direction: Direction::Tabbed,
+            title: "tabs".into(),
+            selected: Some(TileId::for_test(1)),
+            nodes: vec![tile(1)],
+            floating_nodes: vec![Arc::new(FloatingTile {
+                x: 10,
+                y: 20,
+                width: 800,
+                height: 600,
+                z_index: 3,
+                tile: tile(2),
+            })],
+        });
+        let mut updated = false;
+
+        let tree =
+            set_floating_position_aux(tree, array_id, floating_id, 120, 140, &mut updated);
+        let Tiles::Array { floating_nodes, .. } = &*tree else {
+            panic!("expected array");
+        };
+        let floating = &floating_nodes[0];
+        assert!(updated);
+        assert_eq!(120, floating.x);
+        assert_eq!(140, floating.y);
+        assert_eq!(800, floating.width);
+        assert_eq!(600, floating.height);
+        assert_eq!(3, floating.z_index);
+        assert_eq!(floating_id, floating.tile.id());
     }
 
     fn tile(id: i64) -> Arc<Tiles> {

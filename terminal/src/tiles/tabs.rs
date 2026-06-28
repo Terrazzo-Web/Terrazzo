@@ -19,7 +19,9 @@ use super::signals::Tiles;
 use super::ui::RcSlice;
 use super::ui::RootTree;
 use crate::assets::icons;
+use crate::frontend::menu::DragHandle;
 use crate::frontend::mousemove::MousemoveManager;
+use crate::frontend::mousemove::Position;
 use crate::tiles::api::set_tab_title;
 use crate::tiles::id::TileId;
 
@@ -31,10 +33,14 @@ pub struct TileTabs {
 }
 
 impl TileTabs {
-    pub fn new(nodes: &[Rc<Tiles>], selected: &XSignal<Option<TileId>>) -> Self {
+    pub fn new(
+        nodes: &[Rc<Tiles>],
+        selected: &XSignal<Option<TileId>>,
+        drag_handle: Option<DragHandle>,
+    ) -> Self {
         let tabs = nodes
             .iter()
-            .map(|node| TileTab::new(node.clone(), selected))
+            .map(|node| TileTab::new(node.clone(), selected, drag_handle.clone()))
             .collect();
         Self {
             tabs: Rc::new(tabs),
@@ -143,14 +149,20 @@ pub struct TileTab {
     id: TileId,
     node: Rc<Tiles>,
     selected: XSignal<bool>,
+    drag_handle: Option<DragHandle>,
 }
 
 impl TileTab {
-    fn new(node: Rc<Tiles>, selected: &XSignal<Option<TileId>>) -> Self {
+    fn new(
+        node: Rc<Tiles>,
+        selected: &XSignal<Option<TileId>>,
+        drag_handle: Option<DragHandle>,
+    ) -> Self {
         let id = node.id();
         Self {
             id,
             node,
+            drag_handle,
             selected: selected.derive(
                 "selected-tile-tab",
                 move |selected| *selected == Some(id),
@@ -187,6 +199,7 @@ impl TabDescriptor for TileTab {
             MousemoveManager::new(),
             XSignal::new("tile-tab-parent-direction", Direction::Horizontal),
             RcSlice::new(Rc::default(), 0..0),
+            self.drag_handle.clone(),
         )
     }
 
@@ -201,8 +214,9 @@ pub fn show_tabbed_tiles(
     selected: XSignal<Option<TileId>>,
     nodes: &[Rc<Tiles>],
     floating_nodes: &[Rc<FloatingTile>],
+    drag_handle: Option<DragHandle>,
 ) -> XElement {
-    let descriptor = TileTabs::new(nodes, &selected);
+    let descriptor = TileTabs::new(nodes, &selected, drag_handle);
     let state = TileTabsState::new(array_id, selected, nodes);
     div(
         class = style::TABBED_TILE,
@@ -237,8 +251,38 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
             let floating = floating.clone();
             let floating_id = floating.tile.id();
             let z_indices = z_indices.clone();
+            let x = floating.x.clone();
+            let y = floating.y.clone();
+            let persist_x = x.clone();
+            let persist_y = y.clone();
+            let drag_manager = MousemoveManager::new2(move || {
+                let x = persist_x.get_value_untracked();
+                let y = persist_y.get_value_untracked();
+                spawn_local(async move {
+                    RootTree::update(
+                        super::api::set_floating_position(array_id, floating_id, x, y).await,
+                    )
+                });
+            });
+            let initial_x = x.get_value_untracked();
+            let initial_y = y.get_value_untracked();
+            let update_position = drag_manager.delta.add_subscriber(move |delta| {
+                if let Some(Position {
+                    x: delta_x,
+                    y: delta_y,
+                }) = delta
+                {
+                    let _batch = Batch::use_batch("move-floating-tile");
+                    x.set(0.max(initial_x + delta_x));
+                    y.set(0.max(initial_y + delta_y));
+                }
+            });
+            let drag_handle: DragHandle = Rc::new(drag_manager.mousedown());
             div(
                 key = format!("floating-{floating_id}"),
+                before_render = move |_| {
+                    let _ = &update_position;
+                },
                 class = style::FLOATING_TILE,
                 #[cfg(not(feature = "client-prod"))]
                 class = "floating-tile",
@@ -265,6 +309,7 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                     MousemoveManager::new(),
                     XSignal::new("floating-tile-parent-direction", Direction::Horizontal),
                     RcSlice::new(Rc::default(), 0..0),
+                    Some(drag_handle),
                 ),
             )
         })

@@ -58,11 +58,9 @@ pub async fn set_tab_title(array_id: TileId, title: String) -> Result<Arc<Tiles>
 }
 
 #[server]
-pub async fn select_child(
-    array_id: TileId,
-    selected: Option<TileId>,
-) -> Result<Arc<Tiles>, ServerFnError> {
-    Ok(select_child::select_child(array_id, selected)?)
+pub async fn select_child(array_id: TileId, selected: Option<TileId>) -> Result<(), ServerFnError> {
+    select_child::select_child(array_id, selected)?;
+    Ok(())
 }
 
 #[server]

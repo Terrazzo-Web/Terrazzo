@@ -14,10 +14,10 @@ use crate::tiles::id::TileId;
 pub fn float_node(tile_id: TileId) -> Result<Arc<Tiles>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.take().unwrap_or_default();
-    let host_id = find_nearest_tabbed(&tree, tile_id, None)
+    let (parent_is_float, host_id) = find_nearest_tabbed(&tree, tile_id, None, false)
         .ok_or(TilesStateError::TileIdNotFound(tile_id))?;
     let tree = match host_id {
-        Some(host_id) => float_in_host(tree, host_id, tile_id)?,
+        Some(host_id) => float_in_host(tree, host_id, tile_id, parent_is_float)?,
         None => wrap_root(tree, tile_id)?,
     };
     *lock = Some(tree.clone());
@@ -60,9 +60,10 @@ fn find_nearest_tabbed(
     tree: &Tiles,
     tile_id: TileId,
     nearest: Option<TileId>,
-) -> Option<Option<TileId>> {
+    parent_is_float: bool,
+) -> Option<(bool, Option<TileId>)> {
     match tree {
-        Tiles::Tile(tile) => (tile.id == tile_id).then_some(nearest),
+        Tiles::Tile(tile) => (tile.id == tile_id).then_some((parent_is_float, nearest)),
         Tiles::Array {
             id,
             direction,
@@ -71,9 +72,13 @@ fn find_nearest_tabbed(
             ..
         } => {
             let nearest = (*direction == Direction::Tabbed).then_some(*id).or(nearest);
-            let nodes = nodes.iter().chain(floating_nodes.iter().map(|t| &t.tile));
             for node in nodes {
-                if let Some(nearest) = find_nearest_tabbed(node, tile_id, nearest) {
+                if let Some(nearest) = find_nearest_tabbed(node, tile_id, nearest, false) {
+                    return Some(nearest);
+                }
+            }
+            for node in floating_nodes.iter().map(|t| &t.tile) {
+                if let Some(nearest) = find_nearest_tabbed(node, tile_id, nearest, true) {
                     return Some(nearest);
                 }
             }
@@ -86,6 +91,7 @@ fn float_in_host(
     tree: Arc<Tiles>,
     host_id: TileId,
     tile_id: TileId,
+    parent_is_float: bool,
 ) -> Result<Arc<Tiles>, TilesStateError> {
     match &*tree {
         Tiles::Tile(_) => Ok(tree),
@@ -97,29 +103,42 @@ fn float_in_host(
             nodes,
             floating_nodes,
         } if *id == host_id => {
-            let (mut nodes, mut extracted) = extract_from_nodes(nodes, tile_id);
-            let mut floating_nodes = floating_nodes.clone();
-            if extracted.is_none() {
-                let result = extract_from_floating(&floating_nodes, tile_id);
-                floating_nodes = result.0;
-                extracted = result.1;
+            if parent_is_float {
+                let (floating_nodes, extracted) = extract_from_floating(floating_nodes, tile_id);
+                let extracted = extracted.ok_or(TilesStateError::TileIdNotFound(tile_id))?;
+                let mut nodes = nodes.clone();
+                nodes.push(extracted);
+                let selected = selected
+                    .filter(|selected| nodes.iter().any(|node| node.id() == *selected))
+                    .or_else(|| nodes.first().map(|node| node.id()));
+                Ok(Arc::new(Tiles::Array {
+                    id: *id,
+                    direction: *direction,
+                    title: title.clone(),
+                    selected,
+                    nodes,
+                    floating_nodes,
+                }))
+            } else {
+                let (mut nodes, extracted) = extract_from_nodes(nodes, tile_id);
+                let extracted = extracted.ok_or(TilesStateError::TileIdNotFound(tile_id))?;
+                let mut floating_nodes = floating_nodes.clone();
+                if nodes.is_empty() {
+                    nodes.push(default_tile());
+                }
+                floating_nodes.push(new_floating(extracted, &floating_nodes));
+                let selected = selected
+                    .filter(|selected| nodes.iter().any(|node| node.id() == *selected))
+                    .or_else(|| nodes.first().map(|node| node.id()));
+                Ok(Arc::new(Tiles::Array {
+                    id: *id,
+                    direction: *direction,
+                    title: title.clone(),
+                    selected,
+                    nodes,
+                    floating_nodes,
+                }))
             }
-            let extracted = extracted.ok_or(TilesStateError::TileIdNotFound(tile_id))?;
-            if nodes.is_empty() {
-                nodes.push(default_tile());
-            }
-            floating_nodes.push(new_floating(extracted, &floating_nodes));
-            let selected = selected
-                .filter(|selected| nodes.iter().any(|node| node.id() == *selected))
-                .or_else(|| nodes.first().map(|node| node.id()));
-            Ok(Arc::new(Tiles::Array {
-                id: *id,
-                direction: *direction,
-                title: title.clone(),
-                selected,
-                nodes,
-                floating_nodes,
-            }))
         }
         Tiles::Array {
             id,
@@ -131,12 +150,13 @@ fn float_in_host(
         } => {
             let nodes = nodes
                 .iter()
-                .map(|node| float_in_host(node.clone(), host_id, tile_id))
+                .map(|node| float_in_host(node.clone(), host_id, tile_id, parent_is_float))
                 .collect::<Result<_, _>>()?;
             let floating_nodes = floating_nodes
                 .iter()
                 .map(|floating| {
-                    let tile = float_in_host(floating.tile.clone(), host_id, tile_id)?;
+                    let tile =
+                        float_in_host(floating.tile.clone(), host_id, tile_id, parent_is_float)?;
                     Ok(Arc::new(floating.update(|_| tile)))
                 })
                 .collect::<Result<_, TilesStateError>>()?;
@@ -266,12 +286,7 @@ fn raise_floating_aux(
             else {
                 return tree;
             };
-            let z_index = floating_nodes
-                .iter()
-                .map(|floating| floating.z_index)
-                .max()
-                .unwrap_or_default()
-                + 1;
+            let z_index = next_z_index(floating_nodes);
             let mut floating_nodes = floating_nodes.clone();
             // FloatingTile::update only replaces the tile and preserves z_index, but raising a
             // floating tile specifically requires changing its z_index.
@@ -415,14 +430,18 @@ fn new_floating(tile: Arc<Tiles>, floating_nodes: &[Arc<FloatingTile>]) -> Arc<F
         y: 10,
         width: 800,
         height: 600,
-        z_index: floating_nodes
-            .iter()
-            .map(|floating| floating.z_index)
-            .max()
-            .unwrap_or_default()
-            + 1,
+        z_index: next_z_index(floating_nodes),
         tile,
     })
+}
+
+fn next_z_index(floating_nodes: &[Arc<FloatingTile>]) -> i32 {
+    floating_nodes
+        .iter()
+        .map(|floating| floating.z_index)
+        .max()
+        .unwrap_or_default()
+        + 1
 }
 
 pub(super) fn default_tile() -> Arc<Tiles> {
@@ -493,9 +512,9 @@ mod tests {
 
         assert_eq!(
             Some(Some(nested_id)),
-            find_nearest_tabbed(&tree, TileId::for_test(1), None)
+            find_nearest_tabbed(&tree, TileId::for_test(1), None, false).map(|x| x.1)
         );
-        let tree = float_in_host(tree, nested_id, TileId::for_test(1)).unwrap();
+        let tree = float_in_host(tree, nested_id, TileId::for_test(1), false).unwrap();
         let Tiles::Array { nodes, .. } = &*tree else {
             panic!("expected outer array");
         };
@@ -523,7 +542,7 @@ mod tests {
             nodes: vec![tile(1)],
             floating_nodes: vec![],
         });
-        let tree = float_in_host(tree, host_id, TileId::for_test(1)).unwrap();
+        let tree = float_in_host(tree, host_id, TileId::for_test(1), false).unwrap();
         let Tiles::Array {
             nodes,
             floating_nodes,
@@ -558,8 +577,7 @@ mod tests {
         });
         let mut updated = false;
 
-        let tree =
-            set_floating_position_aux(tree, array_id, floating_id, 120, 140, &mut updated);
+        let tree = set_floating_position_aux(tree, array_id, floating_id, 120, 140, &mut updated);
         let Tiles::Array { floating_nodes, .. } = &*tree else {
             panic!("expected array");
         };

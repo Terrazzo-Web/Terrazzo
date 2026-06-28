@@ -53,9 +53,16 @@ div.text_editor {
                 flex-direction: row;
                 width: 100%;
 
+                padding: 4px;
+                height: 100%;
+
+                &.path-selector-input {
+                    background-color: var(--selected-background-color);
+                }
+
                 input.path-selector-field {
-                    background-color: var(--background-color);
-                    color: var(--color);
+                    color: var(--selected-color);
+                    background-color: var(--selected-background-color);
                     border: 0;
                     width: 100%;
                     @include trz-font;
@@ -63,11 +70,13 @@ div.text_editor {
                 }
 
                 span.path-selector-field {
+                    color: var(--color);
                     white-space: nowrap;
                 }
 
                 ul.path-selector-autocomplete {
                     @include trz-menu;
+                    color: var(--color);
 
                     max-height: calc(100vh - var(--header-height) - 5px);
                     overflow-y: scroll;
@@ -136,6 +145,20 @@ div.text_editor {
                 :global(.cm-mergeView) {
                     height: 100%;
                     min-height: 0;
+                }
+
+                :global(.cm-editor),
+                :global(.cm-gutters) {
+                    background-color: color-mix(in srgb,
+                            var(--background-color) 80%,
+                            black 20%);
+                }
+
+                :global(.cm-activeLine),
+                :global(.cm-activeLineGutter) {
+                    background-color: color-mix(in srgb,
+                            var(--background-color) 85%,
+                            var(--color) 15%);
                 }
 
                 :global(.cm-scroller) {

@@ -93,6 +93,7 @@ fn install_icons() {
 
     install_icon(super::icons::close_app());
     install_icon(super::icons::collection());
+    install_icon(super::icons::drag_handle_corner());
     install_icon(super::icons::split_horz());
     install_icon(super::icons::split_vert());
     install_icon(super::icons::window_stack());

@@ -134,6 +134,7 @@ fn create_entry_input(
     };
     tag(
         class = style::PATH_SELECTOR_WIDGET,
+        class = style::PATH_SELECTOR_INPUT,
         style = active
             .is_none()
             .then_some("display: none; visibility: hidden;"),

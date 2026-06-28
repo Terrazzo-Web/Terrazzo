@@ -259,10 +259,10 @@ fn raise_floating_aux(
             // FloatingTile::update only replaces the tile and preserves z_index, but raising a
             // floating tile specifically requires changing its z_index.
             floating_nodes[index] = Arc::new(FloatingTile {
-                x1: floating_nodes[index].x1,
-                y1: floating_nodes[index].y1,
-                x2: floating_nodes[index].x2,
-                y2: floating_nodes[index].y2,
+                x: floating_nodes[index].x,
+                y: floating_nodes[index].y,
+                width: floating_nodes[index].width,
+                height: floating_nodes[index].height,
                 z_index,
                 tile: floating_nodes[index].tile.clone(),
             });
@@ -310,10 +310,10 @@ fn raise_floating_aux(
 
 fn new_floating(tile: Arc<Tiles>, floating_nodes: &[Arc<FloatingTile>]) -> Arc<FloatingTile> {
     Arc::new(FloatingTile {
-        x1: 10,
-        y1: 10,
-        x2: 90,
-        y2: 90,
+        x: 10,
+        y: 10,
+        width: 800,
+        height: 600,
         z_index: floating_nodes
             .iter()
             .map(|floating| floating.z_index)
@@ -337,10 +337,10 @@ pub(super) fn default_tile() -> Arc<Tiles> {
 impl FloatingTile {
     pub fn update(&self, f: impl FnOnce(&Self) -> Arc<Tiles>) -> Self {
         FloatingTile {
-            x1: self.x1,
-            y1: self.y1,
-            x2: self.x2,
-            y2: self.y2,
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            height: self.height,
             z_index: self.z_index,
             tile: f(self),
         }

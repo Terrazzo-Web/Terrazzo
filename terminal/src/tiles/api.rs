@@ -181,10 +181,10 @@ pub struct Tile {
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct FloatingTile {
-    pub x1: i32,
-    pub y1: i32,
-    pub x2: i32,
-    pub y2: i32,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
     pub z_index: i32,
     pub tile: Arc<Tiles>,
 }

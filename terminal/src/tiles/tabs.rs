@@ -242,10 +242,10 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                 class = style::FLOATING_TILE,
                 #[cfg(not(feature = "client-prod"))]
                 class = "floating-tile",
-                style::left %= percent(floating.x1.clone()),
-                style::top %= percent(floating.y1.clone()),
-                style::width %= span_percent(floating.x1.clone(), floating.x2.clone()),
-                style::height %= span_percent(floating.y1.clone(), floating.y2.clone()),
+                style::left %= pixels(floating.x.clone()),
+                style::top %= pixels(floating.y.clone()),
+                style::width %= pixels(floating.width.clone()),
+                style::height %= pixels(floating.height.clone()),
                 style::z_index %= integer(floating.z_index.clone()),
                 mousedown = move |_| {
                     let next = z_indices
@@ -272,13 +272,8 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
 }
 
 #[template(wrap = true)]
-fn percent(#[signal] value: i32) -> XAttributeValue {
-    format!("{value}%")
-}
-
-#[template(wrap = true)]
-fn span_percent(#[signal] start: i32, #[signal] end: i32) -> XAttributeValue {
-    format!("{}%", end - start)
+fn pixels(#[signal] value: i32) -> XAttributeValue {
+    format!("{value}px")
 }
 
 #[template(wrap = true)]

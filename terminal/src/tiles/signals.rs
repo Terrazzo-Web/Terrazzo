@@ -46,10 +46,10 @@ impl AsRef<Tiles> for Tiles {
 }
 
 pub struct FloatingTile {
-    pub x1: XSignal<i32>,
-    pub y1: XSignal<i32>,
-    pub x2: XSignal<i32>,
-    pub y2: XSignal<i32>,
+    pub x: XSignal<i32>,
+    pub y: XSignal<i32>,
+    pub width: XSignal<i32>,
+    pub height: XSignal<i32>,
     pub z_index: XSignal<i32>,
     pub tile: Tiles,
 }
@@ -154,10 +154,18 @@ fn transform_floating(signals: &mut TileSignals, floating: &FloatingTileDto) -> 
     let id = floating.tile.id();
     let old = signals.floating.remove(&id);
     FloatingTile {
-        x1: reuse_signal("floating-x1", floating.x1, old.as_ref().map(|old| &old.x1)),
-        y1: reuse_signal("floating-y1", floating.y1, old.as_ref().map(|old| &old.y1)),
-        x2: reuse_signal("floating-x2", floating.x2, old.as_ref().map(|old| &old.x2)),
-        y2: reuse_signal("floating-y2", floating.y2, old.as_ref().map(|old| &old.y2)),
+        x: reuse_signal("floating-x", floating.x, old.as_ref().map(|old| &old.x)),
+        y: reuse_signal("floating-y", floating.y, old.as_ref().map(|old| &old.y)),
+        width: reuse_signal(
+            "floating-width",
+            floating.width,
+            old.as_ref().map(|old| &old.width),
+        ),
+        height: reuse_signal(
+            "floating-height",
+            floating.height,
+            old.as_ref().map(|old| &old.height),
+        ),
         z_index: reuse_signal(
             "floating-z-index",
             floating.z_index,

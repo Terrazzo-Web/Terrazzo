@@ -321,7 +321,7 @@ test.describe('Converter', () => {
         }).toBeGreaterThan(90);
     });
 
-    test('tabbed tile splitter creates a tab strip and adds tile tabs', async ({ page }) => {
+    test('tabbed tile splitter switches without flicker and adds tile tabs', async ({ page }) => {
         await openConverter(page);
 
         await clickTabbedSplitter(page);
@@ -335,6 +335,47 @@ test.describe('Converter', () => {
         await expect(tabTitles.first()).toContainText('New tile');
         await expect(tabItems.first().locator('.app-menu-trigger')).toBeAttached();
         await expect(tabbedTile.locator('.converter-input')).toBeAttached();
+
+        await tabbedTile.evaluate((root) => {
+            const selectedTitle = () =>
+                root.querySelector('.tile-tab-title.selected')?.textContent?.trim() ?? null;
+            window.tileTabSelectionEvents = [selectedTitle()];
+            window.tileTabSelectionObserver = new MutationObserver(() => {
+                const selected = selectedTitle();
+                const events = window.tileTabSelectionEvents;
+                if (events.at(-1) !== selected) {
+                    events.push(selected);
+                }
+            });
+            window.tileTabSelectionObserver.observe(root, {
+                attributes: true,
+                attributeFilter: ['class'],
+                childList: true,
+                subtree: true,
+            });
+        });
+        const firstTitle = (await tabTitles.first().textContent()).trim();
+        const secondTitle = (await tabTitles.nth(1).textContent()).trim();
+        await tabTitles.nth(1).click();
+        await tabTitles.first().click();
+        await page.waitForTimeout(500);
+        const selectionEvents = await page.evaluate(() => window.tileTabSelectionEvents);
+        let sawSecond = false;
+        let switchedBack = false;
+        let flickered = false;
+        for (const selected of selectionEvents) {
+            if (selected === secondTitle) {
+                if (switchedBack) {
+                    flickered = true;
+                }
+                sawSecond = true;
+            } else if (sawSecond && selected === firstTitle) {
+                switchedBack = true;
+            }
+        }
+        expect(selectionEvents).toContain(secondTitle);
+        expect(selectionEvents.at(-1)).toBe(firstTitle);
+        expect(flickered, `selection events: ${JSON.stringify(selectionEvents)}`).toBe(false);
 
         await tabbedTile.locator('.add-tile-tab > div').click();
 

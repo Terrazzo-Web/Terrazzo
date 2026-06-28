@@ -133,7 +133,7 @@ rsass = { version = "0.29.2" }
 rsass-macros = { version = "0.29.0" }
 runfiles = { version = "0.2.0" }
 rustix = { version = "1.1.4" }
-rustls = { version = "0.23.40" }
+rustls = { version = "0.23.41" }
 rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
@@ -171,7 +171,7 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.1.8" }
 url = { version = "2.5.8" }
-uuid = { version = "1.23.3", features = ["fast-rng", "v4"] }
+uuid = { version = "1.22.0", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }
 wasm-bindgen = { version = "0.2.125" }
 wasm-bindgen-cli = { version = "0.2.125" }

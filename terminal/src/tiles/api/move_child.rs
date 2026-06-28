@@ -42,6 +42,7 @@ fn move_child_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
             let Some(from) = nodes.iter().position(|node| child_id(node) == moved_child) else {
                 return Err(TilesStateError::TileIdNotFound(moved_child));
@@ -65,6 +66,7 @@ fn move_child_aux(
                 title: title.clone(),
                 selected: selected.or(Some(moved_child)),
                 nodes,
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -73,16 +75,37 @@ fn move_child_aux(
             title,
             selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| move_child_aux(node.clone(), array_id, after_child, moved_child, moved))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    Ok(Arc::new(super::FloatingTile {
+                        tile: (*move_child_aux(
+                            Arc::new(floating.tile.clone()),
+                            array_id,
+                            after_child,
+                            moved_child,
+                            moved,
+                        )?)
+                        .clone(),
+                        ..(**floating).clone()
+                    }))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
 }
 

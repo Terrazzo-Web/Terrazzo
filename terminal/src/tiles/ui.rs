@@ -58,9 +58,19 @@ impl RootTree {
         fn aux(tiles: &Tiles, f: &mut impl FnMut(&TilePtr) -> ControlFlow<()>) -> ControlFlow<()> {
             match tiles {
                 Tiles::Tile(tile) => f(tile),
-                Tiles::Array { nodes, .. } => {
+                Tiles::Array {
+                    nodes,
+                    floating_nodes,
+                    ..
+                } => {
                     for node in nodes {
                         match aux(node, f) {
+                            ControlFlow::Continue(()) => (),
+                            ControlFlow::Break(()) => return ControlFlow::Break(()),
+                        }
+                    }
+                    for floating in floating_nodes {
+                        match aux(&floating.tile, f) {
                             ControlFlow::Continue(()) => (),
                             ControlFlow::Break(()) => return ControlFlow::Break(()),
                         }
@@ -146,8 +156,9 @@ pub(crate) fn show_tiles_rec(
             title: _,
             selected,
             nodes,
+            floating_nodes,
         } if direction.get_value_untracked() == Direction::Tabbed => {
-            crate::tiles::tabs::show_tabbed_tiles(*id, selected.clone(), nodes)
+            crate::tiles::tabs::show_tabbed_tiles(*id, selected.clone(), nodes, floating_nodes)
         }
         Tiles::Array {
             id: _,
@@ -155,6 +166,7 @@ pub(crate) fn show_tiles_rec(
             title: _,
             selected: _,
             nodes,
+            floating_nodes: _,
         } => {
             let count = nodes.len();
             let resize_managers: Rc<[MousemoveManager]> = (0..count)

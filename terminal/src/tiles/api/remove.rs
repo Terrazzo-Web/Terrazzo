@@ -42,12 +42,26 @@ fn remove_node_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } => {
             let nodes = nodes
                 .iter()
                 .filter_map(|node| remove_node_aux(node.clone(), maybe_id_to_remove))
                 .collect::<Vec<_>>();
-            if nodes.len() <= 1 {
+            let floating_nodes = floating_nodes
+                .iter()
+                .filter_map(|floating| {
+                    remove_node_aux(Arc::new(floating.tile.clone()), maybe_id_to_remove).map(
+                        |tile| {
+                            Arc::new(super::FloatingTile {
+                                tile: (*tile).clone(),
+                                ..(**floating).clone()
+                            })
+                        },
+                    )
+                })
+                .collect::<Vec<_>>();
+            if nodes.len() <= 1 && floating_nodes.is_empty() {
                 nodes.into_iter().next()
             } else {
                 Some(Arc::new(Tiles::Array {
@@ -61,6 +75,7 @@ fn remove_node_aux(
                         })
                     }),
                     nodes,
+                    floating_nodes,
                 }))
             }
         }

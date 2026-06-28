@@ -1,4 +1,6 @@
 div.tabbed-tile {
+    position: relative;
+    overflow: hidden;
     flex: 1 1 0;
     height: 100%;
     width: 100%;
@@ -6,7 +8,21 @@ div.tabbed-tile {
     min-width: 0;
 }
 
+div.floating-tile {
+    position: absolute;
+    display: flex;
+    box-sizing: border-box;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color);
+    background: var(--background-color);
+    box-shadow: 0 4px 16px color-mix(in srgb, black 35%, transparent);
+}
+
 div.tile-tabs {
+    position: relative;
+    z-index: 0;
     flex: 1 1 0;
     height: 100%;
     width: 100%;

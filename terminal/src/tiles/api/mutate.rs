@@ -45,17 +45,33 @@ fn mutate_node_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
             for node in nodes {
                 nodes2.push(mutate_node_aux(node.clone(), id_to_mutate, maybe_mutation)?);
             }
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    Ok(Arc::new(super::FloatingTile {
+                        tile: (*mutate_node_aux(
+                            Arc::new(floating.tile.clone()),
+                            id_to_mutate,
+                            maybe_mutation,
+                        )?)
+                        .clone(),
+                        ..(**floating).clone()
+                    }))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
                 title: title.clone(),
                 selected: *selected,
                 nodes: nodes2,
+                floating_nodes,
             })
         }
     })

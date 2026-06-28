@@ -12,6 +12,7 @@ use crate::api::client_address::ClientAddress;
 mod add;
 mod add_tab;
 mod drop;
+mod float;
 mod move_child;
 mod mutate;
 mod remove;
@@ -70,6 +71,19 @@ pub async fn remove(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
 }
 
 #[server]
+pub async fn float(id: TileId) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::float_node(id)?)
+}
+
+#[server]
+pub async fn raise_floating(
+    array_id: TileId,
+    floating_id: TileId,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::raise_floating(array_id, floating_id)?)
+}
+
+#[server]
 pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
@@ -123,7 +137,7 @@ pub enum Side {
 }
 
 // Basic
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum Tiles {
@@ -135,11 +149,13 @@ pub enum Tiles {
         #[serde(default)]
         selected: Option<TileId>,
         nodes: Vec<Arc<Tiles>>,
+        #[serde(default)]
+        floating_nodes: Vec<Arc<FloatingTile>>,
     },
 }
 
 // Basic
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Tile {
@@ -149,6 +165,19 @@ pub struct Tile {
     pub remote: ClientAddress,
     #[serde(default)]
     pub title: Arc<str>,
+}
+
+// Basic
+#[derive(Clone, Debug, PartialEq, Eq)]
+// Serde
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FloatingTile {
+    pub x1: i32,
+    pub y1: i32,
+    pub x2: i32,
+    pub y2: i32,
+    pub z_index: i32,
+    pub tile: Tiles,
 }
 
 impl Default for Tiles {

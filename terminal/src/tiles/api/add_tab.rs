@@ -44,6 +44,7 @@ fn add_tab_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } if *id == array_id && *direction == Direction::Tabbed => {
             let new = Arc::new(Tiles::Tile(Tile {
                 id: new_id,
@@ -68,6 +69,7 @@ fn add_tab_aux(
                 title: title.clone(),
                 selected: Some(new_id),
                 nodes,
+                floating_nodes: floating_nodes.clone(),
             })
         }
         Tiles::Array {
@@ -76,16 +78,37 @@ fn add_tab_aux(
             title,
             selected,
             nodes,
-        } => Arc::new(Tiles::Array {
-            id: *id,
-            direction: *direction,
-            title: title.clone(),
-            selected: *selected,
-            nodes: nodes
+            floating_nodes,
+        } => {
+            let nodes = nodes
                 .iter()
                 .map(|node| add_tab_aux(node.clone(), array_id, after_child, new_id, inserted))
-                .collect::<Result<_, _>>()?,
-        }),
+                .collect::<Result<_, _>>()?;
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    Ok(Arc::new(super::FloatingTile {
+                        tile: (*add_tab_aux(
+                            Arc::new(floating.tile.clone()),
+                            array_id,
+                            after_child,
+                            new_id,
+                            inserted,
+                        )?)
+                        .clone(),
+                        ..(**floating).clone()
+                    }))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
+            Arc::new(Tiles::Array {
+                id: *id,
+                direction: *direction,
+                title: title.clone(),
+                selected: *selected,
+                nodes,
+                floating_nodes,
+            })
+        }
     })
 }
 

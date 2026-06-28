@@ -28,7 +28,7 @@
 
         &:hover>div {
             width: var(--width);
-            background-color: var(--color);
+            background-color: var(--selected-background-color);
         }
     }
 }
@@ -63,7 +63,7 @@
 
         &:hover>div {
             height: var(--height);
-            background-color: var(--color);
+            background-color: var(--selected-background-color);
         }
     }
 }

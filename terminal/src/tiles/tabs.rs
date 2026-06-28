@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::rc::Rc;
 
 use terrazzo::autoclone;
@@ -96,26 +95,13 @@ pub struct TileTabsState {
 }
 
 impl TileTabsState {
-    #[autoclone]
     pub fn new(array_id: TileId, selected: XSignal<Option<TileId>>, nodes: &[Rc<Tiles>]) -> Self {
         if selected.get_value_untracked().is_none() {
             selected.set(nodes.first().map(|node| node.id()));
         }
-        let pending = Rc::new(Cell::new(None::<Option<TileId>>));
-        let syncing = Rc::new(Cell::new(false));
         let sync_selection = selected.add_subscriber(move |selected| {
-            pending.set(Some(selected));
-            if syncing.replace(true) {
-                return;
-            }
             spawn_local(async move {
-                autoclone!(pending, syncing);
-                while let Some(selected) = pending.take() {
-                    if let Err(error) = super::api::select_child(array_id, selected).await {
-                        warn!("Failed to select tile tab: {error}");
-                    }
-                }
-                syncing.set(false);
+                RootTree::update(super::api::select_child(array_id, selected).await);
             })
         });
         Self {

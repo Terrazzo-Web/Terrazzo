@@ -95,6 +95,7 @@ fn path_selector_input(
     });
     div(
         class = style::PATH_SELECTOR_WIDGET,
+        class = style::PATH_SELECTOR_INPUT,
         key = "input",
         input(
             before_render = move |element| {

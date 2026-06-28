@@ -115,6 +115,7 @@ impl TileTabsState {
                         syncing_selection.set(false);
                         return;
                     };
+                        syncing_selection.set(false);
                     if let Err(error) = super::api::select_child(array_id, selected).await {
                         warn!("Failed to select tile tab: {error}");
                     }

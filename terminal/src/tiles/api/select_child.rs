@@ -5,6 +5,7 @@ use std::sync::Arc;
 use super::Tiles;
 use super::state::TREE;
 use super::state::TilesStateError;
+use super::transform::try_transform_first;
 use crate::tiles::id::TileId;
 
 pub fn select_child(
@@ -12,82 +13,37 @@ pub fn select_child(
     selected_child: Option<TileId>,
 ) -> Result<Arc<Tiles>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
-    let tree = lock.take().unwrap_or_default();
-    let mut selected = false;
-    let tree = select_child_aux(tree, array_id, selected_child, &mut selected)?;
-    if !selected {
-        return Err(TilesStateError::TileIdNotFound(array_id));
-    }
+    let tree = lock.clone().unwrap_or_default();
+    let tree = try_transform_first(tree, &mut |tree| {
+        let Tiles::Array {
+            id,
+            direction,
+            title,
+            selected,
+            nodes,
+            floating_nodes,
+        } = tree
+        else {
+            return Ok(None);
+        };
+        if *id != array_id {
+            return Ok(None);
+        }
+        if let Some(selected_child) = selected_child
+            && !nodes.iter().any(|node| node.id() == selected_child)
+        {
+            return Err(TilesStateError::TileIdNotFound(selected_child));
+        }
+        Ok(Some(Arc::new(Tiles::Array {
+            id: *id,
+            direction: *direction,
+            title: title.clone(),
+            selected: selected_child.or(*selected),
+            nodes: nodes.clone(),
+            floating_nodes: floating_nodes.clone(),
+        })))
+    })?
+    .ok_or(TilesStateError::TileIdNotFound(array_id))?;
     *lock = tree.clone().into();
     Ok(tree)
-}
-
-fn select_child_aux(
-    tree: Arc<Tiles>,
-    array_id: TileId,
-    selected_child: Option<TileId>,
-    selected: &mut bool,
-) -> Result<Arc<Tiles>, TilesStateError> {
-    if *selected {
-        return Ok(tree);
-    }
-    Ok(match &*tree {
-        Tiles::Tile { .. } => tree,
-        Tiles::Array {
-            id,
-            direction,
-            title,
-            selected: old_selected,
-            nodes,
-            floating_nodes,
-        } if *id == array_id => {
-            if let Some(selected_child) = selected_child
-                && !nodes.iter().any(|node| node.id() == selected_child)
-            {
-                return Err(TilesStateError::TileIdNotFound(selected_child));
-            }
-            *selected = true;
-            Arc::new(Tiles::Array {
-                id: *id,
-                direction: *direction,
-                title: title.clone(),
-                selected: selected_child.or(*old_selected),
-                nodes: nodes.clone(),
-                floating_nodes: floating_nodes.clone(),
-            })
-        }
-        Tiles::Array {
-            id,
-            direction,
-            title,
-            selected: old_selected,
-            nodes,
-            floating_nodes,
-        } => {
-            let nodes = nodes
-                .iter()
-                .map(|node| select_child_aux(node.clone(), array_id, selected_child, selected))
-                .collect::<Result<_, _>>()?;
-            let floating_nodes = floating_nodes
-                .iter()
-                .map(|floating| {
-                    let tile = select_child_aux(
-                        floating.tile.clone(),
-                        array_id,
-                        selected_child,
-                        selected,
-                    )?;
-                    Ok(Arc::new(floating.update(|_| tile)))
-                })
-                .collect::<Result<_, TilesStateError>>()?;
-            Arc::new(Tiles::Array {
-                id: *id,
-                direction: *direction,
-                title: title.clone(),
-                selected: *old_selected,
-                nodes,
-                floating_nodes,
-            })
-        }
-    })
 }

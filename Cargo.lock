@@ -757,7 +757,7 @@ dependencies = [
  "inventory",
  "jsonwebtoken",
  "libc",
- "lru 0.18.0",
+ "lru 0.18.1",
  "mime_guess",
  "nix",
  "notify",
@@ -2497,9 +2497,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.18.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a860605968fce16869fd239cf4237a82f3ac470723415db603b0e8b6c8d4fb9"
+checksum = "0b6180140927ee907000b0aa540091f6ea512ead4447c92b8fc35bc72788a5a6"
 dependencies = [
  "hashbrown 0.17.1",
 ]
@@ -4698,7 +4698,7 @@ dependencies = [
  "inventory",
  "jsonwebtoken",
  "libc",
- "lru 0.18.0",
+ "lru 0.18.1",
  "nameth",
  "nix",
  "notify",
@@ -5471,9 +5471,9 @@ dependencies = [
 
 [[package]]
 name = "unescaper"
-version = "0.1.10"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7285e83a80ce76f5e7bce79fa41f68d78ba62d1003cf27bf748ab24413808cf4"
+checksum = "fb78bc2faba43e0b7f2521c78503ad6c6c05fce65b2c593ab8131c24880d8885"
 dependencies = [
  "thiserror 2.0.18",
 ]

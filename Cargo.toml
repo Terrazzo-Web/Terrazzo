@@ -107,7 +107,7 @@ instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.24" }
 jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.186" }
-lru = { version = "0.18.0" }
+lru = { version = "0.18.1" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
@@ -169,7 +169,7 @@ tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
-unescaper = { version = "0.1.10" }
+unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
 uuid = { version = "1.22.0", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }

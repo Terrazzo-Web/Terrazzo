@@ -89,8 +89,7 @@ impl TerminalTab {
 
         let set_title = Duration::from_secs(1).async_debounce(
             |(address, title): (TerminalAddress, TabTitle<XString>)| async move {
-                let result =
-                    terminal_api::set_title::set_title(&address, title.map(|t| t.to_string()));
+                let result = terminal_api::set_title(&address, title.map(|t| t.to_string()));
                 if let Err(error) = result.await {
                     warn!("Failed to update title: {error}")
                 }
@@ -167,8 +166,7 @@ impl TabDescriptor for TerminalTab {
                 ev.stop_propagation();
                 let close_task = async move {
                     autoclone!(terminal);
-                    terminal_api::stream::try_restart_pipe();
-                    terminal_api::stream::close(&terminal, None).await;
+                    terminal_api::close(&terminal, None).await;
                 };
                 spawn_local(close_task.in_current_span());
             },
@@ -186,10 +184,10 @@ impl TabDescriptor for TerminalTab {
             autoclone!(this);
             let terminal = this.address.clone();
             spawn_local(async move {
-                if let Err(error) = terminal_api::write::write(&terminal, data).await {
+                if let Err(error) = terminal_api::write(&terminal, data).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
-                if let Err(error) = terminal_api::write::write(&terminal, "\n".into()).await {
+                if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
             });

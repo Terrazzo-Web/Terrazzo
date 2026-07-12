@@ -130,7 +130,7 @@ impl TerminalJs {
             rows: self.rows().as_f64().or_throw("rows") as i32,
             cols: self.cols().as_f64().or_throw("cols") as i32,
         };
-        if let Err(error) = terminal_api::resize::resize(&terminal, size, force).await {
+        if let Err(error) = terminal_api::resize(&terminal, size, force).await {
             warn!("Failed to resize: {error}");
         }
     }
@@ -165,7 +165,7 @@ impl TerminalJs {
                 let _ = initialized.send(());
                 ready(())
             };
-            let eos = terminal_api::stream::stream(state, terminal_def, element, on_init, |data| {
+            let eos = terminal_api::stream(state, terminal_def, element, on_init, |data| {
                 self.send(data)
             })
             .await;
@@ -194,7 +194,7 @@ async fn write_loop(
         let mut input_rx = input_rx.ready_chunks(10);
         while let Some(data) = &input_rx.next().await {
             let data = data.join("");
-            if let Err(error) = terminal_api::write::write(terminal, data).await {
+            if let Err(error) = terminal_api::write(terminal, data).await {
                 error!("Failed to write to the terminal: {error}");
                 return;
             }

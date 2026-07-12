@@ -23,14 +23,13 @@ pub fn active(#[signal] remotes: Remotes) -> XAttributeValue {
 pub fn create_terminal(state: TerminalsState, client_address: ClientAddress) {
     let task = async move {
         autoclone!(state, client_address);
-        let terminal_def =
-            match terminal_api::new_id::new_id(client_address.clone(), state.tile.id).await {
-                Ok(id) => id,
-                Err(error) => {
-                    warn!("Failed to allocate new ID: {error}");
-                    return;
-                }
-            };
+        let terminal_def = match terminal_api::new_id(client_address.clone(), state.tile.id).await {
+            Ok(id) => id,
+            Err(error) => {
+                warn!("Failed to allocate new ID: {error}");
+                return;
+            }
+        };
         let new_tab = TerminalTab::new(terminal_def, &state.selected_tab);
         let _batch = Batch::use_batch("add-tab");
         state.selected_tab.set(new_tab.address.id.clone());

@@ -48,6 +48,7 @@ pub struct SetTileIdRequest {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum LeaseMessage {
+    Init,
     Data(Vec<u8>),
     Eos,
     Error(String),

@@ -4,6 +4,7 @@ use futures::FutureExt as _;
 use futures::SinkExt as _;
 use futures::StreamExt as _;
 use futures::channel::mpsc;
+use futures::channel::oneshot;
 use futures::select;
 use scopeguard::defer;
 use scopeguard::guard;
@@ -69,8 +70,9 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         let _on_data = on_data;
         let _on_resize = on_resize;
         let _on_title_change = on_title_change;
-        let stream_loop = xtermjs.stream_loop(state, terminal_def, element);
-        let write_loop = write_loop(&terminal, input_rx);
+        let (initialized_tx, initialized_rx) = oneshot::channel();
+        let stream_loop = xtermjs.stream_loop(state, terminal_def, element, initialized_tx);
+        let write_loop = write_loop(&terminal, input_rx, initialized_rx);
         let unsubscribe_resize_event = ResizeEvent::signal().add_subscriber({
             let xtermjs = xtermjs.clone();
             move |_| xtermjs.fit()
@@ -154,11 +156,13 @@ impl TerminalJs {
         state: TerminalsState,
         terminal_def: TerminalDef,
         element: Element,
+        initialized: oneshot::Sender<()>,
     ) {
         async {
             debug!("Start");
             let on_init = || {
                 self.fit();
+                let _ = initialized.send(());
                 ready(())
             };
             let eos = terminal_api::stream::stream(state, terminal_def, element, on_init, |data| {
@@ -175,10 +179,18 @@ impl TerminalJs {
     }
 }
 
-async fn write_loop(terminal: &TerminalAddress, input_rx: mpsc::UnboundedReceiver<String>) {
+async fn write_loop(
+    terminal: &TerminalAddress,
+    input_rx: mpsc::UnboundedReceiver<String>,
+    initialized: oneshot::Receiver<()>,
+) {
     async {
         defer!(debug!("End"));
         debug!("Start");
+        if initialized.await.is_err() {
+            warn!("Terminal stream closed before initialization");
+            return;
+        }
         let mut input_rx = input_rx.ready_chunks(10);
         while let Some(data) = &input_rx.next().await {
             let data = data.join("");

@@ -195,6 +195,7 @@ terminal-server = [
   "dep:pin-project",
   "dep:terrazzo-pty",
   "dep:tracing-futures",
+  "remote-fn-streaming",
   "remote-fn-unary",
   "server",
   "terminal",

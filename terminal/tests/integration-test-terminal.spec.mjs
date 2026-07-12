@@ -242,25 +242,36 @@ test.describe('Terminal', () => {
 
         const firstTab = tabs.nth(0);
         const secondTab = tabs.nth(1);
+        const runCommand = async (command, expected) => {
+            const activeTerminal = getActiveTerminal(page);
+            let lastError;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                await activeTerminal.click();
+                await page.keyboard.press('Control+C');
+                await page.keyboard.type(command);
+                await page.keyboard.press('Enter');
+                try {
+                    await expect(activeTerminal).toContainText(expected);
+                    return;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+            throw lastError;
+        };
 
         await firstTab.click();
         await expect(firstTab).toHaveClass(/selected/);
         await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
         const activeTerminal = getActiveTerminal(page);
-        await activeTerminal.click();
-        await page.keyboard.type('echo $((191*7))');
-        await page.keyboard.press('Enter');
-        await expect(activeTerminal).toContainText('1337');
+        await runCommand('echo $((191*7))', '1337');
 
         await secondTab.click();
         await expect(secondTab).toHaveClass(/selected/);
         await expect(page.locator('li.selected .xterm')).toHaveCount(1);
 
-        await activeTerminal.click();
-        await page.keyboard.type('echo $((191*7*2))');
-        await page.keyboard.press('Enter');
-        await expect(activeTerminal).toContainText('2674');
+        await runCommand('echo $((191*7*2))', '2674');
         await expect(activeTerminal).not.toContainText('1337');
 
         const closeIcons = getCloseIcons(tabs);

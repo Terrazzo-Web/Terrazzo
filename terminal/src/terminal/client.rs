@@ -7,7 +7,6 @@ use crate::tiles::id::TileId;
 use crate::utils::ndjson::NdjsonBuffer;
 use futures::StreamExt as _;
 use nameth::{NamedEnumValues as _, nameth};
-use scopeguard::defer;
 use server_fn::ServerFnError;
 use std::sync::Arc;
 use terrazzo::prelude::{XSignal, XString, diagnostics};
@@ -89,9 +88,8 @@ pub mod stream {
         F0: Future<Output = ()>,
     {
         let terminal_id = terminal_def.address.id.clone();
-        defer! { state.on_eos(&terminal_id); }
         let mut mode = RegisterTerminalMode::Create;
-        on_init().await;
+        let mut on_init = Some(on_init);
         loop {
             let request = RegisterTerminalRequest {
                 mode,
@@ -106,6 +104,11 @@ pub mod stream {
             while let Some(chunk) = stream.next().await {
                 for message in parser.push_chunk(&chunk.map_err(StreamError::from)?) {
                     match message.map_err(|error| StreamError::ServerFn(error.to_string()))? {
+                        LeaseMessage::Init => {
+                            if let Some(on_init) = on_init.take() {
+                                on_init().await;
+                            }
+                        }
                         LeaseMessage::Data(data) => {
                             unacked += data.len();
                             let value = Uint8Array::new_with_length(data.len() as u32);
@@ -120,8 +123,14 @@ pub mod stream {
                                 .map_err(StreamError::from)?;
                             }
                         }
-                        LeaseMessage::Eos => return Ok(()),
-                        LeaseMessage::Error(error) => return Err(StreamError::ServerFn(error)),
+                        LeaseMessage::Eos => {
+                            state.on_eos(&terminal_id);
+                            return Ok(());
+                        }
+                        LeaseMessage::Error(error) => {
+                            state.on_eos(&terminal_id);
+                            return Err(StreamError::ServerFn(error));
+                        }
                     }
                 }
             }

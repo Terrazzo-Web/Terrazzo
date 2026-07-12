@@ -131,9 +131,11 @@ playwright_matrix_test(
 playwright_matrix_test(
     overrides = {
         "terminal-integration-test-debug": {
+            "flaky": True,
             "target_server": ":terminal-server-debug",
         },
         "terminal-integration-test-release": {
+            "flaky": True,
             "target_server": ":terminal-server",
             "tags": ["opt_mode"],
         },

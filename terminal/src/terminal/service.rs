@@ -309,7 +309,10 @@ remote_fn_service::streaming::declare_remote_fn!(
         .flat_map(
             |result| -> BoxStream<'static, Result<LeaseMessage, Status>> {
                 match result {
-                    Ok(stream) => Box::pin(stream.map(|item| Ok(LeaseMessage::from(item)))),
+                    Ok(stream) => Box::pin(
+                        futures::stream::once(async { Ok(LeaseMessage::Init) })
+                            .chain(stream.map(|item| Ok(LeaseMessage::from(item)))),
+                    ),
                     Err(error) => Box::pin(futures::stream::once(async move { Err(error) })),
                 }
             },

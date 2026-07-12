@@ -11,6 +11,7 @@ use web_sys::js_sys::Uint8Array;
 
 use self::diagnostics::warn;
 use super::api::LeaseMessage;
+use crate::api::client_address::ClientAddress;
 use crate::api::shared::terminal_schema::*;
 use crate::terminal::ui::TerminalsState;
 use crate::tiles::id::TileId;
@@ -22,10 +23,7 @@ pub async fn list() -> Result<Vec<TerminalDef>, ServerFnError> {
     super::api::list().await
 }
 
-pub async fn new_id(
-    address: crate::api::client_address::ClientAddress,
-    tile: TileId,
-) -> Result<TerminalDef, ServerFnError> {
+pub async fn new_id(address: ClientAddress, tile: TileId) -> Result<TerminalDef, ServerFnError> {
     super::api::new_id(address, tile).await
 }
 

@@ -1,12 +1,15 @@
 """Generated feature dependency constants."""
 
 load("//bazel/feature_deps:feature_deps_rules.bzl", "base_compute_srcs")
-_ALL_FEATURES = ["bazel","client","client-all","client-prod","concise-traces","converter","converter-client","converter-server","debug","diagnostics","logs-panel","logs-panel-client","logs-panel-server","max-level-debug","max-level-info","no_wasm_build","port-forward","port-forward-client","port-forward-server","prod","remote-fn","remote-fn-streaming","remote-fn-unary","remotes-ui","rustdoc","server","server-all","terminal","terminal-client","terminal-server","text-editor","text-editor-client","text-editor-server","tiles-state","tiles-state-client","tiles-state-server"]
+
+_ALL_FEATURES = ["bazel", "client", "client-all", "client-prod", "concise-traces", "converter", "converter-client", "converter-server", "debug", "diagnostics", "logs-panel", "logs-panel-client", "logs-panel-server", "max-level-debug", "max-level-info", "no_wasm_build", "port-forward", "port-forward-client", "port-forward-server", "prod", "remote-fn", "remote-fn-streaming", "remote-fn-unary", "remotes-ui", "rustdoc", "server", "server-all", "terminal", "terminal-client", "terminal-server", "text-editor", "text-editor-client", "text-editor-server", "tiles-state", "tiles-state-client", "tiles-state-server"]
 BAZEL_DEPS = []
 BAZEL_FEATURES = ["bazel"]
-CLIENT_DEPS = ["//utils/css/css",
-"@crates//:wasm-bindgen",
-"@crates//:wasm-bindgen-futures"]
+CLIENT_DEPS = [
+    "//utils/css/css",
+    "@crates//:wasm-bindgen",
+    "@crates//:wasm-bindgen-futures",
+]
 CLIENT_FEATURES = ["client"]
 CONVERTER_DEPS = []
 CONVERTER_FEATURES = ["converter"]
@@ -20,28 +23,36 @@ CONVERTER_CLIENT_DEPS = CLIENT_DEPS + CONVERTER_DEPS + REMOTES_UI_DEPS + TILES_S
 CONVERTER_CLIENT_FEATURES = CLIENT_FEATURES + CONVERTER_FEATURES + REMOTES_UI_FEATURES + TILES_STATE_CLIENT_FEATURES + ["converter-client"]
 LOGS_PANEL_DEPS = []
 LOGS_PANEL_FEATURES = ["logs-panel"]
-LOGS_PANEL_CLIENT_DEPS = CLIENT_DEPS + LOGS_PANEL_DEPS + ["@crates//:futures",
-"@crates//:scopeguard"]
+LOGS_PANEL_CLIENT_DEPS = CLIENT_DEPS + LOGS_PANEL_DEPS + [
+    "@crates//:futures",
+    "@crates//:scopeguard",
+]
 LOGS_PANEL_CLIENT_FEATURES = CLIENT_FEATURES + LOGS_PANEL_FEATURES + ["logs-panel-client"]
 PORT_FORWARD_DEPS = []
 PORT_FORWARD_FEATURES = ["port-forward"]
-PORT_FORWARD_CLIENT_DEPS = CLIENT_DEPS + PORT_FORWARD_DEPS + REMOTES_UI_DEPS + ["@crates//:bitflags",
-"@crates//:scopeguard",
-"@crates//:web-sys"]
+PORT_FORWARD_CLIENT_DEPS = CLIENT_DEPS + PORT_FORWARD_DEPS + REMOTES_UI_DEPS + [
+    "@crates//:bitflags",
+    "@crates//:scopeguard",
+    "@crates//:web-sys",
+]
 PORT_FORWARD_CLIENT_FEATURES = CLIENT_FEATURES + PORT_FORWARD_FEATURES + REMOTES_UI_FEATURES + ["port-forward-client"]
 TERMINAL_DEPS = []
 TERMINAL_FEATURES = ["terminal"]
-TERMINAL_CLIENT_DEPS = CLIENT_DEPS + TERMINAL_DEPS + TILES_STATE_CLIENT_DEPS + ["@crates//:futures",
-"@crates//:scopeguard",
-"@crates//:web-sys"]
+TERMINAL_CLIENT_DEPS = CLIENT_DEPS + TERMINAL_DEPS + TILES_STATE_CLIENT_DEPS + [
+    "@crates//:futures",
+    "@crates//:scopeguard",
+    "@crates//:web-sys",
+]
 TERMINAL_CLIENT_FEATURES = CLIENT_FEATURES + TERMINAL_FEATURES + TILES_STATE_CLIENT_FEATURES + ["terminal-client"]
 TEXT_EDITOR_DEPS = []
 TEXT_EDITOR_FEATURES = ["text-editor"]
-TEXT_EDITOR_CLIENT_DEPS = CLIENT_DEPS + REMOTES_UI_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_CLIENT_DEPS + ["@crates//:base64",
-"@crates//:futures",
-"@crates//:scopeguard",
-"@crates//:serde-wasm-bindgen",
-"@crates//:web-sys"]
+TEXT_EDITOR_CLIENT_DEPS = CLIENT_DEPS + REMOTES_UI_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_CLIENT_DEPS + [
+    "@crates//:base64",
+    "@crates//:futures",
+    "@crates//:scopeguard",
+    "@crates//:serde-wasm-bindgen",
+    "@crates//:web-sys",
+]
 TEXT_EDITOR_CLIENT_FEATURES = CLIENT_FEATURES + REMOTES_UI_FEATURES + TEXT_EDITOR_FEATURES + TILES_STATE_CLIENT_FEATURES + ["text-editor-client"]
 CLIENT_ALL_DEPS = CONVERTER_CLIENT_DEPS + LOGS_PANEL_CLIENT_DEPS + PORT_FORWARD_CLIENT_DEPS + TERMINAL_CLIENT_DEPS + TEXT_EDITOR_CLIENT_DEPS
 CLIENT_ALL_FEATURES = CONVERTER_CLIENT_FEATURES + LOGS_PANEL_CLIENT_FEATURES + PORT_FORWARD_CLIENT_FEATURES + TERMINAL_CLIENT_FEATURES + TEXT_EDITOR_CLIENT_FEATURES + ["client-all"]
@@ -55,54 +66,60 @@ REMOTE_FN_DEPS = []
 REMOTE_FN_FEATURES = ["remote-fn"]
 REMOTE_FN_UNARY_DEPS = REMOTE_FN_DEPS + ["@crates//:inventory"]
 REMOTE_FN_UNARY_FEATURES = REMOTE_FN_FEATURES + ["remote-fn-unary"]
-SERVER_DEPS = ["//remote/client",
-"//remote/common",
-"@crates//:axum-extra",
-"@crates//:base64",
-"@crates//:clap",
-"@crates//:futures",
-"@crates//:humantime",
-"@crates//:jsonwebtoken",
-"@crates//:nix",
-"@crates//:notify",
-"@crates//:openssl",
-"@crates//:pbkdf2",
-"@crates//:pin-project",
-"@crates//:prost",
-"@crates//:prost-types",
-"@crates//:rpassword",
-"@crates//:scopeguard",
-"@crates//:sha2",
-"@crates//:tokio",
-"@crates//:toml",
-"@crates//:tonic",
-"@crates//:tonic-prost",
-"@crates//:tower",
-"@crates//:tower-http",
-"@crates//:tracing",
-"@crates//:uuid"]
+SERVER_DEPS = [
+    "//remote/client",
+    "//remote/common",
+    "@crates//:axum-extra",
+    "@crates//:base64",
+    "@crates//:clap",
+    "@crates//:futures",
+    "@crates//:humantime",
+    "@crates//:jsonwebtoken",
+    "@crates//:nix",
+    "@crates//:notify",
+    "@crates//:openssl",
+    "@crates//:pbkdf2",
+    "@crates//:pin-project",
+    "@crates//:prost",
+    "@crates//:prost-types",
+    "@crates//:rpassword",
+    "@crates//:scopeguard",
+    "@crates//:sha2",
+    "@crates//:tokio",
+    "@crates//:toml",
+    "@crates//:tonic",
+    "@crates//:tonic-prost",
+    "@crates//:tower",
+    "@crates//:tower-http",
+    "@crates//:tracing",
+    "@crates//:uuid",
+]
 SERVER_FEATURES = ["server"]
 TILES_STATE_SERVER_DEPS = TILES_STATE_DEPS + ["@crates//:const_format"]
 TILES_STATE_SERVER_FEATURES = TILES_STATE_FEATURES + ["tiles-state-server"]
-CONVERTER_SERVER_DEPS = CONVERTER_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TILES_STATE_SERVER_DEPS + ["@crates//:cms",
-"@crates//:hickory-client",
-"@crates//:oid-registry",
-"@crates//:regex",
-"@crates//:rustls-native-certs",
-"@crates//:serde_yaml_ng",
-"@crates//:simple_asn1",
-"@crates//:tls-parser",
-"@crates//:tokio-rustls",
-"@crates//:unescaper",
-"@crates//:url",
-"@crates//:x509-parser"]
+CONVERTER_SERVER_DEPS = CONVERTER_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TILES_STATE_SERVER_DEPS + [
+    "@crates//:cms",
+    "@crates//:hickory-client",
+    "@crates//:oid-registry",
+    "@crates//:regex",
+    "@crates//:rustls-native-certs",
+    "@crates//:serde_yaml_ng",
+    "@crates//:simple_asn1",
+    "@crates//:tls-parser",
+    "@crates//:tokio-rustls",
+    "@crates//:unescaper",
+    "@crates//:url",
+    "@crates//:x509-parser",
+]
 CONVERTER_SERVER_FEATURES = CONVERTER_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TILES_STATE_SERVER_FEATURES + ["converter-server"]
 DEBUG_DEPS = []
 DEBUG_FEATURES = ["debug"]
 DIAGNOSTICS_DEPS = []
 DIAGNOSTICS_FEATURES = ["diagnostics"]
-REMOTE_FN_STREAMING_DEPS = REMOTE_FN_DEPS + ["@crates//:inventory",
-"@crates//:tracing-futures"]
+REMOTE_FN_STREAMING_DEPS = REMOTE_FN_DEPS + [
+    "@crates//:inventory",
+    "@crates//:tracing-futures",
+]
 REMOTE_FN_STREAMING_FEATURES = REMOTE_FN_FEATURES + ["remote-fn-streaming"]
 LOGS_PANEL_SERVER_DEPS = LOGS_PANEL_DEPS + REMOTE_FN_STREAMING_DEPS + SERVER_DEPS + ["@crates//:tracing-subscriber"]
 LOGS_PANEL_SERVER_FEATURES = LOGS_PANEL_FEATURES + REMOTE_FN_STREAMING_FEATURES + SERVER_FEATURES + ["logs-panel-server"]
@@ -112,16 +129,20 @@ NO_WASM_BUILD_DEPS = []
 NO_WASM_BUILD_FEATURES = ["no_wasm_build"]
 PORT_FORWARD_SERVER_DEPS = PORT_FORWARD_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS
 PORT_FORWARD_SERVER_FEATURES = PORT_FORWARD_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + ["port-forward-server"]
-TERMINAL_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TERMINAL_DEPS + TILES_STATE_SERVER_DEPS + ["//pty",
-"@crates//:dashmap",
-"@crates//:pin-project",
-"@crates//:tracing-futures"]
+TERMINAL_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TERMINAL_DEPS + TILES_STATE_SERVER_DEPS + [
+    "//pty",
+    "@crates//:dashmap",
+    "@crates//:pin-project",
+    "@crates//:tracing-futures",
+]
 TERMINAL_SERVER_FEATURES = REMOTE_FN_STREAMING_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TERMINAL_FEATURES + TILES_STATE_SERVER_FEATURES + ["terminal-server"]
-TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_SERVER_DEPS + ["@crates//:chrono",
-"@crates//:libc",
-"@crates//:lru",
-"@crates//:notify",
-"@crates//:tokio-stream"]
+TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_SERVER_DEPS + [
+    "@crates//:chrono",
+    "@crates//:libc",
+    "@crates//:lru",
+    "@crates//:notify",
+    "@crates//:tokio-stream",
+]
 TEXT_EDITOR_SERVER_FEATURES = REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TEXT_EDITOR_FEATURES + TILES_STATE_SERVER_FEATURES + ["text-editor-server"]
 SERVER_ALL_DEPS = CONVERTER_SERVER_DEPS + LOGS_PANEL_SERVER_DEPS + PORT_FORWARD_SERVER_DEPS + TERMINAL_SERVER_DEPS + TEXT_EDITOR_SERVER_DEPS
 SERVER_ALL_FEATURES = CONVERTER_SERVER_FEATURES + LOGS_PANEL_SERVER_FEATURES + PORT_FORWARD_SERVER_FEATURES + TERMINAL_SERVER_FEATURES + TEXT_EDITOR_SERVER_FEATURES + ["server-all"]
@@ -129,42 +150,43 @@ PROD_DEPS = MAX_LEVEL_INFO_DEPS + SERVER_ALL_DEPS
 PROD_FEATURES = MAX_LEVEL_INFO_FEATURES + SERVER_ALL_FEATURES + ["prod"]
 RUSTDOC_DEPS = []
 RUSTDOC_FEATURES = ["rustdoc"]
-_EXCLUSION_MAP = [  { "feature":"bazel", "delta":[] },
-  { "feature":"client-all", "delta":[] },
-  { "feature":"client-prod", "delta":[] },
-  { "feature":"concise-traces", "delta":[] },
-  { "feature":"converter-client", "delta":[] },
-  { "feature":"converter-server", "delta":[] },
-  { "feature":"debug", "delta":[] },
-  { "feature":"diagnostics", "delta":[] },
-  { "feature":"logs-panel-client", "delta":[] },
-  { "feature":"logs-panel-server", "delta":[] },
-  { "feature":"max-level-debug", "delta":[] },
-  { "feature":"max-level-info", "delta":[] },
-  { "feature":"no_wasm_build", "delta":[] },
-  { "feature":"port-forward-client", "delta":[] },
-  { "feature":"port-forward-server", "delta":[] },
-  { "feature":"prod", "delta":[] },
-  { "feature":"remotes-ui", "delta":[] },
-  { "feature":"rustdoc", "delta":[] },
-  { "feature":"server-all", "delta":[] },
-  { "feature":"terminal-client", "delta":[] },
-  { "feature":"terminal-server", "delta":[] },
-  { "feature":"text-editor-client", "delta":[] },
-  { "feature":"text-editor-server", "delta":[] },
-  { "feature":"tiles-state", "delta":[] },
-  { "feature":"tiles-state-client", "delta":[] },
-  { "feature":"tiles-state-server", "delta":[] },
-  { "feature":"remote-fn-streaming", "delta":[90,9] },
-  { "feature":"remote-fn", "delta":[89,108,6,475] },
-  { "feature":"remote-fn-unary", "delta":[-473,-106,10] },
-  { "feature":"converter", "delta":[-118,6,168,2,174,15] },
-  { "feature":"logs-panel", "delta":[-202,15,-170,2,232,4,242,5] },
-  { "feature":"port-forward", "delta":[-250,5,-238,4,74,7,252,3,260,4] },
-  { "feature":"terminal", "delta":[-266,4,-256,3,-86,7,268,2,274,4,284,4,294,6] },
-  { "feature":"server", "delta":[-304,5,-290,4,16,3,34,61,158,5,176,13,255,317,325] },
-  { "feature":"text-editor", "delta":[-293,-280,4,-270,2,-253,-200,13,-166,5,-154,11,-126,27,-50,9,-20,3,224,3,308,4,318,3,326,8,344,16,380,21] },
-  { "feature":"client", "delta":[-408,4,-390,6,-374,16,-340,17,-132,3,-72,11,3,6,2,204,3,212,6,233,237,286,3,296,5,459] },
+_EXCLUSION_MAP = [
+    {"feature": "bazel", "delta": []},
+    {"feature": "client-all", "delta": []},
+    {"feature": "client-prod", "delta": []},
+    {"feature": "concise-traces", "delta": []},
+    {"feature": "converter-client", "delta": []},
+    {"feature": "converter-server", "delta": []},
+    {"feature": "debug", "delta": []},
+    {"feature": "diagnostics", "delta": []},
+    {"feature": "logs-panel-client", "delta": []},
+    {"feature": "logs-panel-server", "delta": []},
+    {"feature": "max-level-debug", "delta": []},
+    {"feature": "max-level-info", "delta": []},
+    {"feature": "no_wasm_build", "delta": []},
+    {"feature": "port-forward-client", "delta": []},
+    {"feature": "port-forward-server", "delta": []},
+    {"feature": "prod", "delta": []},
+    {"feature": "remotes-ui", "delta": []},
+    {"feature": "rustdoc", "delta": []},
+    {"feature": "server-all", "delta": []},
+    {"feature": "terminal-client", "delta": []},
+    {"feature": "terminal-server", "delta": []},
+    {"feature": "text-editor-client", "delta": []},
+    {"feature": "text-editor-server", "delta": []},
+    {"feature": "tiles-state", "delta": []},
+    {"feature": "tiles-state-client", "delta": []},
+    {"feature": "tiles-state-server", "delta": []},
+    {"feature": "remote-fn-streaming", "delta": [90, 9]},
+    {"feature": "remote-fn", "delta": [89, 108, 6, 475]},
+    {"feature": "remote-fn-unary", "delta": [-473, -106, 10]},
+    {"feature": "converter", "delta": [-118, 6, 168, 2, 174, 15]},
+    {"feature": "logs-panel", "delta": [-202, 15, -170, 2, 232, 4, 242, 5]},
+    {"feature": "port-forward", "delta": [-250, 5, -238, 4, 74, 7, 252, 3, 260, 4]},
+    {"feature": "terminal", "delta": [-266, 4, -256, 3, -86, 7, 268, 2, 274, 4, 284, 4, 294, 6]},
+    {"feature": "server", "delta": [-304, 5, -290, 4, 16, 3, 34, 61, 158, 5, 176, 13, 255, 317, 325, 473]},
+    {"feature": "text-editor", "delta": [-471, -293, -280, 4, -270, 2, -253, -200, 13, -166, 5, -154, 11, -126, 27, -50, 9, -20, 3, 224, 3, 308, 4, 318, 3, 326, 8, 344, 16, 380, 21]},
+    {"feature": "client", "delta": [-408, 4, -390, 6, -374, 16, -340, 17, -132, 3, -72, 11, 3, 6, 2, 204, 3, 212, 6, 233, 237, 286, 3, 296, 5, 459, 471]},
 ]
 
 def compute_srcs(features):

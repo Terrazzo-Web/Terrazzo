@@ -244,20 +244,10 @@ test.describe('Terminal', () => {
         const secondTab = tabs.nth(1);
         const runCommand = async (command, expected) => {
             const activeTerminal = getActiveTerminal(page);
-            let lastError;
-            for (let attempt = 0; attempt < 3; attempt++) {
-                await activeTerminal.click();
-                await page.keyboard.press('Control+C');
-                await page.keyboard.type(command);
-                await page.keyboard.press('Enter');
-                try {
-                    await expect(activeTerminal).toContainText(expected);
-                    return;
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-            throw lastError;
+            await getActiveTerminal(page).click();
+            await page.keyboard.type(command);
+            await page.keyboard.press('Enter');
+            await expect(getActiveTerminal(page)).toContainText(expected);
         };
 
         await firstTab.click();

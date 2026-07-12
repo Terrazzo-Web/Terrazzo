@@ -1,17 +1,24 @@
-use self::diagnostics::{debug, warn};
+use std::sync::Arc;
+
+use futures::StreamExt as _;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
+use server_fn::ServerFnError;
+use terrazzo::prelude::XSignal;
+use terrazzo::prelude::XString;
+use terrazzo::prelude::diagnostics;
+use wasm_bindgen::JsValue;
+use web_sys::Element;
+use web_sys::js_sys::Uint8Array;
+
+use self::diagnostics::debug;
+use self::diagnostics::warn;
 use super::api::LeaseMessage;
 use crate::api::shared::terminal_schema::*;
 use crate::terminal::ui::TerminalsState;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 use crate::utils::ndjson::NdjsonBuffer;
-use futures::StreamExt as _;
-use nameth::{NamedEnumValues as _, nameth};
-use server_fn::ServerFnError;
-use std::sync::Arc;
-use terrazzo::prelude::{XSignal, XString, diagnostics};
-use wasm_bindgen::JsValue;
-use web_sys::{Element, js_sys::Uint8Array};
 
 pub type LiveTerminalDef = TerminalDefImpl<XSignal<TabTitle<XString>>>;
 pub mod list {

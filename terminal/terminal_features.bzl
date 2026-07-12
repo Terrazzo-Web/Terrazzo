@@ -169,4 +169,3 @@ _EXCLUSION_MAP = [  { "feature":"bazel", "delta":[] },
 
 def compute_srcs(features):
     return base_compute_srcs(features, _ALL_FEATURES, _EXCLUSION_MAP)
-            

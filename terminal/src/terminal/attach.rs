@@ -23,11 +23,11 @@ use self::diagnostics::warn;
 use super::javascript::TerminalJs;
 use super::terminal_tab::TerminalTab;
 use super::ui::TerminalsState;
-use crate::api::client::terminal_api;
 use crate::api::shared::terminal_schema;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::terminal::client as terminal_api;
 
 const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";

@@ -1,8 +1,10 @@
 #![cfg(feature = "terminal")]
 
-mod api;
+pub(crate) mod api;
 #[cfg(feature = "client")]
 mod attach;
+#[cfg(feature = "client")]
+pub(crate) mod client;
 #[cfg(feature = "client")]
 mod javascript;
 #[cfg(feature = "server")]

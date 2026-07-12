@@ -17,14 +17,6 @@ pub struct Size {
     pub cols: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Chunk {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal_id: TerminalId,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub data: Option<Vec<u8>>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TerminalAddress {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
@@ -74,14 +66,6 @@ impl<T> TabTitle<T> {
 }
 
 pub type TerminalDef = TerminalDefImpl<TabTitle<String>>;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NewTerminalRequest {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "a"))]
-    pub address: ClientAddress,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
-    pub tile: TileId,
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RegisterTerminalRequest {

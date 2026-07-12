@@ -23,14 +23,14 @@ use self::diagnostics::warn;
 use super::attach;
 use super::javascript::TerminalJs;
 use super::ui::TerminalsState;
-use crate::api::client::terminal_api;
-use crate::api::client::terminal_api::LiveTerminalDef;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
 use crate::frontend::input_overlay;
 use crate::frontend::input_overlay::input_overlay;
+use crate::terminal::client as terminal_api;
+use crate::terminal::client::LiveTerminalDef;
 use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
 

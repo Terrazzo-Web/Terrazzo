@@ -4719,8 +4719,6 @@ dependencies = [
  "server_fn",
  "sha2",
  "simple_asn1",
- "static_assertions",
- "tantivy",
  "tempfile",
  "terrazzo",
  "terrazzo-build",
@@ -4748,7 +4746,6 @@ dependencies = [
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
  "web-sys",
  "x509-parser",
 ]

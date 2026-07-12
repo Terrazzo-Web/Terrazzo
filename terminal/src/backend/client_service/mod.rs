@@ -15,7 +15,6 @@ pub mod remote_fn_service;
 mod routing;
 pub mod shared_service;
 #[cfg(feature = "terminal")]
-pub mod terminal_service;
 #[cfg(feature = "text-editor")]
 pub mod text_editor_service;
 

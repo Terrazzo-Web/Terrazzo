@@ -4,7 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 use self::diagnostics::Instrument as _;
 use self::diagnostics::warn;
 use super::TerminalTabs;
-use crate::api::client::terminal_api;
+use crate::terminal::client as terminal_api;
 use crate::terminal::terminal_tab::TerminalTab;
 use crate::terminal::ui::TerminalsState;
 

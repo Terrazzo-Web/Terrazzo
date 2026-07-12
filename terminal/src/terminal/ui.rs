@@ -22,9 +22,9 @@ use self::diagnostics::info;
 use self::diagnostics::warn;
 use super::terminal_tab::TerminalTab;
 use super::terminal_tabs::TerminalTabs;
-use crate::api::client::terminal_api;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal::api::selected_tab;
+use crate::terminal::client as terminal_api;
 use crate::terminal_id::TerminalId;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
@@ -142,7 +142,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                 let terminal_id = TerminalId::from(terminal_id);
                 spawn_local(async move {
                     autoclone!(state);
-                    let terminal_defs = match terminal_api::list::list().await {
+                    let terminal_defs = match terminal_api::list().await {
                         Ok(terminal_defs) => terminal_defs,
                         Err(error) => {
                             warn!("Failed to load terminal definitions: {error}");
@@ -187,7 +187,7 @@ fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString>
 
 fn refresh_terminal_tabs(state: TerminalsState) {
     let refresh_terminal_tabs_task = async move {
-        let terminal_defs = match terminal_api::list::list().await {
+        let terminal_defs = match terminal_api::list().await {
             Ok(terminal_defs) => terminal_defs,
             Err(error) => {
                 warn!("Failed to load terminal definitions: {error}");
@@ -282,9 +282,6 @@ impl TerminalsState {
         }
         terminal_tabs
             .update_ne(|terminal_tabs| Some(terminal_tabs.clone().remove_tab(terminal_id)));
-        if let Some(last_dispatcher) = terminal_api::stream::drop_dispatcher(terminal_id) {
-            spawn_local(terminal_api::stream::close_pipe(last_dispatcher).in_current_span());
-        }
     }
 }
 

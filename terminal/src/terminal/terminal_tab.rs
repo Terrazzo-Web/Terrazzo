@@ -23,14 +23,14 @@ use self::diagnostics::warn;
 use super::attach;
 use super::javascript::TerminalJs;
 use super::ui::TerminalsState;
-use crate::api::client::terminal_api;
-use crate::api::client::terminal_api::LiveTerminalDef;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
 use crate::frontend::input_overlay;
 use crate::frontend::input_overlay::input_overlay;
+use crate::terminal::client as terminal_api;
+use crate::terminal::client::LiveTerminalDef;
 use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
 
@@ -89,8 +89,7 @@ impl TerminalTab {
 
         let set_title = Duration::from_secs(1).async_debounce(
             |(address, title): (TerminalAddress, TabTitle<XString>)| async move {
-                let result =
-                    terminal_api::set_title::set_title(&address, title.map(|t| t.to_string()));
+                let result = terminal_api::set_title(&address, title.map(|t| t.to_string()));
                 if let Err(error) = result.await {
                     warn!("Failed to update title: {error}")
                 }
@@ -167,8 +166,7 @@ impl TabDescriptor for TerminalTab {
                 ev.stop_propagation();
                 let close_task = async move {
                     autoclone!(terminal);
-                    terminal_api::stream::try_restart_pipe();
-                    terminal_api::stream::close(&terminal, None).await;
+                    terminal_api::close(&terminal, None).await;
                 };
                 spawn_local(close_task.in_current_span());
             },
@@ -186,10 +184,10 @@ impl TabDescriptor for TerminalTab {
             autoclone!(this);
             let terminal = this.address.clone();
             spawn_local(async move {
-                if let Err(error) = terminal_api::write::write(&terminal, data).await {
+                if let Err(error) = terminal_api::write(&terminal, data).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
-                if let Err(error) = terminal_api::write::write(&terminal, "\n".into()).await {
+                if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
             });

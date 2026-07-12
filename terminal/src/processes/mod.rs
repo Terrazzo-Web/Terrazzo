@@ -11,7 +11,6 @@ use super::terminal_id::TerminalId;
 use crate::api::shared::terminal_schema::TerminalDef;
 
 pub mod close;
-pub mod io;
 pub mod list;
 pub mod resize;
 pub mod set_title;

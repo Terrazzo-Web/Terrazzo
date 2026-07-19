@@ -201,7 +201,7 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.0",
 ]
 
 [[package]]
@@ -1221,7 +1221,7 @@ dependencies = [
  "clap",
  "heck 0.5.0",
  "nameth",
- "syn 2.0.119",
+ "syn 3.0.0",
  "thiserror 2.0.19",
  "toml",
 ]
@@ -2671,7 +2671,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.0",
 ]
 
 [[package]]
@@ -4597,7 +4597,7 @@ dependencies = [
  "nameth",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.0",
  "terrazzo-css-shared",
  "thiserror 2.0.19",
 ]
@@ -4661,7 +4661,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "server_fn_macro",
- "syn 2.0.119",
+ "syn 3.0.0",
 ]
 
 [[package]]

@@ -81,7 +81,6 @@ trz-gateway-server = { version = "0.2.13", path = "remote/server" }
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
-async-trait = { version = "=0.1.89" }
 base64 = { version = "0.22.1" }
 bitflags = { version = "2.13.0" }
 bytes = { version = "1.12.1" }
@@ -137,7 +136,7 @@ rustix = { version = "1.1.4" }
 rustls = { version = "0.23.42" }
 rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
-serde = { version = "=1.0.228", features = ["derive", "rc"] }
+serde = { version = "1.0.229", features = ["derive", "rc"] }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.150" }
 serde_urlencoded = { version = "0.7.1" }
@@ -151,7 +150,7 @@ static_assertions = { version = "1.1.0" }
 syn = { version = "2.0.119" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
-thiserror = { version = "=2.0.18" }
+thiserror = { version = "2.0.19" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.52.3" }
 tokio-rustls = { version = "0.26.4" }
@@ -170,7 +169,6 @@ tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 tracing-subscriber = { version = "0.3.23" }
 tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
-typetag = { version = "=0.2.22" }
 unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
 uuid = { version = "1.24.0", features = ["fast-rng", "v4"] }

@@ -142,7 +142,7 @@ dependencies = [
  "nom 7.1.3",
  "num-traits",
  "rusticata-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "time",
 ]
 
@@ -739,7 +739,6 @@ dependencies = [
 name = "crate_universe_deps"
 version = "0.2.13"
 dependencies = [
- "async-trait",
  "axum-extra",
  "base64 0.22.1",
  "bitflags 2.13.1",
@@ -781,7 +780,7 @@ dependencies = [
  "simple_asn1",
  "static_assertions",
  "tantivy",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tls-parser",
  "tokio",
  "tokio-rustls",
@@ -796,7 +795,6 @@ dependencies = [
  "tracing-futures",
  "tracing-subscriber",
  "tracing-subscriber-wasm",
- "typetag",
  "unescaper",
  "url",
  "uuid",
@@ -979,7 +977,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -1224,7 +1222,7 @@ dependencies = [
  "heck 0.5.0",
  "nameth",
  "syn 2.0.119",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "toml",
 ]
 
@@ -1808,7 +1806,7 @@ dependencies = [
  "radix_trie",
  "rand 0.9.5",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tracing",
 ]
@@ -1832,7 +1830,7 @@ dependencies = [
  "rand 0.9.5",
  "ring",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tinyvec",
  "tokio",
  "tracing",
@@ -2243,7 +2241,7 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
 ]
 
@@ -2331,7 +2329,7 @@ dependencies = [
  "jni-sys",
  "log",
  "simd_cesu8",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "walkdir",
  "windows-link",
 ]
@@ -3335,7 +3333,7 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "socket2",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tracing",
  "web-time",
@@ -3358,7 +3356,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tinyvec",
  "tracing",
  "web-time",
@@ -3906,9 +3904,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
+checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -3938,22 +3936,22 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+checksum = "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.0",
 ]
 
 [[package]]
@@ -3988,7 +3986,7 @@ checksum = "f3faaf9e727533a19351a43cc5a8de957372163c7d35cc48c90b75cdda13c352"
 dependencies = [
  "percent-encoding",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4052,7 +4050,7 @@ dependencies = [
  "serde_json",
  "serde_qs",
  "server_fn_macro_default",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "throw_error",
  "tokio",
  "tower",
@@ -4199,7 +4197,7 @@ checksum = "0d585997b0ac10be3c5ee635f1bab02d512760d14b7c468801ac8a01d9ae5f1d"
 dependencies = [
  "num-bigint",
  "num-traits",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "time",
 ]
 
@@ -4309,6 +4307,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2fac314a64dc9a36e61a9eb4261a5e9bbfbc922b27e518af97bc32b926cf967"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "sync_wrapper"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4395,7 +4404,7 @@ dependencies = [
  "tantivy-stacker",
  "tantivy-tokenizer-api",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "time",
  "typetag",
  "uuid",
@@ -4530,7 +4539,7 @@ dependencies = [
  "terrazzo-client",
  "terrazzo-css",
  "terrazzo-macro",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4542,7 +4551,7 @@ name = "terrazzo-build"
 version = "0.2.13"
 dependencies = [
  "nameth",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4553,7 +4562,7 @@ dependencies = [
  "nameth",
  "scopeguard",
  "terrazzo-macro",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tracing",
  "tracing-subscriber",
  "tracing-subscriber-wasm",
@@ -4576,7 +4585,7 @@ dependencies = [
  "nameth",
  "tempfile",
  "terrazzo-css-shared",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "walkdir",
 ]
 
@@ -4590,7 +4599,7 @@ dependencies = [
  "quote",
  "syn 2.0.119",
  "terrazzo-css-shared",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4600,7 +4609,7 @@ dependencies = [
  "nameth",
  "serde",
  "siphasher",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "toml",
  "winnow 1.0.4",
 ]
@@ -4616,7 +4625,7 @@ dependencies = [
  "terrazzo",
  "terrazzo-build",
  "terrazzo-css",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tower-http 0.7.0",
  "tracing",
@@ -4637,7 +4646,7 @@ dependencies = [
  "clap",
  "libc",
  "nameth",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tracing",
  "tracing-subscriber",
  "typed-builder",
@@ -4666,7 +4675,7 @@ dependencies = [
  "pin-project",
  "rustix",
  "scopeguard",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -4682,7 +4691,7 @@ dependencies = [
  "runfiles",
  "tempfile",
  "terrazzo-synctex-sys",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4692,7 +4701,7 @@ dependencies = [
  "clap",
  "runfiles",
  "terrazzo-synctex",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4750,7 +4759,7 @@ dependencies = [
  "terrazzo-build",
  "terrazzo-css",
  "terrazzo-pty",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tls-parser",
  "tokio",
  "tokio-rustls",
@@ -4788,11 +4797,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.18"
+version = "2.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
+checksum = "09a43598840e33d5b0331f38c5e30d13bb11c11210a4b58f0d9b18a5a5eefcd9"
 dependencies = [
- "thiserror-impl 2.0.18",
+ "thiserror-impl 2.0.19",
 ]
 
 [[package]]
@@ -4808,13 +4817,13 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.18"
+version = "2.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
+checksum = "43cbfe0cf76104d42a574802844187e84a305e531ed54455f11fbde0f10541cd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.0",
 ]
 
 [[package]]
@@ -5339,7 +5348,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "terrazzo-fixture",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite 0.30.0",
@@ -5372,7 +5381,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tokio-util",
  "toml",
@@ -5411,7 +5420,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "terrazzo-fixture",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "tokio",
  "tokio-rustls",
  "tonic",
@@ -5435,7 +5444,7 @@ dependencies = [
  "log",
  "rand 0.9.5",
  "sha1 0.10.7",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -5453,7 +5462,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "sha1 0.11.0",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -5527,7 +5536,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb78bc2faba43e0b7f2521c78503ad6c6c05fce65b2c593ab8131c24880d8885"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -6231,7 +6240,7 @@ dependencies = [
  "oid-registry",
  "ring",
  "rusticata-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.19",
  "time",
 ]
 

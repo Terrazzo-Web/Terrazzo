@@ -7,6 +7,7 @@ publish = false
 [lib]
 
 [dependencies]
+async-trait = { workspace = true }
 axum-extra = { workspace = true, features = ["cookie"] }
 base64 = { workspace = true }
 bitflags = { workspace = true }
@@ -67,6 +68,7 @@ tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-subscriber-wasm = { workspace = true }
+typetag = { workspace = true }
 unescaper = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

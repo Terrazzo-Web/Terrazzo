@@ -164,6 +164,7 @@ impl EnvelopeVisitor {
                     .unwrap()]
                     .into_iter()
                     .collect(),
+                    eq_token: None,
                     default: Default::default(),
                 }));
             with_into.gt_token.get_or_insert_default();

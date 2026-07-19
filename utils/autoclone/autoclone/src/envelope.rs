@@ -164,6 +164,7 @@ impl EnvelopeVisitor {
                     .unwrap()]
                     .into_iter()
                     .collect(),
+                    eq_token: Default::default(),
                     default: Default::default(),
                 }));
             with_into.gt_token.get_or_insert_default();
@@ -300,12 +301,24 @@ fn without_defaults(generics: &syn::Generics) -> syn::Generics {
             syn::GenericParam::Lifetime(syn::LifetimeParam { attrs, .. }) => {
                 *attrs = vec![];
             }
-            syn::GenericParam::Type(syn::TypeParam { attrs, default, .. }) => {
+            syn::GenericParam::Type(syn::TypeParam {
+                attrs,
+                eq_token,
+                default,
+                ..
+            }) => {
                 *attrs = vec![];
+                *eq_token = None;
                 *default = None;
             }
-            syn::GenericParam::Const(syn::ConstParam { attrs, default, .. }) => {
+            syn::GenericParam::Const(syn::ConstParam {
+                attrs,
+                eq_token,
+                default,
+                ..
+            }) => {
                 *attrs = vec![];
+                *eq_token = None;
                 *default = None;
             }
         }

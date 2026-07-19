@@ -29,6 +29,7 @@ pub fn envelope(
 fn item_to_string(item: &syn::Item) -> String {
     prettyplease::unparse(&syn::File {
         shebang: None,
+        frontmatter: None,
         attrs: vec![],
         items: vec![item.clone()],
     })

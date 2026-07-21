@@ -118,7 +118,7 @@ pbkdf2 = { version = "0.13.0" }
 pem = { version = "3.0.6" }
 pin-project = { version = "1.1.13" }
 portpicker = { version = "0.1.1" }
-prettyplease = { version = "0.2.37" }
+prettyplease = { version = "0.3.0" }
 proc-macro2 = { version = "1.0.107" }
 prost = { version = "0.14.4" }
 prost-types = { version = "0.14.4" }
@@ -147,7 +147,7 @@ sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
-syn = { version = "2.0.119" }
+syn = { version = "3.0.2" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.19" }

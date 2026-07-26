@@ -84,14 +84,6 @@ pub enum RegisterTerminalMode {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WriteRequest<T = TerminalAddress> {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal: T,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub data: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ResizeRequest<T = TerminalAddress> {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
     pub terminal: T,
@@ -107,12 +99,4 @@ pub struct SetTitleRequest<T = TerminalAddress> {
     pub terminal: T,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
     pub title: TabTitle<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AckRequest<T = TerminalAddress> {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal: T,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub ack: usize,
 }

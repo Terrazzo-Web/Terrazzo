@@ -28,11 +28,7 @@ pub async fn new_id(address: ClientAddress, tile: TileId) -> Result<TerminalDef,
 }
 
 pub async fn write(terminal: &TerminalAddress, data: String) -> Result<(), ServerFnError> {
-    super::api::write(WriteRequest {
-        terminal: terminal.clone(),
-        data,
-    })
-    .await
+    super::api::write(terminal.clone(), data).await
 }
 
 pub async fn resize(
@@ -102,10 +98,10 @@ where
                         value.copy_from(&data);
                         on_data(value.into()).await;
                         if unacked >= STREAMING_WINDOW_SIZE / 2 {
-                            super::api::ack(AckRequest {
-                                terminal: terminal_def.address.clone(),
-                                ack: std::mem::take(&mut unacked),
-                            })
+                            super::api::ack(
+                                terminal_def.address.clone(),
+                                std::mem::take(&mut unacked),
+                            )
                             .await
                             .map_err(StreamError::from)?;
                         }

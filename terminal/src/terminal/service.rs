@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
@@ -9,11 +10,13 @@ use terrazzo_pty::OpenProcessError;
 use terrazzo_pty::ProcessIO;
 use terrazzo_pty::lease::LeaseItem;
 use tonic::Status;
+use trz_gateway_common::id::ClientName;
 use uuid::Uuid;
 
 use super::api::*;
 use crate::api::client_address::ClientAddress;
 use crate::api::shared::terminal_schema::*;
+use crate::backend::Server;
 use crate::backend::client_service::remote_fn_service;
 use crate::backend::throttling_stream::ThrottleProcessOutput;
 use crate::processes;
@@ -35,53 +38,32 @@ pub async fn set_tile_id(terminal_id: TerminalId, tile_id: TileId) -> Result<(),
 remote_fn_service::unary::declare_remote_fn!(
     SET_TILE_ID_FN,
     super::api::SET_TILE_ID,
-    SetTileIdRequest,
+    (TerminalId, TileId),
     (),
-    |_server, arg| set_tile_id(arg.terminal_id, arg.tile_id)
+    |_server, (terminal_id, tile_id)| set_tile_id(terminal_id, tile_id)
 );
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListRequest {
-    visited: Vec<String>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct SetOrderEntry {
-    terminal_id: TerminalId,
-    order: i32,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct NewIdResult {
-    next: i32,
-    client_name: Option<String>,
-}
-
 pub async fn list() -> Result<Vec<TerminalDef>, ServerFnError> {
-    let mut terminals = LIST_FN
-        .call(ClientAddress::default(), ListRequest { visited: vec![] })
-        .await?;
+    let mut terminals = LIST_FN.call(ClientAddress::default(), vec![]).await?;
     terminals.sort_by_key(|terminal| terminal.order);
     Ok(terminals)
 }
 
+type ListRequest = Vec<ClientName>;
+
 async fn list_impl(
-    server: &std::sync::Arc<crate::backend::Server>,
+    server: &Arc<Server>,
     mut request: ListRequest,
 ) -> Result<Vec<TerminalDef>, Status> {
     let mut response = processes::list::list();
     for client_name in server.connections().clients() {
-        if request
-            .visited
-            .iter()
-            .any(|name| name == client_name.as_ref())
-        {
+        if request.iter().any(|name| name == &client_name) {
             continue;
         }
-        let mut visited = request.visited.clone();
-        visited.push(client_name.to_string());
+        let mut visited = request.clone();
+        visited.push(client_name.clone());
         let address = ClientAddress::from(client_name.clone());
-        let Ok(mut terminals) = LIST_FN.call(address, ListRequest { visited }).await else {
+        let Ok(mut terminals) = LIST_FN.call(address, visited).await else {
             continue;
         };
         for terminal in &mut terminals {
@@ -91,7 +73,7 @@ async fn list_impl(
         }
         response.append(&mut terminals);
     }
-    request.visited.clear();
+    request.clear();
     Ok(response)
 }
 
@@ -107,9 +89,8 @@ remote_fn_service::unary::declare_remote_fn!(
 );
 
 pub async fn new_id(remote: ClientAddress, tile: TileId) -> Result<TerminalDef, ServerFnError> {
-    let result = NEW_ID_FN.call(remote.clone(), ()).await?;
-    let next = result.next;
-    let local_client_name = result.client_name.as_deref();
+    let (next, client_name) = NEW_ID_FN.call(remote.clone(), ()).await?;
+    let local_client_name = client_name.as_deref();
     let client_name = remote
         .last()
         .map(|name| name.as_ref())
@@ -139,6 +120,8 @@ pub async fn new_id(remote: ClientAddress, tile: TileId) -> Result<TerminalDef, 
     })
 }
 
+type NewIdResult = (i32, Option<ClientName>);
+
 remote_fn_service::unary::declare_remote_fn!(
     NEW_ID_FN,
     "terminal.new_id",
@@ -149,25 +132,23 @@ remote_fn_service::unary::declare_remote_fn!(
             .config()
             .mesh
             .with(|mesh| Some(mesh.as_ref()?.client_name.as_str().to_owned()));
-        async move {
-            Ok::<_, Status>(NewIdResult {
-                next: processes::next_terminal_id(),
-                client_name,
-            })
-        }
+        async move { Ok::<_, Status>((processes::next_terminal_id(), client_name)) }
     }
 );
 
-pub async fn write(request: WriteRequest) -> Result<(), ServerFnError> {
-    Ok(WRITE_FN.call(request.terminal.via.clone(), request).await?)
+pub async fn write(terminal: TerminalAddress, data: String) -> Result<(), ServerFnError> {
+    Ok(WRITE_FN
+        .call(terminal.via.clone(), (terminal, data))
+        .await?)
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     WRITE_FN,
     "terminal.write",
-    WriteRequest,
+    (TerminalAddress, String),
     (),
-    |_server, request: WriteRequest| async move {
-        processes::write::write(&request.terminal.id, request.data.as_bytes())
+    |_server, (terminal, data)| async move {
+        processes::write::write(&terminal.id, data.as_bytes())
             .await
             .map_err(|e| Status::internal(e.to_string()))
     }
@@ -178,6 +159,7 @@ pub async fn resize(request: ResizeRequest) -> Result<(), ServerFnError> {
         .call(request.terminal.via.clone(), request)
         .await?)
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     RESIZE_FN,
     "terminal.resize",
@@ -200,6 +182,7 @@ pub async fn set_title(request: SetTitleRequest) -> Result<(), ServerFnError> {
         .call(request.terminal.via.clone(), request)
         .await?)
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     SET_TITLE_FN,
     "terminal.set_title",
@@ -212,12 +195,11 @@ remote_fn_service::unary::declare_remote_fn!(
 );
 
 pub async fn set_order(terminals: Vec<TerminalAddress>) -> Result<(), ServerFnError> {
-    let mut groups: HashMap<ClientAddress, Vec<SetOrderEntry>> = HashMap::new();
+    let mut groups: HashMap<ClientAddress, Vec<(TerminalId, i32)>> = HashMap::new();
     for (order, terminal) in terminals.into_iter().enumerate() {
-        groups.entry(terminal.via).or_default().push(SetOrderEntry {
-            terminal_id: terminal.id,
-            order: order as i32,
-        });
+        let entry = groups.entry(terminal.via);
+        let entry = entry.or_default();
+        entry.push((terminal.id, order as i32));
     }
     for (remote, entries) in groups {
         SET_ORDER_FN.call(remote, entries).await?;
@@ -227,12 +209,12 @@ pub async fn set_order(terminals: Vec<TerminalAddress>) -> Result<(), ServerFnEr
 remote_fn_service::unary::declare_remote_fn!(
     SET_ORDER_FN,
     "terminal.set_order",
-    Vec<SetOrderEntry>,
+    Vec<(TerminalId, i32)>,
     (),
-    |_server, entries: Vec<SetOrderEntry>| async move {
-        for entry in entries {
-            if let Some(mut process) = get_processes().get_mut(&entry.terminal_id) {
-                process.0.order = entry.order;
+    |_server, entries: Vec<(TerminalId, i32)>| async move {
+        for (terminal_id, order) in entries {
+            if let Some(mut process) = get_processes().get_mut(&terminal_id) {
+                process.0.order = order;
             }
         }
         Ok::<_, Status>(())
@@ -242,6 +224,7 @@ remote_fn_service::unary::declare_remote_fn!(
 pub async fn close(terminal: TerminalAddress) -> Result<(), ServerFnError> {
     Ok(CLOSE_FN.call(terminal.via, terminal.id).await?)
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     CLOSE_FN,
     "terminal.close",
@@ -252,16 +235,19 @@ remote_fn_service::unary::declare_remote_fn!(
     }
 );
 
-pub async fn ack(request: AckRequest) -> Result<(), ServerFnError> {
-    Ok(ACK_FN.call(request.terminal.via.clone(), request).await?)
+pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnError> {
+    Ok(ACK_FN
+        .call(terminal.via.clone(), (terminal.id, ack))
+        .await?)
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     ACK_FN,
     "terminal.ack",
-    AckRequest,
+    (TerminalId, usize),
     (),
-    |_server, request: AckRequest| async move {
-        crate::backend::throttling_stream::ack(&request.terminal.id, request.ack);
+    |_server, (terminal_id, ack)| async move {
+        crate::backend::throttling_stream::ack(&terminal_id, ack);
         Ok::<_, Status>(())
     }
 );

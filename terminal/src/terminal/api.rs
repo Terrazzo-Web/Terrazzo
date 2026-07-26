@@ -6,13 +6,11 @@ use server_fn::codec::TextStream;
 use terrazzo::server;
 
 use crate::api::client_address::ClientAddress;
-use crate::api::shared::terminal_schema::AckRequest;
 use crate::api::shared::terminal_schema::RegisterTerminalRequest;
 use crate::api::shared::terminal_schema::ResizeRequest;
 use crate::api::shared::terminal_schema::SetTitleRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
-use crate::api::shared::terminal_schema::WriteRequest;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 use crate::tiles::state::make_state;
@@ -27,23 +25,8 @@ pub async fn set_tile_id(
     tile_id: TileId,
 ) -> Result<(), ServerFnError> {
     Ok(super::service::SET_TILE_ID_FN
-        .call(
-            remote,
-            SetTileIdRequest {
-                terminal_id,
-                tile_id,
-            },
-        )
+        .call(remote, (terminal_id, tile_id))
         .await?)
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(dead_code)]
-pub struct SetTileIdRequest {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal_id: TerminalId,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
-    pub tile_id: TileId,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -65,8 +48,8 @@ pub async fn new_id(remote: ClientAddress, tile: TileId) -> Result<TerminalDef, 
 }
 
 #[server(protocol = Http<Json, Json>)]
-pub async fn write(request: WriteRequest) -> Result<(), ServerFnError> {
-    super::service::write(request).await
+pub async fn write(terminal: TerminalAddress, data: String) -> Result<(), ServerFnError> {
+    super::service::write(terminal, data).await
 }
 
 #[server(protocol = Http<Json, Json>)]
@@ -90,8 +73,8 @@ pub async fn close(terminal: TerminalAddress) -> Result<(), ServerFnError> {
 }
 
 #[server(protocol = Http<Json, Json>)]
-pub async fn ack(request: AckRequest) -> Result<(), ServerFnError> {
-    super::service::ack(request).await
+pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnError> {
+    super::service::ack(terminal, ack).await
 }
 
 #[server(protocol = Http<Json, StreamingText>)]

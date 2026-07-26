@@ -253,10 +253,11 @@ remote_fn_service::unary::declare_remote_fn!(
 );
 
 pub async fn stream(
-    request: RegisterTerminalRequest,
+    mode: RegisterTerminalMode,
+    terminal_def: TerminalDef,
 ) -> Result<TextStream<ServerFnError>, ServerFnError> {
-    let remote = request.def.address.via.clone();
-    let stream = STREAM_FN.call(remote, request).await?;
+    let remote = terminal_def.address.via.clone();
+    let stream = STREAM_FN.call(remote, (mode, terminal_def)).await?;
     let stream = stream.map_ok(|item| {
         serialize_line(&item).unwrap_or_else(|error| {
             serialize_line(&LeaseMessage::Error(error.to_string()))
@@ -269,16 +270,16 @@ pub async fn stream(
 remote_fn_service::streaming::declare_remote_fn!(
     STREAM_FN,
     "terminal.stream",
-    RegisterTerminalRequest,
+    (RegisterTerminalMode, TerminalDef),
     LeaseMessage,
-    |server, request: RegisterTerminalRequest| {
-        let terminal_id = request.def.address.id.clone();
-        let create = request.mode == RegisterTerminalMode::Create;
+    |server, (mode, terminal_def)| {
+        let terminal_id = terminal_def.address.id.clone();
+        let create = mode == RegisterTerminalMode::Create;
         let server = server.clone();
         futures::stream::once(async move {
             let open_server = server.clone();
             let stream =
-                processes::stream::open_stream(&server, request.def, create, |_| async move {
+                processes::stream::open_stream(&server, terminal_def, create, |_| async move {
                     if !create {
                         return Err(OpenProcessError::NotFound);
                     }

@@ -67,14 +67,6 @@ impl<T> TabTitle<T> {
 
 pub type TerminalDef = TerminalDefImpl<TabTitle<String>>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RegisterTerminalRequest {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "m"))]
-    pub mode: RegisterTerminalMode,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub def: TerminalDef,
-}
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RegisterTerminalMode {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "C"))]

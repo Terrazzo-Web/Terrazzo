@@ -74,11 +74,7 @@ where
     let mut mode = RegisterTerminalMode::Create;
     let mut on_init = Some(on_init);
     loop {
-        let request = RegisterTerminalRequest {
-            mode,
-            def: terminal_def.clone(),
-        };
-        let mut stream = super::api::stream(request)
+        let mut stream = super::api::stream(mode, terminal_def.clone())
             .await
             .map_err(StreamError::from)?
             .into_inner();

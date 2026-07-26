@@ -6,7 +6,7 @@ use server_fn::codec::TextStream;
 use terrazzo::server;
 
 use crate::api::client_address::ClientAddress;
-use crate::api::shared::terminal_schema::RegisterTerminalRequest;
+use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::ResizeRequest;
 use crate::api::shared::terminal_schema::SetTitleRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
@@ -79,7 +79,8 @@ pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnEr
 
 #[server(protocol = Http<Json, StreamingText>)]
 pub async fn stream(
-    request: RegisterTerminalRequest,
+    mode: RegisterTerminalMode,
+    terminal_def: TerminalDef,
 ) -> Result<TextStream<ServerFnError>, ServerFnError> {
-    super::service::stream(request).await
+    super::service::stream(mode, terminal_def).await
 }

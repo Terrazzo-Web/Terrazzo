@@ -131,7 +131,7 @@ remote_fn_service::unary::declare_remote_fn!(
         let client_name = server
             .config()
             .mesh
-            .with(|mesh| Some(mesh.as_ref()?.client_name.as_str().to_owned()));
+            .with(|mesh| Some(mesh.as_ref()?.client_name.as_str().into()));
         async move { Ok::<_, Status>((processes::next_terminal_id(), client_name)) }
     }
 );

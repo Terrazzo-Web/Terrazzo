@@ -225,7 +225,6 @@ impl XElement {
     }
 
     pub fn process_children(&mut self, children: &syn::Expr) {
-        let mut children = children.clone();
         let attrs = children.attrs();
         self.children.push(quote! {
             #(#attrs)*

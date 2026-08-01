@@ -1,6 +1,5 @@
 pub trait HasAttributes {
     fn attrs(&self) -> &[syn::Attribute];
-    fn attrs_mut(&mut self) -> &mut [syn::Attribute];
 }
 
 impl HasAttributes for syn::Expr {
@@ -46,51 +45,6 @@ impl HasAttributes for syn::Expr {
             syn::Expr::While(expr) => &expr.attrs,
             syn::Expr::Yield(expr) => &expr.attrs,
             _ => &[],
-        }
-    }
-
-    fn attrs_mut(&mut self) -> &mut [syn::Attribute] {
-        match self {
-            syn::Expr::Array(expr) => &mut expr.attrs,
-            syn::Expr::Assign(expr) => &mut expr.attrs,
-            syn::Expr::Async(expr) => &mut expr.attrs,
-            syn::Expr::Await(expr) => &mut expr.attrs,
-            syn::Expr::Binary(expr) => &mut expr.attrs,
-            syn::Expr::Block(expr) => &mut expr.attrs,
-            syn::Expr::Break(expr) => &mut expr.attrs,
-            syn::Expr::Call(expr) => &mut expr.attrs,
-            syn::Expr::Cast(expr) => &mut expr.attrs,
-            syn::Expr::Closure(expr) => &mut expr.attrs,
-            syn::Expr::Const(expr) => &mut expr.attrs,
-            syn::Expr::Continue(expr) => &mut expr.attrs,
-            syn::Expr::Field(expr) => &mut expr.attrs,
-            syn::Expr::ForLoop(expr) => &mut expr.attrs,
-            syn::Expr::Group(expr) => &mut expr.attrs,
-            syn::Expr::If(expr) => &mut expr.attrs,
-            syn::Expr::Index(expr) => &mut expr.attrs,
-            syn::Expr::Infer(expr) => &mut expr.attrs,
-            syn::Expr::Let(expr) => &mut expr.attrs,
-            syn::Expr::Lit(expr) => &mut expr.attrs,
-            syn::Expr::Loop(expr) => &mut expr.attrs,
-            syn::Expr::Macro(expr) => &mut expr.attrs,
-            syn::Expr::Match(expr) => &mut expr.attrs,
-            syn::Expr::MethodCall(expr) => &mut expr.attrs,
-            syn::Expr::Paren(expr) => &mut expr.attrs,
-            syn::Expr::Path(expr) => &mut expr.attrs,
-            syn::Expr::Range(expr) => &mut expr.attrs,
-            syn::Expr::RawAddr(expr) => &mut expr.attrs,
-            syn::Expr::Reference(expr) => &mut expr.attrs,
-            syn::Expr::Repeat(expr) => &mut expr.attrs,
-            syn::Expr::Return(expr) => &mut expr.attrs,
-            syn::Expr::Struct(expr) => &mut expr.attrs,
-            syn::Expr::Try(expr) => &mut expr.attrs,
-            syn::Expr::TryBlock(expr) => &mut expr.attrs,
-            syn::Expr::Tuple(expr) => &mut expr.attrs,
-            syn::Expr::Unary(expr) => &mut expr.attrs,
-            syn::Expr::Unsafe(expr) => &mut expr.attrs,
-            syn::Expr::While(expr) => &mut expr.attrs,
-            syn::Expr::Yield(expr) => &mut expr.attrs,
-            _ => &mut [],
         }
     }
 }

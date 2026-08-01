@@ -159,10 +159,8 @@ fn sample() -> XElement {
         let __gen_attributes = vec![];
         let mut __gen_children = vec![];
         __gen_children.push(XNode::from(XText(format!("Root text").into())));
-        #[cfg(prod)]
-        __gen_children.extend(#[cfg(prod)] children.into_iter().map(XNode::from));
-        #[cfg(non-prod)]
-        __gen_children.extend(#[cfg(non-prod)] children.into_iter().map(XNode::from));
+        #[cfg(prod)] __gen_children.extend(children.into_iter().map(XNode::from));
+        #[cfg(non-prod)] __gen_children.extend(children.into_iter().map(XNode::from));
         XElement {
             tag_name: Some("div".into()),
             key: XKey::Named("root".into()),

@@ -91,7 +91,6 @@ cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }
 darling = { version = "0.24.0" }
 dashmap = { version = "6.2.1" }
-deluxe = { version = "0.5.0" }
 fluent-asserter = { version = "0.1.9" }
 futures = { version = "0.3.33" }
 heck = { version = "0.5.0" }

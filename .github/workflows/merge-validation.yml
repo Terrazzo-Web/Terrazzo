@@ -128,6 +128,7 @@ jobs:
       - name: Update auto-generated files
         run: |
           export PROTOC=$(which protoc)
+          bazel build --action_env=PROTOC $(bazel query 'attr("tags", "auto-generated", //...)')
           bazel query 'attr("tags", "auto-generated", //...)' | xargs -r -n1 bazel run --action_env=PROTOC
 
       - name: Buildifier

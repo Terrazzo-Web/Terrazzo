@@ -3679,9 +3679,9 @@ dependencies = [
 
 [[package]]
 name = "runfiles"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f730e313f0558b5a8e7684197c08464ed9cfbaf4bcc85fc70763d87eec4982c5"
+checksum = "fc1beaa13fbade520858d2f6ed799f2a963d0ef32d15506ccf290b6e14dfd560"
 
 [[package]]
 name = "rust-stemmers"

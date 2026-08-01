@@ -1,26 +1,35 @@
 use std::collections::HashSet;
 
-#[derive(deluxe::ParseMetaItem)]
+use darling::FromMeta;
+use darling::ast::NestedMeta;
+
+#[derive(FromMeta)]
 pub struct MacroArgs {
-    #[deluxe(default)]
+    #[darling(default)]
     pub debug: bool,
 
-    #[deluxe(default)]
+    #[darling(default)]
     pub html_tags: HashSet<syn::Ident>,
 
-    #[deluxe(default)]
+    #[darling(default)]
     pub tag: Option<syn::Ident>,
 
-    #[deluxe(default)]
+    #[darling(
+        default,
+        with = darling::util::parse_expr::preserve_str_literal,
+        map = Some
+    )]
     pub key: Option<syn::Expr>,
 
-    #[deluxe(default)]
+    #[darling(default)]
     pub wrap: bool,
 }
 
 impl MacroArgs {
     pub fn parse2(attr: proc_macro2::TokenStream) -> syn::Result<MacroArgs> {
-        let mut args = deluxe::parse2::<MacroArgs>(attr)?;
+        let nested = NestedMeta::parse_meta_list(attr)?;
+        let mut args = MacroArgs::from_list(&nested)
+            .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?;
         if args.html_tags.is_empty() {
             args.html_tags.extend(well_known_tags());
         }
@@ -58,4 +67,22 @@ fn well_known_tags() -> HashSet<syn::Ident> {
         move |tag| assert!(tags.insert(tag.clone()))
     })
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+
+    use super::MacroArgs;
+
+    #[test]
+    fn preserves_string_literal_expressions() -> syn::Result<()> {
+        let args = MacroArgs::parse2(quote! { key = "side-view" })?;
+        let key = args.key.unwrap();
+        assert_eq!(
+            quote! { #key }.to_string(),
+            quote! { "side-view" }.to_string()
+        );
+        Ok(())
+    }
 }

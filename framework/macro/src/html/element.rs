@@ -1,4 +1,3 @@
-use deluxe::HasAttributes;
 use quote::quote;
 
 use super::attribute::XAttribute;
@@ -190,7 +189,7 @@ impl XElement {
         html_element_visitor: &mut HtmlElementVisitor,
         child: &syn::Expr,
     ) {
-        let attrs = child.attrs();
+        let attrs = crate::attributes::expr_attrs(child);
         let child = match child {
             syn::Expr::Call(expr_call)
                 if html_element_visitor.get_tag_name(&expr_call.func).is_some() =>
@@ -226,7 +225,7 @@ impl XElement {
 
     pub fn process_children(&mut self, children: &syn::Expr) {
         let mut children = children.clone();
-        let attrs = std::mem::take(children.attrs_mut().unwrap());
+        let attrs = crate::attributes::take_expr_attrs(&mut children);
         self.children.push(quote! {
             #(#attrs)*
             __gen_children.extend(#children.into_iter().map(XNode::from));

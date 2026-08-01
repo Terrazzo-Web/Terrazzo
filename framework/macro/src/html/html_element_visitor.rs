@@ -1,4 +1,3 @@
-use deluxe::HasAttributes;
 use quote::quote;
 use syn::visit_mut::VisitMut;
 
@@ -97,7 +96,7 @@ impl HtmlElementVisitor {
                     element.process_attribute(
                         get_attribute_name(left).unwrap(),
                         right,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
 
@@ -111,7 +110,7 @@ impl HtmlElementVisitor {
                     element.process_optional_attribute(
                         get_attribute_name(left).unwrap(),
                         right,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
 
@@ -122,7 +121,7 @@ impl HtmlElementVisitor {
                     element.process_style_attribute(
                         get_style_attribute_name(left).unwrap(),
                         right,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
 
@@ -136,7 +135,7 @@ impl HtmlElementVisitor {
                     element.process_optional_style_attribute(
                         get_style_attribute_name(left).unwrap(),
                         right,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
 
@@ -151,7 +150,7 @@ impl HtmlElementVisitor {
                         get_attribute_name(left).unwrap(),
                         right,
                         false,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
                 syn::Expr::Binary(syn::ExprBinary {
@@ -164,7 +163,7 @@ impl HtmlElementVisitor {
                         get_style_attribute_name(left).unwrap(),
                         right,
                         true,
-                        left.attrs(),
+                        crate::attributes::expr_attrs(left),
                     );
                 }
 

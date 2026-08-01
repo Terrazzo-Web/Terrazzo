@@ -79,7 +79,7 @@ runs:
       with:
         repo-token: ${{ inputs.github-token }}
 
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
     - name: Install Playwright
       shell: bash
       run: npm ci

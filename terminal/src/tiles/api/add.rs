@@ -6,7 +6,6 @@ use super::Direction;
 use super::Side;
 use super::Tile;
 use super::Tiles;
-use super::add_tab::node_id;
 use super::state::TREE;
 use super::state::TilesStateError;
 use crate::tiles::app::App;
@@ -51,6 +50,7 @@ fn add_node_aux(
                 direction: with_direction,
                 title: node.title.clone(),
                 selected: (with_direction == Direction::Tabbed).then_some(node.id),
+                floating_nodes: vec![],
                 nodes: match side {
                     Side::Before => vec![new, tree],
                     Side::After => vec![tree, new],
@@ -63,6 +63,7 @@ fn add_node_aux(
             title,
             selected,
             nodes,
+            floating_nodes,
         } if new_id.is_some() => {
             let mut nodes2 = Vec::with_capacity(nodes.len());
             let mut new_selected = *selected;
@@ -76,25 +77,31 @@ fn add_node_aux(
                     new_id,
                 )?;
                 {
-                    let id = match &**node {
-                        Tiles::Tile(tile) => tile.id,
-                        Tiles::Array { id, .. } => *id,
-                    };
+                    let id = node.id();
                     if selected == &Some(id) {
                         new_selected = match side {
-                            Side::Before => list.first().map(|first| node_id(first)),
-                            Side::After => list.last().map(|last| node_id(last)),
+                            Side::Before => list.first().map(|first| first.id()),
+                            Side::After => list.last().map(|last| last.id()),
                         };
                     }
                 }
                 nodes2.extend(list)
             }
+            let floating_nodes = floating_nodes
+                .iter()
+                .map(|floating| {
+                    let tile =
+                        add_node_aux(floating.tile.clone(), with_direction, next_to, side, new_id)?;
+                    Ok(Arc::new(floating.update(|_| tile)))
+                })
+                .collect::<Result<_, TilesStateError>>()?;
             Arc::new(Tiles::Array {
                 id: *id,
                 direction: *direction,
                 title: title.clone(),
                 selected: new_selected,
                 nodes: nodes2,
+                floating_nodes,
             })
         }
         _ => tree.clone(),
@@ -119,8 +126,10 @@ fn add_node_flatten(
         title: _,
         selected: _,
         nodes,
+        floating_nodes,
     } = &*tree
         && *direction == flatten_direction
+        && floating_nodes.is_empty()
     {
         Ok(nodes.clone())
     } else {

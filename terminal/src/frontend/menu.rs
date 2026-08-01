@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
 
 use terrazzo::autoclone;
@@ -15,9 +17,12 @@ use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "menu.scss");
 
+pub type DragHandle = Rc<dyn Fn(MouseEvent)>;
+
 pub struct MenuState {
     pub show: XSignal<bool>,
     pub before: DropListPtr,
+    pub drag_handle: RefCell<Option<DragHandle>>,
 }
 
 impl Default for MenuState {
@@ -25,6 +30,7 @@ impl Default for MenuState {
         Self {
             show: XSignal::new("show-menu", false),
             before: Default::default(),
+            drag_handle: Default::default(),
         }
     }
 }
@@ -34,13 +40,23 @@ impl Default for MenuState {
 #[template(tag = div)]
 pub fn menu(tile: TilePtr) -> XElement {
     let hide_menu = Duration::from_millis(500).cancellable();
+    let drag_handle = tile.menu.drag_handle.borrow().clone();
     div(
         class = style::MENU,
         div(
             class = style::MENU_INNER,
             #[cfg(not(feature = "client-prod"))]
             class = "app-menu-trigger",
-            img(class = style::MENU_ICON, src = icons::menu()),
+            img(
+                class = style::MENU_ICON,
+                src = icons::menu(),
+                mousedown = move |ev: MouseEvent| {
+                    if let Some(drag_handle) = &drag_handle {
+                        ev.prevent_default();
+                        drag_handle(ev);
+                    }
+                },
+            ),
             mouseover = move |_: MouseEvent| {
                 autoclone!(tile, hide_menu);
                 tile.menu.before.reset();
@@ -114,8 +130,15 @@ fn menu_items(
                 class = style::SPLIT_ICON,
                 #[cfg(not(feature = "client-prod"))]
                 class = "split-tabbed",
-                src = icons::window_stack(),
+                src = icons::collection(),
                 click = tile.tabify(show_menu_mut.clone(), hide_menu.clone()),
+            )),
+            div(img(
+                class = style::SPLIT_ICON,
+                #[cfg(not(feature = "client-prod"))]
+                class = "float-tile",
+                src = icons::window_stack(),
+                click = tile.float(show_menu_mut.clone(), hide_menu.clone()),
             )),
             div(img(
                 class = style::SPLIT_ICON,

@@ -33,7 +33,14 @@ pub fn server(
     args: proc_macro::TokenStream,
     s: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    match server_macro_impl(args.into(), s.into(), None, "/api/fn", None, None) {
+    match server_macro_impl(
+        args.into(),
+        s.into(),
+        Some(syn::parse_quote!(::server_fn)),
+        "/api/fn",
+        None,
+        None,
+    ) {
         Err(e) => e.to_compile_error().into(),
         Ok(s) => s.into(),
     }

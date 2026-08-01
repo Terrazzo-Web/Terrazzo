@@ -4,6 +4,7 @@ use super::attribute::XAttribute;
 use super::attribute::XAttributeKind;
 use super::event::process_event;
 use super::html_element_visitor::HtmlElementVisitor;
+use crate::attributes::HasAttributes as _;
 
 pub struct XElement {
     pub tag_name: Option<proc_macro2::TokenStream>,
@@ -189,7 +190,7 @@ impl XElement {
         html_element_visitor: &mut HtmlElementVisitor,
         child: &syn::Expr,
     ) {
-        let attrs = crate::attributes::expr_attrs(child);
+        let attrs = child.attrs();
         let child = match child {
             syn::Expr::Call(expr_call)
                 if html_element_visitor.get_tag_name(&expr_call.func).is_some() =>
@@ -225,7 +226,7 @@ impl XElement {
 
     pub fn process_children(&mut self, children: &syn::Expr) {
         let mut children = children.clone();
-        let attrs = crate::attributes::take_expr_attrs(&mut children);
+        let attrs = children.attrs();
         self.children.push(quote! {
             #(#attrs)*
             __gen_children.extend(#children.into_iter().map(XNode::from));

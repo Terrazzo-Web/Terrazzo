@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use darling::FromMeta;
 use darling::ast::NestedMeta;
+use darling::util::parse_expr::preserve_str_literal;
 
 #[derive(FromMeta)]
 pub struct MacroArgs {
@@ -14,11 +15,7 @@ pub struct MacroArgs {
     #[darling(default)]
     pub tag: Option<syn::Ident>,
 
-    #[darling(
-        default,
-        with = darling::util::parse_expr::preserve_str_literal,
-        map = Some
-    )]
+    #[darling(default, with = preserve_str_literal, map = Some)]
     pub key: Option<syn::Expr>,
 
     #[darling(default)]

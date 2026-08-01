@@ -3,6 +3,7 @@ use syn::visit_mut::VisitMut;
 
 use super::element::XElement;
 use crate::arguments::MacroArgs;
+use crate::attributes::HasAttributes as _;
 use crate::html::attribute::XAttribute;
 
 pub struct HtmlElementVisitor {
@@ -96,7 +97,7 @@ impl HtmlElementVisitor {
                     element.process_attribute(
                         get_attribute_name(left).unwrap(),
                         right,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
 
@@ -110,7 +111,7 @@ impl HtmlElementVisitor {
                     element.process_optional_attribute(
                         get_attribute_name(left).unwrap(),
                         right,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
 
@@ -121,7 +122,7 @@ impl HtmlElementVisitor {
                     element.process_style_attribute(
                         get_style_attribute_name(left).unwrap(),
                         right,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
 
@@ -135,7 +136,7 @@ impl HtmlElementVisitor {
                     element.process_optional_style_attribute(
                         get_style_attribute_name(left).unwrap(),
                         right,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
 
@@ -150,7 +151,7 @@ impl HtmlElementVisitor {
                         get_attribute_name(left).unwrap(),
                         right,
                         false,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
                 syn::Expr::Binary(syn::ExprBinary {
@@ -163,7 +164,7 @@ impl HtmlElementVisitor {
                         get_style_attribute_name(left).unwrap(),
                         right,
                         true,
-                        crate::attributes::expr_attrs(left),
+                        left.attrs(),
                     );
                 }
 

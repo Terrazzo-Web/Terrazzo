@@ -114,7 +114,7 @@ notify = { version = "8.2.0" }
 oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.81" }
 pbkdf2 = { version = "0.13.0" }
-pem = { version = "3.0.6" }
+pem = { version = "4.0.0" }
 pin-project = { version = "1.1.13" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.3.0" }

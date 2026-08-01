@@ -1,7 +1,5 @@
-use std::cell::Cell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -15,7 +13,6 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::prelude::OrElseLog as _;
-use terrazzo::prelude::Ptr;
 use terrazzo::prelude::diagnostics;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
@@ -48,8 +45,15 @@ pub use self::close::close;
 pub use self::close::drop_dispatcher;
 pub use self::pipe::close_pipe;
 
-static GLOBAL_AWAKE: Mutex<Option<(oneshot::Sender<()>, Shared<oneshot::Receiver<()>>)>> =
-    Mutex::new(None);
+static GLOBAL_AWAKE: Mutex<GlobalAwake> = Mutex::new(GlobalAwake {
+    generation: 0,
+    signal: None,
+});
+
+struct GlobalAwake {
+    generation: usize,
+    signal: Option<(oneshot::Sender<()>, Shared<oneshot::Receiver<()>>)>,
+}
 
 /// Pumps data into XTermJS.
 ///
@@ -75,6 +79,7 @@ where
 {
     let terminal_id = terminal_def.address.id.clone();
     defer! { state.on_eos(&terminal_id); }
+    let _wake_listener = WakeListener::new(element);
     let query = RegisterTerminalRequest {
         mode: RegisterTerminalMode::Create,
         def: terminal_def,
@@ -86,30 +91,29 @@ where
 
     debug!("Streaming");
     loop {
+        let wake_generation = current_wake_generation();
         match do_stream(reader, &on_data).await {
             StreamStatus::PipeDisconnected => (),
             StreamStatus::EndOfStream => return Ok(()),
         };
         info!("Streaming stopped");
-        let streaming_state = Ptr::new(Cell::new(None));
 
-        let closure = make_wake_closure(element.clone(), streaming_state.clone());
-        let () = element
-            .add_event_listener_with_callback(WAKE_EVENT_TYPE, closure.as_ref().unchecked_ref())
-            .unwrap_or_else(|error| warn!("Unable to attach mouse move event handler: {error:?}"));
         let rx = {
             let mut global_awake = GLOBAL_AWAKE.lock().or_throw("GLOBAL_AWAKE");
-            match &*global_awake {
+            match &global_awake.signal {
                 Some((_tx, rx)) => rx.clone(),
                 None => {
                     let (tx, rx) = oneshot::channel();
                     let rx = rx.shared();
-                    *global_awake = Some((tx, rx.clone()));
+                    global_awake.signal = Some((tx, rx.clone()));
                     rx
                 }
             }
         };
-        streaming_state.set(Some(closure));
+        if current_wake_generation() != wake_generation {
+            debug!("Mouse moved before the pipe disconnect was observed");
+            try_restart_pipe();
+        }
 
         match rx.await {
             Ok(()) => debug!("Wake-up to continue streaming"),
@@ -169,28 +173,58 @@ enum StreamStatus {
 
 const WAKE_EVENT_TYPE: &str = "mousemove";
 
-fn make_wake_closure(
+struct WakeListener {
     element: Element,
-    closure: Rc<Cell<Option<Closure<dyn Fn(MouseEvent)>>>>,
-) -> Closure<dyn Fn(MouseEvent)> {
-    Closure::new(move |_| {
-        if let Some(closure) = closure.take() {
-            debug!("Mouse move triggers restart stream");
-            let function = closure.as_ref().unchecked_ref();
-            let () = element
-                .remove_event_listener_with_callback(WAKE_EVENT_TYPE, function)
-                .unwrap_or_else(|error| warn!("Failed to remove event handler: {error:?}"));
-            try_restart_pipe();
-        } else {
-            warn!("Event handler fired twice");
+    closure: Closure<dyn Fn(MouseEvent)>,
+    attached: bool,
+}
+
+impl WakeListener {
+    fn new(element: Element) -> Self {
+        let closure = Closure::new(move |_| {
+            let signal = {
+                let mut global_awake = GLOBAL_AWAKE.lock().or_throw("GLOBAL_AWAKE");
+                global_awake.generation = global_awake.generation.wrapping_add(1);
+                global_awake.signal.take()
+            };
+            send_restart_signal(signal);
+        });
+        let attached = element
+            .add_event_listener_with_callback(WAKE_EVENT_TYPE, closure.as_ref().unchecked_ref())
+            .inspect_err(|error| warn!("Unable to attach mouse move event handler: {error:?}"))
+            .is_ok();
+        Self {
+            element,
+            closure,
+            attached,
         }
-    })
+    }
+}
+
+impl Drop for WakeListener {
+    fn drop(&mut self) {
+        if !self.attached {
+            return;
+        }
+        let function = self.closure.as_ref().unchecked_ref();
+        let () = self
+            .element
+            .remove_event_listener_with_callback(WAKE_EVENT_TYPE, function)
+            .unwrap_or_else(|error| warn!("Failed to remove event handler: {error:?}"));
+    }
+}
+
+fn current_wake_generation() -> usize {
+    GLOBAL_AWAKE.lock().or_throw("GLOBAL_AWAKE").generation
 }
 
 pub fn try_restart_pipe() {
-    let Some((tx, _rx)) = GLOBAL_AWAKE.lock().or_throw("GLOBAL_AWAKE").take() else {
-        return;
-    };
+    let signal = GLOBAL_AWAKE.lock().or_throw("GLOBAL_AWAKE").signal.take();
+    send_restart_signal(signal);
+}
+
+fn send_restart_signal(signal: Option<(oneshot::Sender<()>, Shared<oneshot::Receiver<()>>)>) {
+    let Some((tx, _rx)) = signal else { return };
     let _ = tx.send(());
 }
 

@@ -1,10 +1,10 @@
-use deluxe::HasAttributes;
 use quote::quote;
 
 use super::attribute::XAttribute;
 use super::attribute::XAttributeKind;
 use super::event::process_event;
 use super::html_element_visitor::HtmlElementVisitor;
+use crate::attributes::HasAttributes as _;
 
 pub struct XElement {
     pub tag_name: Option<proc_macro2::TokenStream>,
@@ -226,7 +226,7 @@ impl XElement {
 
     pub fn process_children(&mut self, children: &syn::Expr) {
         let mut children = children.clone();
-        let attrs = std::mem::take(children.attrs_mut().unwrap());
+        let attrs = children.attrs_mut().map(std::mem::take).unwrap_or_default();
         self.children.push(quote! {
             #(#attrs)*
             __gen_children.extend(#children.into_iter().map(XNode::from));

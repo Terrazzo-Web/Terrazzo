@@ -360,6 +360,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b25655df2c3cdd83c5e5b293b88acd880332b2ddadd7c30ac43144fdc0033da9"
+
+[[package]]
 name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -740,7 +746,7 @@ name = "crate_universe_deps"
 version = "0.2.13"
 dependencies = [
  "axum-extra",
- "base64 0.22.1",
+ "base64 0.23.0",
  "bitflags 2.13.1",
  "chrono",
  "clap",
@@ -2389,9 +2395,9 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "10.4.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba32bfb4ffdeaca3e34431072faf01745c9b26d25504aa7a6cf5684334fc4fc"
+checksum = "881733cbc631fc9e472e24447ce32a64bedf2da498d6d8570b08edc87de71f65"
 dependencies = [
  "aws-lc-rs",
  "base64 0.22.1",
@@ -4716,7 +4722,7 @@ name = "terrazzo-terminal"
 version = "0.2.13"
 dependencies = [
  "axum-extra",
- "base64 0.22.1",
+ "base64 0.23.0",
  "bitflags 2.13.1",
  "chrono",
  "clap",

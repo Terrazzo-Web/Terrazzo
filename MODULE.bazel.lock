@@ -207,6 +207,19 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//bazel:local_node_tools.bzl%local_node_tools_ext": {
+      "general": {
+        "bzlTransitiveDigest": "OScxQnHPBs5hFUk23aBLMx8fHRGLquGM3gx83XSKsoE=",
+        "usagesDigest": "WXH4K/zre3XJtPNqSUQ4XVL5IOpKrqvqO6x16jDrCoQ=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "local_node_tools": {
+            "repoRuleId": "@@//bazel:local_node_tools.bzl%local_node_tools",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "@@rules_kotlin+//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
       "general": {
         "bzlTransitiveDigest": "+Kp6j204mBZ3mxlIDDR0gBoP45BZ4jYRhRAcB8sU0qc=",

@@ -1,9 +1,9 @@
-use deluxe::HasAttributes;
 use quote::quote;
 use syn::visit_mut::VisitMut;
 
 use super::element::XElement;
 use crate::arguments::MacroArgs;
+use crate::attributes::HasAttributes as _;
 use crate::html::attribute::XAttribute;
 
 pub struct HtmlElementVisitor {

@@ -7,7 +7,6 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::select;
 use scopeguard::defer;
-use scopeguard::guard;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
 use wasm_bindgen::JsValue;
@@ -21,21 +20,22 @@ use self::diagnostics::info;
 use self::diagnostics::info_span;
 use self::diagnostics::span::Span;
 use self::diagnostics::warn;
+use super::client as terminal_api;
 use super::javascript::TerminalJs;
+use super::javascript::TerminalJsRc;
 use super::terminal_tab::TerminalTab;
 use super::ui::TerminalsState;
 use crate::api::shared::terminal_schema;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
-use crate::terminal::client as terminal_api;
 
 const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";
 
 pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: TerminalTab) -> Consumers {
-    let terminal = terminal_tab.address.to_owned();
-    let terminal_id = terminal.id.clone();
+    let terminal_address = terminal_tab.address.to_owned();
+    let terminal_id = terminal_address.id.clone();
     let terminal_def = terminal_tab.to_terminal_def();
     let _span = info_span!("XTermJS", %terminal_id).entered();
     let element = template.element();
@@ -58,23 +58,19 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         .or_throw(XTERMJS_ATTR);
 
     info!("Attaching XtermJS");
-    let xtermjs = TerminalJs::new();
+    let xtermjs = TerminalJsRc::new();
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
     let attachment_cancel = make_attachment_cancel(&terminal_tab);
-    let xtermjs = guard(xtermjs, |xtermjs| xtermjs.dispose());
     xtermjs.open(&element);
     let (input_tx, input_rx) = mpsc::unbounded();
     let on_data = xtermjs.do_on_data(input_tx);
-    let on_resize = xtermjs.do_on_resize(terminal.clone());
+    let on_resize = xtermjs.do_on_resize(terminal_address.clone());
     let on_title_change = xtermjs.do_on_title_change(terminal_tab.title.clone());
     let selected = terminal_tab.selected.get_value_untracked();
     let io = async move {
-        let _on_data = on_data;
-        let _on_resize = on_resize;
-        let _on_title_change = on_title_change;
         let (initialized_tx, initialized_rx) = oneshot::channel();
-        let stream_loop = xtermjs.stream_loop(state, terminal_def, element, initialized_tx);
-        let write_loop = write_loop(&terminal, input_rx, initialized_rx);
+        let stream_loop = xtermjs.stream_loop(state, terminal_def, initialized_tx);
+        let write_loop = write_loop(&terminal_address, input_rx, initialized_rx);
         let unsubscribe_resize_event = ResizeEvent::signal().add_subscriber({
             let xtermjs = xtermjs.clone();
             move |_| xtermjs.fit()
@@ -88,8 +84,12 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
             () = write_loop.fuse() => info!("Write loop closed"),
             _ = attachment_cancel.fuse() => info!("Attachment replaced"),
         };
+        *terminal_tab.xtermjs.lock().or_throw("xtermjs") = None;
         drop(unsubscribe_resize_event);
         drop(xtermjs);
+        drop(on_data);
+        drop(on_resize);
+        drop(on_title_change);
         info!("Detached XtermJS");
     };
     spawn_local(io.in_current_span());
@@ -113,7 +113,6 @@ impl TerminalJs {
     fn do_on_data(&self, input_tx: mpsc::UnboundedSender<String>) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
         let on_data: Closure<dyn FnMut(JsValue)> = Closure::new(move |data: JsValue| {
-            terminal_api::wake_streams();
             let mut input_tx = input_tx.clone();
             let data = data.as_string().unwrap_or_default();
             let send = async move {
@@ -172,7 +171,6 @@ impl TerminalJs {
         &self,
         state: TerminalsState,
         terminal_def: TerminalDef,
-        element: Element,
         initialized: oneshot::Sender<()>,
     ) {
         async {
@@ -182,10 +180,8 @@ impl TerminalJs {
                 let _ = initialized.send(());
                 ready(())
             };
-            let eos = terminal_api::stream(state, terminal_def, element, on_init, |data| {
-                self.send(data)
-            })
-            .await;
+            let eos =
+                terminal_api::stream(state, terminal_def, on_init, |data| self.send(data)).await;
             match eos {
                 Ok(()) => info!("End"),
                 Err(error) => warn!("Failed: {error}"),

@@ -1,7 +1,30 @@
+use std::rc::Rc;
+
+use scopeguard::ScopeGuard;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
+
+#[derive(Clone)]
+pub struct TerminalJsRc(Rc<ScopeGuard<TerminalJs, Box<dyn FnOnce(TerminalJs)>>>);
+
+impl TerminalJsRc {
+    pub fn new() -> Self {
+        Self(Rc::new(scopeguard::guard(
+            TerminalJs::new(),
+            Box::new(|xtermjs| xtermjs.dispose()),
+        )))
+    }
+}
+
+impl std::ops::Deref for TerminalJsRc {
+    type Target = TerminalJs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[wasm_bindgen(module = "/src/terminal/javascript.js")]
 extern "C" {

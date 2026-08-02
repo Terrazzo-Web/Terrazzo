@@ -21,8 +21,8 @@ use self::diagnostics::Level;
 use self::diagnostics::debug;
 use self::diagnostics::enabled;
 use self::diagnostics::warn;
-use super::attach;
-use super::javascript::TerminalJs;
+use super::attach::attach;
+use super::javascript::TerminalJsRc;
 use super::ui::TerminalsState;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
@@ -42,7 +42,7 @@ pub struct TerminalTab(Rc<TerminalTabInner>);
 pub struct TerminalTabInner {
     def: LiveTerminalDef,
     pub selected: XSignal<bool>,
-    pub xtermjs: Mutex<Option<TerminalJs>>,
+    pub xtermjs: Mutex<Option<TerminalJsRc>>,
     pub attachment_cancel: Mutex<Option<oneshot::Sender<()>>>,
     #[expect(unused)]
     registrations: Consumers,
@@ -197,7 +197,7 @@ impl TabDescriptor for TerminalTab {
         });
         let focus_terminal: Ptr<dyn Fn()> = Ptr::new(move || {
             autoclone!(this);
-            if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+            if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
                 xtermjs.focus();
             }
         });
@@ -207,14 +207,14 @@ impl TabDescriptor for TerminalTab {
                 if *input_overlay::OPEN_COUNT.lock().unwrap() > 0 {
                     return;
                 }
-                if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+                if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
                     xtermjs.focus();
                 }
             },
             class = style::TERMINAL,
             div(move |template| {
                 autoclone!(this);
-                attach::attach(template, state.clone(), this.clone())
+                attach(template, state.clone(), this.clone())
             }),
             input_overlay(send_to_terminal, focus_terminal),
         )

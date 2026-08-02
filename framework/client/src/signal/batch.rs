@@ -47,6 +47,9 @@ unsafe impl Send for BatchedCallbacks {}
 static WAITING_BATCH: LazyLock<Mutex<Option<BatchedCallbacks>>> =
     LazyLock::new(|| Mutex::new(None));
 
+#[cfg(test)]
+pub(super) static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
 impl Batch {
     pub fn use_batch(name: &str) -> Self {
         let span = debug_span!("Batch", batch = name);
@@ -130,15 +133,12 @@ impl Drop for Batch {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
-    use std::sync::LazyLock;
-    use std::sync::Mutex;
 
     use autoclone::autoclone;
 
     use super::Batch;
+    use super::TEST_LOCK;
     use crate::utils::Ptr;
-
-    static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
     #[test]
     #[autoclone]

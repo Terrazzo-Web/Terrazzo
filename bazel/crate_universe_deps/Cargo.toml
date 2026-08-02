@@ -42,8 +42,8 @@ rsass = { workspace = true }
 rsass-macros = { workspace = true }
 rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
+serde-saphyr = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-serde_yaml_ng = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }

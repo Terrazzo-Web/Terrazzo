@@ -20,6 +20,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
+          cache-kind: "cargo"
 
       - name: Build debug
         run: cargo build --bins --features=server,server-all,max_level_debug,debug,diagnostics
@@ -51,6 +52,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
+          cache-kind: "bazel"
 
       - name: Bazel build
         run: |
@@ -87,6 +89,7 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "lenient"
           cache-key: bazel-build
+          cache-kind: "bazel"
 
       - name: Check for Cargo file changes
         id: cargo-files-changed

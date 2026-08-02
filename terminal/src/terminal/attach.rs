@@ -60,15 +60,7 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
     info!("Attaching XtermJS");
     let xtermjs = TerminalJs::new();
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
-    let (attachment_cancel_tx, attachment_cancel_rx) = oneshot::channel();
-    if let Some(previous) = terminal_tab
-        .attachment_cancel
-        .lock()
-        .or_throw("attachment_cancel")
-        .replace(attachment_cancel_tx)
-    {
-        let _ = previous.send(());
-    }
+    let attachment_cancel = make_attachment_cancel(&terminal_tab);
     let xtermjs = guard(xtermjs, |xtermjs| xtermjs.dispose());
     xtermjs.open(&element);
     let (input_tx, input_rx) = mpsc::unbounded();
@@ -94,7 +86,7 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         select! {
             () = stream_loop.fuse() => info!("Stream loop closed"),
             () = write_loop.fuse() => info!("Write loop closed"),
-            _ = attachment_cancel_rx.fuse() => info!("Attachment replaced"),
+            _ = attachment_cancel.fuse() => info!("Attachment replaced"),
         };
         drop(unsubscribe_resize_event);
         drop(xtermjs);
@@ -102,6 +94,19 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
     };
     spawn_local(io.in_current_span());
     return Consumers::default();
+}
+
+fn make_attachment_cancel(terminal_tab: &TerminalTab) -> oneshot::Receiver<()> {
+    let (attachment_cancel_tx, attachment_cancel_rx) = oneshot::channel();
+    if let Some(previous) = terminal_tab
+        .attachment_cancel
+        .lock()
+        .or_throw("attachment_cancel")
+        .replace(attachment_cancel_tx)
+    {
+        let _ = previous.send(());
+    }
+    attachment_cancel_rx
 }
 
 impl TerminalJs {

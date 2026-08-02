@@ -7,11 +7,9 @@ use tracing::info;
 
 use super::get_processes;
 use crate::api::shared::terminal_schema::TerminalDef;
-use crate::backend::Server;
 use crate::terminal_id::TerminalId;
 
 pub async fn open_stream<F>(
-    _server: &Server,
     terminal_def: TerminalDef,
     rewind: bool,
     open_process: impl FnOnce(&TerminalId) -> F,

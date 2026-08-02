@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use futures::Stream;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
-use futures::stream::BoxStream;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
 use terrazzo_pty::OpenProcessError;
@@ -273,39 +273,59 @@ remote_fn_service::streaming::declare_remote_fn!(
     (RegisterTerminalMode, TerminalDef),
     LeaseMessage,
     |server, (mode, terminal_def)| {
+        let server = server.to_owned();
         let terminal_id = terminal_def.address.id.clone();
         let create = mode == RegisterTerminalMode::Create;
-        let server = server.clone();
-        futures::stream::once(async move {
-            let open_server = server.clone();
-            let stream =
-                processes::stream::open_stream(&server, terminal_def, create, |_| async move {
-                    if !create {
-                        return Err(OpenProcessError::NotFound);
-                    }
-                    let shell = open_server
-                        .config()
-                        .server
-                        .with(|config| config.terminal_shell.clone());
-                    ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
-                })
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-            Ok::<_, Status>(ThrottleProcessOutput::new(terminal_id, stream))
-        })
-        .flat_map(
-            |result| -> BoxStream<'static, Result<LeaseMessage, Status>> {
-                match result {
-                    Ok(stream) => Box::pin(
-                        futures::stream::once(async { Ok(LeaseMessage::Init) })
-                            .chain(stream.map(|item| Ok(LeaseMessage::from(item)))),
-                    ),
-                    Err(error) => Box::pin(futures::stream::once(async move { Err(error) })),
-                }
-            },
-        )
+        let stream = processes::stream::open_stream(terminal_def, create, move |_| async move {
+            if !create {
+                return Err(OpenProcessError::NotFound);
+            }
+            let server_config = &server.config().server;
+            let shell = server_config.with(|config| config.terminal_shell.clone());
+            ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
+        });
+        let stream = async move {
+            match stream.await {
+                Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
+                Err(error) => Err(Status::internal(error.to_string())),
+            }
+        };
+
+        use futures::future::ready;
+        use futures::stream::once;
+        let stream = async move {
+            Ok(once(ready(LeaseMessage::Init))
+                .chain(stream.await?.map(LeaseMessage::from))
+                .map(Ok))
+        };
+
+        let stream = helpers::is_future_stream(stream);
+        let stream = once(stream).try_flatten();
+        let stream = helpers::is_message_stream(stream);
+
+        return stream;
     }
 );
+
+/// Helpers to make types more obvious
+mod helpers {
+    use super::*;
+
+    pub fn is_future_stream<F, S>(future_stream: F) -> F
+    where
+        F: Future<Output = Result<S, Status>>,
+        S: Stream<Item = Result<LeaseMessage, Status>>,
+    {
+        future_stream
+    }
+
+    pub fn is_message_stream<S>(message_stream: S) -> S
+    where
+        S: Stream<Item = Result<LeaseMessage, Status>>,
+    {
+        message_stream
+    }
+}
 
 impl From<LeaseItem> for LeaseMessage {
     fn from(item: LeaseItem) -> Self {

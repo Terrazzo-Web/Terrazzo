@@ -34,7 +34,7 @@ runs:
 
     - name: Setup Cargo cache
       if: ${{ inputs.cache-level != 'off' && inputs.cache-kind == 'cargo' }}
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@v2.9.1
       with:
         shared-key: cargo-build
         save-if: ${{ inputs.cache-level == 'strict' }}

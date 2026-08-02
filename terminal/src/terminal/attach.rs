@@ -60,12 +60,22 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
     info!("Attaching XtermJS");
     let xtermjs = TerminalJs::new();
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
+    let (attachment_cancel_tx, attachment_cancel_rx) = oneshot::channel();
+    if let Some(previous) = terminal_tab
+        .attachment_cancel
+        .lock()
+        .or_throw("attachment_cancel")
+        .replace(attachment_cancel_tx)
+    {
+        let _ = previous.send(());
+    }
     let xtermjs = guard(xtermjs, |xtermjs| xtermjs.dispose());
     xtermjs.open(&element);
     let (input_tx, input_rx) = mpsc::unbounded();
     let on_data = xtermjs.do_on_data(input_tx);
     let on_resize = xtermjs.do_on_resize(terminal.clone());
     let on_title_change = xtermjs.do_on_title_change(terminal_tab.title.clone());
+    let selected = terminal_tab.selected.get_value_untracked();
     let io = async move {
         let _on_data = on_data;
         let _on_resize = on_resize;
@@ -77,13 +87,14 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
             let xtermjs = xtermjs.clone();
             move |_| xtermjs.fit()
         });
-        if terminal_tab.selected.get_value_untracked() {
+        if selected {
             xtermjs.focus();
         }
         // TODO: If write fails, we should not close the tab
         select! {
             () = stream_loop.fuse() => info!("Stream loop closed"),
             () = write_loop.fuse() => info!("Write loop closed"),
+            _ = attachment_cancel_rx.fuse() => info!("Attachment replaced"),
         };
         drop(unsubscribe_resize_event);
         drop(xtermjs);
@@ -97,6 +108,7 @@ impl TerminalJs {
     fn do_on_data(&self, input_tx: mpsc::UnboundedSender<String>) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
         let on_data: Closure<dyn FnMut(JsValue)> = Closure::new(move |data: JsValue| {
+            terminal_api::wake_streams();
             let mut input_tx = input_tx.clone();
             let data = data.as_string().unwrap_or_default();
             let send = async move {

@@ -1,12 +1,20 @@
+use std::sync::Mutex;
+
+use futures::FutureExt as _;
 use futures::StreamExt as _;
+use futures::channel::oneshot;
+use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
 use terrazzo::prelude::diagnostics;
+use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::Closure;
 use web_sys::Element;
+use web_sys::MouseEvent;
 use web_sys::js_sys::Uint8Array;
 
 use self::diagnostics::warn;
@@ -18,6 +26,86 @@ use crate::tiles::id::TileId;
 use crate::utils::ndjson::NdjsonBuffer;
 
 pub type LiveTerminalDef = TerminalDefImpl<XSignal<TabTitle<XString>>>;
+
+static STREAM_WAKE: Mutex<StreamWake> = Mutex::new(StreamWake {
+    generation: 0,
+    signal: None,
+});
+
+struct StreamWake {
+    generation: usize,
+    signal: Option<(oneshot::Sender<()>, Shared<oneshot::Receiver<()>>)>,
+}
+
+const WAKE_EVENT_TYPE: &str = "mousemove";
+
+struct WakeListener {
+    element: Element,
+    closure: Closure<dyn Fn(MouseEvent)>,
+    attached: bool,
+}
+
+impl WakeListener {
+    fn new(element: Element) -> Self {
+        let closure = Closure::new(move |_| wake_streams());
+        let attached = element
+            .add_event_listener_with_callback(WAKE_EVENT_TYPE, closure.as_ref().unchecked_ref())
+            .is_ok();
+        Self {
+            element,
+            closure,
+            attached,
+        }
+    }
+}
+
+impl Drop for WakeListener {
+    fn drop(&mut self) {
+        if self.attached {
+            let _ = self.element.remove_event_listener_with_callback(
+                WAKE_EVENT_TYPE,
+                self.closure.as_ref().unchecked_ref(),
+            );
+        }
+    }
+}
+
+pub fn wake_streams() {
+    let signal = {
+        let mut wake = STREAM_WAKE.lock().expect("stream wake");
+        wake.generation = wake.generation.wrapping_add(1);
+        wake.signal.take()
+    };
+    if let Some((sender, _receiver)) = signal {
+        let _ = sender.send(());
+    }
+}
+
+fn current_wake_generation() -> usize {
+    STREAM_WAKE.lock().expect("stream wake").generation
+}
+
+async fn wait_until_stream_is_needed(generation: usize) {
+    let receiver = {
+        let mut wake = STREAM_WAKE.lock().expect("stream wake");
+        let receiver = match &wake.signal {
+            Some((_sender, receiver)) => receiver.clone(),
+            None => {
+                let (sender, receiver) = oneshot::channel();
+                let receiver = receiver.shared();
+                wake.signal = Some((sender, receiver.clone()));
+                receiver
+            }
+        };
+        if wake.generation != generation
+            && let Some((sender, _receiver)) = wake.signal.take()
+        {
+            let _ = sender.send(());
+        }
+        receiver
+    };
+    let _ = receiver.await;
+}
 
 pub async fn list() -> Result<Vec<TerminalDef>, ServerFnError> {
     super::api::list().await
@@ -62,7 +150,7 @@ pub async fn set_order(tabs: Vec<TerminalAddress>) -> Result<(), ServerFnError> 
 pub async fn stream<F, F0>(
     state: TerminalsState,
     terminal_def: TerminalDef,
-    _element: Element,
+    element: Element,
     on_init: impl FnOnce() -> F0,
     on_data: impl Fn(JsValue) -> F,
 ) -> Result<(), StreamError>
@@ -71,9 +159,11 @@ where
     F0: Future<Output = ()>,
 {
     let terminal_id = terminal_def.address.id.clone();
+    let _wake_listener = WakeListener::new(element);
     let mut mode = RegisterTerminalMode::Create;
     let mut on_init = Some(on_init);
     loop {
+        let wake_generation = current_wake_generation();
         let mut stream = super::api::stream(mode, terminal_def.clone())
             .await
             .map_err(StreamError::from)?
@@ -115,6 +205,7 @@ where
         }
         warn!("Terminal stream disconnected; reopening");
         mode = RegisterTerminalMode::Reopen;
+        wait_until_stream_is_needed(wake_generation).await;
     }
 }
 

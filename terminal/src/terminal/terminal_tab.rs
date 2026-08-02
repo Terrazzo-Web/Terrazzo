@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use futures::channel::oneshot;
 use nameth::NamedType as _;
 use nameth::nameth;
 use terrazzo::autoclone;
@@ -42,6 +43,7 @@ pub struct TerminalTabInner {
     def: LiveTerminalDef,
     pub selected: XSignal<bool>,
     pub xtermjs: Mutex<Option<TerminalJs>>,
+    pub attachment_cancel: Mutex<Option<oneshot::Sender<()>>>,
     #[expect(unused)]
     registrations: Consumers,
 }
@@ -114,6 +116,7 @@ impl TerminalTab {
             },
             selected,
             xtermjs: Mutex::new(None),
+            attachment_cancel: Mutex::new(None),
             registrations,
         }))
     }

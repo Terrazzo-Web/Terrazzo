@@ -38,7 +38,7 @@ fn get_jwt_impl(input: &str) -> Option<String> {
         message: serde_json::Value,
         signature: &'t str,
     }
-    serde_yaml_ng::to_string(&Jwt {
+    serde_saphyr::to_string(&Jwt {
         header,
         message,
         signature,

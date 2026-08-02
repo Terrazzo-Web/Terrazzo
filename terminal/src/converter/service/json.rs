@@ -8,20 +8,20 @@ pub fn add_json(input: &str, add: &mut impl AddConversionFn) -> bool {
     if let Ok(json) = serde_json::to_string_pretty(&json) {
         add(Language::new("JSON"), json);
     }
-    if let Ok(yaml) = serde_yaml_ng::to_string(&json) {
+    if let Ok(yaml) = serde_saphyr::to_string(&json) {
         add(Language::new("YAML"), yaml);
     }
     return true;
 }
 
 pub fn add_yaml(input: &str, add: &mut impl AddConversionFn) {
-    let Ok(json) = serde_yaml_ng::from_str::<serde_json::Value>(input) else {
+    let Ok(json) = serde_saphyr::from_str::<serde_json::Value>(input) else {
         return;
     };
     if let Ok(json) = serde_json::to_string_pretty(&json) {
         add(Language::new("JSON"), json);
     }
-    if let Ok(yaml) = serde_yaml_ng::to_string(&json) {
+    if let Ok(yaml) = serde_saphyr::to_string(&json) {
         add(Language::new("YAML"), yaml);
     }
 }
@@ -64,7 +64,7 @@ mod tests {
 b:
   b1:
   - 11
-  b2: '22'
+  b2: "22"
 "#,
             conversion
         );
@@ -124,7 +124,7 @@ b:
 b:
   b1:
   - 11
-  b2: '22'
+  b2: "22"
 "#,
             conversion
         );

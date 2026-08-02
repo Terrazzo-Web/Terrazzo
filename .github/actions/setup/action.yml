@@ -15,6 +15,14 @@ inputs:
   cache-key:
     description: "A prefix added to the cache key"
     required: false
+  cache-kind:
+    description: "The build cache to restore"
+    required: false
+    default: cargo
+    type: choice
+    options:
+      - cargo
+      - bazel
 runs:
   using: "composite"
   steps:
@@ -24,43 +32,46 @@ runs:
       shell: bash
       run: echo "week=$(date +%G-W%V)" >> "$GITHUB_OUTPUT"
 
-    - name: Setup cache for Rust compilation
-      if: ${{ inputs.cache-level == 'strict' }}
+    - name: Setup Cargo cache
+      if: ${{ inputs.cache-level != 'off' && inputs.cache-kind == 'cargo' }}
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: cargo-build
+        save-if: ${{ inputs.cache-level == 'strict' }}
+
+    - name: Setup Bazel cache
+      if: ${{ inputs.cache-level == 'strict' && inputs.cache-kind == 'bazel' }}
       uses: actions/cache@v6.1.0
       with:
         path: |
-          ~/.cargo/.crates.toml
-          ~/.cargo/.crates2.json
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-          ~/.cache/ms-playwright/
-          target/
-          terminal/target
         key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
 
-    - name: Restore cache for Rust compilation
-      if: ${{ inputs.cache-level == 'lenient' }}
+    - name: Restore Bazel cache
+      if: ${{ inputs.cache-level == 'lenient' && inputs.cache-kind == 'bazel' }}
       uses: actions/cache/restore@v6.1.0
       with:
         path: |
-          ~/.cargo/.crates.toml
-          ~/.cargo/.crates2.json
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-          ~/.cache/ms-playwright/
-          target/
-          terminal/target
         key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.cache-key || github.job }}-
+
+    - name: Setup Playwright cache
+      if: ${{ inputs.cache-level == 'strict' }}
+      uses: actions/cache@v6.1.0
+      with:
+        path: ~/.cache/ms-playwright/
+        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+    - name: Restore Playwright cache
+      if: ${{ inputs.cache-level == 'lenient' }}
+      uses: actions/cache/restore@v6.1.0
+      with:
+        path: ~/.cache/ms-playwright/
+        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
 
     - name: Add wasm32 compilation target
       shell: bash

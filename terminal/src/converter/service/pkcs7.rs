@@ -145,7 +145,7 @@ fn add_pkcs7_impl(input: &[u8], add: &mut impl AddConversionFn) -> Option<()> {
         content: signed_data,
     };
     let content_info =
-        serde_yaml_ng::to_string(&content_info).unwrap_or_else(|error| error.to_string());
+        serde_saphyr::to_string(&content_info).unwrap_or_else(|error| error.to_string());
 
     add(Language::new("PKCS #7"), content_info);
     for (name, x509) in x509s {

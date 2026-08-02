@@ -11,7 +11,7 @@ pub fn add_asn1(input: &[u8], add: &mut impl AddConversionFn) -> bool {
         return false;
     };
     let asn1 = asn1.into_iter().map(ASN1Block::from).collect::<Vec<_>>();
-    let asn1 = serde_yaml_ng::to_string(&asn1).unwrap_or_else(|error| error.to_string());
+    let asn1 = serde_saphyr::to_string(&asn1).unwrap_or_else(|error| error.to_string());
 
     add(Language::new("ASN.1"), asn1);
     return true;

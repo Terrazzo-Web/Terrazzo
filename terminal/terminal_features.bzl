@@ -107,7 +107,7 @@ CONVERTER_SERVER_DEPS = CONVERTER_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TI
     "@crates//:oid-registry",
     "@crates//:regex",
     "@crates//:rustls-native-certs",
-    "@crates//:serde_yaml_ng",
+    "@crates//:serde-saphyr",
     "@crates//:simple_asn1",
     "@crates//:tls-parser",
     "@crates//:tokio-rustls",

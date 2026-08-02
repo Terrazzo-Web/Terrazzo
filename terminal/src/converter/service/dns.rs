@@ -68,7 +68,7 @@ pub async fn add_dns_impl(input: &str, add: &mut impl super::AddConversionFn) ->
         })
         .collect::<Vec<_>>();
 
-    let response = serde_yaml_ng::to_string(&responses).ok()?;
+    let response = serde_saphyr::to_string(&responses).ok()?;
     add(Language::new("DNS"), format!("{nslookup}\n\n{response}"));
     Some(())
 }

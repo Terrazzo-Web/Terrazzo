@@ -80,7 +80,8 @@ where
         let mut unacked = 0;
         while let Some(chunk) = stream.next().await {
             for message in parser.push_chunk(&chunk.map_err(StreamError::from)?) {
-                match message.map_err(|error| StreamError::ServerFn(error.to_string()))? {
+                let message = message.map_err(StreamError::Json)?;
+                match message {
                     LeaseMessage::Init => {
                         if let Some(on_init) = on_init.take() {
                             on_init().await;
@@ -127,6 +128,9 @@ pub async fn close(terminal: &TerminalAddress, _correlation_id: Option<String>) 
 pub enum StreamError {
     #[error("[{n}] {0}", n = self.name())]
     ServerFn(String),
+
+    #[error("[{n}] {0}", n = self.name())]
+    Json(#[from] serde_json::Error),
 }
 
 impl From<ServerFnError> for StreamError {

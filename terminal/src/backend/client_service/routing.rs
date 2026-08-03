@@ -43,6 +43,11 @@ pub trait DistributedCallback {
                         .ok_or_else(|| {
                             DistributedCallbackError::RemoteClientNotFound(client_address_leaf)
                         })?;
+
+                    // Simulate network latency in debug mode
+                    #[cfg(debug_assertions)]
+                    let () = tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
                     Ok(Self::remote(channel, rest, request)
                         .await
                         .map_err(DistributedCallbackError::RemoteError)?)

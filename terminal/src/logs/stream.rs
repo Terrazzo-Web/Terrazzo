@@ -8,7 +8,7 @@ use terrazzo::server;
 use crate::api::client_address::ClientAddress;
 
 #[server(protocol = Http<Json, StreamingText>)]
-pub async fn stream(remote: ClientAddress) -> Result<TextStream<ServerFnError>, ServerFnError> {
+pub async fn stream(remote: ClientAddress) -> Result<TextStream, ServerFnError> {
     imp::stream_logs(remote).await
 }
 
@@ -30,9 +30,7 @@ mod imp {
     use crate::utils::ndjson_utils::serialize_line;
 
     #[nameth]
-    pub(super) async fn stream_logs(
-        remote: ClientAddress,
-    ) -> Result<TextStream<ServerFnError>, ServerFnError> {
+    pub(super) async fn stream_logs(remote: ClientAddress) -> Result<TextStream, ServerFnError> {
         let stream = STREAM_LOGS_FN.call(remote, ()).await?;
         let stream = stream.map_ok(|event| serialize_log_event(&event));
         Ok(TextStream::new(stream.map_err(|error| error.into())))

@@ -256,7 +256,7 @@ remote_fn_service::unary::declare_remote_fn!(
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<TextStream<ServerFnError>, ServerFnError> {
+) -> Result<TextStream, ServerFnError> {
     let remote = terminal_def.address.via.clone();
     let stream = STREAM_FN.call(remote, (mode, terminal_def)).await?;
     let stream = stream.map_ok(|item| {

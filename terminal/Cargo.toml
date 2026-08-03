@@ -181,11 +181,11 @@ remotes-ui = []
 terminal = []
 terminal-client = [
   "client",
+  "dep:base64",
   "dep:futures",
   "dep:scopeguard",
   "dep:web-sys",
   "terminal",
-  "dep:base64",
   "tiles-state-client",
   "web-sys/HtmlTextAreaElement",
   "web-sys/InputEvent",

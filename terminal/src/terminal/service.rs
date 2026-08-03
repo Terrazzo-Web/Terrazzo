@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use base64::Engine as _;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
@@ -330,7 +331,15 @@ mod helpers {
 impl From<LeaseItem> for LeaseMessage {
     fn from(item: LeaseItem) -> Self {
         match item {
-            LeaseItem::Data(data) => Self::Data(data.to_vec()),
+            LeaseItem::Data(data) => {
+                let vec = Vec::from(data);
+                match String::from_utf8(vec) {
+                    Ok(utf8) => Self::Utf8(utf8),
+                    Err(error) => Self::Base64(
+                        base64::engine::general_purpose::STANDARD.encode(error.into_bytes()),
+                    ),
+                }
+            }
             LeaseItem::EOS => Self::Eos,
             LeaseItem::Error(error) => Self::Error(error.to_string()),
         }

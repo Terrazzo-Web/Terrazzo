@@ -32,7 +32,8 @@ pub async fn set_tile_id(
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum LeaseMessage {
     Init,
-    Data(Vec<u8>),
+    Base64(String),
+    Utf8(String),
     Eos,
     Error(String),
 }

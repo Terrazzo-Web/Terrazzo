@@ -4,9 +4,9 @@ use futures::FutureExt as _;
 use futures::SinkExt as _;
 use futures::StreamExt as _;
 use futures::channel::mpsc;
+use futures::channel::oneshot;
 use futures::select;
 use scopeguard::defer;
-use scopeguard::guard;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
 use wasm_bindgen::JsValue;
@@ -20,10 +20,11 @@ use self::diagnostics::info;
 use self::diagnostics::info_span;
 use self::diagnostics::span::Span;
 use self::diagnostics::warn;
+use super::client as terminal_api;
 use super::javascript::TerminalJs;
+use super::javascript::TerminalJsRc;
 use super::terminal_tab::TerminalTab;
 use super::ui::TerminalsState;
-use crate::api::client::terminal_api;
 use crate::api::shared::terminal_schema;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
@@ -33,8 +34,8 @@ const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";
 
 pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: TerminalTab) -> Consumers {
-    let terminal = terminal_tab.address.to_owned();
-    let terminal_id = terminal.id.clone();
+    let terminal_address = terminal_tab.address.to_owned();
+    let terminal_id = terminal_address.id.clone();
     let terminal_def = terminal_tab.to_terminal_def();
     let _span = info_span!("XTermJS", %terminal_id).entered();
     let element = template.element();
@@ -57,38 +58,55 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         .or_throw(XTERMJS_ATTR);
 
     info!("Attaching XtermJS");
-    let xtermjs = TerminalJs::new();
+    let xtermjs = TerminalJsRc::new();
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
-    let xtermjs = guard(xtermjs, |xtermjs| xtermjs.dispose());
+    let attachment_cancel = make_attachment_cancel(&terminal_tab);
     xtermjs.open(&element);
     let (input_tx, input_rx) = mpsc::unbounded();
     let on_data = xtermjs.do_on_data(input_tx);
-    let on_resize = xtermjs.do_on_resize(terminal.clone());
+    let on_resize = xtermjs.do_on_resize(terminal_address.clone());
     let on_title_change = xtermjs.do_on_title_change(terminal_tab.title.clone());
+    let selected = terminal_tab.selected.get_value_untracked();
     let io = async move {
-        let _on_data = on_data;
-        let _on_resize = on_resize;
-        let _on_title_change = on_title_change;
-        let stream_loop = xtermjs.stream_loop(state, terminal_def, element);
-        let write_loop = write_loop(&terminal, input_rx);
+        let (initialized_tx, initialized_rx) = oneshot::channel();
+        let stream_loop = xtermjs.stream_loop(state, terminal_def, initialized_tx);
+        let write_loop = write_loop(&terminal_address, input_rx, initialized_rx);
         let unsubscribe_resize_event = ResizeEvent::signal().add_subscriber({
             let xtermjs = xtermjs.clone();
             move |_| xtermjs.fit()
         });
-        if terminal_tab.selected.get_value_untracked() {
+        if selected {
             xtermjs.focus();
         }
         // TODO: If write fails, we should not close the tab
         select! {
             () = stream_loop.fuse() => info!("Stream loop closed"),
             () = write_loop.fuse() => info!("Write loop closed"),
+            _ = attachment_cancel.fuse() => info!("Attachment replaced"),
         };
+        *terminal_tab.xtermjs.lock().or_throw("xtermjs") = None;
         drop(unsubscribe_resize_event);
         drop(xtermjs);
+        drop(on_data);
+        drop(on_resize);
+        drop(on_title_change);
         info!("Detached XtermJS");
     };
     spawn_local(io.in_current_span());
     return Consumers::default();
+}
+
+fn make_attachment_cancel(terminal_tab: &TerminalTab) -> oneshot::Receiver<()> {
+    let (attachment_cancel_tx, attachment_cancel_rx) = oneshot::channel();
+    if let Some(previous) = terminal_tab
+        .attachment_cancel
+        .lock()
+        .or_throw("attachment_cancel")
+        .replace(attachment_cancel_tx)
+    {
+        let _ = previous.send(());
+    }
+    attachment_cancel_rx
 }
 
 impl TerminalJs {
@@ -128,7 +146,7 @@ impl TerminalJs {
             rows: self.rows().as_f64().or_throw("rows") as i32,
             cols: self.cols().as_f64().or_throw("cols") as i32,
         };
-        if let Err(error) = terminal_api::resize::resize(&terminal, size, force).await {
+        if let Err(error) = terminal_api::resize(&terminal, size, force).await {
             warn!("Failed to resize: {error}");
         }
     }
@@ -153,18 +171,17 @@ impl TerminalJs {
         &self,
         state: TerminalsState,
         terminal_def: TerminalDef,
-        element: Element,
+        initialized: oneshot::Sender<()>,
     ) {
         async {
             debug!("Start");
             let on_init = || {
                 self.fit();
+                let _ = initialized.send(());
                 ready(())
             };
-            let eos = terminal_api::stream::stream(state, terminal_def, element, on_init, |data| {
-                self.send(data)
-            })
-            .await;
+            let eos =
+                terminal_api::stream(state, terminal_def, on_init, |data| self.send(data)).await;
             match eos {
                 Ok(()) => info!("End"),
                 Err(error) => warn!("Failed: {error}"),
@@ -175,14 +192,22 @@ impl TerminalJs {
     }
 }
 
-async fn write_loop(terminal: &TerminalAddress, input_rx: mpsc::UnboundedReceiver<String>) {
+async fn write_loop(
+    terminal: &TerminalAddress,
+    input_rx: mpsc::UnboundedReceiver<String>,
+    initialized: oneshot::Receiver<()>,
+) {
     async {
         defer!(debug!("End"));
         debug!("Start");
+        if initialized.await.is_err() {
+            warn!("Terminal stream closed before initialization");
+            return;
+        }
         let mut input_rx = input_rx.ready_chunks(10);
         while let Some(data) = &input_rx.next().await {
             let data = data.join("");
-            if let Err(error) = terminal_api::write::write(terminal, data).await {
+            if let Err(error) = terminal_api::write(terminal, data).await {
                 error!("Failed to write to the terminal: {error}");
                 return;
             }

@@ -17,14 +17,6 @@ pub struct Size {
     pub cols: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Chunk {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal_id: TerminalId,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub data: Option<Vec<u8>>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TerminalAddress {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
@@ -75,36 +67,12 @@ impl<T> TabTitle<T> {
 
 pub type TerminalDef = TerminalDefImpl<TabTitle<String>>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NewTerminalRequest {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "a"))]
-    pub address: ClientAddress,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
-    pub tile: TileId,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RegisterTerminalRequest {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "m"))]
-    pub mode: RegisterTerminalMode,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub def: TerminalDef,
-}
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RegisterTerminalMode {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "C"))]
     Create,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "R"))]
     Reopen,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WriteRequest<T = TerminalAddress> {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal: T,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub data: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -123,12 +91,4 @@ pub struct SetTitleRequest<T = TerminalAddress> {
     pub terminal: T,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
     pub title: TabTitle<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AckRequest<T = TerminalAddress> {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
-    pub terminal: T,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "d"))]
-    pub ack: usize,
 }

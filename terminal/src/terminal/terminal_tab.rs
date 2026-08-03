@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use futures::channel::oneshot;
 use nameth::NamedType as _;
 use nameth::nameth;
 use terrazzo::autoclone;
@@ -20,17 +21,17 @@ use self::diagnostics::Level;
 use self::diagnostics::debug;
 use self::diagnostics::enabled;
 use self::diagnostics::warn;
-use super::attach;
-use super::javascript::TerminalJs;
+use super::attach::attach;
+use super::javascript::TerminalJsRc;
 use super::ui::TerminalsState;
-use crate::api::client::terminal_api;
-use crate::api::client::terminal_api::LiveTerminalDef;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
 use crate::frontend::input_overlay;
 use crate::frontend::input_overlay::input_overlay;
+use crate::terminal::client as terminal_api;
+use crate::terminal::client::LiveTerminalDef;
 use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
 
@@ -41,7 +42,8 @@ pub struct TerminalTab(Rc<TerminalTabInner>);
 pub struct TerminalTabInner {
     def: LiveTerminalDef,
     pub selected: XSignal<bool>,
-    pub xtermjs: Mutex<Option<TerminalJs>>,
+    pub xtermjs: Mutex<Option<TerminalJsRc>>,
+    pub attachment_cancel: Mutex<Option<oneshot::Sender<()>>>,
     #[expect(unused)]
     registrations: Consumers,
 }
@@ -89,8 +91,7 @@ impl TerminalTab {
 
         let set_title = Duration::from_secs(1).async_debounce(
             |(address, title): (TerminalAddress, TabTitle<XString>)| async move {
-                let result =
-                    terminal_api::set_title::set_title(&address, title.map(|t| t.to_string()));
+                let result = terminal_api::set_title(&address, title.map(|t| t.to_string()));
                 if let Err(error) = result.await {
                     warn!("Failed to update title: {error}")
                 }
@@ -115,6 +116,7 @@ impl TerminalTab {
             },
             selected,
             xtermjs: Mutex::new(None),
+            attachment_cancel: Mutex::new(None),
             registrations,
         }))
     }
@@ -167,8 +169,7 @@ impl TabDescriptor for TerminalTab {
                 ev.stop_propagation();
                 let close_task = async move {
                     autoclone!(terminal);
-                    terminal_api::stream::try_restart_pipe();
-                    terminal_api::stream::close(&terminal, None).await;
+                    terminal_api::close(&terminal, None).await;
                 };
                 spawn_local(close_task.in_current_span());
             },
@@ -186,17 +187,17 @@ impl TabDescriptor for TerminalTab {
             autoclone!(this);
             let terminal = this.address.clone();
             spawn_local(async move {
-                if let Err(error) = terminal_api::write::write(&terminal, data).await {
+                if let Err(error) = terminal_api::write(&terminal, data).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
-                if let Err(error) = terminal_api::write::write(&terminal, "\n".into()).await {
+                if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
             });
         });
         let focus_terminal: Ptr<dyn Fn()> = Ptr::new(move || {
             autoclone!(this);
-            if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+            if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
                 xtermjs.focus();
             }
         });
@@ -206,14 +207,14 @@ impl TabDescriptor for TerminalTab {
                 if *input_overlay::OPEN_COUNT.lock().unwrap() > 0 {
                     return;
                 }
-                if let Some(xtermjs) = this.xtermjs.lock().or_throw("xtermjs").clone() {
+                if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
                     xtermjs.focus();
                 }
             },
             class = style::TERMINAL,
             div(move |template| {
                 autoclone!(this);
-                attach::attach(template, state.clone(), this.clone())
+                attach(template, state.clone(), this.clone())
             }),
             input_overlay(send_to_terminal, focus_terminal),
         )

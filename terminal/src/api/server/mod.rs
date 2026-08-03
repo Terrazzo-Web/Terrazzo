@@ -14,9 +14,6 @@ use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 
 mod common;
-mod correlation_id;
-
-mod terminal_api;
 
 pub fn api_routes(
     config: &DiffArc<DynConfig>,
@@ -26,13 +23,6 @@ pub fn api_routes(
     let router = Router::new()
         .merge(login_routes(config, auth_config))
         .merge(remotes_routes(config, auth_config, server));
-
-    #[cfg(feature = "terminal")]
-    let router = router.merge(terminal_api::router::terminal_api_routes(
-        config,
-        auth_config,
-        server,
-    ));
 
     #[cfg(feature = "text-editor")]
     let router = router.merge(crate::text_editor::fsio::api::fsio_routes(

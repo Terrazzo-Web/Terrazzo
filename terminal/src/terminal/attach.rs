@@ -86,10 +86,10 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         };
         *terminal_tab.xtermjs.lock().or_throw("xtermjs") = None;
         drop(unsubscribe_resize_event);
-        drop(xtermjs);
-        drop(on_data);
-        drop(on_resize);
         drop(on_title_change);
+        drop(on_resize);
+        drop(on_data);
+        drop(xtermjs);
         info!("Detached XtermJS");
     };
     spawn_local(io.in_current_span());

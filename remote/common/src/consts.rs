@@ -7,7 +7,7 @@ pub const HEALTH_CHECK_TIMEOUT: Duration = if cfg!(debug_assertions) {
 };
 
 pub const HEALTH_CHECK_PERIOD: Duration = if cfg!(debug_assertions) {
-    Duration::from_secs(10)
+    Duration::from_secs(30)
 } else {
     Duration::from_secs(3 * 60 + 45)
 };

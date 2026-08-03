@@ -173,6 +173,7 @@ impl TerminalJs {
         terminal_def: TerminalDef,
         initialized: oneshot::Sender<()>,
     ) {
+        let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {
             debug!("Start");
             let on_init = || {
@@ -187,7 +188,7 @@ impl TerminalJs {
                 Err(error) => warn!("Failed: {error}"),
             }
         }
-        .instrument(debug_span!("StreamLoop"))
+        .instrument(span)
         .await
     }
 }

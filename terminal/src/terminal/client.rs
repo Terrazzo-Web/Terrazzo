@@ -74,8 +74,7 @@ where
     let mut on_init = Some(on_init);
     loop {
         let mut stream = super::api::stream(mode, terminal_def.clone())
-            .await
-            .map_err(StreamError::from)?
+            .await?
             .into_inner();
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         let mut unacked = 0;

@@ -11,6 +11,7 @@ use terrazzo_pty::OpenProcessError;
 use terrazzo_pty::ProcessIO;
 use terrazzo_pty::lease::LeaseItem;
 use tonic::Status;
+use tracing::debug;
 use trz_gateway_common::id::ClientName;
 use uuid::Uuid;
 
@@ -75,6 +76,7 @@ async fn list_impl(
         response.append(&mut terminals);
     }
     request.clear();
+    debug!("Found list {response:?}");
     Ok(response)
 }
 
@@ -258,6 +260,7 @@ pub async fn stream(
     terminal_def: TerminalDef,
 ) -> Result<TextStream, ServerFnError> {
     let remote = terminal_def.address.via.clone();
+    debug!(%remote, "Calling stream()");
     let stream = STREAM_FN.call(remote, (mode, terminal_def)).await?;
     let stream = stream.map_ok(|item| {
         serialize_line(&item).unwrap_or_else(|error| {

@@ -13,6 +13,7 @@ use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::info_span;
+use tracing::trace;
 use tracing::warn;
 use trz_gateway_common::consts::HEALTH_CHECK_PERIOD;
 use trz_gateway_common::consts::HEALTH_CHECK_TIMEOUT;
@@ -107,7 +108,7 @@ impl HealthService for HealthServiceImpl {
             let auth_code = auth_code.into();
             if cfg!(debug_assertions) {
                 let current_auth_code = self.current_auth_code.lock().unwrap().clone();
-                debug!(
+                trace!(
                     changed = (current_auth_code != auth_code),
                     "Got a new AuthCode"
                 )

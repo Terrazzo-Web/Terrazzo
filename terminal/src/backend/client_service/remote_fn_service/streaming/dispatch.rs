@@ -18,6 +18,7 @@ pub fn remote_fn_dispatch(
     client_address: &[impl AsRef<str>],
     request: RemoteFnRequest,
 ) -> impl Future<Output = Result<HybridResponseStream, RemoteFnError>> {
+    let span = debug_span!("DistributedFn", server_fn = request.server_fn_name);
     async move {
         debug!("Start");
         defer!(debug!("Done"));
@@ -25,5 +26,5 @@ pub fn remote_fn_dispatch(
             .await
             .map_err(|error| RemoteFnError::Distributed(Box::new(error)))
     }
-    .instrument(debug_span!("DistributedFn"))
+    .instrument(span)
 }

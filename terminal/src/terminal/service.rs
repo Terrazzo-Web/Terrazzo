@@ -299,6 +299,7 @@ remote_fn_service::streaming::declare_remote_fn!(
         use futures::stream::once;
         let stream = async move {
             Ok(once(ready(LeaseMessage::Init))
+                // TODO: on EOS, remove the process
                 .chain(stream.await?.map(LeaseMessage::from))
                 .map(Ok))
         };

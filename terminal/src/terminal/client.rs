@@ -85,8 +85,6 @@ where
             for message in messages {
                 match message.map_err(StreamError::Json)? {
                     LeaseMessage::Init => {
-                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
-                        buffer = vec![];
                         if let Some(on_init) = on_init.take() {
                             on_init().await;
                         }

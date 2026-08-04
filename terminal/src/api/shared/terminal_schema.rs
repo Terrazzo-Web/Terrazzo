@@ -8,7 +8,7 @@ use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 
 #[cfg(feature = "debug")]
-pub const STREAMING_WINDOW_SIZE: usize = 1000;
+pub const STREAMING_WINDOW_SIZE: usize = 200 * 1000;
 
 #[cfg(not(feature = "debug"))]
 pub const STREAMING_WINDOW_SIZE: usize = 1000 * 1000;

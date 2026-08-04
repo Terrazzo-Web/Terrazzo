@@ -81,6 +81,7 @@ where
         while let Some(chunk) = stream.next().await {
             let messages: Vec<Result<LeaseMessage, serde_json::Error>> =
                 parser.push_chunk(&chunk.map_err(StreamError::from)?);
+            let mut buffer = vec![];
             for message in messages {
                 match message.map_err(StreamError::Json)? {
                     LeaseMessage::Init => {
@@ -89,22 +90,25 @@ where
                         }
                     }
                     LeaseMessage::Eos => {
+                        process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
                         state.on_eos(&terminal_id);
                         return Ok(());
                     }
                     LeaseMessage::Error(error) => {
+                        process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
                         state.on_eos(&terminal_id);
                         return Err(StreamError::ServerFn(error));
                     }
                     LeaseMessage::Base64(data) => {
                         let data = base64::engine::general_purpose::STANDARD.decode(data)?;
-                        process_data(&terminal_def, &on_data, &mut unacked, &data).await?
+                        buffer.extend(data);
                     }
                     LeaseMessage::Utf8(data) => {
-                        process_data(&terminal_def, &on_data, &mut unacked, data.as_bytes()).await?
+                        buffer.extend(data.as_bytes());
                     }
                 }
             }
+            process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
         }
         warn!("Terminal stream disconnected; reopening");
         mode = RegisterTerminalMode::Reopen;
@@ -120,6 +124,9 @@ async fn process_data<F>(
 where
     F: Future<Output = ()>,
 {
+    if data.is_empty() {
+        return Ok(());
+    }
     *unacked += data.len();
     let value = Uint8Array::new_with_length(data.len() as u32);
     value.copy_from(data);

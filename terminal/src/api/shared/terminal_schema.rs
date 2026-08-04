@@ -7,10 +7,6 @@ use crate::api::client_address::ClientAddress;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 
-#[cfg(debug_assertions)]
-pub const STREAMING_WINDOW_SIZE: usize = 1000;
-
-#[cfg(not(debug_assertions))]
 pub const STREAMING_WINDOW_SIZE: usize = 200 * 1000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

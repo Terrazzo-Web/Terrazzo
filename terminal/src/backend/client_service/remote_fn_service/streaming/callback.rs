@@ -61,7 +61,6 @@ impl DistributedCallback for DistributedFn {
         debug!("Calling remote {request:?}");
         let mut client = RemoteStreamingFnServiceClient::new(channel);
         let response = client.call_server_fn(request).await?.into_inner();
-
         Ok(HybridResponseStream::Remote(Box::new(response)))
     }
 }

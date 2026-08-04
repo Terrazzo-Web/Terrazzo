@@ -1,6 +1,7 @@
 use pin_project::pin_project;
 use server_fn::BoxedStream;
 use server_fn::ServerFnError;
+use tonic::Streaming;
 
 use crate::backend::protos::terrazzo::remotefn::ServerFnResponse as ServerFnResponseProto;
 
@@ -10,7 +11,7 @@ pub mod remote;
 #[pin_project(project = HybridResponseStreamProj)]
 pub enum HybridResponseStream {
     Local(BoxedStream<String, ServerFnError>),
-    Remote(#[pin] Box<tonic::Streaming<ServerFnResponseProto>>),
+    Remote(#[pin] Box<Streaming<ServerFnResponseProto>>),
 }
 
 impl From<HybridResponseStream> for BoxedStream<String, ServerFnError> {

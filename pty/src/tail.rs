@@ -144,7 +144,6 @@ where
 }
 
 impl Stream for TailStream {
-    // TODO: use Result<Bytes, Arc<std::io::Error>>
     type Item = std::io::Result<Bytes>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

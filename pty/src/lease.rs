@@ -180,7 +180,7 @@ impl Stream for ProcessOutputLease {
         Some(match next {
             Some(Ok(data)) => {
                 debug_assert!(!data.is_empty(), "Unexpected empty buffer");
-                debug! { "Reading {}", String::from_utf8_lossy(&data).escape_default() }
+                trace! { "Reading {}", String::from_utf8_lossy(&data).escape_default() }
                 LeaseItem::Data(data)
             }
             Some(Err(error)) => {

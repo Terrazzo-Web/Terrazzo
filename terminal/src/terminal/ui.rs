@@ -196,6 +196,7 @@ fn refresh_terminal_tabs(state: TerminalsState) {
             }
         };
         if state.terminal_tabs.get_value_untracked() != terminal_tabs {
+            // This prevents an older server snapshot from overwriting newer UI state.
             debug!("Ignoring stale terminal list after tabs changed");
             return;
         }

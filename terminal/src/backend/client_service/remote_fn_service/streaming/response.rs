@@ -7,18 +7,10 @@ use crate::backend::protos::terrazzo::remotefn::ServerFnResponse as ServerFnResp
 pub mod local;
 pub mod remote;
 
-#[cfg(debug_assertions)]
-type RemoteStream = std::pin::Pin<
-    Box<dyn futures::Stream<Item = Result<ServerFnResponseProto, tonic::Status>> + Send + Sync>,
->;
-
-#[cfg(not(debug_assertions))]
-type RemoteStream = Box<tonic::Streaming<ServerFnResponseProto>>;
-
 #[pin_project(project = HybridResponseStreamProj)]
 pub enum HybridResponseStream {
     Local(BoxedStream<String, ServerFnError>),
-    Remote(#[pin] RemoteStream),
+    Remote(#[pin] Box<tonic::Streaming<ServerFnResponseProto>>),
 }
 
 impl From<HybridResponseStream> for BoxedStream<String, ServerFnError> {

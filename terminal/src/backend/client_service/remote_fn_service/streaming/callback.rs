@@ -62,16 +62,6 @@ impl DistributedCallback for DistributedFn {
         let mut client = RemoteStreamingFnServiceClient::new(channel);
         let response = client.call_server_fn(request).await?.into_inner();
 
-        // Simulate network latency in debug mode
-        #[cfg(debug_assertions)]
-        let response = Box::pin(response.and_then(|response| async move {
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            Ok(response)
-        }));
-
-        #[cfg(not(debug_assertions))]
-        let response = Box::new(response);
-
-        Ok(HybridResponseStream::Remote(response))
+        Ok(HybridResponseStream::Remote(Box::new(response)))
     }
 }

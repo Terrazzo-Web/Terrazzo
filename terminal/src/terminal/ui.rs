@@ -186,6 +186,7 @@ fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString>
 }
 
 fn refresh_terminal_tabs(state: TerminalsState) {
+    let terminal_tabs = state.terminal_tabs.get_value_untracked();
     let refresh_terminal_tabs_task = async move {
         let terminal_defs = match terminal_api::list().await {
             Ok(terminal_defs) => terminal_defs,
@@ -194,6 +195,10 @@ fn refresh_terminal_tabs(state: TerminalsState) {
                 return;
             }
         };
+        if state.terminal_tabs.get_value_untracked() != terminal_tabs {
+            debug!("Ignoring stale terminal list after tabs changed");
+            return;
+        }
         let mut all_tile_ids: Option<HashSet<TileId>> = None;
         let _: ControlFlow<()> = RootTree::foreach(|t| {
             if t.app.get_value_untracked() != App::Terminal {

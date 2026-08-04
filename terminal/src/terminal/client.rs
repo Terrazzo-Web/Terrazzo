@@ -85,17 +85,19 @@ where
             for message in messages {
                 match message.map_err(StreamError::Json)? {
                     LeaseMessage::Init => {
+                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+                        buffer = vec![];
                         if let Some(on_init) = on_init.take() {
                             on_init().await;
                         }
                     }
                     LeaseMessage::Eos => {
-                        process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
+                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
                         state.on_eos(&terminal_id);
                         return Ok(());
                     }
                     LeaseMessage::Error(error) => {
-                        process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
+                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
                         state.on_eos(&terminal_id);
                         return Err(StreamError::ServerFn(error));
                     }
@@ -108,7 +110,7 @@ where
                     }
                 }
             }
-            process_data(&terminal_def, &on_data, &mut unacked, &buffer).await?;
+            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
         }
         warn!("Terminal stream disconnected; reopening");
         mode = RegisterTerminalMode::Reopen;
@@ -119,7 +121,7 @@ async fn process_data<F>(
     terminal_def: &TerminalDefImpl<TabTitle<String>>,
     on_data: &impl Fn(JsValue) -> F,
     unacked: &mut usize,
-    data: &[u8],
+    data: Vec<u8>,
 ) -> Result<(), StreamError>
 where
     F: Future<Output = ()>,
@@ -129,7 +131,7 @@ where
     }
     *unacked += data.len();
     let value = Uint8Array::new_with_length(data.len() as u32);
-    value.copy_from(data);
+    value.copy_from(&data);
     on_data(value.into()).await;
     if *unacked >= STREAMING_WINDOW_SIZE / 2 {
         super::api::ack(terminal_def.address.clone(), std::mem::take(unacked))

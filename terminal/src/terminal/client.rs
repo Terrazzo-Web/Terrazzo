@@ -6,9 +6,12 @@ use server_fn::ServerFnError;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
 use terrazzo::prelude::diagnostics;
+use tokio::sync::watch;
 use wasm_bindgen::JsValue;
 use web_sys::js_sys::Uint8Array;
 
+use self::diagnostics::debug;
+use self::diagnostics::info;
 use self::diagnostics::warn;
 use super::api::LeaseMessage;
 use crate::api::client_address::ClientAddress;
@@ -62,6 +65,7 @@ pub async fn set_order(tabs: Vec<TerminalAddress>) -> Result<(), ServerFnError> 
 pub async fn stream<F, F0>(
     state: TerminalsState,
     terminal_def: TerminalDef,
+    mut notify_mouse: watch::Receiver<()>,
     on_init: impl FnOnce() -> F0,
     on_data: impl Fn(JsValue) -> F,
 ) -> Result<(), StreamError>
@@ -110,7 +114,11 @@ where
             }
             process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
         }
-        warn!("Terminal stream disconnected; reopening");
+        debug!("Terminal stream disconnected");
+        match notify_mouse.changed().await {
+            Ok(()) => info!("Terminal stream reopening"),
+            Err(error) => warn!("Terminal tab closed, disconnecting: {error}"),
+        }
         mode = RegisterTerminalMode::Reopen;
     }
 }

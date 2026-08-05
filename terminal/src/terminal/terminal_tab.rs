@@ -14,6 +14,7 @@ use terrazzo::template;
 use terrazzo::widgets::debounce::DoDebounce;
 use terrazzo::widgets::editable::editable;
 use terrazzo::widgets::tabs::TabDescriptor;
+use tokio::sync::watch;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::Instrument as _;
@@ -28,8 +29,7 @@ use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::assets::icons;
-use crate::frontend::input_overlay;
-use crate::frontend::input_overlay::input_overlay;
+use crate::frontend::input_overlay::InputOverlay;
 use crate::terminal::client as terminal_api;
 use crate::terminal::client::LiveTerminalDef;
 use crate::terminal::ui::style;
@@ -201,22 +201,41 @@ impl TabDescriptor for TerminalTab {
                 xtermjs.focus();
             }
         });
+        let InputOverlay {
+            is_open: is_input_overlay_open,
+            html: input_overlay_html,
+            textarea: input_overlay_textarea,
+        } = InputOverlay::new(send_to_terminal, focus_terminal);
+        let (notify_mouse, notify_mouse_rx) = watch::channel(());
         div(
             mouseenter = move |_| {
                 autoclone!(this);
-                if *input_overlay::OPEN_COUNT.lock().unwrap() > 0 {
-                    return;
+                autoclone!(notify_mouse);
+                match notify_mouse.send(()) {
+                    Ok(()) => (),
+                    Err(error) => warn!("Stream loop is gone! {error}"),
                 }
-                if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
+                if is_input_overlay_open.get_value_untracked() {
+                    input_overlay_textarea.try_with(|textarea| {
+                        let () = textarea.focus().unwrap_or_else(|error| {
+                            warn!("Failed to focus: {error:?}");
+                        });
+                    });
+                } else if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
                     xtermjs.focus();
                 }
             },
             class = style::TERMINAL,
             div(move |template| {
                 autoclone!(this);
-                attach(template, state.clone(), this.clone())
+                attach(
+                    template,
+                    state.clone(),
+                    this.clone(),
+                    notify_mouse_rx.clone(),
+                )
             }),
-            input_overlay(send_to_terminal, focus_terminal),
+            input_overlay_html,
         )
     }
 

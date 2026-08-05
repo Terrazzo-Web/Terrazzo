@@ -52,6 +52,7 @@ def cfg_alias(name, actual, tags = None, **kwargs):
             "//conditions:default": _mapped_label(actual, source_prefix, "@crates_client_plain__"),
         }),
         tags = tags,
+        **kwargs
     )
     native.alias(
         name = name + "__server",
@@ -60,6 +61,7 @@ def cfg_alias(name, actual, tags = None, **kwargs):
             "//conditions:default": _mapped_label(actual, source_prefix, "@crates_server_plain__"),
         }),
         tags = tags,
+        **kwargs
     )
 
     native.alias(

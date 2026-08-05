@@ -9,6 +9,7 @@ use futures::select;
 use scopeguard::defer;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
+use tokio::sync::watch;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 
@@ -33,7 +34,12 @@ use crate::api::shared::terminal_schema::TerminalDef;
 const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";
 
-pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: TerminalTab) -> Consumers {
+pub fn attach(
+    template: XTemplate,
+    state: TerminalsState,
+    terminal_tab: TerminalTab,
+    notify_mouse: watch::Receiver<()>,
+) -> Consumers {
     let terminal_address = terminal_tab.address.to_owned();
     let terminal_id = terminal_address.id.clone();
     let terminal_def = terminal_tab.to_terminal_def();
@@ -69,7 +75,7 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
     let selected = terminal_tab.selected.get_value_untracked();
     let io = async move {
         let (initialized_tx, initialized_rx) = oneshot::channel();
-        let stream_loop = xtermjs.stream_loop(state, terminal_def, initialized_tx);
+        let stream_loop = xtermjs.stream_loop(state, terminal_def, initialized_tx, notify_mouse);
         let write_loop = write_loop(&terminal_address, input_rx, initialized_rx);
         let unsubscribe_resize_event = ResizeEvent::signal().add_subscriber({
             let xtermjs = xtermjs.clone();
@@ -172,6 +178,7 @@ impl TerminalJs {
         state: TerminalsState,
         terminal_def: TerminalDef,
         initialized: oneshot::Sender<()>,
+        notify_mouse: watch::Receiver<()>,
     ) {
         let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {
@@ -181,8 +188,10 @@ impl TerminalJs {
                 let _ = initialized.send(());
                 ready(())
             };
-            let eos =
-                terminal_api::stream(state, terminal_def, on_init, |data| self.send(data)).await;
+            let eos = terminal_api::stream(state, terminal_def, notify_mouse, on_init, |data| {
+                self.send(data)
+            })
+            .await;
             match eos {
                 Ok(()) => info!("End"),
                 Err(error) => warn!("Failed: {error}"),

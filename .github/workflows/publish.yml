@@ -11,6 +11,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "off"
+          cache-kind: "off"
       - uses: ./.github/actions/publish
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}

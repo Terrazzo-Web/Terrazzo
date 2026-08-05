@@ -12,15 +12,13 @@ inputs:
       - strict
       - lenient
       - off
-  cache-key:
-    description: "A prefix added to the cache key"
-    required: false
   cache-kind:
     description: "The build cache to restore"
-    required: false
+    required: true
     default: cargo
     type: choice
     options:
+      - off
       - cargo
       - bazel
 runs:
@@ -36,7 +34,7 @@ runs:
       if: ${{ inputs.cache-level != 'off' && inputs.cache-kind == 'cargo' }}
       uses: Swatinem/rust-cache@v2.9.1
       with:
-        shared-key: cargo-build
+        shared-key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}
         save-if: ${{ inputs.cache-level == 'strict' }}
 
     - name: Setup Bazel cache
@@ -46,7 +44,7 @@ runs:
         path: |
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-        key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
 
     - name: Restore Bazel cache
       if: ${{ inputs.cache-level == 'lenient' && inputs.cache-kind == 'bazel' }}
@@ -55,7 +53,7 @@ runs:
         path: |
           ~/.bazel/cache/disk/
           ~/.bazel/cache/repository/
-        key: ${{ runner.os }}-${{ inputs.cache-key || github.job }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
+        key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.cache-key || github.job }}-
 
@@ -64,14 +62,14 @@ runs:
       uses: actions/cache@v6.1.0
       with:
         path: ~/.cache/ms-playwright/
-        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+        key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('package-lock.json') }}
 
     - name: Restore Playwright cache
       if: ${{ inputs.cache-level == 'lenient' }}
       uses: actions/cache/restore@v6.1.0
       with:
         path: ~/.cache/ms-playwright/
-        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+        key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('package-lock.json') }}
 
     - name: Add wasm32 compilation target
       shell: bash

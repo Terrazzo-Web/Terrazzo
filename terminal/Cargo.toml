@@ -61,7 +61,7 @@ terrazzo-css = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["full"] }
 tokio-rustls = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
@@ -147,7 +147,6 @@ server = [
   "dep:scopeguard",
   "dep:sha2",
   "dep:tokio",
-  "tokio/full",
   "dep:toml",
   "dep:tonic",
   "dep:tonic-prost",
@@ -186,8 +185,6 @@ terminal-client = [
   "dep:futures",
   "dep:scopeguard",
   "dep:web-sys",
-  "dep:tokio",
-  "tokio/sync",
   "terminal",
   "tiles-state-client",
   "web-sys/HtmlTextAreaElement",

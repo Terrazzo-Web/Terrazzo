@@ -86,10 +86,10 @@ pub fn attach(template: XTemplate, state: TerminalsState, terminal_tab: Terminal
         };
         *terminal_tab.xtermjs.lock().or_throw("xtermjs") = None;
         drop(unsubscribe_resize_event);
-        drop(xtermjs);
-        drop(on_data);
-        drop(on_resize);
         drop(on_title_change);
+        drop(on_resize);
+        drop(on_data);
+        drop(xtermjs);
         info!("Detached XtermJS");
     };
     spawn_local(io.in_current_span());
@@ -173,6 +173,7 @@ impl TerminalJs {
         terminal_def: TerminalDef,
         initialized: oneshot::Sender<()>,
     ) {
+        let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {
             debug!("Start");
             let on_init = || {
@@ -187,7 +188,7 @@ impl TerminalJs {
                 Err(error) => warn!("Failed: {error}"),
             }
         }
-        .instrument(debug_span!("StreamLoop"))
+        .instrument(span)
         .await
     }
 }

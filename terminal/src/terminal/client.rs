@@ -74,14 +74,14 @@ where
     let mut on_init = Some(on_init);
     loop {
         let mut stream = super::api::stream(mode, terminal_def.clone())
-            .await
-            .map_err(StreamError::from)?
+            .await?
             .into_inner();
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         let mut unacked = 0;
         while let Some(chunk) = stream.next().await {
             let messages: Vec<Result<LeaseMessage, serde_json::Error>> =
                 parser.push_chunk(&chunk.map_err(StreamError::from)?);
+            let mut buffer = vec![];
             for message in messages {
                 match message.map_err(StreamError::Json)? {
                     LeaseMessage::Init => {
@@ -90,22 +90,25 @@ where
                         }
                     }
                     LeaseMessage::Eos => {
+                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
                         state.on_eos(&terminal_id);
                         return Ok(());
                     }
                     LeaseMessage::Error(error) => {
+                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
                         state.on_eos(&terminal_id);
                         return Err(StreamError::ServerFn(error));
                     }
                     LeaseMessage::Base64(data) => {
                         let data = base64::engine::general_purpose::STANDARD.decode(data)?;
-                        process_data(&terminal_def, &on_data, &mut unacked, &data).await?
+                        buffer.extend(data);
                     }
                     LeaseMessage::Utf8(data) => {
-                        process_data(&terminal_def, &on_data, &mut unacked, data.as_bytes()).await?
+                        buffer.extend(data.as_bytes());
                     }
                 }
             }
+            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
         }
         warn!("Terminal stream disconnected; reopening");
         mode = RegisterTerminalMode::Reopen;
@@ -116,14 +119,17 @@ async fn process_data<F>(
     terminal_def: &TerminalDefImpl<TabTitle<String>>,
     on_data: &impl Fn(JsValue) -> F,
     unacked: &mut usize,
-    data: &[u8],
+    data: Vec<u8>,
 ) -> Result<(), StreamError>
 where
     F: Future<Output = ()>,
 {
+    if data.is_empty() {
+        return Ok(());
+    }
     *unacked += data.len();
     let value = Uint8Array::new_with_length(data.len() as u32);
-    value.copy_from(data);
+    value.copy_from(&data);
     on_data(value.into()).await;
     if *unacked >= STREAMING_WINDOW_SIZE / 2 {
         super::api::ack(terminal_def.address.clone(), std::mem::take(unacked))

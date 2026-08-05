@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use futures::TryStreamExt;
+use futures::TryStreamExt as _;
 use server_fn::ServerFnError;
 use tonic::body::Body as BoxBody;
 use tonic::client::GrpcService;

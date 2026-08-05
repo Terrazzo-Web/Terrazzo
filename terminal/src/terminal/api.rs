@@ -82,6 +82,6 @@ pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnEr
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<TextStream<ServerFnError>, ServerFnError> {
+) -> Result<TextStream, ServerFnError> {
     super::service::stream(mode, terminal_def).await
 }

@@ -11,6 +11,7 @@ use terrazzo_pty::OpenProcessError;
 use terrazzo_pty::ProcessIO;
 use terrazzo_pty::lease::LeaseItem;
 use tonic::Status;
+use tracing::debug;
 use trz_gateway_common::id::ClientName;
 use uuid::Uuid;
 
@@ -75,6 +76,7 @@ async fn list_impl(
         response.append(&mut terminals);
     }
     request.clear();
+    debug!("Found list {response:?}");
     Ok(response)
 }
 
@@ -256,8 +258,9 @@ remote_fn_service::unary::declare_remote_fn!(
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<TextStream<ServerFnError>, ServerFnError> {
+) -> Result<TextStream, ServerFnError> {
     let remote = terminal_def.address.via.clone();
+    debug!(%remote, "Calling stream()");
     let stream = STREAM_FN.call(remote, (mode, terminal_def)).await?;
     let stream = stream.map_ok(|item| {
         serialize_line(&item).unwrap_or_else(|error| {
@@ -285,19 +288,27 @@ remote_fn_service::streaming::declare_remote_fn!(
             let shell = server_config.with(|config| config.terminal_shell.clone());
             ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
         });
-        let stream = async move {
-            match stream.await {
-                Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
-                Err(error) => Err(Status::internal(error.to_string())),
+        let stream = {
+            let terminal_id = terminal_id.clone();
+            async move {
+                match stream.await {
+                    Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
+                    Err(error) => Err(Status::internal(error.to_string())),
+                }
             }
         };
 
         use futures::future::ready;
         use futures::stream::once;
         let stream = async move {
-            Ok(once(ready(LeaseMessage::Init))
-                .chain(stream.await?.map(LeaseMessage::from))
-                .map(Ok))
+            let stream = stream.await?;
+            let stream = stream.inspect(move |next| {
+                if let LeaseItem::EOS = next {
+                    let _removed = get_processes().remove(&terminal_id);
+                }
+            });
+            let stream = stream.map(LeaseMessage::from);
+            Ok(once(ready(LeaseMessage::Init)).chain(stream).map(Ok))
         };
 
         let stream = helpers::is_future_stream(stream);

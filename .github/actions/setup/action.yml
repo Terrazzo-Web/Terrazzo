@@ -34,7 +34,8 @@ runs:
       if: ${{ inputs.cache-level != 'off' && inputs.cache-kind == 'cargo' }}
       uses: Swatinem/rust-cache@v2.9.1
       with:
-        shared-key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}
+        prefix-key: ${{ runner.os }}-${{ inputs.cache-kind }}
+        shared-key: ${{ steps.cache-week.outputs.week }}
         save-if: ${{ inputs.cache-level == 'strict' }}
 
     - name: Setup Bazel cache
@@ -62,7 +63,9 @@ runs:
       uses: actions/cache@v6.1.0
       with:
         path: ~/.cache/ms-playwright/
-        key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('package-lock.json') }}
+        key: ${{ runner.os }}-${{ inputs.cache-kind }}-playwright-${{ steps.cache-week.outputs.week }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.cache-kind }}-playwright-
 
     - name: Restore Playwright cache
       if: ${{ inputs.cache-level == 'lenient' }}

@@ -55,7 +55,7 @@ runs:
           ~/.bazel/cache/repository/
         key: ${{ runner.os }}-${{ inputs.cache-kind }}-${{ steps.cache-week.outputs.week }}-${{ hashFiles('**/*.lock', '**/BUILD', '**/*.bazel', '**/*.bzl', '.github/**') }}
         restore-keys: |
-          ${{ runner.os }}-${{ inputs.cache-key || github.job }}-
+          ${{ runner.os }}-${{ inputs.cache-kind }}-
 
     - name: Setup Playwright cache
       if: ${{ inputs.cache-level == 'strict' }}

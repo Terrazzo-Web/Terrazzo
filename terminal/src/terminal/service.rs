@@ -288,20 +288,27 @@ remote_fn_service::streaming::declare_remote_fn!(
             let shell = server_config.with(|config| config.terminal_shell.clone());
             ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
         });
-        let stream = async move {
-            match stream.await {
-                Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
-                Err(error) => Err(Status::internal(error.to_string())),
+        let stream = {
+            let terminal_id = terminal_id.clone();
+            async move {
+                match stream.await {
+                    Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
+                    Err(error) => Err(Status::internal(error.to_string())),
+                }
             }
         };
 
         use futures::future::ready;
         use futures::stream::once;
         let stream = async move {
-            Ok(once(ready(LeaseMessage::Init))
-                // TODO: on EOS, remove the process
-                .chain(stream.await?.map(LeaseMessage::from))
-                .map(Ok))
+            let stream = stream.await?;
+            let stream = stream.inspect(move |next| {
+                if let LeaseItem::EOS = next {
+                    let _removed = get_processes().remove(&terminal_id);
+                }
+            });
+            let stream = stream.map(LeaseMessage::from);
+            Ok(once(ready(LeaseMessage::Init)).chain(stream).map(Ok))
         };
 
         let stream = helpers::is_future_stream(stream);

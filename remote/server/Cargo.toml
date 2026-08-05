@@ -16,7 +16,7 @@ keywords = ["terrazzo", "gateway", "proxy"]
 default = []
 acme = ["dep:instant-acme", "dep:rcgen", "dep:serde_json"]
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[dependencies]
 trz-gateway-common = { workspace = true }
 
 autoclone = { workspace = true }

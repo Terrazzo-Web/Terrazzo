@@ -42,6 +42,7 @@ TERMINAL_CLIENT_DEPS = CLIENT_DEPS + TERMINAL_DEPS + TILES_STATE_CLIENT_DEPS + [
     "@crates//:base64",
     "@crates//:futures",
     "@crates//:scopeguard",
+    "@crates//:tokio",
     "@crates//:web-sys",
 ]
 TERMINAL_CLIENT_FEATURES = CLIENT_FEATURES + TERMINAL_FEATURES + TILES_STATE_CLIENT_FEATURES + ["terminal-client"]

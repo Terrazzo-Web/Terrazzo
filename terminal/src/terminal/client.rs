@@ -6,7 +6,6 @@ use server_fn::ServerFnError;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
 use terrazzo::prelude::diagnostics;
-use tokio::sync::watch;
 use wasm_bindgen::JsValue;
 use web_sys::js_sys::Uint8Array;
 
@@ -19,6 +18,7 @@ use crate::api::shared::terminal_schema::*;
 use crate::terminal::ui::TerminalsState;
 use crate::tiles::id::TileId;
 use crate::utils::ndjson::NdjsonBuffer;
+use crate::utils::watch;
 
 pub type LiveTerminalDef = TerminalDefImpl<XSignal<TabTitle<XString>>>;
 
@@ -65,7 +65,7 @@ pub async fn set_order(tabs: Vec<TerminalAddress>) -> Result<(), ServerFnError> 
 pub async fn stream<F, F0>(
     state: TerminalsState,
     terminal_def: TerminalDef,
-    mut notify_mouse: watch::Receiver<()>,
+    notify_mouse: watch::WatchRx,
     on_init: impl FnOnce() -> F0,
     on_data: impl Fn(JsValue) -> F,
 ) -> Result<(), StreamError>
@@ -115,7 +115,7 @@ where
             process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
         }
         debug!("Terminal stream disconnected");
-        match notify_mouse.changed().await {
+        match notify_mouse.notified().await {
             Ok(()) => info!("Terminal stream reopening"),
             Err(error) => warn!("Terminal tab closed, disconnecting: {error}"),
         }

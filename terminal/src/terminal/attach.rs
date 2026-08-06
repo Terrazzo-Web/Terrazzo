@@ -9,7 +9,6 @@ use futures::select;
 use scopeguard::defer;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
-use tokio::sync::watch;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 
@@ -30,6 +29,7 @@ use crate::api::shared::terminal_schema;
 use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::utils::watch;
 
 const XTERMJS_ATTR: &str = "data-xtermjs";
 const IS_ATTACHED: &str = "Y";
@@ -38,7 +38,7 @@ pub fn attach(
     template: XTemplate,
     state: TerminalsState,
     terminal_tab: TerminalTab,
-    notify_mouse: watch::Receiver<()>,
+    notify_mouse: watch::WatchRx,
 ) -> Consumers {
     let terminal_address = terminal_tab.address.to_owned();
     let terminal_id = terminal_address.id.clone();
@@ -178,7 +178,7 @@ impl TerminalJs {
         state: TerminalsState,
         terminal_def: TerminalDef,
         initialized: oneshot::Sender<()>,
-        notify_mouse: watch::Receiver<()>,
+        notify_mouse: watch::WatchRx,
     ) {
         let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {

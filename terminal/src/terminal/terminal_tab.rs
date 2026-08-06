@@ -14,7 +14,6 @@ use terrazzo::template;
 use terrazzo::widgets::debounce::DoDebounce;
 use terrazzo::widgets::editable::editable;
 use terrazzo::widgets::tabs::TabDescriptor;
-use tokio::sync::watch;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::Instrument as _;
@@ -34,6 +33,7 @@ use crate::terminal::client as terminal_api;
 use crate::terminal::client::LiveTerminalDef;
 use crate::terminal::ui::style;
 use crate::terminal_id::TerminalId;
+use crate::utils::watch;
 
 #[nameth]
 #[derive(Clone, PartialEq, Eq)]
@@ -206,14 +206,14 @@ impl TabDescriptor for TerminalTab {
             html: input_overlay_html,
             textarea: input_overlay_textarea,
         } = InputOverlay::new(send_to_terminal, focus_terminal);
-        let (notify_mouse, notify_mouse_rx) = watch::channel(());
+        let notify_mouse = watch::WatchTx::new();
+        let notify_mouse_rx = notify_mouse.subscribe();
         div(
             mouseenter = move |_| {
                 autoclone!(this);
-                autoclone!(notify_mouse);
-                match notify_mouse.send(()) {
+                match notify_mouse.notify(()) {
                     Ok(()) => (),
-                    Err(error) => warn!("Stream loop is gone! {error}"),
+                    Err(()) => warn!("Stream loop is gone!"),
                 }
                 if is_input_overlay_open.get_value_untracked() {
                     input_overlay_textarea.try_with(|textarea| {

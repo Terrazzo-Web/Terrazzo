@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use futures::FutureExt;
 use futures::channel::oneshot;
 use futures::future::Shared;
-use std::sync::Mutex;
 
 pub struct WatchTx<T = ()>(Arc<std::sync::Mutex<WatchInner<T>>>);
 pub struct WatchRx<T = ()>(Arc<std::sync::Mutex<WatchInner<T>>>);

@@ -12,14 +12,14 @@ mod text_editor;
 mod tiles;
 mod utils;
 
-#[cfg(feature = "server")]
-pub use self::backend::RunServerError;
-#[cfg(feature = "server")]
-pub use self::backend::run_server;
-
 #[cfg(test)]
 use fluent_asserter as _;
 #[cfg(test)]
 use tempfile as _;
 #[cfg(test)]
 use tokio as _;
+
+#[cfg(feature = "server")]
+pub use self::backend::RunServerError;
+#[cfg(feature = "server")]
+pub use self::backend::run_server;

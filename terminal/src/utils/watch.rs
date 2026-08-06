@@ -47,15 +47,12 @@ impl<T> Drop for WatchTx<T> {
 
 impl<T: Clone> WatchRx<T> {
     pub fn notified(&self) -> impl Future<Output = Result<T, oneshot::Canceled>> {
-        let receiver = {
-            let lock = self.0.lock().expect("Watch lock");
-            if lock.tx_dropped {
-                let (_, rx) = oneshot::channel();
-                return rx.shared();
-            }
-            lock.receiver.clone()
-        };
-        receiver
+        let lock = self.0.lock().expect("Watch lock");
+        if lock.tx_dropped {
+            let (_, rx) = oneshot::channel();
+            return rx.shared();
+        }
+        lock.receiver.clone()
     }
 }
 

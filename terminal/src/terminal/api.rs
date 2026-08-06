@@ -24,7 +24,7 @@ pub async fn set_tile_id(
     terminal_id: TerminalId,
     tile_id: TileId,
 ) -> Result<(), ServerFnError> {
-    Ok(super::service::SET_TILE_ID_FN
+    Ok(super::service::tile_id::SET_TILE_ID_FN
         .call(remote, (terminal_id, tile_id))
         .await?)
 }
@@ -40,42 +40,42 @@ pub enum LeaseMessage {
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn list() -> Result<Vec<TerminalDef>, ServerFnError> {
-    super::service::list().await
+    super::service::list::list().await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn new_id(remote: ClientAddress, tile: TileId) -> Result<TerminalDef, ServerFnError> {
-    super::service::new_id(remote, tile).await
+    super::service::new_id::new_id(remote, tile).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn write(terminal: TerminalAddress, data: String) -> Result<(), ServerFnError> {
-    super::service::write(terminal, data).await
+    super::service::write::write(terminal, data).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn resize(request: ResizeRequest) -> Result<(), ServerFnError> {
-    super::service::resize(request).await
+    super::service::resize::resize(request).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn set_title(request: SetTitleRequest) -> Result<(), ServerFnError> {
-    super::service::set_title(request).await
+    super::service::title::set_title(request).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn set_order(terminals: Vec<TerminalAddress>) -> Result<(), ServerFnError> {
-    super::service::set_order(terminals).await
+    super::service::order::set_order(terminals).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn close(terminal: TerminalAddress) -> Result<(), ServerFnError> {
-    super::service::close(terminal).await
+    super::service::close::close(terminal).await
 }
 
 #[server(protocol = Http<Json, Json>)]
 pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnError> {
-    super::service::ack(terminal, ack).await
+    super::service::ack::ack(terminal, ack).await
 }
 
 #[server(protocol = Http<Json, StreamingText>)]
@@ -83,5 +83,5 @@ pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
 ) -> Result<TextStream, ServerFnError> {
-    super::service::stream(mode, terminal_def).await
+    super::service::stream::stream(mode, terminal_def).await
 }

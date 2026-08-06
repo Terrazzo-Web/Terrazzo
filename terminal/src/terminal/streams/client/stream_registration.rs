@@ -8,12 +8,12 @@ use server_fn::ServerFnError;
 
 use crate::terminal_id::TerminalId;
 
+pub type StreamRegistrations = HashMap<TerminalId, mpsc::Sender<Result<String, ServerFnError>>>;
+
 pub fn stream_registrations() -> MutexGuard<'static, Option<StreamRegistrations>> {
     static REGISTRATIONS: Mutex<Option<StreamRegistrations>> = Mutex::new(None);
     REGISTRATIONS.lock().expect("StreamRegistrations")
 }
-
-pub type StreamRegistrations = HashMap<TerminalId, mpsc::Sender<Result<String, ServerFnError>>>;
 
 pub struct StreamRegistration {
     pub(super) terminal_id: TerminalId,

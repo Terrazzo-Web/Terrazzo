@@ -47,11 +47,11 @@ fn process_messages(
     messages: Vec<Result<PipeMessage, serde_json::Error>>,
 ) -> Result<(), ServerFnError> {
     let mut lock = stream_registrations();
+    let Some(stream_registrations) = &mut *lock else {
+        return Err(ServerFnError::new("StreamRegistrations closed"));
+    };
     for message in messages {
         let PipeMessage { terminal_id, chunk } = message?;
-        let Some(stream_registrations) = &mut *lock else {
-            return Err(ServerFnError::new("StreamRegistrations closed"));
-        };
         if let Some(tx) = stream_registrations.get_mut(&terminal_id) {
             match tx.try_send(chunk) {
                 Ok(()) => (),

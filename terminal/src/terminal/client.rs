@@ -78,9 +78,7 @@ where
     let mut mode = RegisterTerminalMode::Create;
     let mut on_init = Some(on_init);
     loop {
-        let mut stream = super::api::stream(mode, terminal_def.clone())
-            .await?
-            .into_inner();
+        let mut stream = super::api::stream(mode, terminal_def.clone()).await?;
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         let mut unacked = 0;
         while let Some(chunk) = stream.next().await {

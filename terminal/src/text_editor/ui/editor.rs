@@ -21,8 +21,7 @@ use super::fsio;
 use super::fsio::client::store_file;
 use super::pdf_viewer::PdfJs;
 use super::style;
-use crate::frontend::input_overlay;
-use crate::frontend::input_overlay::input_overlay;
+use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
 use crate::text_editor::manager::TextEditorManager;
@@ -116,16 +115,25 @@ pub fn editor(
             editor_body.focus();
         }
     });
-    let input_overlay = if !is_pdf && !is_html_preview {
+    let (input_overlay_html, input_overlay) = if !is_pdf && !is_html_preview {
         let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
             autoclone!(editor_body);
             if let Some(editor_body) = &*editor_body.lock().unwrap() {
                 editor_body.insert_text(text);
             }
         });
-        Some(input_overlay(send_to_editor, focus_editor.clone()))
+
+        let InputOverlay {
+            is_open: is_input_overlay_open,
+            html: input_overlay_html,
+            textarea: input_overlay_textarea,
+        } = InputOverlay::new(send_to_editor, focus_editor.clone());
+        (
+            Some(input_overlay_html),
+            Some((is_input_overlay_open, input_overlay_textarea)),
+        )
     } else {
-        None
+        (None, None)
     };
 
     let edits_notify_registration = manager.notify_service.watch_file(
@@ -152,12 +160,19 @@ pub fn editor(
         #[cfg(not(feature = "client-prod"))]
         class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
         html_preview..,
-        input_overlay..,
+        input_overlay_html..,
         mouseenter = move |_| {
-            if *input_overlay::OPEN_COUNT.lock().unwrap() > 0 {
-                return;
+            if let Some((is_input_overlay_open, input_overlay_textarea)) = &input_overlay
+                && is_input_overlay_open.get_value_untracked()
+            {
+                input_overlay_textarea.try_with(|textarea| {
+                    textarea.focus().unwrap_or_else(|error| {
+                        warn!("Failed to focus: {error:?}");
+                    })
+                });
+            } else {
+                focus_editor()
             }
-            focus_editor()
         },
         after_render = move |element| {
             autoclone!(path);

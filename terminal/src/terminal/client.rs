@@ -1,5 +1,6 @@
 use base64::Engine as _;
 use futures::StreamExt as _;
+use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
@@ -9,6 +10,8 @@ use terrazzo::prelude::diagnostics;
 use wasm_bindgen::JsValue;
 use web_sys::js_sys::Uint8Array;
 
+use self::diagnostics::debug;
+use self::diagnostics::info;
 use self::diagnostics::warn;
 use super::api::LeaseMessage;
 use crate::api::client_address::ClientAddress;
@@ -16,6 +19,7 @@ use crate::api::shared::terminal_schema::*;
 use crate::terminal::ui::TerminalsState;
 use crate::tiles::id::TileId;
 use crate::utils::ndjson::NdjsonBuffer;
+use crate::utils::watch;
 
 pub type LiveTerminalDef = TerminalDefImpl<XSignal<TabTitle<XString>>>;
 
@@ -62,6 +66,7 @@ pub async fn set_order(tabs: Vec<TerminalAddress>) -> Result<(), ServerFnError> 
 pub async fn stream<F, F0>(
     state: TerminalsState,
     terminal_def: TerminalDef,
+    notify_mouse: watch::WatchRx,
     on_init: impl FnOnce() -> F0,
     on_data: impl Fn(JsValue) -> F,
 ) -> Result<(), StreamError>
@@ -110,7 +115,14 @@ where
             }
             process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
         }
-        warn!("Terminal stream disconnected; reopening");
+        debug!("Terminal stream disconnected");
+        match notify_mouse.notified().await {
+            Ok(()) => info!("Terminal stream reopening"),
+            Err(oneshot::Canceled) => {
+                warn!("Terminal tab closed, disconnecting");
+                return Err(StreamError::UxClosed);
+            }
+        }
         mode = RegisterTerminalMode::Reopen;
     }
 }
@@ -156,6 +168,9 @@ pub enum StreamError {
 
     #[error("[{n}] {0}", n = self.name())]
     DecodeError(#[from] base64::DecodeError),
+
+    #[error("[{n}] UX closed", n = self.name())]
+    UxClosed,
 }
 
 impl From<ServerFnError> for StreamError {

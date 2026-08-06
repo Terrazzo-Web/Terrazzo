@@ -10,3 +10,7 @@ pub mod ndjson;
 #[cfg(feature = "server")]
 #[cfg(any(feature = "logs-panel", feature = "terminal"))]
 pub mod ndjson_utils;
+
+#[cfg(feature = "client")]
+#[cfg(feature = "terminal")]
+pub mod watch;

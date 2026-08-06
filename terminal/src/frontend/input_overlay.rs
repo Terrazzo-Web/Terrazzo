@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Mutex;
 
 use terrazzo::autoclone;
 use terrazzo::html;
@@ -26,81 +25,72 @@ struct SpeechRecognitionHandle {
     _on_error: Closure<dyn FnMut(JsValue)>,
 }
 
-pub static OPEN_COUNT: Mutex<i32> = Mutex::new(0);
-
-#[derive(Debug, PartialEq, Eq)]
-struct IsOpenToggle;
-
-impl IsOpenToggle {
-    fn new() -> Self {
-        *OPEN_COUNT.lock().unwrap() += 1;
-        Self
-    }
+pub struct InputOverlay {
+    pub is_open: XSignal<bool>,
+    pub html: XElement,
+    pub textarea: ElementCapture<HtmlTextAreaElement>,
 }
 
-impl Drop for IsOpenToggle {
-    fn drop(&mut self) {
-        *OPEN_COUNT.lock().unwrap() -= 1;
+impl InputOverlay {
+    #[html]
+    pub fn new(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> InputOverlay {
+        let is_open: XSignal<bool> = XSignal::new("input-overlay-open", false);
+        let is_recording = XSignal::new("input-overlay-recording", false);
+        let value = XSignal::new("input-overlay-value", XString::default());
+        let textarea: ElementCapture<HtmlTextAreaElement> = Default::default();
+        let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
+        let drop_is_open = scopeguard::guard(
+            (is_recording.clone(), speech_recognition.clone()),
+            |(is_recording, speech_recognition)| {
+                if is_recording.get_value_untracked() {
+                    spawn_local(async move { stop_recording(is_recording, speech_recognition) });
+                }
+            },
+        );
+
+        let html = div(
+            before_render = move |_| {
+                let _ = &drop_is_open;
+            },
+            class = style::INPUT_OVERLAY,
+            class %= overlay_class(is_open.clone()),
+            #[cfg(not(feature = "client-prod"))]
+            class = "input-overlay",
+            div(
+                class = style::INPUT_OVERLAY_BUTTONS,
+                state_button(
+                    is_open.clone(),
+                    is_recording.clone(),
+                    value.clone(),
+                    textarea.clone(),
+                    speech_recognition.clone(),
+                ),
+                send_button(
+                    send.clone(),
+                    focus_target.clone(),
+                    is_open.clone(),
+                    is_recording.clone(),
+                    value.clone(),
+                    textarea.clone(),
+                    speech_recognition.clone(),
+                ),
+            ),
+            compose_textarea(
+                textarea.clone(),
+                value.clone(),
+                is_open.clone(),
+                is_recording,
+                send,
+                focus_target,
+                speech_recognition,
+            ),
+        );
+        InputOverlay {
+            is_open,
+            html,
+            textarea,
+        }
     }
-}
-
-#[html]
-pub fn input_overlay(send: Ptr<dyn Fn(String)>, focus_target: Ptr<dyn Fn()>) -> XElement {
-    let is_open = XSignal::new("input-overlay-open", false);
-    let is_open_toggle = is_open.view("is-overlay-open-toggle", |t| {
-        if *t { Some(IsOpenToggle::new()) } else { None }
-    });
-    let is_recording = XSignal::new("input-overlay-recording", false);
-    let value = XSignal::new("input-overlay-value", XString::default());
-    let textarea: ElementCapture<HtmlTextAreaElement> = Default::default();
-    let speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>> = Default::default();
-    let drop_is_open = scopeguard::guard(
-        (is_recording.clone(), speech_recognition.clone()),
-        |(is_recording, speech_recognition)| {
-            if is_recording.get_value_untracked() {
-                spawn_local(async move { stop_recording(is_recording, speech_recognition) });
-            }
-        },
-    );
-
-    div(
-        before_render = move |_| {
-            let _ = &drop_is_open;
-            let _ = &is_open_toggle;
-        },
-        class = style::INPUT_OVERLAY,
-        class %= overlay_class(is_open.clone()),
-        #[cfg(not(feature = "client-prod"))]
-        class = "input-overlay",
-        div(
-            class = style::INPUT_OVERLAY_BUTTONS,
-            state_button(
-                is_open.clone(),
-                is_recording.clone(),
-                value.clone(),
-                textarea.clone(),
-                speech_recognition.clone(),
-            ),
-            send_button(
-                send.clone(),
-                focus_target.clone(),
-                is_open.clone(),
-                is_recording.clone(),
-                value.clone(),
-                textarea.clone(),
-                speech_recognition.clone(),
-            ),
-        ),
-        compose_textarea(
-            textarea.clone(),
-            value.clone(),
-            is_open.clone(),
-            is_recording,
-            send,
-            focus_target,
-            speech_recognition,
-        ),
-    )
 }
 
 #[template(wrap = true)]

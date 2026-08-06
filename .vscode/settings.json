@@ -3,12 +3,12 @@
     "rust-analyzer.cargo.features": [
         // "acme",
         // "client",
-        "client-all",
+        // "client-all",
         // "converter",
         // "debug",
         // "server",
-        "server-all",
-        "no_wasm_build",
+        // "server-all",
+        // "no_wasm_build",
     ],
     "protobuf.protoc.path": "/usr/bin/protoc",
 }

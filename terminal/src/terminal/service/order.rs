@@ -21,6 +21,7 @@ pub async fn set_order(terminals: Vec<TerminalAddress>) -> Result<(), ServerFnEr
     }
     Ok(())
 }
+
 remote_fn_service::unary::declare_remote_fn!(
     SET_ORDER_FN,
     "terminal.set_order",

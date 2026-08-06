@@ -13,7 +13,7 @@ use axum_server::Handle;
 use axum_server::accept::DefaultAcceptor;
 use axum_server::tls_rustls::RustlsAcceptor;
 use axum_server::tls_rustls::RustlsConfig;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::Shared;
 use gateway_config::app_config::AppConfig;
 use http_or_https::HttpOrHttps;

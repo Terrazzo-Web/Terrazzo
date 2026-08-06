@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::time::Instant;
 
 use connect::ConnectError;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;

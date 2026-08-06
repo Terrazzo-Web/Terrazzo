@@ -2,7 +2,7 @@ use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::future::Either;
 use http::header::InvalidHeaderValue;

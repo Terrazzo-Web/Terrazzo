@@ -4,11 +4,16 @@ use std::sync::MutexGuard;
 
 use futures::StreamExt as _;
 use futures::channel::mpsc;
+use futures::channel::oneshot;
+use futures::future::Shared;
 use server_fn::ServerFnError;
 
 use crate::terminal_id::TerminalId;
 
-pub type StreamRegistrations = HashMap<TerminalId, mpsc::Sender<Result<String, ServerFnError>>>;
+pub struct StreamRegistrations {
+    pub map: HashMap<TerminalId, mpsc::Sender<Result<String, ServerFnError>>>,
+    pub ready: Shared<oneshot::Receiver<()>>,
+}
 
 pub fn stream_registrations() -> MutexGuard<'static, Option<StreamRegistrations>> {
     static REGISTRATIONS: Mutex<Option<StreamRegistrations>> = Mutex::new(None);
@@ -24,7 +29,7 @@ impl Drop for StreamRegistration {
     fn drop(&mut self) {
         let mut lock = stream_registrations();
         if let Some(stream_registrations) = &mut *lock {
-            stream_registrations.remove(&self.terminal_id);
+            stream_registrations.map.remove(&self.terminal_id);
         }
     }
 }

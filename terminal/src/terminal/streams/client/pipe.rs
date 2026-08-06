@@ -1,4 +1,9 @@
+use std::collections::HashMap;
+
+use futures::FutureExt as _;
 use futures::StreamExt as _;
+use futures::channel::oneshot;
+use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
@@ -12,24 +17,31 @@ use super::stream_registration::stream_registrations;
 use crate::terminal::api::PipeMessage;
 use crate::utils::ndjson::NdjsonBuffer;
 
-pub fn ensure_pipe(f: impl FnOnce(&mut StreamRegistrations)) {
-    {
+pub fn ensure_pipe(f: impl FnOnce(&mut StreamRegistrations)) -> Shared<oneshot::Receiver<()>> {
+    let (tx, ready) = {
         let mut lock = stream_registrations();
         if let Some(stream_registrations) = &mut *lock {
             f(stream_registrations);
-            return;
+            return stream_registrations.ready.clone();
         }
-        let mut stream_registrations = StreamRegistrations::new();
+        let (tx, rx) = oneshot::channel();
+        let ready = rx.shared();
+        let mut stream_registrations = StreamRegistrations {
+            map: HashMap::default(),
+            ready: ready.clone(),
+        };
         f(&mut stream_registrations);
-        *lock = Some(stream_registrations)
-    }
+        *lock = Some(stream_registrations);
+        (tx, ready)
+    };
 
     spawn_local(async {
-        match pipe_impl().await {
+        match pipe_impl(tx).await {
             Ok(()) => info!("Pipe closed"),
             Err(error) => warn!("Pipe failed: {error}"),
         }
-    })
+    });
+    ready
 }
 
 #[nameth]
@@ -48,7 +60,7 @@ pub enum PipeError {
     StreamRegistrationsClosed,
 }
 
-async fn pipe_impl() -> Result<(), PipeError> {
+async fn pipe_impl(tx: oneshot::Sender<()>) -> Result<(), PipeError> {
     defer! {
         *super::stream_registration::stream_registrations() = None;
     }
@@ -56,6 +68,7 @@ async fn pipe_impl() -> Result<(), PipeError> {
         .await
         .map_err(PipeError::PipeOpenError)?
         .into_inner();
+    let _ = tx.send(());
     let mut parser = NdjsonBuffer::<PipeMessage>::default();
     while let Some(chunk) = pipe.next().await {
         let messages = parser.push_chunk(&chunk.map_err(PipeError::PipeMessagesError)?);
@@ -73,13 +86,13 @@ fn process_messages(
     };
     for message in messages {
         let PipeMessage { terminal_id, chunk } = message.map_err(PipeError::PipeJsonError)?;
-        if let Some(tx) = stream_registrations.get_mut(&terminal_id) {
+        if let Some(tx) = stream_registrations.map.get_mut(&terminal_id) {
             match tx.try_send(chunk) {
                 Ok(()) => (),
                 Err(error) => {
                     // TODO: to avoid this, the ack window should be smaller than the channel buffer size.
                     warn!(%terminal_id, "Failed to send: {error}");
-                    stream_registrations.remove(&terminal_id);
+                    stream_registrations.map.remove(&terminal_id);
                 }
             }
         } else {

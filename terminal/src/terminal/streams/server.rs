@@ -6,6 +6,7 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
+use tracing::warn;
 
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::TerminalDef;
@@ -37,6 +38,14 @@ pub async fn pipe() -> TextStream {
     );
 
     let pipe = pipe.map(|item| serialize_line(&item).map_err(ServerFnError::from));
+
+    let end_of_pipe = futures::stream::once(async {
+        warn!("Reached end of pipe");
+        *PIPE.lock().expect("pipe") = None;
+        Err(ServerFnError::ServerError(String::default()))
+    })
+    .filter(|_| std::future::ready(false));
+    let pipe = pipe.chain(end_of_pipe);
 
     return TextStream::new(pipe);
 }

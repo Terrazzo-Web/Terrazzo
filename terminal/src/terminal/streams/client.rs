@@ -1,4 +1,5 @@
 use futures::channel::mpsc;
+use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
@@ -24,8 +25,10 @@ pub async fn stream(
         rx,
     };
     ensure_pipe(|stream_registrations| {
-        stream_registrations.insert(terminal_id, tx);
-    });
+        stream_registrations.map.insert(terminal_id, tx);
+    })
+    .await
+    .map_err(StreamError::PipeError)?;
     let () = crate::terminal::api::add_stream(mode, terminal_def)
         .await
         .map_err(StreamError::AddStreamError)?;
@@ -37,4 +40,7 @@ pub async fn stream(
 pub enum StreamError {
     #[error("[{n}] {0}", n = self.name())]
     AddStreamError(ServerFnError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    PipeError(oneshot::Canceled),
 }

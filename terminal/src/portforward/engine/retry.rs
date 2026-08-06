@@ -6,7 +6,7 @@ use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::channel::oneshot;

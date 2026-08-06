@@ -1,12 +1,9 @@
 use server_fn::Http;
 use server_fn::ServerFnError;
 use server_fn::codec::Json;
-use server_fn::codec::StreamingText;
-use server_fn::codec::TextStream;
 use terrazzo::server;
 
 use crate::api::client_address::ClientAddress;
-use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::ResizeRequest;
 use crate::api::shared::terminal_schema::SetTitleRequest;
 use crate::api::shared::terminal_schema::TerminalAddress;
@@ -14,6 +11,8 @@ use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 use crate::tiles::state::make_state;
+
+mod stream;
 
 make_state!(selected_tab, Option<TerminalId>);
 
@@ -78,10 +77,4 @@ pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnEr
     super::service::ack::ack(terminal, ack).await
 }
 
-#[server(protocol = Http<Json, StreamingText>)]
-pub async fn stream(
-    mode: RegisterTerminalMode,
-    terminal_def: TerminalDef,
-) -> Result<TextStream, ServerFnError> {
-    super::service::stream::stream(mode, terminal_def).await
-}
+pub use stream::stream;

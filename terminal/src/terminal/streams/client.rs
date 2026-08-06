@@ -12,14 +12,12 @@ use crate::terminal::streams::client::stream_registration::StreamRegistration;
 mod pipe;
 mod stream_registration;
 
-const STREAM_DISPATCH_BUFFER_SIZE: usize = 10;
-
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
 ) -> Result<StreamRegistration, StreamError> {
     let terminal_id = terminal_def.address.id.clone();
-    let (tx, rx) = mpsc::channel(STREAM_DISPATCH_BUFFER_SIZE);
+    let (tx, rx) = mpsc::unbounded();
     let stream_registration = StreamRegistration {
         terminal_id: terminal_id.clone(),
         rx,

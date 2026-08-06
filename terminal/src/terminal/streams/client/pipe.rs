@@ -87,10 +87,9 @@ fn process_messages(
     for message in messages {
         let PipeMessage { terminal_id, chunk } = message.map_err(PipeError::PipeJsonError)?;
         if let Some(tx) = stream_registrations.map.get_mut(&terminal_id) {
-            match tx.try_send(chunk) {
+            match tx.unbounded_send(chunk) {
                 Ok(()) => (),
                 Err(error) => {
-                    // TODO: to avoid this, the ack window should be smaller than the channel buffer size.
                     warn!(%terminal_id, "Failed to send: {error}");
                     stream_registrations.map.remove(&terminal_id);
                 }

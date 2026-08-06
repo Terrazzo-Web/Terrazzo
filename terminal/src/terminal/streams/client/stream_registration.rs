@@ -11,7 +11,7 @@ use server_fn::ServerFnError;
 use crate::terminal_id::TerminalId;
 
 pub struct StreamRegistrations {
-    pub map: HashMap<TerminalId, mpsc::Sender<Result<String, ServerFnError>>>,
+    pub map: HashMap<TerminalId, mpsc::UnboundedSender<Result<String, ServerFnError>>>,
     pub ready: Shared<oneshot::Receiver<()>>,
 }
 
@@ -22,7 +22,7 @@ pub fn stream_registrations() -> MutexGuard<'static, Option<StreamRegistrations>
 
 pub struct StreamRegistration {
     pub(super) terminal_id: TerminalId,
-    pub(super) rx: mpsc::Receiver<Result<String, ServerFnError>>,
+    pub(super) rx: mpsc::UnboundedReceiver<Result<String, ServerFnError>>,
 }
 
 impl Drop for StreamRegistration {

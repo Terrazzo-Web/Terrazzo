@@ -81,14 +81,16 @@ mod tests {
     use std::time::Duration;
 
     use futures::channel::oneshot;
+    use tokio::time::error::Elapsed;
+    use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_watch() {
         let watch = super::WatchTx::new();
         let rx = watch.subscribe();
         assert!(matches!(
-            tokio::time::timeout(Duration::from_millis(100), rx.notified()).await,
-            Err(_),
+            timeout(Duration::from_millis(100), rx.notified()).await,
+            Err(Elapsed { .. }),
         ));
         assert!(watch.notify(1).is_ok());
         assert!(watch.notify(2).is_ok());

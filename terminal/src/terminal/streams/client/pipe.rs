@@ -3,7 +3,7 @@ use scopeguard::defer;
 use server_fn::ServerFnError;
 use terrazzo::prelude::diagnostics::info;
 use terrazzo::prelude::diagnostics::warn;
-use tokio::task::spawn_local;
+use wasm_bindgen_futures::spawn_local;
 
 use super::stream_registration::StreamRegistrations;
 use super::stream_registration::stream_registrations;
@@ -27,7 +27,7 @@ pub fn ensure_pipe(f: impl FnOnce(&mut StreamRegistrations)) {
             Ok(()) => info!("Pipe closed"),
             Err(error) => warn!("Pipe failed: {error}"),
         }
-    });
+    })
 }
 
 async fn pipe_impl() -> Result<(), ServerFnError> {

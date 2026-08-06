@@ -88,7 +88,7 @@ pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
 ) -> Result<impl futures::Stream<Item = Result<String, ServerFnError>>, ServerFnError> {
-    super::streams::client::stream(mode, terminal_def).await
+    Ok(super::streams::client::stream(mode, terminal_def).await?)
 }
 
 #[server(protocol = Http<Json, StreamingText>)]
@@ -109,5 +109,5 @@ pub async fn add_stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
 ) -> Result<(), ServerFnError> {
-    crate::terminal::streams::server::add_stream(mode, terminal_def).await
+    Ok(crate::terminal::streams::server::add_stream(mode, terminal_def).await?)
 }

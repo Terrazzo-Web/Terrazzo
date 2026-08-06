@@ -2,6 +2,8 @@ use std::sync::Mutex;
 
 use futures::StreamExt;
 use futures::channel::mpsc;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
 
@@ -13,7 +15,7 @@ use crate::utils::ndjson_utils::serialize_line;
 
 static PIPE: Mutex<Option<mpsc::Sender<PipedStream>>> = Mutex::new(None);
 
-struct PipedStream {
+pub struct PipedStream {
     terminal_id: TerminalId,
     stream: TextStream,
 }
@@ -42,17 +44,34 @@ pub async fn pipe() -> TextStream {
 pub async fn add_stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<(), ServerFnError> {
+) -> Result<(), AddStreamError> {
     let terminal_id = terminal_def.address.id.clone();
-    let stream = crate::terminal::service::stream::stream(mode, terminal_def).await?;
+    let stream = crate::terminal::service::stream::stream(mode, terminal_def)
+        .await
+        .map_err(AddStreamError::OpenStreamError)?;
     let mut lock = PIPE.lock().expect("PIPE");
     if let Some(pipe) = &mut *lock {
-        let () = pipe.try_send(PipedStream {
-            terminal_id,
-            stream,
-        })?;
+        let () = pipe
+            .try_send(PipedStream {
+                terminal_id,
+                stream,
+            })
+            .map_err(AddStreamError::SendError)?;
         Ok(())
     } else {
-        Err(ServerFnError::new("pipe was closed"))
+        Err(AddStreamError::PipeClosed)
     }
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum AddStreamError {
+    #[error("[{n}] Pipe was closed", n = self.name())]
+    OpenStreamError(ServerFnError),
+
+    #[error("[{n}] Pipe was closed", n = self.name())]
+    SendError(mpsc::TrySendError<PipedStream>),
+
+    #[error("[{n}] Pipe was closed", n = self.name())]
+    PipeClosed,
 }

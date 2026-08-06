@@ -1,4 +1,6 @@
 use futures::channel::mpsc;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use server_fn::ServerFnError;
 
 use self::pipe::ensure_pipe;
@@ -14,7 +16,7 @@ const STREAM_DISPATCH_BUFFER_SIZE: usize = 10;
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<StreamRegistration, ServerFnError> {
+) -> Result<StreamRegistration, StreamError> {
     let terminal_id = terminal_def.address.id.clone();
     let (tx, rx) = mpsc::channel(STREAM_DISPATCH_BUFFER_SIZE);
     let stream_registration = StreamRegistration {
@@ -24,6 +26,15 @@ pub async fn stream(
     ensure_pipe(|stream_registrations| {
         stream_registrations.insert(terminal_id, tx);
     });
-    let () = crate::terminal::api::add_stream(mode, terminal_def).await?;
+    let () = crate::terminal::api::add_stream(mode, terminal_def)
+        .await
+        .map_err(StreamError::AddStreamError)?;
     Ok(stream_registration)
+}
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum StreamError {
+    #[error("[{n}] {0}", n = self.name())]
+    AddStreamError(ServerFnError),
 }

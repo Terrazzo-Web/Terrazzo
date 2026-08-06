@@ -1,5 +1,6 @@
 use base64::Engine as _;
 use futures::StreamExt as _;
+use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
@@ -117,7 +118,10 @@ where
         debug!("Terminal stream disconnected");
         match notify_mouse.notified().await {
             Ok(()) => info!("Terminal stream reopening"),
-            Err(error) => warn!("Terminal tab closed, disconnecting: {error}"),
+            Err(oneshot::Canceled) => {
+                warn!("Terminal tab closed, disconnecting");
+                return Err(StreamError::UxClosed);
+            }
         }
         mode = RegisterTerminalMode::Reopen;
     }
@@ -164,6 +168,9 @@ pub enum StreamError {
 
     #[error("[{n}] {0}", n = self.name())]
     DecodeError(#[from] base64::DecodeError),
+
+    #[error("[{n}] UX closed", n = self.name())]
+    UxClosed,
 }
 
 impl From<ServerFnError> for StreamError {

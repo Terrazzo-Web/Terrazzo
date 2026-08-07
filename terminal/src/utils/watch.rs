@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future::Shared;
 

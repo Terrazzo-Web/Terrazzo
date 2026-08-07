@@ -9,6 +9,7 @@ pub(crate) mod client;
 mod javascript;
 #[cfg(feature = "server")]
 mod service;
+pub mod streams;
 #[cfg(feature = "client")]
 mod terminal_tab;
 #[cfg(feature = "client")]

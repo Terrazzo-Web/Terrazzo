@@ -80,36 +80,38 @@ where
     loop {
         let mut stream = super::api::stream(mode, terminal_def.clone())
             .await?
-            .into_inner();
+            .ready_chunks(100);
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         let mut unacked = 0;
-        while let Some(chunk) = stream.next().await {
-            let messages: Vec<Result<LeaseMessage, serde_json::Error>> =
-                parser.push_chunk(&chunk.map_err(StreamError::from)?);
+        while let Some(chunks) = stream.next().await {
             let mut buffer = vec![];
-            for message in messages {
-                match message.map_err(StreamError::Json)? {
-                    LeaseMessage::Init => {
-                        if let Some(on_init) = on_init.take() {
-                            on_init().await;
+            for chunk in chunks {
+                let messages: Vec<Result<LeaseMessage, serde_json::Error>> =
+                    parser.push_chunk(&chunk.map_err(StreamError::from)?);
+                for message in messages {
+                    match message.map_err(StreamError::Json)? {
+                        LeaseMessage::Init => {
+                            if let Some(on_init) = on_init.take() {
+                                on_init().await;
+                            }
                         }
-                    }
-                    LeaseMessage::Eos => {
-                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
-                        state.on_eos(&terminal_id);
-                        return Ok(());
-                    }
-                    LeaseMessage::Error(error) => {
-                        process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
-                        state.on_eos(&terminal_id);
-                        return Err(StreamError::ServerFn(error));
-                    }
-                    LeaseMessage::Base64(data) => {
-                        let data = base64::engine::general_purpose::STANDARD.decode(data)?;
-                        buffer.extend(data);
-                    }
-                    LeaseMessage::Utf8(data) => {
-                        buffer.extend(data.as_bytes());
+                        LeaseMessage::Eos => {
+                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+                            state.on_eos(&terminal_id);
+                            return Ok(());
+                        }
+                        LeaseMessage::Error(error) => {
+                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+                            state.on_eos(&terminal_id);
+                            return Err(StreamError::ServerFn(error));
+                        }
+                        LeaseMessage::Base64(data) => {
+                            let data = base64::engine::general_purpose::STANDARD.decode(data)?;
+                            buffer.extend(data);
+                        }
+                        LeaseMessage::Utf8(data) => {
+                            buffer.extend(data.as_bytes());
+                        }
                     }
                 }
             }
@@ -119,7 +121,7 @@ where
         match notify_mouse.notified().await {
             Ok(()) => info!("Terminal stream reopening"),
             Err(oneshot::Canceled) => {
-                warn!("Terminal tab closed, disconnecting");
+                info!("Terminal tab closed, disconnecting");
                 return Err(StreamError::UxClosed);
             }
         }

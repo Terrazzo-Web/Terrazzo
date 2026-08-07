@@ -31,10 +31,15 @@ pub async fn set_tile_id(
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum LeaseMessage {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "I"))]
     Init,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "B"))]
     Base64(String),
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "U"))]
     Utf8(String),
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
     Eos,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
     Error(String),
 }
 
@@ -78,10 +83,31 @@ pub async fn ack(terminal: TerminalAddress, ack: usize) -> Result<(), ServerFnEr
     super::service::ack::ack(terminal, ack).await
 }
 
-#[server(protocol = Http<Json, StreamingText>)]
+#[cfg(feature = "client")]
 pub async fn stream(
     mode: RegisterTerminalMode,
     terminal_def: TerminalDef,
-) -> Result<TextStream, ServerFnError> {
-    super::service::stream::stream(mode, terminal_def).await
+) -> Result<impl futures::Stream<Item = Result<String, ServerFnError>>, ServerFnError> {
+    Ok(super::streams::client::stream(mode, terminal_def).await?)
+}
+
+#[server(protocol = Http<Json, StreamingText>)]
+pub async fn pipe() -> Result<TextStream, ServerFnError> {
+    Ok(crate::terminal::streams::server::pipe().await)
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PipeMessage {
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "t"))]
+    pub terminal_id: TerminalId,
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
+    pub chunk: Result<String, ServerFnError>,
+}
+
+#[server(protocol = Http<Json, Json>)]
+pub async fn add_stream(
+    mode: RegisterTerminalMode,
+    terminal_def: TerminalDef,
+) -> Result<(), ServerFnError> {
+    Ok(crate::terminal::streams::server::add_stream(mode, terminal_def).await?)
 }

@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use autoclone::autoclone;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future::Shared;
 use pin_project::pin_project;

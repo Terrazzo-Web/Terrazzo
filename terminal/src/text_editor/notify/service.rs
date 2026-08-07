@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::TryFutureExt;
 use futures::channel::oneshot;

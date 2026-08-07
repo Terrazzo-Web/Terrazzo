@@ -4,6 +4,7 @@ use std::num::NonZero;
 use std::sync::Arc;
 
 use terrazzo::html;
+use terrazzo::prelude::ui_thread_safe::UiThreadSafe;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen::JsCast;

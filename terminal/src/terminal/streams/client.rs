@@ -1,11 +1,9 @@
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
-
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
+use terrazzo::prelude::with_generation_id::WithGenerationId;
 
 use self::pipe::ensure_pipe;
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
@@ -21,15 +19,14 @@ pub async fn stream(
 ) -> Result<StreamRegistration, StreamError> {
     let terminal_id = terminal_def.address.id.clone();
     let (tx, rx) = mpsc::unbounded();
-    static STREAM_REGISTRATION_IDX: AtomicUsize = AtomicUsize::new(1);
-    let idx = STREAM_REGISTRATION_IDX.fetch_add(1, SeqCst);
+    let tx = WithGenerationId::from(tx);
     let stream_registration = StreamRegistration {
         terminal_id: terminal_id.clone(),
         rx,
-        idx,
+        generation_id: tx.generation_id,
     };
     ensure_pipe(|stream_registrations| {
-        stream_registrations.map.insert(terminal_id, (idx, tx));
+        stream_registrations.map.insert(terminal_id, tx);
     })
     .await
     .map_err(StreamError::PipeError)?;

@@ -32,7 +32,7 @@ runs:
 
     - name: Setup Cargo cache
       if: ${{ inputs.cache-level != 'off' && inputs.cache-kind == 'cargo' }}
-      uses: Swatinem/rust-cache@v2.9.1
+      uses: Swatinem/rust-cache@v2.9.2
       with:
         prefix-key: ${{ runner.os }}-${{ inputs.cache-kind }}
         shared-key: ${{ steps.cache-week.outputs.week }}

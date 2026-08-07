@@ -9,6 +9,7 @@ use nameth::NamedType as _;
 use nameth::nameth;
 use terrazzo::autoclone;
 use terrazzo::html;
+use terrazzo::prelude::with_generation_id::WithGenerationId;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::debounce::DoDebounce;
@@ -42,7 +43,7 @@ pub struct TerminalTab(Rc<TerminalTabInner>);
 pub struct TerminalTabInner {
     def: LiveTerminalDef,
     pub selected: XSignal<bool>,
-    pub xtermjs: Mutex<Option<TerminalJsRc>>,
+    pub xtermjs: Mutex<Option<WithGenerationId<TerminalJsRc>>>,
     pub attachment_cancel: Mutex<Option<oneshot::Sender<()>>>,
     #[expect(unused)]
     registrations: Consumers,

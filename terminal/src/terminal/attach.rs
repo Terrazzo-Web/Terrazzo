@@ -7,6 +7,7 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::select;
 use scopeguard::defer;
+use terrazzo::prelude::with_generation_id::WithGenerationId;
 use terrazzo::prelude::*;
 use terrazzo::widgets::resize_event::ResizeEvent;
 use wasm_bindgen::JsValue;
@@ -64,7 +65,7 @@ pub fn attach(
         .or_throw(XTERMJS_ATTR);
 
     info!("Attaching XtermJS");
-    let xtermjs = TerminalJsRc::new();
+    let xtermjs = WithGenerationId::from(TerminalJsRc::new());
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
     let attachment_cancel = make_attachment_cancel(&terminal_tab);
     xtermjs.open(&element);
@@ -90,7 +91,14 @@ pub fn attach(
             () = write_loop.fuse() => info!("Write loop closed"),
             _ = attachment_cancel.fuse() => info!("Attachment replaced"),
         };
-        *terminal_tab.xtermjs.lock().or_throw("xtermjs") = None;
+        {
+            let mut lock = terminal_tab.xtermjs.lock().or_throw("xtermjs");
+            if let Some(xtermjs_old) = &*lock
+                && xtermjs_old.generation_id <= xtermjs.generation_id
+            {
+                *lock = None;
+            }
+        }
         drop(unsubscribe_resize_event);
         drop(on_title_change);
         drop(on_resize);

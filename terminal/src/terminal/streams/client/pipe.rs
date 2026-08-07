@@ -86,7 +86,7 @@ fn process_messages(
     };
     for message in messages {
         let PipeMessage { terminal_id, chunk } = message.map_err(PipeError::PipeJsonError)?;
-        if let Some((_idx, tx)) = stream_registrations.map.get_mut(&terminal_id) {
+        if let Some(tx) = stream_registrations.map.get_mut(&terminal_id) {
             match tx.unbounded_send(chunk) {
                 Ok(()) => (),
                 Err(error) => {

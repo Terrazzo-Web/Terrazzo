@@ -41,8 +41,9 @@ pub use crate::string::XString;
 pub use crate::template::IsTemplate;
 pub use crate::template::IsTemplated;
 pub use crate::utils::Ptr;
-pub use crate::utils::UiThreadSafe;
 pub use crate::utils::or_else_log::OrElseLog;
+pub use crate::utils::ui_thread_safe;
+pub use crate::utils::with_generation_id;
 
 #[cfg(feature = "diagnostics")]
 pub mod diagnostics {

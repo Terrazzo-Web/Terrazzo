@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use autoclone::autoclone;
 use terrazzo_client::prelude::OrElseLog as _;
-use terrazzo_client::prelude::UiThreadSafe;
+use terrazzo_client::prelude::ui_thread_safe::UiThreadSafe;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::Element;

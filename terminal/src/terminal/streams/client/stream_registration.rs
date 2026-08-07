@@ -8,11 +8,13 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::future::Shared;
 use server_fn::ServerFnError;
+use terrazzo::prelude::with_generation_id::WithGenerationId;
 
 use crate::terminal_id::TerminalId;
 
 pub struct StreamRegistrations {
-    pub map: HashMap<TerminalId, (usize, mpsc::UnboundedSender<Result<String, ServerFnError>>)>,
+    pub map:
+        HashMap<TerminalId, WithGenerationId<mpsc::UnboundedSender<Result<String, ServerFnError>>>>,
     pub ready: Shared<oneshot::Receiver<()>>,
 }
 
@@ -24,7 +26,7 @@ pub fn stream_registrations() -> MutexGuard<'static, Option<StreamRegistrations>
 pub struct StreamRegistration {
     pub(super) terminal_id: TerminalId,
     pub(super) rx: mpsc::UnboundedReceiver<Result<String, ServerFnError>>,
-    pub(crate) idx: usize,
+    pub(crate) generation_id: usize,
 }
 
 impl Drop for StreamRegistration {
@@ -34,8 +36,8 @@ impl Drop for StreamRegistration {
             && let hash_map::Entry::Occupied(entry) =
                 stream_registrations.map.entry(self.terminal_id.clone())
         {
-            let idx = entry.get().0;
-            if idx <= self.idx {
+            let generation_id = entry.get().generation_id;
+            if generation_id <= self.generation_id {
                 entry.remove();
             }
         }

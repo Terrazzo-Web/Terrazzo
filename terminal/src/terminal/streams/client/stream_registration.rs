@@ -30,14 +30,13 @@ pub struct StreamRegistration {
 impl Drop for StreamRegistration {
     fn drop(&mut self) {
         let mut lock = stream_registrations();
-        if let Some(stream_registrations) = &mut *lock {
-            if let hash_map::Entry::Occupied(entry) =
+        if let Some(stream_registrations) = &mut *lock
+            && let hash_map::Entry::Occupied(entry) =
                 stream_registrations.map.entry(self.terminal_id.clone())
-            {
-                let idx = entry.get().0;
-                if idx <= self.idx {
-                    entry.remove();
-                }
+        {
+            let idx = entry.get().0;
+            if idx <= self.idx {
+                entry.remove();
             }
         }
     }

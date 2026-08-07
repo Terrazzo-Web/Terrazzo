@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
@@ -11,7 +12,7 @@ use server_fn::ServerFnError;
 use crate::terminal_id::TerminalId;
 
 pub struct StreamRegistrations {
-    pub map: HashMap<TerminalId, mpsc::UnboundedSender<Result<String, ServerFnError>>>,
+    pub map: HashMap<TerminalId, (usize, mpsc::UnboundedSender<Result<String, ServerFnError>>)>,
     pub ready: Shared<oneshot::Receiver<()>>,
 }
 
@@ -23,13 +24,21 @@ pub fn stream_registrations() -> MutexGuard<'static, Option<StreamRegistrations>
 pub struct StreamRegistration {
     pub(super) terminal_id: TerminalId,
     pub(super) rx: mpsc::UnboundedReceiver<Result<String, ServerFnError>>,
+    pub(crate) idx: usize,
 }
 
 impl Drop for StreamRegistration {
     fn drop(&mut self) {
         let mut lock = stream_registrations();
         if let Some(stream_registrations) = &mut *lock {
-            stream_registrations.map.remove(&self.terminal_id);
+            if let hash_map::Entry::Occupied(entry) =
+                stream_registrations.map.entry(self.terminal_id.clone())
+            {
+                let idx = entry.get().0;
+                if idx <= self.idx {
+                    entry.remove();
+                }
+            }
         }
     }
 }

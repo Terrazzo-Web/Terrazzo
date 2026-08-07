@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::SeqCst;
+
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
@@ -18,12 +21,15 @@ pub async fn stream(
 ) -> Result<StreamRegistration, StreamError> {
     let terminal_id = terminal_def.address.id.clone();
     let (tx, rx) = mpsc::unbounded();
+    static STREAM_REGISTRATION_IDX: AtomicUsize = AtomicUsize::new(1);
+    let idx = STREAM_REGISTRATION_IDX.fetch_add(1, SeqCst);
     let stream_registration = StreamRegistration {
         terminal_id: terminal_id.clone(),
         rx,
+        idx,
     };
     ensure_pipe(|stream_registrations| {
-        stream_registrations.map.insert(terminal_id, tx);
+        stream_registrations.map.insert(terminal_id, (idx, tx));
     })
     .await
     .map_err(StreamError::PipeError)?;

@@ -121,7 +121,7 @@ where
         match notify_mouse.notified().await {
             Ok(()) => info!("Terminal stream reopening"),
             Err(oneshot::Canceled) => {
-                warn!("Terminal tab closed, disconnecting");
+                info!("Terminal tab closed, disconnecting");
                 return Err(StreamError::UxClosed);
             }
         }

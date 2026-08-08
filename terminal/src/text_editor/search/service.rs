@@ -2,12 +2,12 @@ use std::future::ready;
 use std::path::Path;
 use std::sync::Arc;
 
+use futures::Stream;
 use futures::StreamExt;
 use futures::TryStreamExt as _;
-use nameth::NamedEnumValues as _;
-use nameth::nameth;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
+use tonic::Status;
 use tracing::debug;
 use tracing::warn;
 
@@ -15,13 +15,6 @@ use crate::api::client_address::ClientAddress;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::fsio::FileMetadata;
 use crate::utils::ndjson_utils::serialize_line;
-
-#[nameth]
-#[derive(thiserror::Error, Debug)]
-pub enum SearchError {
-    #[error("[{n}] Pipe was closed", n = self.name())]
-    PipeClosed,
-}
 
 pub async fn search(
     remote: ClientAddress,
@@ -47,11 +40,24 @@ remote_fn_service::streaming::declare_remote_fn!(
     "texteditor.search",
     (Arc<Path>, String),
     FileMetadata,
-    |_server, (base, input)| {
-        let stream = futures::stream::once(ready(FileMetadata {
+    |_server, (base, input)| search_impl(base, input)
+);
+
+fn search_impl(base: Arc<Path>, input: String) -> impl Stream<Item = Result<FileMetadata, Status>> {
+    let results = vec![
+        Ok(FileMetadata {
+            name: base
+                .as_ref()
+                .join(input.clone())
+                .display()
+                .to_string()
+                .into(),
+            ..FileMetadata::default()
+        }),
+        Ok(FileMetadata {
             name: base.as_ref().join(input).display().to_string().into(),
             ..FileMetadata::default()
-        }));
-        return stream;
-    }
-);
+        }),
+    ];
+    futures::stream::iter(results)
+}

@@ -137,14 +137,15 @@ TERMINAL_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_
     "@crates//:tracing-futures",
 ]
 TERMINAL_SERVER_FEATURES = REMOTE_FN_STREAMING_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TERMINAL_FEATURES + TILES_STATE_SERVER_FEATURES + ["terminal-server"]
-TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_SERVER_DEPS + [
+TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TEXT_EDITOR_DEPS + TILES_STATE_SERVER_DEPS + [
     "@crates//:chrono",
     "@crates//:libc",
     "@crates//:lru",
     "@crates//:notify",
+    "@crates//:regex",
     "@crates//:tokio-stream",
 ]
-TEXT_EDITOR_SERVER_FEATURES = REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TEXT_EDITOR_FEATURES + TILES_STATE_SERVER_FEATURES + ["text-editor-server"]
+TEXT_EDITOR_SERVER_FEATURES = REMOTE_FN_STREAMING_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TEXT_EDITOR_FEATURES + TILES_STATE_SERVER_FEATURES + ["text-editor-server"]
 SERVER_ALL_DEPS = CONVERTER_SERVER_DEPS + LOGS_PANEL_SERVER_DEPS + PORT_FORWARD_SERVER_DEPS + TERMINAL_SERVER_DEPS + TEXT_EDITOR_SERVER_DEPS
 SERVER_ALL_FEATURES = CONVERTER_SERVER_FEATURES + LOGS_PANEL_SERVER_FEATURES + PORT_FORWARD_SERVER_FEATURES + TERMINAL_SERVER_FEATURES + TEXT_EDITOR_SERVER_FEATURES + ["server-all"]
 PROD_DEPS = MAX_LEVEL_INFO_DEPS + SERVER_ALL_DEPS
@@ -179,15 +180,15 @@ _EXCLUSION_MAP = [
     {"feature": "tiles-state-client", "delta": []},
     {"feature": "tiles-state-server", "delta": []},
     {"feature": "remote-fn-streaming", "delta": [90, 9]},
-    {"feature": "remote-fn", "delta": [89, 108, 6, 505]},
-    {"feature": "remote-fn-unary", "delta": [-503, -106, 10]},
+    {"feature": "remote-fn", "delta": [89, 108, 6, 509]},
+    {"feature": "remote-fn-unary", "delta": [-507, -106, 10]},
     {"feature": "converter", "delta": [-118, 6, 168, 2, 174, 15]},
     {"feature": "logs-panel", "delta": [-202, 15, -170, 2, 232, 4, 242, 5]},
     {"feature": "port-forward", "delta": [-250, 5, -238, 4, 74, 7, 252, 3, 260, 4]},
-    {"feature": "terminal", "delta": [-266, 4, -256, 3, -86, 7, 268, 2, 274, 4, 284, 4, 294, 21, 507]},
-    {"feature": "server", "delta": [-505, -334, 5, -322, 4, -290, 4, 16, 3, 34, 61, 158, 5, 176, 13, 255, 347, 355, 503]},
-    {"feature": "text-editor", "delta": [-501, -323, -314, 11, -280, 4, -270, 2, -253, -200, 13, -166, 5, -154, 11, -126, 27, -50, 9, -20, 3, 224, 3, 338, 4, 348, 3, 356, 8, 374, 16, 410, 21]},
-    {"feature": "client", "delta": [-438, 4, -420, 6, -404, 16, -370, 17, -132, 3, -72, 11, 3, 6, 2, 204, 3, 212, 6, 233, 237, 286, 3, 316, 3, 326, 5, 489, 501, 507]},
+    {"feature": "terminal", "delta": [-266, 4, -256, 3, -86, 7, 268, 2, 274, 4, 284, 4, 294, 21, 511]},
+    {"feature": "server", "delta": [-509, -334, 5, -322, 4, -290, 4, 16, 3, 34, 61, 158, 5, 176, 13, 255, 347, 355, 417, 507]},
+    {"feature": "text-editor", "delta": [-505, -323, -314, 11, -280, 4, -270, 2, -253, -200, 13, -166, 5, -154, 11, -126, 27, -50, 9, -20, 3, 224, 3, 338, 4, 348, 3, 356, 8, 374, 16, 410, 3, 418, 19]},
+    {"feature": "client", "delta": [-442, 4, -424, 2, -416, 2, -409, -404, 16, -370, 17, -132, 3, -72, 11, 3, 6, 2, 204, 3, 212, 6, 233, 237, 286, 3, 316, 3, 326, 5, 493, 505, 511]},
 ]
 
 def compute_srcs(features):

@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fs::Metadata;

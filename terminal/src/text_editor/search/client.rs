@@ -26,6 +26,6 @@ pub async fn search(
                     .collect::<Vec<_>>(),
             )
         }
-        Err(error) => futures::stream::iter(vec![Err(error.into())]),
+        Err(error) => futures::stream::iter(vec![Err(error)]),
     }))
 }

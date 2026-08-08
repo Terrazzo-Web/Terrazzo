@@ -1,3 +1,9 @@
-pub mod server_fn;
+pub mod api;
+#[cfg(feature = "client")]
+pub mod client;
+#[cfg(feature = "server")]
+pub mod service;
+#[cfg(feature = "client")]
 pub mod state;
+#[cfg(feature = "client")]
 pub mod ui;

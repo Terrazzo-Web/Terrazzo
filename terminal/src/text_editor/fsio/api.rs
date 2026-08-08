@@ -104,7 +104,7 @@ fn deserialize_remote<'de, D>(deserializer: D) -> Result<ClientAddress, D::Error
 where
     D: serde::Deserializer<'de>,
 {
-    let remote = <Option<String> as serde::Deserialize>::deserialize(deserializer)?;
+    let remote: Option<String> = serde::Deserialize::deserialize(deserializer)?;
     let Some(remote) = remote.filter(|remote| !remote.is_empty()) else {
         return Ok(ClientAddress::default());
     };

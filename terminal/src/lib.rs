@@ -16,6 +16,8 @@ mod utils;
 use fluent_asserter as _;
 #[cfg(test)]
 use tempfile as _;
+#[cfg(test)]
+use tokio as _;
 
 #[cfg(feature = "server")]
 pub use self::backend::RunServerError;

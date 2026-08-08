@@ -5,7 +5,6 @@ use futures::StreamExt as _;
 use futures::future::AbortHandle;
 use futures::future::Abortable;
 use scopeguard::defer;
-use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::diagnostics;
@@ -63,10 +62,7 @@ impl Drop for LogsEngine {
     }
 }
 
-async fn consume_stream(
-    logs: XSignal<Arc<VecDeque<ClientLogEvent>>>,
-    stream: TextStream<ServerFnError>,
-) {
+async fn consume_stream(logs: XSignal<Arc<VecDeque<ClientLogEvent>>>, stream: TextStream) {
     debug!("Start");
     defer!(debug!("End"));
     let mut parser = NdjsonBuffer::<LogEvent>::default();

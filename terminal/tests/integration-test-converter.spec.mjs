@@ -249,7 +249,7 @@ test.describe('Converter', () => {
         await expect(getConverterOutput(page)).toContainText('aud: client-123');
         await expect(getConverterOutput(page)).toContainText('email: john@example.com');
         await expect(getConverterOutput(page)).toHaveText(
-            /exp: 1700003600 = 2023-11-14T23:13:20Z \(.+ ago\)/,
+            /exp:\s+(?:>-\s+)?1700003600 = 2023-11-14T23:13:20Z \([\s\S]+ ago\)/,
         );
     });
 

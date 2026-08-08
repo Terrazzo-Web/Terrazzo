@@ -1,6 +1,5 @@
 pub fn main() {
     tonic_prost_build::configure()
-        .bytes(".terrazzo.terminal.LeaseItem.data")
         .bytes(".terrazzo.portforward.PortForwardDataRequest.data")
         .bytes(".terrazzo.portforward.PortForwardDataResponse.data")
         .bytes(".terrazzo.texteditor.DownloadResponse.data")
@@ -12,7 +11,6 @@ pub fn main() {
                 "src/backend/protos/remote_fn.proto",
                 "src/backend/protos/shared.proto",
                 "src/backend/protos/text_editor.proto",
-                "src/backend/protos/terminal.proto",
             ],
             &["src/backend/protos/"],
         )

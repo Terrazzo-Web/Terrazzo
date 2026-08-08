@@ -6,6 +6,7 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::editable::editable;
+use terrazzo::widgets::resize_event::ResizeEvent;
 use terrazzo::widgets::tabs::TabDescriptor;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsOptions;
@@ -305,9 +306,10 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                 let width = persist_width.get_value_untracked();
                 let height = persist_height.get_value_untracked();
                 spawn_local(async move {
-                    RootTree::update(
-                        super::api::set_floating_size(array_id, floating_id, width, height).await,
-                    )
+                    let new_tree =
+                        super::api::set_floating_size(array_id, floating_id, width, height).await;
+                    RootTree::update(new_tree);
+                    ResizeEvent::signal().force(());
                 });
             });
             let initial_width = width.get_value_untracked();

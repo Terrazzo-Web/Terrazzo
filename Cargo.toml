@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.13"
+version = "0.2.14"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,35 +58,35 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.13", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.13", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.13", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.13", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.13", path = "framework/build" }
-terrazzo-client = { version = "0.2.13", path = "framework/client" }
-terrazzo-css = { version = "0.2.13", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.13", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.13", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.13", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.13", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.13", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.13", path = "pty" }
-terrazzo-synctex = { version = "0.2.13", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.13", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.13", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.13", path = "remote/client" }
-trz-gateway-common = { version = "0.2.13", path = "remote/common" }
-trz-gateway-server = { version = "0.2.13", path = "remote/server" }
+autoclone = { version = "0.2.14", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.14", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.14", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.14", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.14", path = "framework/build" }
+terrazzo-client = { version = "0.2.14", path = "framework/client" }
+terrazzo-css = { version = "0.2.14", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.14", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.14", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.14", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.14", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.14", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.14", path = "pty" }
+terrazzo-synctex = { version = "0.2.14", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.14", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.14", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.14", path = "remote/client" }
+trz-gateway-common = { version = "0.2.14", path = "remote/common" }
+trz-gateway-server = { version = "0.2.14", path = "remote/server" }
 
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
-base64 = { version = "0.23.0" }
+base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.1" }
 bytes = { version = "1.12.1" }
-cc = { version = "1.4.0" }
+cc = { version = "1.4.1" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
-clap = { version = "4.6.5", features = ["derive"] }
+clap = { version = "4.6.6", features = ["derive"] }
 cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }
 darling = { version = "0.24.0" }
@@ -106,7 +106,7 @@ instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.24" }
 jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.189" }
-lru = { version = "0.18.1" }
+lru = { version = "0.18.2" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
@@ -136,10 +136,10 @@ rustls = { version = "0.23.43" }
 rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.229", features = ["derive", "rc"] }
+serde-saphyr = { version = "1.0.1" }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.151" }
 serde_urlencoded = { version = "0.7.1" }
-serde_yaml_ng = { version = "0.10.0" }
 server_fn = { version = "0.8.13", features = ["browser"] }
 server_fn_macro = { version = "0.8.10" }
 sha2 = { version = "0.11.0" }

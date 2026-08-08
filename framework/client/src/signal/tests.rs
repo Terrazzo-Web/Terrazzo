@@ -11,6 +11,7 @@ use crate::utils::Ptr;
 
 #[test]
 fn derive() {
+    let _lock = super::batch::TEST_LOCK.lock().unwrap();
     setup_logs();
     let main = XSignal::new("main", 1i32);
     let derived = main.derive(
@@ -34,6 +35,7 @@ fn derive() {
 #[autoclone]
 #[test]
 fn derive2() {
+    let _lock = super::batch::TEST_LOCK.lock().unwrap();
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
     let to_exec = Ptr::new(AtomicI32::new(0));
@@ -79,6 +81,7 @@ fn derive2() {
 #[autoclone]
 #[test]
 fn derive_diff() {
+    let _lock = super::batch::TEST_LOCK.lock().unwrap();
     setup_logs();
     let main = XSignal::new("main", "1".to_owned());
     let compute_derived = Ptr::new(AtomicI32::new(0));
@@ -163,6 +166,7 @@ fn derive_diff() {
 
 #[test]
 fn drop_main() {
+    let _lock = super::batch::TEST_LOCK.lock().unwrap();
     setup_logs();
     let main = XSignal::new("main", 1i32);
     let derived = main.derive(
@@ -181,6 +185,7 @@ fn drop_main() {
 
 #[test]
 fn drop_derived() {
+    let _lock = super::batch::TEST_LOCK.lock().unwrap();
     setup_logs();
     let main = XSignal::new("main", 1i32);
     let derived = main.derive(

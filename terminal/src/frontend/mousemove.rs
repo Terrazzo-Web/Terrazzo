@@ -20,6 +20,17 @@ pub struct MousemoveManagerImpl {
     mouseup: Option<Box<dyn Fn()>>,
 }
 
+impl Default for MousemoveManagerImpl {
+    fn default() -> Self {
+        Self {
+            start: Default::default(),
+            delta: XSignal::new("mousemove-delta", Default::default()),
+            events: Default::default(),
+            mouseup: None,
+        }
+    }
+}
+
 pub use MousemoveManagerImplPtr as MousemoveManager;
 
 use crate::tiles::api::Direction;
@@ -29,21 +40,13 @@ unsafe impl Sync for MousemoveManager {}
 
 impl MousemoveManager {
     pub fn new() -> Self {
-        MousemoveManagerImpl {
-            start: Default::default(),
-            delta: XSignal::new("mousemove-delta", Default::default()),
-            events: Default::default(),
-            mouseup: None,
-        }
-        .into()
+        MousemoveManagerImpl::default().into()
     }
 
     pub fn new2(mouseup: impl Fn() + 'static) -> Self {
         MousemoveManagerImpl {
-            start: Default::default(),
-            delta: XSignal::new("mousemove-delta", Default::default()),
-            events: Default::default(),
             mouseup: Some(Box::new(mouseup)),
+            ..Default::default()
         }
         .into()
     }

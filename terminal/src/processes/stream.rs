@@ -6,13 +6,12 @@ use terrazzo_pty::lease::ProcessOutputLease;
 use tracing::info;
 
 use super::get_processes;
+use crate::api::client_address::ClientAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
-use crate::backend::Server;
 use crate::terminal_id::TerminalId;
 
 pub async fn open_stream<F>(
-    _server: &Server,
-    terminal_def: TerminalDef,
+    mut terminal_def: TerminalDef,
     rewind: bool,
     open_process: impl FnOnce(&TerminalId) -> F,
 ) -> Result<ProcessOutputLease, GetOrCreateProcessError>
@@ -20,6 +19,7 @@ where
     F: Future<Output = Result<ProcessIO, OpenProcessError>>,
 {
     let processes = get_processes();
+    terminal_def.address.via = ClientAddress::default();
     let terminal_id = &terminal_def.address.id;
     match processes.entry(terminal_id.clone()) {
         dashmap::Entry::Occupied(occupied_entry) => {

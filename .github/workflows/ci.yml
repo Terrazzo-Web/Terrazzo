@@ -18,6 +18,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "strict"
+          cache-kind: "cargo"
 
       - name: Build debug
         run: cargo build --locked --bins --features=server,server-all,max_level_debug,debug,diagnostics
@@ -43,6 +44,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "strict"
+          cache-kind: "bazel"
 
       - name: Bazel build
         run: |
@@ -67,4 +69,5 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           cache-level: "off"
+          cache-kind: "off"
       - uses: ./.github/actions/publish-dry-run

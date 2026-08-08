@@ -6,7 +6,7 @@ use std::task::ready;
 use std::time::Duration;
 
 use axum_server::accept::Accept;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use pin_project::pin_project;
 use tokio::io::AsyncRead as _;
 use tokio::io::ReadBuf;

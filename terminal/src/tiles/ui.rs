@@ -28,6 +28,7 @@ use crate::frontend::mousemove::Position;
 use crate::frontend::resize_bar::ResizeBarProperties;
 use crate::frontend::resize_bar::resize_bar_horz;
 use crate::frontend::resize_bar::resize_bar_vert;
+use crate::tiles::tabs::show_tabbed_tiles;
 
 terrazzo_css::import_style!(style, "ui.scss");
 
@@ -162,13 +163,7 @@ pub(crate) fn show_tiles_rec(
             nodes,
             floating_nodes,
         } if direction.get_value_untracked() == Direction::Tabbed => {
-            crate::tiles::tabs::show_tabbed_tiles(
-                *id,
-                selected.clone(),
-                nodes,
-                floating_nodes,
-                drag_handle,
-            )
+            show_tabbed_tiles(*id, selected.clone(), nodes, floating_nodes, drag_handle)
         }
         Tiles::Array {
             id: _,

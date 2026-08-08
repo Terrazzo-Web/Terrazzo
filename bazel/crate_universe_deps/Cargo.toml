@@ -42,15 +42,15 @@ rsass = { workspace = true }
 rsass-macros = { workspace = true }
 rustls-native-certs = { workspace = true }
 scopeguard = { workspace = true }
+serde-saphyr = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-serde_yaml_ng = { workspace = true }
 sha2 = { workspace = true }
 simple_asn1 = { workspace = true }
 static_assertions = { workspace = true }
 tantivy = { workspace = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true }
 tokio-rustls = { workspace = true }
 tokio-stream = { workspace = true }
 toml = { workspace = true }

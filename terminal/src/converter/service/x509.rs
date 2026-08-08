@@ -86,7 +86,7 @@ fn add_extensions(x509: &X509Ref, text: &mut String) -> Option<()> {
         });
     }
     if !extensions.is_empty() {
-        text.extend(serde_yaml_ng::to_string(&Extensions { extensions }));
+        text.extend(serde_saphyr::to_string(&Extensions { extensions }));
     }
     Some(())
 }

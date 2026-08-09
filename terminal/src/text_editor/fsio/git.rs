@@ -66,6 +66,7 @@ impl GitRepoFs for StdFs {
     }
 }
 
+// TODO: add an expiration timeout
 struct GitReposCache<F> {
     fs: F,
     cache: Mutex<LruCache<PathBuf, Option<Arc<Path>>>>,

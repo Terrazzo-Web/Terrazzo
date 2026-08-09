@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::mpsc;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;

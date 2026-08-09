@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use futures::Stream;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::oneshot;
 use terrazzo::autoclone;
 use terrazzo::html;

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use futures::StreamExt;
+use futures::StreamExt as _;
 use terrazzo::axum::Router;
 use terrazzo::axum::body::Body;
 use terrazzo::axum::extract::Query;

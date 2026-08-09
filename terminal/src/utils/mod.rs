@@ -4,11 +4,11 @@ pub mod more_path;
 pub mod testable_once_lock;
 
 #[cfg(feature = "client")]
-#[cfg(any(feature = "logs-panel", feature = "terminal"))]
+#[cfg(any(feature = "logs-panel", feature = "terminal", feature = "text-editor"))]
 pub mod ndjson;
 
 #[cfg(feature = "server")]
-#[cfg(any(feature = "logs-panel", feature = "terminal"))]
+#[cfg(any(feature = "logs-panel", feature = "terminal", feature = "text-editor"))]
 pub mod ndjson_utils;
 
 #[cfg(feature = "client")]

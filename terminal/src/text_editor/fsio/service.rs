@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::ffi::OsString;

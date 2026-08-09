@@ -1,24 +1,28 @@
-#![cfg(feature = "client")]
-
+use std::future::ready;
 use std::ops::Not;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
+use futures::Stream;
+use futures::StreamExt as _;
+use futures::channel::oneshot;
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
-use terrazzo::widgets::debounce::DoDebounce as _;
 use terrazzo::widgets::element_capture::ElementCapture;
+use terrazzo::widgets::sleep::sleep;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::FocusEvent;
 use web_sys::HtmlInputElement;
 use web_sys::KeyboardEvent;
 
+use self::diagnostics::warn;
 use super::state::EditorSearchState;
+use crate::api::client_address::ClientAddress;
 use crate::assets::icons;
-use crate::frontend::timestamp::datetime::DateTime;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorState;
 use crate::text_editor::manager::TextEditorManager;
@@ -86,10 +90,6 @@ fn search_selector_input(
                 }
                 do_search()
             },
-            blur = move |_: FocusEvent| {
-                autoclone!(editor_state);
-                close_search(&editor_state, &is_active_mut);
-            },
             focus = move |_: FocusEvent| start_search(&editor_state, &do_search),
         ),
     )
@@ -125,44 +125,73 @@ fn do_search(
     base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
 ) -> impl Fn() {
-    let callback = Duration::from_millis(250)
-        .async_debounce(move |()| do_search_impl(manager.clone(), base.clone(), input.clone()));
-    move || spawn_local(callback(()))
+    let cancel_last = Mutex::new(oneshot::channel().0);
+    let callback =
+        move |cancel_rx| do_search_impl(manager.clone(), base.clone(), input.clone(), cancel_rx);
+    move || {
+        let cancel_rx = {
+            let mut lock = cancel_last.lock().unwrap();
+            let cancel_new = oneshot::channel();
+            let cancel_last = std::mem::replace(&mut *lock, cancel_new.0);
+            let _ = cancel_last.send(());
+            cancel_new.1
+        };
+        spawn_local(callback(cancel_rx))
+    }
 }
 
 async fn do_search_impl(
     manager: Ptr<TextEditorManager>,
     base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
+    mut cancel_rx: oneshot::Receiver<()>,
 ) {
-    let results = run_query(base, input).await;
-    manager.editor_state.update_mut(move |editor_state| {
-        let EditorState::Search(search_state) = editor_state else {
-            return std::mem::take(editor_state);
-        };
-        search_state.results = results.into();
-        std::mem::take(editor_state)
-    });
+    let Ok(()) = sleep(Duration::from_millis(250))
+        .await
+        .inspect_err(|error| warn!("Sleep failed: {error}"))
+    else {
+        return;
+    };
+    match cancel_rx.try_recv() {
+        Ok(None) => (),
+        Ok(Some(())) | Err(oneshot::Canceled) => return,
+    };
+    let mut results = run_query(manager.remote.clone(), base, input)
+        .await
+        .take_until(cancel_rx);
+    while let Some(results) = results.next().await {
+        manager.editor_state.update_mut(move |editor_state| {
+            let EditorState::Search(search_state) = editor_state else {
+                return std::mem::take(editor_state);
+            };
+            search_state.results = results.into();
+            std::mem::take(editor_state)
+        });
+    }
 }
 
-async fn run_query(base: Arc<Path>, input: ElementCapture<HtmlInputElement>) -> Vec<FileMetadata> {
-    let base = base.display();
-    let query = input.with(|i| i.value());
-    vec![
-        FileMetadata {
-            name: format!("{base}/{query}-1").into(),
-            modified: Some(DateTime::now().utc()),
-            ..Default::default()
-        },
-        FileMetadata {
-            name: format!("{base}/{query}-2").into(),
-            modified: Some(DateTime::now().utc()),
-            ..Default::default()
-        },
-        FileMetadata {
-            name: format!("{base}/{query}-3").into(),
-            created: Some(DateTime::now().utc()),
-            ..Default::default()
-        },
-    ]
+async fn run_query(
+    remote: ClientAddress,
+    base: Arc<Path>,
+    input: ElementCapture<HtmlInputElement>,
+) -> impl Stream<Item = Vec<FileMetadata>> {
+    let input = input.with(|i| i.value());
+    let stream = match super::client::search(remote, base, input).await {
+        Ok(stream) => stream.left_stream(),
+        Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
+    };
+    let mut accu = vec![];
+    stream.ready_chunks(100).map(move |items| {
+        for item in items {
+            accu.push(item.unwrap_or_else(failed_file_metadata));
+        }
+        accu.clone()
+    })
+}
+
+fn failed_file_metadata(error: impl ToString) -> FileMetadata {
+    FileMetadata {
+        name: error.to_string().into(),
+        ..FileMetadata::default()
+    }
 }

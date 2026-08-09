@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::mem;
 use std::path::Path;
 use std::sync::Arc;

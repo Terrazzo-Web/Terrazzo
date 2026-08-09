@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::Stream;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use scopeguard::defer;
 use tracing::debug;
 use tracing::debug_span;

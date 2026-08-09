@@ -2,6 +2,7 @@ use std::future::ready;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::Arc;
 
 use futures::FutureExt;
@@ -136,9 +137,11 @@ async fn git_files(
     let process = tokio::process::Command::new("git")
         .current_dir(&repo_root)
         .arg("--literal-pathspecs")
-        .args(["ls-files", "-z"])
+        .args(["ls-files"])
         .args(["--cached", "--others", "--exclude-standard", "--"])
         .arg(pathspec)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
         .spawn()
         .map_err(SearchError::GitLsFilesError)?;
     let stdout = process.stdout.ok_or_else(|| {

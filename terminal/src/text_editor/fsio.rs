@@ -60,7 +60,7 @@ pub enum File {
     Error(String),
 }
 
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct FileMetadata {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: Arc<str>,

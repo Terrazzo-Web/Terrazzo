@@ -89,10 +89,6 @@ fn search_selector_input(
                 }
                 do_search()
             },
-            blur = move |_: FocusEvent| {
-                autoclone!(editor_state);
-                close_search(&editor_state, &is_active_mut);
-            },
             focus = move |_: FocusEvent| start_search(&editor_state, &do_search),
         ),
     )

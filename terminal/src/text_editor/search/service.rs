@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::ready;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -17,8 +18,11 @@ use server_fn::codec::TextStream;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::io::BufReader;
 use tokio_stream::wrappers::LinesStream;
+use tracing::Span;
 use tracing::debug;
+use tracing::info_span;
 use tracing::warn;
+use tracing_futures::Instrument as _;
 
 use crate::api::client_address::ClientAddress;
 use crate::backend::client_service::grpc_error::GrpcError;
@@ -44,7 +48,9 @@ pub async fn search(
         let item = item.transpose();
         return ready(item);
     });
-    Ok(TextStream::new(stream.map_err(Into::into)))
+    Ok(TextStream::new(
+        stream.map_err(Into::into).instrument(Span::current()),
+    ))
 }
 
 remote_fn_service::streaming::declare_remote_fn!(
@@ -53,7 +59,8 @@ remote_fn_service::streaming::declare_remote_fn!(
     (Arc<Path>, String),
     FileMetadata,
     |_server, (base, input)| futures::stream::once(async move {
-        match search_impl(base, input).await {
+        let span = info_span!("Search", ?base, ?input);
+        match search_impl(base, input).instrument(span).await {
             Ok(stream) => stream.left_stream(),
             Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
         }
@@ -106,19 +113,26 @@ async fn process_path(
     path: Result<PathBuf, SearchError>,
     regex: Arc<Regex>,
 ) -> Result<Option<FileMetadata>, SearchError> {
-    let base = base.clone();
     let path = path?;
-    let relative = path
-        .strip_prefix(&base)
-        .map_err(SearchError::InvalidRepoRootPrefix)?;
-    let name = relative.to_string_lossy();
-    if !regex.is_match(&name) {
-        return Ok(None);
-    }
-    let Some(metadata) = tokio::fs::symlink_metadata(&path).await.ok() else {
+    let Some(name) = path.file_name() else {
         return Ok(None);
     };
-    let result = FileMetadata::single(&path, &metadata);
+    if !regex.is_match(&name.to_string_lossy()) {
+        debug!("Not match: {path:?}");
+        return Ok(None);
+    }
+    let full_path = base.join(&path);
+    let Some(metadata) = tokio::fs::symlink_metadata(&full_path).await.ok() else {
+        debug!("Failed to load metadata for {full_path:?}");
+        return Ok(None);
+    };
+    debug!("Match: {full_path:?} metadata={metadata:?}");
+    let result = FileMetadata::make(
+        path.display().to_string().into(),
+        Ok(&metadata),
+        &mut HashMap::new(),
+        &mut HashMap::new(),
+    );
     Ok(Some(result))
 }
 
@@ -133,13 +147,14 @@ async fn git_files(
         Path::new(".")
     } else {
         pathspec
-    };
+    }
+    .to_owned();
     let process = tokio::process::Command::new("git")
         .current_dir(&repo_root)
         .arg("--literal-pathspecs")
         .args(["ls-files"])
         .args(["--cached", "--others", "--exclude-standard", "--"])
-        .arg(pathspec)
+        .arg(&pathspec)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -154,6 +169,16 @@ async fn git_files(
     let lines = BufReader::new(stdout).lines();
     let stream = LinesStream::new(lines);
     let stream = stream.map(|line| line.map_err(SearchError::GitLsFilesError));
-    let stream = stream.map_ok(PathBuf::from);
+    let stream = stream.map(move |line| {
+        if pathspec == Path::new(".") {
+            return Ok(PathBuf::from(line?));
+        }
+        Ok(PathBuf::from(line?)
+            .strip_prefix(&pathspec)
+            .map_err(SearchError::InvalidRepoRootPrefix)?
+            .to_owned())
+    });
+    #[cfg(debug_assertions)]
+    let stream = stream.inspect(|row| debug!("Row: {row:?}"));
     Ok(stream)
 }

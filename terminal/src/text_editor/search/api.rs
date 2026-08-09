@@ -16,5 +16,10 @@ pub async fn search(
     base: Arc<Path>,
     input: String,
 ) -> Result<TextStream, ServerFnError> {
-    super::service::search(remote, base, input).await
+    use tracing::info_span;
+    use tracing_futures::Instrument as _;
+    let span = info_span!("Search", ?base, ?input);
+    super::service::search(remote, base, input)
+        .instrument(span)
+        .await
 }

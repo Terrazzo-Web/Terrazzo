@@ -37,7 +37,7 @@ impl FileMetadata {
         )
     }
 
-    fn make(
+    pub fn make(
         name: Arc<str>,
         metadata: Result<&Metadata, &std::io::Error>,
         gids: &mut HashMap<u32, Option<Arc<str>>>,

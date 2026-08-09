@@ -61,7 +61,7 @@ pub async fn git_files(
             i += 1;
             futures::stream::once(async move {
                 if i % 100 == 0 {
-                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                 }
                 row
             })

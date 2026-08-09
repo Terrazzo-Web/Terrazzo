@@ -12,8 +12,8 @@ use crate::string::XString;
 /// [XElement::key]: crate::prelude::XElement::key
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum XKey {
-    Named(i32, XString),
-    Index(i32, usize),
+    Named(XString),
+    Index(usize),
 }
 
 /// The name of the custom attribute used to store the [Xkey] of a generated DOM node.
@@ -22,9 +22,9 @@ pub const KEY_ATTRIBUTE: &str = "data-trz-key";
 impl XKey {
     pub fn of(template: &XTemplate, index: usize, element: &Element) -> Self {
         if let Some(key) = element.get_attribute(template.key_attribute()) {
-            parse_index_key(&key).unwrap_or_else(|| XKey::Named(template.tid, key.into()))
+            parse_index_key(&key).unwrap_or_else(|| XKey::Named(key.into()))
         } else {
-            XKey::Index(template.tid, index)
+            XKey::Index(index)
         }
     }
 }
@@ -33,24 +33,22 @@ fn parse_index_key(key: &str) -> Option<XKey> {
     if !key.starts_with('#') {
         return None;
     }
-    let mut split = key[1..].split('-');
-    let index = split.next()?.parse().ok()?;
-    let tid = split.next()?.parse().ok()?;
-    return Some(XKey::Index(tid, index));
+    let index: Result<usize, _> = key[1..].parse();
+    return Some(XKey::Index(index.ok()?));
 }
 
 impl std::fmt::Debug for XKey {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Named(tid, name) => write!(f, "'{name}'-{tid}"),
-            Self::Index(tid, index) => write!(f, "#{index}-{tid}"),
+            Self::Named(name) => write!(f, "'{name}'"),
+            Self::Index(index) => write!(f, "#{index}"),
         }
     }
 }
 
 impl Default for XKey {
     fn default() -> Self {
-        Self::Index(0, 0)
+        Self::Index(0)
     }
 }
 
@@ -60,7 +58,7 @@ mod tests {
 
     #[test]
     fn debug() {
-        assert_eq!("'key'-1", format!("{:?}", XKey::Named(1, "key".into())));
-        assert_eq!("#123-2", format!("{:?}", XKey::Index(2, 123)));
+        assert_eq!("'key'", format!("{:?}", XKey::Named("key".into())));
+        assert_eq!("#123", format!("{:?}", XKey::Index(123)));
     }
 }

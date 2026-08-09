@@ -41,7 +41,6 @@ mod inner {
     use crate::utils::Ptr;
 
     pub struct TemplateInner {
-        pub tid: i32,
         pub(super) key_attribute: String,
         pub(super) debug_id: DebugCorrelationId<&'static str>,
         pub(super) depth: Depth,
@@ -67,10 +66,8 @@ impl XTemplate {
         use std::sync::atomic::AtomicI32;
         use std::sync::atomic::Ordering::SeqCst;
         static NEXT: AtomicI32 = AtomicI32::new(0);
-        let tid = NEXT.fetch_add(1, SeqCst);
         Self(Ptr::new(TemplateInner {
-            tid,
-            key_attribute: format!("{KEY_ATTRIBUTE}-{tid:#x}"),
+            key_attribute: format!("{KEY_ATTRIBUTE}-{:#x}", NEXT.fetch_add(1, SeqCst)),
             debug_id: DebugCorrelationId::new(|| "template"),
             depth,
             element_mut,
@@ -134,7 +131,7 @@ fn reindex_nodes(new: &mut XElement) {
             continue;
         };
         reindex_nodes(child);
-        if let XKey::Index(_tid, index) = &mut child.key {
+        if let XKey::Index(index) = &mut child.key {
             *index = next;
         }
         next += 1;

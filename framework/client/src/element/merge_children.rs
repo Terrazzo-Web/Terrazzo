@@ -229,7 +229,7 @@ fn create_new_element(
         html.inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"));
     let cur_element = LiveElement::new(html.ok()?);
 
-    if let XKey::Named(_tid, key) = &new_element.key {
+    if let XKey::Named(key) = &new_element.key {
         let () = cur_element
             .set_key_attribute(template, key)
             .inspect_err(|error| warn!("Set element key failed: {error:?}'"))

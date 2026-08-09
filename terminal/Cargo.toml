@@ -228,6 +228,7 @@ text-editor-server = [
   "dep:notify",
   "dep:regex",
   "dep:tokio-stream",
+  "tokio-stream/io-util",
   "remote-fn-streaming",
   "remote-fn-unary",
   "server",

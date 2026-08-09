@@ -1,12 +1,10 @@
-use std::ffi::OsString;
-use std::fs;
 use std::future::ready;
 use std::io::ErrorKind;
-use std::os::unix::ffi::OsStringExt as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use futures::FutureExt;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
@@ -15,7 +13,9 @@ use nameth::nameth;
 use regex::Regex;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
-use tonic::Status;
+use tokio::io::AsyncBufReadExt as _;
+use tokio::io::BufReader;
+use tokio_stream::wrappers::LinesStream;
 use tracing::debug;
 use tracing::warn;
 
@@ -49,13 +49,13 @@ remote_fn_service::streaming::declare_remote_fn!(
     "texteditor.search",
     (Arc<Path>, String),
     FileMetadata,
-    |_server, (base, input)| match search_impl(base, input) {
-        Ok(stream) => stream.left_stream(),
-        Err(error) => futures::stream::once(ready(Err(Status::internal(format!(
-            "Search worker failed: {error}"
-        )))))
-        .right_stream(),
-    }
+    |_server, (base, input)| futures::stream::once(async move {
+        match search_impl(base, input).await {
+            Ok(stream) => stream.left_stream(),
+            Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
+        }
+    })
+    .flatten()
 );
 
 #[nameth]
@@ -77,32 +77,43 @@ pub enum SearchError {
     GitLsFilesExit(std::process::ExitStatus),
 }
 
-fn search_impl(
+async fn search_impl(
     base: Arc<Path>,
     input: String,
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
     let regex = Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?;
 
-    let repo_root = git_repo_root(&base).ok_or_else(|| SearchError::NotGit(base))?;
-    let paths = git_files(&repo_root, &base);
-    paths
-        .into_iter()
-        .filter_map(|path| {
-            let relative = path.strip_prefix(base.as_ref()).ok()?;
+    let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
+    let paths = git_files(repo_root.clone(), base.clone()).await?;
+    Ok(paths.filter_map(move |path| {
+        let base = base.clone();
+        let regex = regex.clone();
+        async move {
+            let base = base.clone();
+            let path = path?;
+            let relative = path
+                .strip_prefix(&base)
+                .map_err(SearchError::InvalidRepoRootPrefix)?;
             let name = relative.to_string_lossy();
-            regex.is_match(&name).then(|| {
-                let metadata = fs::symlink_metadata(&path).ok()?;
-                let mut result = FileMetadata::single(&path, &metadata);
-                result.name = name.into_owned().into();
-                Some(Ok::<_, Status>(result))
-            })?
-        })
-        .collect()
+            if !regex.is_match(&name) {
+                return Ok(None);
+            }
+            let Some(metadata) = tokio::fs::symlink_metadata(&path).await.ok() else {
+                return Ok(None);
+            };
+            let result = FileMetadata::single(&path, &metadata);
+            Ok(Some(result))
+        }
+        .map(|maybe| maybe.transpose())
+    }))
 }
 
-async fn git_files(repo_root: &Path, base: &Path) -> Result<Vec<PathBuf>, SearchError> {
+async fn git_files(
+    repo_root: Arc<Path>,
+    base: Arc<Path>,
+) -> Result<impl Stream<Item = Result<PathBuf, SearchError>>, SearchError> {
     let pathspec = base
-        .strip_prefix(repo_root)
+        .strip_prefix(&repo_root)
         .map_err(SearchError::InvalidRepoRootPrefix)?;
     let pathspec = if pathspec.as_os_str().is_empty() {
         Path::new(".")
@@ -110,28 +121,23 @@ async fn git_files(repo_root: &Path, base: &Path) -> Result<Vec<PathBuf>, Search
         pathspec
     };
     let process = tokio::process::Command::new("git")
-        .current_dir(repo_root)
+        .current_dir(&repo_root)
         .arg("--literal-pathspecs")
         .args(["ls-files", "-z"])
         .args(["--cached", "--others", "--exclude-standard", "--"])
         .arg(pathspec)
         .spawn()
         .map_err(SearchError::GitLsFilesError)?;
-    let output = process.stdout.ok_or_else(|| {
+    let stdout = process.stdout.ok_or_else(|| {
         SearchError::GitLsFilesError(std::io::Error::new(
             ErrorKind::BrokenPipe,
             "git ls-files didn't return anything",
         ))
     })?;
-    tokio_stream::
-    if !output.status.success() {
-        return Err(SearchError::GitLsFilesExit(output.status));
-    }
 
-    Ok(output
-        .stdout
-        .split(|byte| *byte == 0)
-        .filter(|path| !path.is_empty())
-        .map(|path| repo_root.join(OsString::from_vec(path.to_owned())))
-        .collect())
+    let lines = BufReader::new(stdout).lines();
+    let stream = LinesStream::new(lines);
+    let stream = stream.map(|line| line.map_err(SearchError::GitLsFilesError));
+    let stream = stream.map_ok(PathBuf::from);
+    Ok(stream)
 }

@@ -81,31 +81,33 @@ async fn search_impl(
     base: Arc<Path>,
     input: String,
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
-    let regex = Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?;
-
+    let regex = Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?);
     let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
     let paths = git_files(repo_root.clone(), base.clone()).await?;
     Ok(paths.filter_map(move |path| {
-        let base = base.clone();
-        let regex = regex.clone();
-        async move {
-            let base = base.clone();
-            let path = path?;
-            let relative = path
-                .strip_prefix(&base)
-                .map_err(SearchError::InvalidRepoRootPrefix)?;
-            let name = relative.to_string_lossy();
-            if !regex.is_match(&name) {
-                return Ok(None);
-            }
-            let Some(metadata) = tokio::fs::symlink_metadata(&path).await.ok() else {
-                return Ok(None);
-            };
-            let result = FileMetadata::single(&path, &metadata);
-            Ok(Some(result))
-        }
-        .map(|maybe| maybe.transpose())
+        process_path(base.clone(), path, regex.clone()).map(|maybe| maybe.transpose())
     }))
+}
+
+async fn process_path(
+    base: Arc<Path>,
+    path: Result<PathBuf, SearchError>,
+    regex: Arc<Regex>,
+) -> Result<Option<FileMetadata>, SearchError> {
+    let base = base.clone();
+    let path = path?;
+    let relative = path
+        .strip_prefix(&base)
+        .map_err(SearchError::InvalidRepoRootPrefix)?;
+    let name = relative.to_string_lossy();
+    if !regex.is_match(&name) {
+        return Ok(None);
+    }
+    let Some(metadata) = tokio::fs::symlink_metadata(&path).await.ok() else {
+        return Ok(None);
+    };
+    let result = FileMetadata::single(&path, &metadata);
+    Ok(Some(result))
 }
 
 async fn git_files(

@@ -309,7 +309,7 @@ impl XElement {
         };
         let html = &element.html;
         let old_tag = html.tag_name().to_lowercase();
-        if old_tag == new_tag && element.get_tid().as_deref() == Some(template.tid()) {
+        if old_tag == new_tag {
             return Some(());
         }
 

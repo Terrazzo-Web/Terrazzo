@@ -41,7 +41,6 @@ mod inner {
     use crate::utils::Ptr;
 
     pub struct TemplateInner {
-        pub(super) tid: String,
         pub(super) key_attribute: String,
         pub(super) debug_id: DebugCorrelationId<&'static str>,
         pub(super) depth: Depth,
@@ -67,11 +66,8 @@ impl XTemplate {
         use std::sync::atomic::AtomicI32;
         use std::sync::atomic::Ordering::SeqCst;
         static NEXT: AtomicI32 = AtomicI32::new(0);
-        let tid = format!("{:#x}", NEXT.fetch_add(1, SeqCst));
-        let key_attribute = format!("{KEY_ATTRIBUTE}-{tid}");
         Self(Ptr::new(TemplateInner {
-            tid,
-            key_attribute,
+            key_attribute: format!("{KEY_ATTRIBUTE}-{:#x}", NEXT.fetch_add(1, SeqCst)),
             debug_id: DebugCorrelationId::new(|| "template"),
             depth,
             element_mut,
@@ -86,10 +82,6 @@ impl XTemplate {
     #[cfg(not(feature = "concise-traces"))]
     pub(crate) fn with_old(&self, f: impl FnOnce(&Option<XElement>)) {
         f(&self.old.lock().or_throw("old"))
-    }
-
-    pub(crate) fn tid(&self) -> &str {
-        &self.tid
     }
 
     pub(crate) fn key_attribute(&self) -> &str {
@@ -166,12 +158,7 @@ impl LiveElement {
     }
 
     pub fn set_key_attribute(&self, template: &XTemplate, value: &str) -> Result<(), JsValue> {
-        self.html.set_attribute(KEY_ATTRIBUTE, &template.tid)?;
         self.html.set_attribute(template.key_attribute(), value)
-    }
-
-    pub fn get_tid(&self) -> Option<String> {
-        self.html.get_attribute(KEY_ATTRIBUTE)
     }
 
     pub fn get_key_attribute(&self, template: &XTemplate) -> Option<String> {

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -12,6 +11,7 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 use futures::FutureExt as _;
+use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use notify::RecommendedWatcher;
@@ -34,12 +34,12 @@ use tantivy::schema::STRING;
 use tantivy::schema::Schema;
 use tantivy::schema::TEXT;
 use tantivy::schema::Value as _;
-use tokio::io::AsyncBufReadExt as _;
-use tokio::io::BufReader;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tracing::debug;
 use tracing::warn;
+
+use crate::text_editor::fsio;
 
 const INDEX_WRITER_MEMORY_BUDGET: usize = 50_000_000;
 
@@ -110,8 +110,8 @@ pub enum SearchIndexError {
     #[error("Failed to open the Tantivy cache: {0}")]
     OpenDirectory(#[from] tantivy::directory::error::OpenDirectoryError),
 
-    #[error("git ls-files failed for {root}: {stderr}")]
-    GitLsFiles { root: Arc<Path>, stderr: String },
+    #[error("Failed to list Git files: {0}")]
+    GitFiles(String),
 
     #[error("Search index writer stopped")]
     WriterStopped,
@@ -123,24 +123,26 @@ pub async fn repository_index(
 ) -> Result<Arc<RepositoryIndex>, Arc<SearchIndexError>> {
     let cache_dir = root.join(&settings.cache_dir);
     debug_assert!(cache_dir.is_absolute());
-    let mut indexes = INDEXES.lock().unwrap();
-    let future_repository_index = indexes
-        .entry(cache_dir)
-        .or_insert_with(|| {
-            async move {
-                RepositoryIndex::initialize(root, settings)
-                    .await
-                    .map_err(Arc::new)
-            }
-            .boxed()
-            .shared()
-        })
-        .clone();
+    let future_repository_index = {
+        let mut indexes = INDEXES.lock().unwrap();
+        indexes
+            .entry(cache_dir)
+            .or_insert_with(|| {
+                async move {
+                    RepositoryIndex::initialize(root, settings)
+                        .await
+                        .map_err(Arc::new)
+                }
+                .boxed()
+                .shared()
+            })
+            .clone()
+    };
     return future_repository_index.await;
 }
 
 pub fn reconcile_touched_path(path: &Path) {
-    let Some(root) = super::super::fsio::git::git_repo_root(path) else {
+    let Some(root) = fsio::git::git_repo_root(path) else {
         return;
     };
     let index = ACTIVE_INDEXES
@@ -249,7 +251,12 @@ impl RepositoryIndex {
     }
 
     async fn full_reconcile(&self) -> Result<(), SearchIndexError> {
-        let paths = git_files(&self.root, &self.cache_dir).await?;
+        let paths = super::utils::git_files(self.root.clone(), self.root.clone())
+            .await
+            .map_err(|error| SearchIndexError::GitFiles(error.to_string()))?
+            .try_collect::<Vec<_>>()
+            .await
+            .map_err(|error| SearchIndexError::GitFiles(error.to_string()))?;
         let (reply, response) = oneshot::channel();
         self.tx
             .send(WriterCommand::FullReconcile { paths, reply })
@@ -541,40 +548,4 @@ fn modified_nanos(modified: SystemTime) -> u64 {
         .unwrap_or_default()
         .as_nanos()
         .min(u128::from(u64::MAX)) as u64
-}
-
-async fn git_files(root: &Arc<Path>, cache_dir: &Path) -> Result<Vec<PathBuf>, SearchIndexError> {
-    let mut process = tokio::process::Command::new("git")
-        .current_dir(root)
-        .arg("--literal-pathspecs")
-        .args([
-            "ls-files",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "--",
-        ])
-        .arg(".")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let stdout = process.stdout.take().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::BrokenPipe, "git ls-files has no stdout")
-    })?;
-    let mut lines = BufReader::new(stdout).lines();
-    let mut paths = Vec::new();
-    while let Some(line) = lines.next_line().await? {
-        let path = PathBuf::from(line);
-        if !root.join(&path).starts_with(cache_dir) {
-            paths.push(path);
-        }
-    }
-    let output = process.wait_with_output().await?;
-    if !output.status.success() {
-        return Err(SearchIndexError::GitLsFiles {
-            root: root.clone(),
-            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-        });
-    }
-    Ok(paths)
 }

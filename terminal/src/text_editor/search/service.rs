@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::future::ready;
-use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::Arc;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
@@ -15,15 +13,14 @@ use nameth::nameth;
 use regex::Regex;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
-use tokio::io::AsyncBufReadExt as _;
-use tokio::io::BufReader;
-use tokio_stream::wrappers::LinesStream;
 use tracing::Span;
 use tracing::debug;
 use tracing::info_span;
 use tracing::warn;
 use tracing_futures::Instrument as _;
 
+use self::tantivy::IndexSettings;
+use self::tantivy::SearchIndexError;
 use crate::api::client_address::ClientAddress;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::grpc_error::IsGrpcError;
@@ -33,6 +30,10 @@ use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;
 
 static MAX_RESULTS: usize = 1000;
+
+mod filenames;
+mod tantivy;
+mod utils;
 
 pub async fn search(
     remote: ClientAddress,
@@ -60,15 +61,22 @@ remote_fn_service::streaming::declare_remote_fn!(
     "texteditor.search",
     (Arc<Path>, String),
     FileMetadata,
-    |_server, (base, input)| futures::stream::once(async move {
-        let span = info_span!("Search", ?base, ?input);
-        match search_impl(base, input).instrument(span).await {
-            Ok(stream) => stream.left_stream(),
-            Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
-        }
-    })
-    .flatten()
-    .map_err(GrpcError::from)
+    |server, (base, input)| {
+        let settings = server.config().server.with(|server| IndexSettings {
+            cache_dir: server.tantivy_cache.clone(),
+            refresh_interval: server.search_index_refresh,
+            stale_after: server.search_index_stale_after,
+        });
+        futures::stream::once(async move {
+            let span = info_span!("Search", ?base, ?input);
+            match search_impl(base, input, settings).instrument(span).await {
+                Ok(stream) => stream.left_stream(),
+                Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
+            }
+        })
+        .flatten()
+        .map_err(GrpcError::from)
+    }
 );
 
 #[nameth]
@@ -85,6 +93,9 @@ pub enum SearchError {
 
     #[error("[{n}] {0}", n = self.name())]
     GitLsFilesError(std::io::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    SearchIndex(Arc<SearchIndexError>),
 }
 
 impl IsGrpcError for SearchError {
@@ -94,6 +105,7 @@ impl IsGrpcError for SearchError {
             Self::NotGit { .. } => tonic::Code::InvalidArgument,
             Self::InvalidRepoRootPrefix { .. } => tonic::Code::InvalidArgument,
             Self::GitLsFilesError { .. } => tonic::Code::FailedPrecondition,
+            Self::SearchIndex { .. } => tonic::Code::Internal,
         }
     }
 }
@@ -101,101 +113,64 @@ impl IsGrpcError for SearchError {
 async fn search_impl(
     base: Arc<Path>,
     input: String,
+    settings: IndexSettings,
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
-    let regex = Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?);
+    let regex =
+        Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input.clone(), error))?);
     let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
-    let paths = git_files(repo_root.clone(), base.clone()).await?;
-    Ok(paths
+    let paths = utils::git_files(repo_root.clone(), base.clone()).await?;
+    let name_base = base.clone();
+    let name_matches = paths
         .filter_map(move |path| {
-            process_path(base.clone(), path, regex.clone()).map(|maybe| maybe.transpose())
+            filenames::process_path(name_base.clone(), path, regex.clone())
+                .map(|maybe| maybe.transpose())
         })
+        .boxed();
+
+    let index = tantivy::repository_index(repo_root.clone(), settings)
+        .await
+        .map_err(SearchError::SearchIndex)?;
+    let content_paths = index
+        .search(&input, MAX_RESULTS)
+        .map_err(|error| SearchError::SearchIndex(Arc::new(error)))?;
+    index.refresh_if_stale();
+    let content_matches = futures::stream::iter(content_paths.into_iter().map(Ok))
+        .filter_map(move |path| {
+            process_index_path(repo_root.clone(), base.clone(), path).map(|maybe| maybe.transpose())
+        })
+        .boxed();
+
+    Ok(futures::stream::iter([name_matches, content_matches])
+        .flatten_unordered(None)
         .take(MAX_RESULTS))
 }
 
-async fn process_path(
+pub fn reconcile_touched_path(path: &Path) {
+    self::tantivy::reconcile_touched_path(path);
+}
+
+async fn process_index_path(
+    repo_root: Arc<Path>,
     base: Arc<Path>,
     path: Result<PathBuf, SearchError>,
-    regex: Arc<Regex>,
 ) -> Result<Option<FileMetadata>, SearchError> {
     let path = path?;
-    let Some(name) = path.file_name() else {
+    let base_from_root = base
+        .strip_prefix(&repo_root)
+        .map_err(SearchError::InvalidRepoRootPrefix)?;
+    let Ok(path_from_base) = path.strip_prefix(base_from_root) else {
         return Ok(None);
     };
-    if !regex.is_match(&name.to_string_lossy()) {
-        debug!("Not match: {path:?}");
-        return Ok(None);
-    }
-    let full_path = base.join(&path);
+    let full_path = repo_root.join(&path);
     let Some(metadata) = tokio::fs::symlink_metadata(&full_path).await.ok() else {
-        debug!("Failed to load metadata for {full_path:?}");
+        reconcile_touched_path(&full_path);
         return Ok(None);
     };
-    debug!("Match: {full_path:?} metadata={metadata:?}");
     let result = FileMetadata::make(
-        path.display().to_string().into(),
+        path_from_base.display().to_string().into(),
         Ok(&metadata),
         &mut HashMap::new(),
         &mut HashMap::new(),
     );
     Ok(Some(result))
-}
-
-async fn git_files(
-    repo_root: Arc<Path>,
-    base: Arc<Path>,
-) -> Result<impl Stream<Item = Result<PathBuf, SearchError>>, SearchError> {
-    let pathspec = base
-        .strip_prefix(&repo_root)
-        .map_err(SearchError::InvalidRepoRootPrefix)?;
-    let pathspec = if pathspec.as_os_str().is_empty() {
-        Path::new(".")
-    } else {
-        pathspec
-    }
-    .to_owned();
-    let process = tokio::process::Command::new("git")
-        .current_dir(&repo_root)
-        .arg("--literal-pathspecs")
-        .args(["ls-files"])
-        .args(["--cached", "--others", "--exclude-standard", "--"])
-        .arg(&pathspec)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(SearchError::GitLsFilesError)?;
-    let stdout = process.stdout.ok_or_else(|| {
-        SearchError::GitLsFilesError(std::io::Error::new(
-            ErrorKind::BrokenPipe,
-            "git ls-files didn't return anything",
-        ))
-    })?;
-
-    let lines = BufReader::new(stdout).lines();
-    let stream = LinesStream::new(lines);
-    let stream = stream.map(|line| line.map_err(SearchError::GitLsFilesError));
-    let stream = stream.map(move |line| {
-        if pathspec == Path::new(".") {
-            return Ok(PathBuf::from(line?));
-        }
-        Ok(PathBuf::from(line?)
-            .strip_prefix(&pathspec)
-            .map_err(SearchError::InvalidRepoRootPrefix)?
-            .to_owned())
-    });
-    #[cfg(debug_assertions)]
-    let stream = {
-        let mut i = 0;
-        stream.flat_map(move |row| {
-            i += 1;
-            futures::stream::once(async move {
-                if i % 10 == 0 {
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                }
-                row
-            })
-        })
-    };
-    #[cfg(debug_assertions)]
-    let stream = stream.inspect(|row| debug!("Row: {row:?}"));
-    Ok(stream)
 }

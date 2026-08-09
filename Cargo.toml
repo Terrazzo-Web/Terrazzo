@@ -153,7 +153,7 @@ thiserror = { version = "2.0.19" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.52.3" }
 tokio-rustls = { version = "0.26.4" }
-tokio-stream = { version = "0.1.18" }
+tokio-stream = { version = "0.1.18",features=["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
 tokio-util = { version = "0.7.18" }
 toml = { version = "1.1.4" }

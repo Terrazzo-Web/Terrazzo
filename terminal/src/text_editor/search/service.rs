@@ -32,6 +32,8 @@ use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;
 
+static MAX_RESULTS: usize = 1000;
+
 pub async fn search(
     remote: ClientAddress,
     base: Arc<Path>,
@@ -103,9 +105,11 @@ async fn search_impl(
     let regex = Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?);
     let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
     let paths = git_files(repo_root.clone(), base.clone()).await?;
-    Ok(paths.filter_map(move |path| {
-        process_path(base.clone(), path, regex.clone()).map(|maybe| maybe.transpose())
-    }))
+    Ok(paths
+        .filter_map(move |path| {
+            process_path(base.clone(), path, regex.clone()).map(|maybe| maybe.transpose())
+        })
+        .take(MAX_RESULTS))
 }
 
 async fn process_path(
@@ -178,6 +182,19 @@ async fn git_files(
             .map_err(SearchError::InvalidRepoRootPrefix)?
             .to_owned())
     });
+    #[cfg(debug_assertions)]
+    let stream = {
+        let mut i = 0;
+        stream.flat_map(move |row| {
+            i += 1;
+            futures::stream::once(async move {
+                if i % 10 == 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                }
+                row
+            })
+        })
+    };
     #[cfg(debug_assertions)]
     let stream = stream.inspect(|row| debug!("Row: {row:?}"));
     Ok(stream)

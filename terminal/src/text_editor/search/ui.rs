@@ -173,7 +173,7 @@ async fn run_query(
         Err(error) => futures::stream::once(ready(Err(error))).right_stream(),
     };
     let mut accu = vec![];
-    stream.ready_chunks(10).map(move |items| {
+    stream.ready_chunks(100).map(move |items| {
         for item in items {
             accu.push(item.unwrap_or_else(failed_file_metadata));
         }

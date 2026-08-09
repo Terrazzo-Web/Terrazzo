@@ -6,6 +6,7 @@ use terrazzo::prelude::*;
 
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorState;
+use crate::text_editor::side::SideViewNode;
 
 #[derive(Clone)]
 #[nameth]
@@ -22,12 +23,16 @@ impl std::fmt::Debug for EditorSearchState {
 
 pub struct SearchState {
     pub query: XSignal<Arc<str>>,
+    pub is_active: XSignal<bool>,
+    pub prev_side_view: XSignal<Option<Arc<SideViewNode>>>,
 }
 
 impl SearchState {
     pub fn new() -> Ptr<Self> {
         Self {
             query: XSignal::new("search-query", Default::default()),
+            is_active: XSignal::new("is-search-active", false),
+            prev_side_view: XSignal::new("prev-side-view", None),
         }
         .into()
     }

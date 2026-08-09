@@ -4783,6 +4783,7 @@ dependencies = [
  "server_fn",
  "sha2",
  "simple_asn1",
+ "tantivy",
  "tempfile",
  "terrazzo",
  "terrazzo-build",

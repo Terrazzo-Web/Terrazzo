@@ -23,6 +23,7 @@ use super::git;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::fsio::ROOT_FILE_PATH;
+use crate::text_editor::search::service::reconcile_touched_path;
 use crate::text_editor::side::SideViewList;
 use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
@@ -38,6 +39,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                 debug!("Loading PDF file {path:?}");
                 let data = tokio::fs::read(&path).await?;
                 let base64 = BASE64_STANDARD.encode(data).into();
+                reconcile_touched_path(&path);
                 return Ok(Some(File::PdfFile {
                     metadata: FileMetadata::single(&path, &metadata).into(),
                     base64,
@@ -55,6 +57,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                 .flatten()
                 .filter(|original| original != content.as_ref())
                 .map(Arc::from);
+            reconcile_touched_path(&path);
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),
                 original,
@@ -178,7 +181,9 @@ fn prune_side_view_rec(
 pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<(), FsioError> {
     let path = path.full_path();
     return if path.exists() {
-        Ok(tokio::fs::write(&path, content).await?)
+        let () = tokio::fs::write(&path, content).await?;
+        reconcile_touched_path(&path);
+        Ok(())
     } else {
         Err(FsioError::PathNotFound { path })
     };
@@ -190,10 +195,11 @@ pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), 
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(path)
+        .open(&path)
         .await?;
     file.write_all(&format!("-- {name} --").into_bytes())
         .await?;
+    reconcile_touched_path(&path);
     Ok(())
 }
 
@@ -227,7 +233,9 @@ pub async fn move_file(
         return Ok(());
     }
 
-    tokio::fs::rename(source, destination).await?;
+    tokio::fs::rename(&source, &destination).await?;
+    reconcile_touched_path(&source);
+    reconcile_touched_path(&destination);
     Ok(())
 }
 

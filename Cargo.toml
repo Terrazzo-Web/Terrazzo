@@ -84,7 +84,7 @@ axum-server = { version = "0.8.0" }
 base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.1" }
 bytes = { version = "1.12.1" }
-cc = { version = "1.4.1" }
+cc = { version = "1.4.2" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.6", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -149,7 +149,7 @@ static_assertions = { version = "1.1.0" }
 syn = { version = "3.0.3" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
-thiserror = { version = "2.0.19" }
+thiserror = { version = "2.0.20" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.52.3" }
 tokio-rustls = { version = "0.26.4" }
@@ -172,12 +172,12 @@ unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
 uuid = { version = "1.24.0", features = ["fast-rng", "v4"] }
 walkdir = { version = "2.5.0" }
-wasm-bindgen = { version = "0.2.126" }
-wasm-bindgen-cli = { version = "0.2.126" }
-wasm-bindgen-futures = { version = "0.4.76" }
-wasm-bindgen-test = { version = "0.3.76" }
+wasm-bindgen = { version = "0.2.127" }
+wasm-bindgen-cli = { version = "0.2.127" }
+wasm-bindgen-futures = { version = "0.4.77" }
+wasm-bindgen-test = { version = "0.3.77" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.103" }
+web-sys = { version = "0.3.104" }
 winnow = { version = "1.0.4" }
 x509-parser = { version = "0.18.1" }
 

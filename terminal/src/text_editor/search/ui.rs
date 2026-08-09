@@ -12,13 +12,14 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
-use terrazzo::widgets::debounce::DoDebounce as _;
 use terrazzo::widgets::element_capture::ElementCapture;
+use terrazzo::widgets::sleep::sleep;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::FocusEvent;
 use web_sys::HtmlInputElement;
 use web_sys::KeyboardEvent;
 
+use self::diagnostics::warn;
 use super::state::EditorSearchState;
 use crate::api::client_address::ClientAddress;
 use crate::assets::icons;
@@ -125,11 +126,8 @@ fn do_search(
     input: ElementCapture<HtmlInputElement>,
 ) -> impl Fn() {
     let cancel_last = Mutex::new(oneshot::channel().0);
-    let callback = Duration::from_millis(250)
-        .with_max_delay()
-        .async_debounce(move |cancel_rx| {
-            do_search_impl(manager.clone(), base.clone(), input.clone(), cancel_rx)
-        });
+    let callback =
+        move |cancel_rx| do_search_impl(manager.clone(), base.clone(), input.clone(), cancel_rx);
     move || {
         let cancel_rx = {
             let mut lock = cancel_last.lock().unwrap();
@@ -146,8 +144,18 @@ async fn do_search_impl(
     manager: Ptr<TextEditorManager>,
     base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
-    cancel_rx: oneshot::Receiver<()>,
+    mut cancel_rx: oneshot::Receiver<()>,
 ) {
+    let Ok(()) = sleep(Duration::from_millis(250))
+        .await
+        .inspect_err(|error| warn!("Sleep failed: {error}"))
+    else {
+        return;
+    };
+    match cancel_rx.try_recv() {
+        Ok(None) => (),
+        Ok(Some(())) | Err(oneshot::Canceled) => return,
+    };
     let mut results = run_query(manager.remote.clone(), base, input)
         .await
         .take_until(cancel_rx);

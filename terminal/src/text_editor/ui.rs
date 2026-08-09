@@ -489,7 +489,11 @@ impl TextEditorManager {
     fn save_side_view_on_change(&self) -> Consumers {
         let tile_id = self.tile.id;
         let remote = self.remote.clone();
+        let editor_state = self.editor_state.clone();
         self.side_view.add_subscriber(move |side_view| {
+            if matches!(editor_state.get_value_untracked(), EditorState::Search(_)) {
+                return;
+            }
             spawn_local(async move {
                 autoclone!(remote);
                 let side_view = Self::stored_side_view(side_view);

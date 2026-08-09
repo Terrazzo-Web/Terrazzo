@@ -6,11 +6,13 @@ use terrazzo::prelude::*;
 
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorState;
+use crate::text_editor::side::SideViewNode;
 
 #[derive(Clone)]
 #[nameth]
 pub struct EditorSearchState {
     pub(super) prev: Box<EditorState>,
+    pub(super) prev_side_view: Option<Arc<SideViewNode>>,
     pub results: Arc<Vec<FileMetadata>>,
 }
 

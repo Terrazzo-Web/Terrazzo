@@ -25,12 +25,17 @@ The Tantivy search should:
    - Remove and reinsert its document if its size or last-modified time has changed.
    - Do nothing if both values still match.
 6. Use the `notify` crate to watch the Git root for file changes. Submit changed paths to the same
-   reconciliation routine described above instead of reindexing unconditionally.
+   reconciliation routine described above instead of reindexing unconditionally. Only reindex files
+   that are already in the cache.
 7. Run the full index reconciliation every hour by default; make this interval configurable.
 8. After a search, if full reconciliation has not run within the last five minutes, run it again.
    Make this interval configurable.
 9. Exclude `.tantivy-cache` from both `git ls-files` results and `notify` events. Index writes must
    not index the cache itself or trigger recursive reconciliation.
+10. Submit files touched by `load_file`, `store_file`, `create_file`, and `move_file` in
+    `terminal/src/text_editor/fsio/service.rs` to the per-repository `mpsc` writer task for
+    reconciliation. For `move_file`, submit both the source path and the destination path so the
+    old document is removed and the new document is indexed.
 
 Concurrency and index updates:
 

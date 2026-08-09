@@ -13,6 +13,7 @@ use nameth::nameth;
 use regex::Regex;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
+use terrazzo::autoclone;
 use tracing::Span;
 use tracing::debug;
 use tracing::info_span;
@@ -115,18 +116,62 @@ async fn search_impl(
     input: String,
     settings: IndexSettings,
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
-    let regex =
-        Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input.clone(), error))?);
     let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
-    let paths = utils::git_files(repo_root.clone(), base.clone()).await?;
-    let name_base = base.clone();
-    let name_matches = paths
-        .filter_map(move |path| {
-            filenames::process_path(name_base.clone(), path, regex.clone())
-                .map(|maybe| maybe.transpose())
+
+    let filename_search = futures::stream::once(filename_search(
+        base.clone(),
+        input.clone(),
+        repo_root.clone(),
+    ))
+    .map(|filename_search| match filename_search {
+        Ok(filename_search) => filename_search.boxed(),
+        Err(error) => {
+            warn!("Failed to run Filename search: {error}");
+            futures::stream::empty().boxed()
+        }
+    })
+    .flatten()
+    .boxed();
+
+    let tantivy_search = futures::stream::once(tantivy_search(base, input, settings, repo_root))
+        .map(|tantivy_search| match tantivy_search {
+            Ok(tantivy_search) => tantivy_search.boxed(),
+            Err(error) => {
+                warn!("Failed to run Tantivy search: {error}");
+                futures::stream::empty().boxed()
+            }
         })
+        .flatten()
         .boxed();
 
+    Ok(futures::stream::iter([filename_search, tantivy_search])
+        .flatten_unordered(None)
+        .take(MAX_RESULTS))
+}
+
+#[autoclone]
+async fn filename_search(
+    base: Arc<Path>,
+    input: String,
+    repo_root: Arc<Path>,
+) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>> + Send, SearchError> {
+    let regex =
+        Arc::new(Regex::new(&input).map_err(|error| SearchError::Regex(input.clone(), error))?);
+    Ok(self::utils::git_files(repo_root.clone(), base.clone())
+        .await?
+        .filter_map(move |path| {
+            autoclone!(base);
+            filenames::process_path(base.clone(), path, regex.clone())
+                .map(|maybe| maybe.transpose())
+        }))
+}
+
+async fn tantivy_search(
+    base: Arc<Path>,
+    input: String,
+    settings: IndexSettings,
+    repo_root: Arc<Path>,
+) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>> + Send, SearchError> {
     let index = tantivy::repository_index(repo_root.clone(), settings)
         .await
         .map_err(SearchError::SearchIndex)?;
@@ -134,15 +179,11 @@ async fn search_impl(
         .search(&input, MAX_RESULTS)
         .map_err(|error| SearchError::SearchIndex(Arc::new(error)))?;
     index.refresh_if_stale();
-    let content_matches = futures::stream::iter(content_paths.into_iter().map(Ok))
-        .filter_map(move |path| {
+    let content_matches =
+        futures::stream::iter(content_paths.into_iter().map(Ok)).filter_map(move |path| {
             process_index_path(repo_root.clone(), base.clone(), path).map(|maybe| maybe.transpose())
-        })
-        .boxed();
-
-    Ok(futures::stream::iter([name_matches, content_matches])
-        .flatten_unordered(None)
-        .take(MAX_RESULTS))
+        });
+    Ok(content_matches)
 }
 
 pub fn reconcile_touched_path(path: &Path) {

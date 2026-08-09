@@ -12,7 +12,6 @@ use crate::text_editor::side::SideViewNode;
 #[nameth]
 pub struct EditorSearchState {
     pub(super) prev: Box<EditorState>,
-    pub(super) prev_side_view: Option<Arc<SideViewNode>>,
     pub results: Arc<Vec<FileMetadata>>,
 }
 
@@ -25,6 +24,7 @@ impl std::fmt::Debug for EditorSearchState {
 pub struct SearchState {
     pub query: XSignal<Arc<str>>,
     pub is_active: XSignal<bool>,
+    pub prev_side_view: XSignal<Option<Arc<SideViewNode>>>,
 }
 
 impl SearchState {
@@ -32,6 +32,7 @@ impl SearchState {
         Self {
             query: XSignal::new("search-query", Default::default()),
             is_active: XSignal::new("is-search-active", false),
+            prev_side_view: XSignal::new("prev-side-view", None),
         }
         .into()
     }

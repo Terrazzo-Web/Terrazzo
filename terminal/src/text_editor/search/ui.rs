@@ -40,7 +40,7 @@ impl TextEditorManager {
     #[autoclone]
     #[html]
     pub fn search_selector(self: &Ptr<Self>) -> XElement {
-        let is_active = XSignal::new("is-search-active", false);
+        let is_active = self.search.is_active.clone();
         let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
 
         return div(
@@ -109,10 +109,15 @@ fn start_search(manager: &Ptr<TextEditorManager>, do_search: &Ptr<impl Fn()>) {
         if let EditorState::Search { .. } = editor_state {
             return None;
         }
+        manager.search.prev_side_view.update(|prev_side_view| {
+            if prev_side_view.is_some() {
+                return None;
+            }
+            Some(manager.side_view.get_value_untracked())
+        });
         started = true;
         Some(EditorState::Search(EditorSearchState {
             prev: Box::new(editor_state.clone()),
-            prev_side_view: manager.side_view.get_value_untracked(),
             results: Default::default(),
         }))
     });
@@ -128,25 +133,17 @@ fn start_search(manager: &Ptr<TextEditorManager>, do_search: &Ptr<impl Fn()>) {
 }
 
 fn close_search(manager: &TextEditorManager, is_active_mut: &MutableSignal<bool>) {
-    let batch = Batch::use_batch("close-search");
-    let mut prev_side_view = None;
     manager.editor_state.update(|editor_state| {
-        let EditorState::Search(EditorSearchState {
-            prev,
-            prev_side_view: saved_side_view,
-            ..
-        }) = editor_state
-        else {
+        let EditorState::Search(EditorSearchState { prev, .. }) = editor_state else {
             return None;
         };
-        prev_side_view = Some(saved_side_view.clone());
         Some(prev.as_ref().clone())
     });
-    if let Some(prev_side_view) = prev_side_view {
+    if let Some(prev_side_view) = manager.search.prev_side_view.get_value_untracked() {
         manager.side_view.force(prev_side_view);
+        manager.search.prev_side_view.force(None);
     }
     is_active_mut.set(false);
-    drop(batch);
 }
 
 fn do_search(

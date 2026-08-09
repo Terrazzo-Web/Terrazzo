@@ -20,6 +20,8 @@ use tracing::debug;
 use tracing::warn;
 
 use crate::api::client_address::ClientAddress;
+use crate::backend::client_service::grpc_error::GrpcError;
+use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::git::git_repo_root;
@@ -56,6 +58,7 @@ remote_fn_service::streaming::declare_remote_fn!(
         }
     })
     .flatten()
+    .map_err(GrpcError::from)
 );
 
 #[nameth]
@@ -72,9 +75,17 @@ pub enum SearchError {
 
     #[error("[{n}] {0}", n = self.name())]
     GitLsFilesError(std::io::Error),
+}
 
-    #[error("[{n}] {0}", n = self.name())]
-    GitLsFilesExit(std::process::ExitStatus),
+impl IsGrpcError for SearchError {
+    fn code(&self) -> tonic::Code {
+        match self {
+            Self::Regex { .. } => tonic::Code::InvalidArgument,
+            Self::NotGit { .. } => tonic::Code::InvalidArgument,
+            Self::InvalidRepoRootPrefix { .. } => tonic::Code::InvalidArgument,
+            Self::GitLsFilesError { .. } => tonic::Code::FailedPrecondition,
+        }
+    }
 }
 
 async fn search_impl(

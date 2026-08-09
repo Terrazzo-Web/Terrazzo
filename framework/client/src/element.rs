@@ -185,13 +185,13 @@ impl XElement {
         element_rc: Ptr<Mutex<LiveElement>>,
     ) {
         match &self.key {
-            XKey::Named(key) => {
+            XKey::Named(_tid, key) => {
                 let _span = debug_span!("Merge", %key).entered();
                 debug!("Start");
                 defer!(debug!("End"));
                 self.merge_impl(template, old, element_rc);
             }
-            XKey::Index(_) => {
+            XKey::Index(_tid, _index) => {
                 let _span = trace_span!("Merge", key = ?self.key).entered();
                 trace!("Start");
                 defer!(trace!("End"));
@@ -208,8 +208,8 @@ impl XElement {
     ) {
         let element = {
             let mut element = element_rc.lock().or_throw("element");
-            if let XKey::Named(new_key) = &self.key
-                && let XKey::Named(cur_key) = XKey::of(template, 0, &element.html)
+            if let XKey::Named(_tid, new_key) = &self.key
+                && let XKey::Named(_tid, cur_key) = XKey::of(template, 0, &element.html)
                 && new_key != &cur_key
             {
                 warn!("Templates conflict on key cur_key:{cur_key} vs new_key:{new_key}");

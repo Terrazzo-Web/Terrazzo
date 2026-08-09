@@ -129,22 +129,17 @@ fn start_search(manager: &Ptr<TextEditorManager>, do_search: &Ptr<impl Fn()>) {
 
 fn close_search(manager: &TextEditorManager, is_active_mut: &MutableSignal<bool>) {
     let batch = Batch::use_batch("close-search");
-    let mut prev_side_view = None;
-    manager.editor_state.update(|editor_state| {
-        let EditorState::Search(EditorSearchState {
-            prev,
-            prev_side_view: saved_side_view,
-            ..
-        }) = editor_state
-        else {
-            return None;
-        };
-        prev_side_view = Some(saved_side_view.clone());
-        Some(prev.as_ref().clone())
-    });
-    if let Some(prev_side_view) = prev_side_view {
+    if let EditorState::Search(EditorSearchState { prev_side_view, .. }) =
+        manager.editor_state.get_value_untracked()
+    {
         manager.side_view.force(prev_side_view);
     }
+    manager.editor_state.update(|editor_state| {
+        let EditorState::Search(EditorSearchState { prev, .. }) = editor_state else {
+            return None;
+        };
+        Some(prev.as_ref().clone())
+    });
     is_active_mut.set(false);
     drop(batch);
 }

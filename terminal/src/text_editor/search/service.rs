@@ -36,6 +36,8 @@ mod filenames;
 mod tantivy;
 mod utils;
 
+pub use self::tantivy::reconcile_touched_path;
+
 pub async fn search(
     remote: ClientAddress,
     base: Arc<Path>,
@@ -184,10 +186,6 @@ async fn tantivy_search(
             process_index_path(repo_root.clone(), base.clone(), path).map(|maybe| maybe.transpose())
         });
     Ok(content_matches)
-}
-
-pub fn reconcile_touched_path(path: &Path) {
-    self::tantivy::reconcile_touched_path(path);
 }
 
 async fn process_index_path(

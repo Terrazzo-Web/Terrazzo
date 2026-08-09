@@ -465,6 +465,7 @@ async fn full_reconcile(
     reconcile_kind: ReconcileKind,
     reply: oneshot::Sender<Result<(), Arc<SearchIndexError>>>,
 ) {
+    let start = Instant::now();
     info!("Start");
     defer!(info!("End"));
     let result = async {
@@ -488,6 +489,7 @@ async fn full_reconcile(
                 .await?
             }
         };
+        info!("Found {} git files", paths.len());
         reconcile_all(
             &root,
             &cache_dir,
@@ -505,6 +507,7 @@ async fn full_reconcile(
         *last_full_reconcile.lock().unwrap() = Some(Instant::now());
     }
     let _ = reply.send(result);
+    info!("Elapsed: {}", humantime::format_duration(start.elapsed()))
 }
 
 async fn reconcile(
@@ -516,14 +519,17 @@ async fn reconcile(
     path: PathBuf,
     add_if_missing: bool,
 ) {
-    info!("Start");
-    defer!(info!("End"));
+    debug!("Start");
+    defer!(debug!("End"));
     let result = reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing)
         .await
         .and_then(|changed| {
             if changed {
+                debug!("Updated index");
                 writer.commit()?;
                 reader.reload()?;
+            } else {
+                debug!("Ignored");
             }
             Ok(())
         });

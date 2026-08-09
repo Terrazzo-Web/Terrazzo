@@ -9,7 +9,6 @@ use futures::StreamExt as _;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::io::BufReader;
 use tokio_stream::wrappers::LinesStream;
-use tracing::debug;
 
 use super::SearchError;
 
@@ -61,14 +60,14 @@ pub async fn git_files(
         stream.flat_map(move |row| {
             i += 1;
             futures::stream::once(async move {
-                if i % 10 == 0 {
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                if i % 100 == 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 }
                 row
             })
         })
     };
     #[cfg(debug_assertions)]
-    let stream = stream.inspect(|row| debug!("Row: {row:?}"));
+    let stream = stream.inspect(|row| tracing::trace!("Row: {row:?}"));
     Ok(stream)
 }

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use futures::StreamExt;
 use terrazzo::axum::Router;
 use terrazzo::axum::body::Body;
 use terrazzo::axum::extract::Query;
@@ -10,7 +11,6 @@ use terrazzo::axum::routing::get;
 use terrazzo::axum::routing::post;
 use terrazzo::http::StatusCode;
 use terrazzo::http::header;
-use tokio_stream::StreamExt as _;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::mode;

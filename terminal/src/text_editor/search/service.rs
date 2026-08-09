@@ -1,15 +1,17 @@
 use std::ffi::OsString;
 use std::fs;
 use std::future::ready;
+use std::io::ErrorKind;
 use std::os::unix::ffi::OsStringExt as _;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
 use futures::Stream;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::TryStreamExt as _;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use regex::Regex;
 use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
@@ -47,25 +49,43 @@ remote_fn_service::streaming::declare_remote_fn!(
     "texteditor.search",
     (Arc<Path>, String),
     FileMetadata,
-    |_server, (base, input)| search_impl(base, input)
+    |_server, (base, input)| match search_impl(base, input) {
+        Ok(stream) => stream.left_stream(),
+        Err(error) => futures::stream::once(ready(Err(Status::internal(format!(
+            "Search worker failed: {error}"
+        )))))
+        .right_stream(),
+    }
 );
 
-fn search_impl(base: Arc<Path>, input: String) -> impl Stream<Item = Result<FileMetadata, Status>> {
-    let regex = match Regex::new(&input) {
-        Ok(regex) => regex,
-        Err(error) => {
-            return futures::stream::iter(vec![Ok(FileMetadata {
-                name: error.to_string().into(),
-                ..FileMetadata::default()
-            })]);
-        }
-    };
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum SearchError {
+    #[error("[{n}] Failed to parse regular expression '{0}': {1}", n = self.name())]
+    Regex(String, regex::Error),
 
-    let paths = match git_repo_root(&base) {
-        Some(repo_root) => git_files(&repo_root, &base).unwrap_or_default(),
-        None => files_recursively(&base),
-    };
-    let results: Vec<Result<FileMetadata, Status>> = paths
+    #[error("[{n}] {0}", n = self.name())]
+    NotGit(Arc<Path>),
+
+    #[error("[{n}] {0}", n = self.name())]
+    InvalidRepoRootPrefix(std::path::StripPrefixError),
+
+    #[error("[{n}] {0}", n = self.name())]
+    GitLsFilesError(std::io::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    GitLsFilesExit(std::process::ExitStatus),
+}
+
+fn search_impl(
+    base: Arc<Path>,
+    input: String,
+) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
+    let regex = Regex::new(&input).map_err(|error| SearchError::Regex(input, error))?;
+
+    let repo_root = git_repo_root(&base).ok_or_else(|| SearchError::NotGit(base))?;
+    let paths = git_files(&repo_root, &base);
+    paths
         .into_iter()
         .filter_map(|path| {
             let relative = path.strip_prefix(base.as_ref()).ok()?;
@@ -77,55 +97,41 @@ fn search_impl(base: Arc<Path>, input: String) -> impl Stream<Item = Result<File
                 Some(Ok::<_, Status>(result))
             })?
         })
-        .collect();
-    futures::stream::iter(results)
+        .collect()
 }
 
-fn git_files(repo_root: &Path, base: &Path) -> Option<Vec<PathBuf>> {
-    let relative_base = base.strip_prefix(repo_root).ok()?;
-    let pathspec = if relative_base.as_os_str().is_empty() {
+async fn git_files(repo_root: &Path, base: &Path) -> Result<Vec<PathBuf>, SearchError> {
+    let pathspec = base
+        .strip_prefix(repo_root)
+        .map_err(SearchError::InvalidRepoRootPrefix)?;
+    let pathspec = if pathspec.as_os_str().is_empty() {
         Path::new(".")
     } else {
-        relative_base
+        pathspec
     };
-    let output = Command::new("git")
+    let process = tokio::process::Command::new("git")
         .current_dir(repo_root)
         .arg("--literal-pathspecs")
         .args(["ls-files", "-z"])
         .args(["--cached", "--others", "--exclude-standard", "--"])
         .arg(pathspec)
-        .output()
-        .ok()?;
+        .spawn()
+        .map_err(SearchError::GitLsFilesError)?;
+    let output = process.stdout.ok_or_else(|| {
+        SearchError::GitLsFilesError(std::io::Error::new(
+            ErrorKind::BrokenPipe,
+            "git ls-files didn't return anything",
+        ))
+    })?;
+    tokio_stream::
     if !output.status.success() {
-        return None;
+        return Err(SearchError::GitLsFilesExit(output.status));
     }
 
-    Some(
-        output
-            .stdout
-            .split(|byte| *byte == 0)
-            .filter(|path| !path.is_empty())
-            .map(|path| repo_root.join(OsString::from_vec(path.to_owned())))
-            .collect(),
-    )
-}
-
-fn files_recursively(base: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    let mut directories = vec![base.to_owned()];
-    while let Some(directory) = directories.pop() {
-        let Ok(entries) = fs::read_dir(directory) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            match entry.file_type() {
-                Ok(file_type) if file_type.is_dir() => directories.push(entry.path()),
-                Ok(file_type) if file_type.is_file() || file_type.is_symlink() => {
-                    files.push(entry.path());
-                }
-                Ok(_) | Err(_) => {}
-            }
-        }
-    }
-    files
+    Ok(output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| repo_root.join(OsString::from_vec(path.to_owned())))
+        .collect())
 }

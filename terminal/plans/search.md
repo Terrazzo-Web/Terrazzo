@@ -22,3 +22,6 @@ The Tantivy search should
 Question: what if the initialization routine is running while search is running?
 - I think you can modify the index while searching, this is OK
 - What if search notices that a file no longer exists and needs to be deleted from the index? Do we need to pipe operations though an mpsc channel so there is only one thread modifying the index at a time?
+
+
+Tests: implement an integration test like terminal/tests/integration-test-text-editor-viewer.spec.mjs, e.g terminal/tests/integration-test-text-editor-search.spec.mjs where you try to find this Markdown file by searching for string "Maintain a cache of search indexes per root git folder."

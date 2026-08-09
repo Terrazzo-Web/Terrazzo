@@ -11,12 +11,15 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 use futures::FutureExt as _;
+use futures::Stream;
+use futures::StreamExt as _;
 use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use notify::RecommendedWatcher;
 use notify::RecursiveMode;
 use notify::Watcher as _;
+use scopeguard::defer;
 use tantivy::Index;
 use tantivy::IndexReader;
 use tantivy::IndexWriter;
@@ -36,7 +39,10 @@ use tantivy::schema::TEXT;
 use tantivy::schema::Value as _;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use tracing::Instrument;
 use tracing::debug;
+use tracing::info;
+use tracing::info_span;
 use tracing::warn;
 
 use crate::text_editor::fsio;
@@ -74,7 +80,7 @@ struct Fingerprint {
 
 enum WriterCommand {
     FullReconcile {
-        paths: Vec<PathBuf>,
+        reconcile_kind: ReconcileKind,
         reply: oneshot::Sender<Result<(), Arc<SearchIndexError>>>,
     },
     Reconcile {
@@ -156,6 +162,12 @@ pub fn reconcile_touched_path(path: &Path) {
     index.reconcile(path.to_owned(), true);
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum ReconcileKind {
+    First,
+    Refresh,
+}
+
 impl RepositoryIndex {
     async fn initialize(
         root: Arc<Path>,
@@ -196,7 +208,7 @@ impl RepositoryIndex {
             last_full_reconcile,
             rx,
         ));
-        repository.full_reconcile().await?;
+        repository.full_reconcile(ReconcileKind::First).await?;
         repository.install_watcher()?;
         ACTIVE_INDEXES
             .lock()
@@ -244,22 +256,19 @@ impl RepositoryIndex {
         }
         let index = self.clone();
         tokio::spawn(async move {
-            if let Err(error) = index.full_reconcile().await {
+            if let Err(error) = index.full_reconcile(ReconcileKind::Refresh).await {
                 warn!(%error, root = ?index.root, "Failed to refresh search index");
             }
         });
     }
 
-    async fn full_reconcile(&self) -> Result<(), SearchIndexError> {
-        let paths = super::utils::git_files(self.root.clone(), self.root.clone())
-            .await
-            .map_err(|error| SearchIndexError::GitFiles(error.to_string()))?
-            .try_collect::<Vec<_>>()
-            .await
-            .map_err(|error| SearchIndexError::GitFiles(error.to_string()))?;
+    async fn full_reconcile(&self, reconcile_kind: ReconcileKind) -> Result<(), SearchIndexError> {
         let (reply, response) = oneshot::channel();
         self.tx
-            .send(WriterCommand::FullReconcile { paths, reply })
+            .send(WriterCommand::FullReconcile {
+                reconcile_kind,
+                reply,
+            })
             .map_err(|_| SearchIndexError::WriterStopped)?;
         response
             .await
@@ -328,7 +337,7 @@ impl RepositoryIndex {
                 let Some(index) = index.upgrade() else {
                     return;
                 };
-                if let Err(error) = index.full_reconcile().await {
+                if let Err(error) = index.full_reconcile(ReconcileKind::Refresh).await {
                     warn!(%error, root = ?index.root, "Periodic search index refresh failed");
                 }
             }
@@ -400,51 +409,136 @@ async fn writer_loop(
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     mut rx: mpsc::UnboundedReceiver<WriterCommand>,
 ) {
-    while let Some(command) = rx.recv().await {
-        match command {
-            WriterCommand::FullReconcile { paths, reply } => {
-                let result = reconcile_all(
-                    &root,
-                    &cache_dir,
-                    fields,
-                    &mut writer,
-                    &reader,
-                    &mut fingerprints,
-                    paths,
-                )
-                .await
-                .map_err(Arc::new);
-                if result.is_ok() {
-                    *last_full_reconcile.lock().unwrap() = Some(Instant::now());
+    async {
+        while let Some(command) = rx.recv().await {
+            match command {
+                WriterCommand::FullReconcile {
+                    reconcile_kind,
+                    reply,
+                } => {
+                    full_reconcile(
+                        &root,
+                        &cache_dir,
+                        fields,
+                        &mut writer,
+                        &reader,
+                        &mut fingerprints,
+                        &last_full_reconcile,
+                        reconcile_kind,
+                        reply,
+                    )
+                    .instrument(info_span!("Full reconcile", ?reconcile_kind))
+                    .await;
                 }
-                let _ = reply.send(result);
-            }
-            WriterCommand::Reconcile {
-                path,
-                add_if_missing,
-            } => {
-                let result = reconcile_one(
-                    &root,
-                    fields,
-                    &mut writer,
-                    &mut fingerprints,
-                    &path,
+                WriterCommand::Reconcile {
+                    path,
                     add_if_missing,
-                )
-                .await
-                .and_then(|changed| {
-                    if changed {
-                        writer.commit()?;
-                        reader.reload()?;
-                    }
-                    Ok(())
-                });
-                if let Err(error) = result {
-                    warn!(%error, ?path, "Failed to reconcile search index file");
+                } => {
+                    let span = info_span!("Reconcile", ?path);
+                    reconcile(
+                        &root,
+                        fields,
+                        &mut writer,
+                        &reader,
+                        &mut fingerprints,
+                        path,
+                        add_if_missing,
+                    )
+                    .instrument(span)
+                    .await;
                 }
             }
         }
     }
+    .instrument(info_span!("Tantivy Index"))
+    .await
+}
+
+async fn full_reconcile(
+    root: &Arc<Path>,
+    cache_dir: &Arc<Path>,
+    fields: IndexFields,
+    writer: &mut IndexWriter,
+    reader: &IndexReader,
+    fingerprints: &mut HashMap<PathBuf, Fingerprint>,
+    last_full_reconcile: &Arc<Mutex<Option<Instant>>>,
+    reconcile_kind: ReconcileKind,
+    reply: oneshot::Sender<Result<(), Arc<SearchIndexError>>>,
+) {
+    info!("Start");
+    defer!(info!("End"));
+    let result = async {
+        let paths = super::utils::git_files(root.clone(), root.clone())
+            .await
+            .map_err(|error| SearchIndexError::GitFiles(error.to_string()))?;
+        let paths = match reconcile_kind {
+            ReconcileKind::First => collect_paths(paths).await?,
+            ReconcileKind::Refresh => {
+                let mut i = 0;
+                collect_paths(paths.flat_map(|item| {
+                    i += 1;
+                    futures::stream::once(async move {
+                        if i % 100 == 0 {
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                            debug!(i, "Listing git files...");
+                        }
+                        item
+                    })
+                }))
+                .await?
+            }
+        };
+        reconcile_all(
+            &root,
+            &cache_dir,
+            fields,
+            writer,
+            &reader,
+            fingerprints,
+            paths,
+        )
+        .await
+    }
+    .await
+    .map_err(Arc::new);
+    if result.is_ok() {
+        *last_full_reconcile.lock().unwrap() = Some(Instant::now());
+    }
+    let _ = reply.send(result);
+}
+
+async fn reconcile(
+    root: &Arc<Path>,
+    fields: IndexFields,
+    writer: &mut IndexWriter,
+    reader: &IndexReader,
+    fingerprints: &mut HashMap<PathBuf, Fingerprint>,
+    path: PathBuf,
+    add_if_missing: bool,
+) {
+    info!("Start");
+    defer!(info!("End"));
+    let result = reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing)
+        .await
+        .and_then(|changed| {
+            if changed {
+                writer.commit()?;
+                reader.reload()?;
+            }
+            Ok(())
+        });
+    if let Err(error) = result {
+        warn!(%error, ?path, "Failed to reconcile search index file");
+    }
+}
+
+async fn collect_paths(
+    paths: impl Stream<Item = Result<PathBuf, super::SearchError>>,
+) -> Result<Vec<PathBuf>, SearchIndexError> {
+    paths
+        .try_collect::<Vec<_>>()
+        .await
+        .map_err(|error| SearchIndexError::GitFiles(error.to_string()))
 }
 
 async fn reconcile_all(

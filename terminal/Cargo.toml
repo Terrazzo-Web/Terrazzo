@@ -59,6 +59,7 @@ simple_asn1 = { workspace = true, optional = true }
 terrazzo = { workspace = true, optional = true }
 terrazzo-css = { workspace = true, optional = true }
 terrazzo-pty = { workspace = true, optional = true }
+tantivy = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tls-parser = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["full"] }
@@ -227,6 +228,7 @@ text-editor-server = [
   "dep:lru",
   "dep:notify",
   "dep:regex",
+  "dep:tantivy",
   "dep:tokio-stream",
   "remote-fn-streaming",
   "remote-fn-unary",

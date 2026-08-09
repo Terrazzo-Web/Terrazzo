@@ -3,6 +3,7 @@ use std::future::ready;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures::FutureExt as _;
 use futures::Stream;
@@ -31,6 +32,7 @@ use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;
 
 static MAX_RESULTS: usize = 1000;
+static MAX_QUERY_TIME: Duration = Duration::from_secs(10);
 
 mod filenames;
 mod tantivy;
@@ -148,7 +150,8 @@ async fn search_impl(
 
     Ok(futures::stream::iter([filename_search, tantivy_search])
         .flatten_unordered(None)
-        .take(MAX_RESULTS))
+        .take(MAX_RESULTS)
+        .take_until(tokio::time::sleep(MAX_QUERY_TIME)))
 }
 
 #[autoclone]

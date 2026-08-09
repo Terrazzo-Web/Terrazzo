@@ -491,11 +491,11 @@ async fn full_reconcile(
         };
         info!("Found {} git files", paths.len());
         reconcile_all(
-            &root,
-            &cache_dir,
+            root,
+            cache_dir,
             fields,
             writer,
-            &reader,
+            reader,
             fingerprints,
             paths,
         )

@@ -26,8 +26,16 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     pub trash: T::Path,
 
     /// The folder, relative to a Git repository root, where deleted Git files are moved.
-    #[serde(rename = "git-trash", alias = "git_trash")]
     pub git_trash: T::MaybePath,
+
+    /// The folder, relative to a Git repository root, where Tantivy indexes are stored.
+    pub tantivy_cache: T::Path,
+
+    /// How often to fully reconcile cached search indexes.
+    pub search_index_refresh: T::Duration,
+
+    /// How old a full reconciliation may be when a search finishes.
+    pub search_index_stale_after: T::Duration,
 
     pub set_current_endpoint: T::MaybePath,
 

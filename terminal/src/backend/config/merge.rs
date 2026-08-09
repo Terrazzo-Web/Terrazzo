@@ -47,6 +47,13 @@ impl Config {
                 terminal_shell: server.terminal_shell.clone(),
                 trash: Some(collapse_tilde(&server.trash)),
                 git_trash: server.git_trash.as_ref().map(collapse_tilde),
+                tantivy_cache: Some(server.tantivy_cache.clone()),
+                search_index_refresh: Some(
+                    humantime::format_duration(server.search_index_refresh).to_string(),
+                ),
+                search_index_stale_after: Some(
+                    humantime::format_duration(server.search_index_stale_after).to_string(),
+                ),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -111,6 +118,16 @@ fn merge_server_config(
             git_trash.or(server.git_trash.as_deref()).map(expand_tilde)
         }
         .map(Arc::from),
+        tantivy_cache: cli
+            .tantivy_cache
+            .as_deref()
+            .map(Arc::from)
+            .or_else(|| server.tantivy_cache.clone())
+            .unwrap_or_else(|| Path::new(".tantivy-cache").into()),
+        search_index_refresh: parse_duration(server.search_index_refresh.as_deref())
+            .unwrap_or(Duration::from_secs(60 * 60)),
+        search_index_stale_after: parse_duration(server.search_index_stale_after.as_deref())
+            .unwrap_or(Duration::from_secs(5 * 60)),
         set_current_endpoint: cli.set_current_endpoint.as_deref().map(Arc::from),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
@@ -262,6 +279,9 @@ mod tests {
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),
                 trash: terrazzo_home().join("trash").into(),
                 git_trash: Some(Path::new(".trash").into()),
+                tantivy_cache: Path::new(".search-cache").into(),
+                search_index_refresh: Duration::from_secs(7200),
+                search_index_stale_after: Duration::from_secs(600),
                 set_current_endpoint: None,
                 pidfile: terrazzo_home().join("test.pid").into(),
                 private_root_ca: terrazzo_home().join("root_ca").into(),
@@ -286,6 +306,18 @@ mod tests {
         assert_eq!(
             round_trip.server.git_trash.as_deref(),
             Some(Path::new(".trash"))
+        );
+        assert_eq!(
+            &*round_trip.server.tantivy_cache,
+            Path::new(".search-cache")
+        );
+        assert_eq!(
+            round_trip.server.search_index_refresh,
+            Duration::from_secs(7200)
+        );
+        assert_eq!(
+            round_trip.server.search_index_stale_after,
+            Duration::from_secs(600)
         );
         assert!(!round_trip.server.config_file_watcher);
         assert_eq!(

@@ -15,10 +15,7 @@ pub async fn process_path(
     regex: Arc<Regex>,
 ) -> Result<Option<FileMetadata>, SearchError> {
     let path = path?;
-    let Some(name) = path.file_name() else {
-        return Ok(None);
-    };
-    if !regex.is_match(&name.to_string_lossy()) {
+    if !regex.is_match(&path.to_string_lossy()) {
         debug!("Not match: {path:?}");
         return Ok(None);
     }

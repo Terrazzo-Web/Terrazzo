@@ -182,6 +182,8 @@ async fn do_search_impl(
         Ok(None) => (),
         Ok(Some(())) | Err(oneshot::Canceled) => return,
     };
+    let input = input.with(|input| input.value());
+    manager.search.query.force(input.clone());
     let mut results = run_query(manager.remote.clone(), base.clone(), input)
         .await
         .take_until(cancel_rx);
@@ -276,9 +278,8 @@ fn search_tree_node(
 async fn run_query(
     remote: ClientAddress,
     base: Arc<Path>,
-    input: ElementCapture<HtmlInputElement>,
+    input: String,
 ) -> impl Stream<Item = Vec<FileMetadata>> {
-    let input = input.with(|i| i.value());
     let stream = match super::client::search(remote, base, input).await {
         Ok(stream) => stream.left_stream(),
         Err(error) => futures::stream::once(ready(Err(error))).right_stream(),

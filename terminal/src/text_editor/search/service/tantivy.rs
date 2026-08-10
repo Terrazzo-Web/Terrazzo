@@ -65,9 +65,9 @@ pub struct IndexSettings {
 }
 
 #[derive(Clone, Copy)]
-struct IndexFields {
+pub(super) struct IndexFields {
     path: Field,
-    body: Field,
+    pub(super) body: Field,
     size: Field,
     modified: Field,
 }
@@ -92,9 +92,9 @@ enum WriterCommand {
 pub struct RepositoryIndex {
     root: Arc<Path>,
     cache_dir: Arc<Path>,
-    index: Index,
-    reader: IndexReader,
-    fields: IndexFields,
+    pub(super) index: Index,
+    pub(super) reader: IndexReader,
+    pub(super) fields: IndexFields,
     tx: mpsc::UnboundedSender<WriterCommand>,
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     refresh_interval: Duration,

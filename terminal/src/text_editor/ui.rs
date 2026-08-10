@@ -438,12 +438,26 @@ impl TextEditorManager {
                     .map(Arc::new);
                 let cursor_position = match data.as_deref() {
                     Some(fsio::File::TextFile { .. }) => {
-                        fsio::client::load_cursor_position(this.remote.clone(), path.clone())
+                        if this.search.is_active.get_value_untracked() {
+                            super::search::api::get_highlight_ranges(
+                                this.remote.clone(),
+                                path.clone(),
+                                this.search.query.get_value_untracked().to_string(),
+                            )
                             .await
+                            .map(|ranges| ranges.into_iter().next())
                             .unwrap_or_else(|error| {
-                                warn!("Failed to load cursor position: {error}");
+                                warn!("Failed to load search highlights: {error}");
                                 None
                             })
+                        } else {
+                            fsio::client::load_cursor_position(this.remote.clone(), path.clone())
+                                .await
+                                .unwrap_or_else(|error| {
+                                    warn!("Failed to load cursor position: {error}");
+                                    None
+                                })
+                        }
                     }
                     _ => None,
                 };

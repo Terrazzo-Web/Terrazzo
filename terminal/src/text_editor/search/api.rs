@@ -9,6 +9,17 @@ use server_fn::codec::TextStream;
 use terrazzo::server;
 
 use crate::api::client_address::ClientAddress;
+use crate::text_editor::file_path::FilePath;
+use crate::text_editor::fsio::CursorPosition;
+
+#[server(protocol = Http<Json, Json>)]
+pub async fn get_highlight_ranges(
+    remote: ClientAddress,
+    path: FilePath<Arc<Path>>,
+    input: String,
+) -> Result<Vec<CursorPosition>, ServerFnError> {
+    super::service::get_highlight_ranges(remote, path, input).await
+}
 
 #[server(protocol = Http<Json, StreamingText>)]
 pub async fn search(

@@ -81,6 +81,24 @@ test.describe('demo counter', () => {
     await expect(valueText).toHaveText('Value: 0!');
   });
 
+  test('toggles nested keyed arity content between even and odd', async ({ page }) => {
+    const counter = page.locator('#counter');
+    const incrementButton = counter.getByRole('button', { name: '+1', exact: true });
+    const evenText = counter.getByText('Even!', { exact: true });
+    const oddText = counter.getByText('Odd?', { exact: true });
+
+    await expect(evenText).toBeVisible();
+    await expect(oddText).toHaveCount(0);
+
+    await incrementButton.click();
+    await expect(evenText).toHaveCount(0);
+    await expect(oddText).toBeVisible();
+
+    await incrementButton.click();
+    await expect(oddText).toHaveCount(0);
+    await expect(evenText).toBeVisible();
+  });
+
   test('loads /static/common.css with the expected mime type', async ({ request }) => {
     await expectStaticAssetLoads(request, '/static/common.css', /^text\/css\b/i);
   });

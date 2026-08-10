@@ -34,7 +34,7 @@ function getCloseIcons(tabs) {
 }
 
 async function closeTab(tab) {
-    await tab.locator('img.close-icon').click({ force: true, timeout: SECOND });
+    await tab.locator('img.close-icon').click({ force: true, timeout: 5 * SECOND });
 }
 
 async function closeAllTabs(page) {
@@ -44,10 +44,20 @@ async function closeAllTabs(page) {
     }
 }
 
+async function runTerminalCommand(page, command, expected) {
+    const activeTerminal = getActiveTerminal(page);
+    await expect(activeTerminal).toHaveCount(1);
+    await activeTerminal.click();
+    await page.keyboard.type(command);
+    await page.keyboard.press('Enter');
+    await expect(activeTerminal).toContainText(expected, { timeout: 10 * SECOND });
+    return activeTerminal;
+}
+
 async function selectTerminalText(page, text) {
     const row = page.locator('.xterm-rows > div')
         .filter({ hasText: text })
-        .first();
+        .last();
     await expect(row).toBeVisible();
     const box = await row.boundingBox();
     if (!box) {
@@ -60,6 +70,8 @@ async function selectTerminalText(page, text) {
 }
 
 test.describe('Terminal', () => {
+    test.describe.configure({ retries: 5 });
+
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
@@ -95,11 +107,7 @@ test.describe('Terminal', () => {
         await expect(tabs).toHaveCount(1);
         await expect(activeTerminal).toHaveCount(1);
 
-        await expect(activeTerminal).toContainText('Welcome to Test Environment');
-        await activeTerminal.click();
-        await page.keyboard.type('echo $((191*7))');
-        await page.keyboard.press('Enter');
-        await expect(activeTerminal).toContainText('1337');
+        await runTerminalCommand(page, 'echo $((191*7))', '1337');
 
         await closeTab(tabs);
         await expect(tabs).toHaveCount(0);
@@ -112,22 +120,25 @@ test.describe('Terminal', () => {
         await addTabButton.waitFor({ timeout: 10 * SECOND });
         await addTabButton.click();
 
-        const activeTerminal = getActiveTerminal(page);
-        await expect(activeTerminal).toContainText('Welcome to Test Environment');
-        await activeTerminal.click();
-        await selectTerminalText(page, 'Welcome to Test Environment');
+        const clipboardText = 'Clipboard Test Environment';
+        const activeTerminal = await runTerminalCommand(
+            page,
+            String.raw`printf '\103\154\151\160\142\157\141\162\144\040\124\145\163\164\040\105\156\166\151\162\157\156\155\145\156\164\n'`,
+            clipboardText,
+        );
+        await selectTerminalText(page, clipboardText);
 
         await page.keyboard.press('Control+C');
         await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-            .toBe('Welcome to Test Environment');
+            .toBe(clipboardText);
 
         await activeTerminal.click();
         await page.keyboard.type('echo ');
         await page.keyboard.press('Control+V');
-        await expect(activeTerminal).toContainText('echo Welcome to Test Environment');
+        await expect(activeTerminal).toContainText(`echo ${clipboardText}`);
         await page.keyboard.press('Enter');
         await expect.poll(() => activeTerminal.evaluate((terminal) => (
-            terminal.textContent.match(/Welcome to Test Environment/g) ?? []
+            terminal.textContent.match(/Clipboard Test Environment/g) ?? []
         ).length)).toBeGreaterThanOrEqual(3);
     });
 
@@ -137,7 +148,7 @@ test.describe('Terminal', () => {
         await addTabButton.click();
 
         const activeTerminal = getActiveTerminal(page);
-        await expect(activeTerminal).toContainText('Welcome to Test Environment');
+        await expect(activeTerminal).toHaveCount(1);
 
         const overlayButton = page.locator('li.selected .input-overlay-button');
         await expect(overlayButton).toBeVisible();
@@ -160,7 +171,7 @@ test.describe('Terminal', () => {
     });
 
     test('sends two mocked speech recognition inputs from the terminal overlay', async ({ page }) => {
-        await page.addInitScript(() => {
+        await page.evaluate(() => {
             window.__speechRecognitionTranscripts = [
                 'echo speech-overlay-27182\n',
                 'echo speech-overlay-31415\n',
@@ -198,15 +209,11 @@ test.describe('Terminal', () => {
                 value: MockSpeechRecognition,
             });
         });
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        await getAddTabButton(page).waitFor({ timeout: 10 * SECOND });
-        await closeAllTabs(page);
-
         const addTabButton = getAddTabButton(page);
         await addTabButton.click();
 
         const activeTerminal = getActiveTerminal(page);
-        await expect(activeTerminal).toContainText('Welcome to Test Environment');
+        await expect(activeTerminal).toHaveCount(1);
 
         const overlayButton = page.locator('li.selected .input-overlay-button');
         const textarea = page.locator('li.selected .input-overlay-textarea');

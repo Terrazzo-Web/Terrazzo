@@ -61,5 +61,5 @@ fn even() -> XElement {
 #[template(tag = div)]
 #[html]
 fn odd() -> XElement {
-    div(tag("Odd?", key = "odd", style::font_weight = "bold"))
+    tag(div("Odd?", key = "odd", style::font_weight = "bold"))
 }

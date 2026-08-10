@@ -19,7 +19,6 @@ use crate::prelude::OrElseLog as _;
 use crate::prelude::XAttributeKind;
 use crate::prelude::XAttributeName;
 use crate::prelude::XAttributeValue;
-use crate::prelude::diagnostics::error;
 use crate::prelude::diagnostics::trace;
 use crate::prelude::diagnostics::warn;
 use crate::string::XString;
@@ -206,10 +205,11 @@ fn create_new_element(
         name: XString::Str("xmlns"),
         kind: XAttributeKind::Attribute,
     };
-    let Some(tag_name) = new_element.tag_name.as_deref() else {
-        error!("Failed to create new element with undefined tag name");
-        return None;
-    };
+    let tag_name = new_element
+        .tag_name
+        .as_deref()
+        .map(str::to_owned)
+        .unwrap_or_else(|| template.element().tag_name().to_lowercase());
     let html = if let XElementValue::Static { attributes, .. } = &new_element.value
         && let Some(xmlns) = attributes
             .iter()
@@ -220,9 +220,9 @@ fn create_new_element(
                 };
                 return Some(xmlns.as_str());
             }) {
-        document.create_element_ns(Some(xmlns), tag_name)
+        document.create_element_ns(Some(xmlns), &tag_name)
     } else {
-        document.create_element(tag_name)
+        document.create_element(&tag_name)
     };
 
     let html =

@@ -35,9 +35,11 @@ static MAX_RESULTS: usize = 1000;
 static MAX_QUERY_TIME: Duration = Duration::from_secs(10);
 
 mod filenames;
+mod highlights;
 mod tantivy;
 mod utils;
 
+pub use self::highlights::get_highlight_ranges;
 pub use self::tantivy::reconcile_touched_path;
 
 pub async fn search(

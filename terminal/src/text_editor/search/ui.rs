@@ -42,6 +42,7 @@ impl TextEditorManager {
     pub fn search_selector(self: &Ptr<Self>) -> XElement {
         let is_active = self.search.is_active.clone();
         let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
+        let manager = self.clone();
 
         return div(
             class = style::PATH_SELECTOR,
@@ -51,7 +52,11 @@ impl TextEditorManager {
                 class = style::SEARCH_ICON,
                 src = icons::search(),
                 click = move |_| {
-                    autoclone!(is_active, input);
+                    autoclone!(manager, is_active, input);
+                    if is_active.get_value_untracked() {
+                        close_search(&manager);
+                        return;
+                    }
                     is_active.set(true);
                     let () = input.with(|i| i.focus()).or_throw("focus");
                 },
@@ -73,7 +78,7 @@ fn search_selector_input(
     manager: Ptr<TextEditorManager>,
     input: ElementCapture<HtmlInputElement>,
     #[signal] base: Arc<Path>,
-    #[signal] mut is_active: bool,
+    #[signal] is_active: bool,
 ) -> XElement {
     if !is_active {
         return tag(style::display = "none", style::visibility = "hidden");
@@ -88,10 +93,10 @@ fn search_selector_input(
             r#type = "text",
             class = style::PATH_SELECTOR_FIELD,
             keydown = move |event: KeyboardEvent| {
-                autoclone!(manager, is_active_mut, input, do_search);
+                autoclone!(manager, input, do_search);
                 if event.key() == "Escape" {
                     event.prevent_default();
-                    close_search(&manager, &is_active_mut);
+                    close_search(&manager);
                     let () = input.with(|i| i.blur()).or_throw("blur");
                     return;
                 }
@@ -132,7 +137,7 @@ fn start_search(manager: &Ptr<TextEditorManager>, do_search: &Ptr<impl Fn()>) {
     do_search()
 }
 
-fn close_search(manager: &TextEditorManager, is_active_mut: &MutableSignal<bool>) {
+fn close_search(manager: &TextEditorManager) {
     manager.editor_state.update(|editor_state| {
         let EditorState::Search(EditorSearchState { prev, .. }) = editor_state else {
             return None;
@@ -143,7 +148,7 @@ fn close_search(manager: &TextEditorManager, is_active_mut: &MutableSignal<bool>
         manager.side_view.force(prev_side_view);
         manager.search.prev_side_view.force(None);
     }
-    is_active_mut.set(false);
+    manager.search.is_active.set(false);
 }
 
 fn do_search(
@@ -182,6 +187,8 @@ async fn do_search_impl(
         Ok(None) => (),
         Ok(Some(())) | Err(oneshot::Canceled) => return,
     };
+    let input = input.with(|input| input.value());
+    manager.search.query.force(input.clone());
     let mut results = run_query(manager.remote.clone(), base.clone(), input)
         .await
         .take_until(cancel_rx);
@@ -276,9 +283,8 @@ fn search_tree_node(
 async fn run_query(
     remote: ClientAddress,
     base: Arc<Path>,
-    input: ElementCapture<HtmlInputElement>,
+    input: String,
 ) -> impl Stream<Item = Vec<FileMetadata>> {
-    let input = input.with(|i| i.value());
     let stream = match super::client::search(remote, base, input).await {
         Ok(stream) => stream.left_stream(),
         Err(error) => futures::stream::once(ready(Err(error))).right_stream(),

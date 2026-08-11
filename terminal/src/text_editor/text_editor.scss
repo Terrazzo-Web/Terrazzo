@@ -161,6 +161,11 @@ div.text_editor {
                             var(--color) 15%);
                 }
 
+                :global(.cm-selectionBackground),
+                :global(.cm-content) ::selection {
+                    background-color: rgba(77, 144, 77, 0.403) !important;
+                }
+
                 :global(.cm-scroller) {
                     overflow: auto;
                 }

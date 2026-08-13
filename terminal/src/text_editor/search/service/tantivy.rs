@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use std::sync::RwLock;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -81,7 +82,7 @@ struct Fingerprint {
 enum WriterCommand {
     FullReconcile {
         reconcile_kind: ReconcileKind,
-        reply: oneshot::Sender<Result<(), Arc<SearchIndexError>>>,
+        reply: oneshot::Sender<Result<HashSet<PathBuf>, Arc<SearchIndexError>>>,
     },
     Reconcile {
         path: PathBuf,
@@ -99,7 +100,13 @@ pub struct RepositoryIndex {
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     refresh_interval: Duration,
     stale_after: Duration,
-    watcher: Mutex<Option<RecommendedWatcher>>,
+    git_files: Arc<RwLock<HashSet<PathBuf>>>,
+    watcher: Mutex<Option<WatcherState>>,
+}
+
+struct WatcherState {
+    watcher: RecommendedWatcher,
+    directories: HashSet<PathBuf>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -195,6 +202,7 @@ impl RepositoryIndex {
             last_full_reconcile: last_full_reconcile.clone(),
             refresh_interval: settings.refresh_interval,
             stale_after: settings.stale_after,
+            git_files: Arc::new(RwLock::new(HashSet::new())),
             watcher: Mutex::new(None),
         });
 
@@ -208,8 +216,8 @@ impl RepositoryIndex {
             last_full_reconcile,
             rx,
         ));
-        repository.full_reconcile(ReconcileKind::First).await?;
         repository.install_watcher()?;
+        repository.full_reconcile(ReconcileKind::First).await?;
         ACTIVE_INDEXES
             .lock()
             .unwrap()
@@ -270,10 +278,13 @@ impl RepositoryIndex {
                 reply,
             })
             .map_err(|_| SearchIndexError::WriterStopped)?;
-        response
+        let git_files = response
             .await
             .map_err(|_| SearchIndexError::WriterStopped)?
-            .map_err(|error| SearchIndexError::Io(std::io::Error::other(error.to_string())))
+            .map_err(|error| SearchIndexError::Io(std::io::Error::other(error.to_string())))?;
+        *self.git_files.write().unwrap() = git_files.clone();
+        self.update_watcher(&git_files)?;
+        Ok(())
     }
 
     fn reconcile(&self, path: PathBuf, add_if_missing: bool) {
@@ -296,6 +307,7 @@ impl RepositoryIndex {
     fn install_watcher(&self) -> Result<(), SearchIndexError> {
         let root = self.root.clone();
         let cache_dir = self.cache_dir.clone();
+        let git_files = self.git_files.clone();
         let tx = self.tx.clone();
         let mut watcher =
             notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
@@ -315,14 +327,57 @@ impl RepositoryIndex {
                     let Ok(path) = path.strip_prefix(&root).map(Path::to_owned) else {
                         continue;
                     };
+                    if !git_files.read().unwrap().contains(&path) {
+                        continue;
+                    }
                     let _ = tx.send(WriterCommand::Reconcile {
                         path,
                         add_if_missing: false,
                     });
                 }
             })?;
-        watcher.watch(&self.root, RecursiveMode::Recursive)?;
-        *self.watcher.lock().unwrap() = Some(watcher);
+        watcher.watch(&self.root, RecursiveMode::NonRecursive)?;
+        *self.watcher.lock().unwrap() = Some(WatcherState {
+            watcher,
+            directories: HashSet::from([self.root.to_path_buf()]),
+        });
+        Ok(())
+    }
+
+    fn update_watcher(&self, git_files: &HashSet<PathBuf>) -> Result<(), SearchIndexError> {
+        let directories = watch_directories(&self.root, git_files);
+        let mut state = self.watcher.lock().unwrap();
+        let Some(state) = state.as_mut() else {
+            return Ok(());
+        };
+
+        for directory in directories
+            .difference(&state.directories)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            let Ok(metadata) = std::fs::symlink_metadata(&directory) else {
+                continue;
+            };
+            if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                continue;
+            }
+            state
+                .watcher
+                .watch(&directory, RecursiveMode::NonRecursive)?;
+            state.directories.insert(directory);
+        }
+        for directory in state
+            .directories
+            .difference(&directories)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            if let Err(error) = state.watcher.unwatch(&directory) {
+                debug!(%error, ?directory, "Failed to remove stale search index watch");
+            }
+            state.directories.remove(&directory);
+        }
         Ok(())
     }
 
@@ -343,6 +398,19 @@ impl RepositoryIndex {
             }
         });
     }
+}
+
+fn watch_directories(root: &Path, git_files: &HashSet<PathBuf>) -> HashSet<PathBuf> {
+    let mut directories = HashSet::from([root.to_path_buf()]);
+    for path in git_files {
+        let Some(parent) = path.parent() else {
+            continue;
+        };
+        for ancestor in parent.ancestors() {
+            directories.insert(root.join(ancestor));
+        }
+    }
+    directories
 }
 
 fn make_schema() -> (Schema, IndexFields) {
@@ -463,7 +531,7 @@ async fn full_reconcile(
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     last_full_reconcile: &Arc<Mutex<Option<Instant>>>,
     reconcile_kind: ReconcileKind,
-    reply: oneshot::Sender<Result<(), Arc<SearchIndexError>>>,
+    reply: oneshot::Sender<Result<HashSet<PathBuf>, Arc<SearchIndexError>>>,
 ) {
     let start = Instant::now();
     info!("Start");
@@ -490,16 +558,12 @@ async fn full_reconcile(
             }
         };
         info!("Found {} git files", paths.len());
-        reconcile_all(
-            root,
-            cache_dir,
-            fields,
-            writer,
-            reader,
-            fingerprints,
-            paths,
-        )
-        .await
+        let paths: HashSet<_> = paths
+            .into_iter()
+            .filter(|path| !root.join(path).starts_with(cache_dir.as_ref()))
+            .collect();
+        reconcile_all(root, fields, writer, reader, fingerprints, &paths).await?;
+        Ok(paths)
     }
     .await
     .map_err(Arc::new);
@@ -549,19 +613,14 @@ async fn collect_paths(
 
 async fn reconcile_all(
     root: &Path,
-    cache_dir: &Path,
     fields: IndexFields,
     writer: &mut IndexWriter,
     reader: &IndexReader,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
-    paths: Vec<PathBuf>,
+    paths: &HashSet<PathBuf>,
 ) -> Result<(), SearchIndexError> {
-    let paths: HashSet<_> = paths
-        .into_iter()
-        .filter(|path| !root.join(path).starts_with(cache_dir))
-        .collect();
     let mut changed = false;
-    for path in &paths {
+    for path in paths {
         changed |= reconcile_one(root, fields, writer, fingerprints, path, true).await?;
     }
     let deleted: Vec<_> = fingerprints
@@ -648,4 +707,30 @@ fn modified_nanos(modified: SystemTime) -> u64 {
         .unwrap_or_default()
         .as_nanos()
         .min(u128::from(u64::MAX)) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::watch_directories;
+    use std::collections::HashSet;
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    #[test]
+    fn watch_only_directories_containing_git_files() {
+        let git_files = HashSet::from([
+            PathBuf::from("README.md"),
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/nested/lib.rs"),
+        ]);
+
+        assert_eq!(
+            HashSet::from([
+                PathBuf::from("/repo"),
+                PathBuf::from("/repo/src"),
+                PathBuf::from("/repo/src/nested"),
+            ]),
+            watch_directories(Path::new("/repo"), &git_files),
+        );
+    }
 }

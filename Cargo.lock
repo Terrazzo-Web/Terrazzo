@@ -205,7 +205,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "autoclone"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clone-macro",
  "darling 0.24.0",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "autoclone",
 ]
@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "crate_universe_deps"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -1235,7 +1235,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feature-deps"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "heck",
@@ -1460,7 +1460,7 @@ dependencies = [
 
 [[package]]
 name = "game"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "scopeguard",
  "terrazzo",
@@ -1919,9 +1919,9 @@ dependencies = [
 
 [[package]]
 name = "http-body-util"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f41fd6a08e4d4ec69df65976da761afd5ad5e58a9d4acb46bd1c953a9e3ff2"
+checksum = "23169fe34a5fbcdd3f3862e78fb9b6fccd5f02a6dc6f732547005d45631ce71c"
 dependencies = [
  "bytes",
  "futures-core",
@@ -2676,14 +2676,14 @@ checksum = "2195bf6aa996a481483b29d62a7663eed3fe39600c460e323f8ff41e90bdd89b"
 
 [[package]]
 name = "nameth"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "darling 0.24.0",
  "proc-macro2",
@@ -2693,7 +2693,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "nameth",
 ]
@@ -4552,7 +4552,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "autoclone",
  "axum",
@@ -4579,7 +4579,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "nameth",
  "thiserror 2.0.20",
@@ -4587,7 +4587,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "autoclone",
  "nameth",
@@ -4603,14 +4603,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "terrazzo-css-macro",
 ]
 
 [[package]]
 name = "terrazzo-css-cli"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "nameth",
@@ -4622,7 +4622,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-macro"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "heck",
  "nameth",
@@ -4635,7 +4635,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-shared"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "nameth",
  "serde",
@@ -4647,7 +4647,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "nameth",
@@ -4668,11 +4668,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.2.15"
+version = "0.2.16"
 
 [[package]]
 name = "terrazzo-integration-tests"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "libc",
@@ -4685,7 +4685,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "darling 0.24.0",
  "prettyplease 0.3.0",
@@ -4697,7 +4697,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-pty"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "bytes",
  "futures",
@@ -4716,7 +4716,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "nameth",
  "runfiles",
@@ -4727,7 +4727,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-cli"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "runfiles",
@@ -4737,14 +4737,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-sys"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "terrazzo-terminal"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -5343,7 +5343,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "futures",
  "hostname",
@@ -5376,7 +5376,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "axum",
  "bytes",
@@ -5408,7 +5408,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "autoclone",
  "axum",

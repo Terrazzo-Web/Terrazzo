@@ -54,6 +54,7 @@ pub mod drag;
 mod editor;
 mod folder;
 mod html_viewer;
+mod milkdown;
 mod pdf_viewer;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
@@ -553,12 +554,12 @@ fn is_focusable(
     #[signal] state: EditorState,
     #[signal] show_html_preview: bool,
 ) -> XAttributeValue {
-    if !show_html_preview
-        && let EditorState::Data(EditorDataState { data, .. }) = &state
-        && let fsio::File::TextFile { .. } = **data
-    {
-        Some(style::IS_FOCUSABLE)
-    } else {
-        None
-    }
+    let EditorState::Data(EditorDataState { path, data, .. }) = &state else {
+        return None;
+    };
+    let fsio::File::TextFile { .. } = **data else {
+        return None;
+    };
+    let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
+    (!is_html_preview).then_some(style::IS_FOCUSABLE)
 }

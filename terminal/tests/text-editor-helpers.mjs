@@ -56,6 +56,22 @@ export function getMergeViewEditors(page) {
     return page.locator('.code-mirror-editor .cm-mergeViewEditor');
 }
 
+export function getMilkdownWysiwyg(page) {
+    return page.locator('.milkdown-editor .milkdown-wysiwyg-pane');
+}
+
+export function getMilkdownContent(page) {
+    return getMilkdownWysiwyg(page).locator('.ProseMirror');
+}
+
+export function getMilkdownSource(page) {
+    return page.locator('.milkdown-editor .milkdown-source-pane .cm-content');
+}
+
+export function getMilkdownMergeViewEditors(page) {
+    return page.locator('.milkdown-editor .milkdown-source-pane .cm-mergeViewEditor');
+}
+
 export function editorFindShortcut() {
     return process.platform === 'darwin' ? 'Meta+F' : 'Control+F';
 }
@@ -292,9 +308,8 @@ async function git(cwd, args) {
     await execFileAsync('git', args, { cwd });
 }
 
-export async function createCommittedReadme() {
+export async function createCommittedReadme(fileName = 'README.md') {
     const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-git-'));
-    const fileName = 'README.md';
     const filePath = path.join(baseDir, fileName);
     await git(baseDir, ['init']);
     await git(baseDir, ['config', 'user.email', 'test@example.com']);

@@ -19,6 +19,7 @@ use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
 use super::fsio;
 use super::fsio::client::store_file;
+use super::milkdown::MilkdownJs;
 use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::frontend::input_overlay::InputOverlay;
@@ -31,6 +32,14 @@ use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
+
+static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
+
+pub(super) fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
+}
 
 #[derive(Clone)]
 pub(super) enum EditorDocument {
@@ -52,6 +61,24 @@ trait EditorBody {
 }
 
 impl EditorBody for CodeMirrorJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
+    }
+
+    fn insert_text(&self, text: String) {
+        self.insert_text(text);
+    }
+
+    fn focus(&self) {
+        self.focus();
+    }
+
+    fn cargo_check(&self, diagnostics: JsValue) {
+        self.cargo_check(diagnostics);
+    }
+}
+
+impl EditorBody for MilkdownJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -96,6 +123,7 @@ pub fn editor(
         ..
     } = editor_state;
     let is_pdf = matches!(document, EditorDocument::Pdf(_));
+    let is_markdown = is_markdown(&path.file);
     let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
     let html_preview = match &document {
         EditorDocument::Text { content, .. } if is_html_preview => {
@@ -153,12 +181,15 @@ pub fn editor(
         class = style::EDITOR,
         class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
         class = is_html_preview.then_some(super::html_viewer::style::HTML_VIEWER),
+        class = is_markdown.then_some(super::milkdown::style::MILKDOWN_EDITOR),
         #[cfg(not(feature = "client-prod"))]
         class = is_pdf.then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
         class = is_html_preview.then_some("html-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
+        class = is_markdown.then_some("milkdown-editor"),
+        #[cfg(not(feature = "client-prod"))]
+        class = (!is_pdf && !is_html_preview && !is_markdown).then_some("code-mirror-editor"),
         html_preview..,
         input_overlay_html..,
         mouseenter = move |_| {
@@ -189,20 +220,36 @@ pub fn editor(
                     } else {
                         JsValue::null()
                     };
-                    Some(Box::new(CodeMirrorJs::new(
-                        element.clone(),
-                        original,
-                        content.as_ref().into(),
-                        make_on_change(&manager, &path, &writing),
-                        make_on_cursor_position_change(&manager, &path),
-                        cursor_position
-                            .and_then(|cursor_position| {
-                                serde_wasm_bindgen::to_value(&cursor_position).ok()
-                            })
-                            .unwrap_or(JsValue::null()),
-                        path.base.as_ref().to_owned_string(),
-                        path.as_deref().full_path().to_owned_string(),
-                    )))
+                    let cursor_position = cursor_position
+                        .and_then(|cursor_position| {
+                            serde_wasm_bindgen::to_value(&cursor_position).ok()
+                        })
+                        .unwrap_or(JsValue::null());
+                    let base_path = path.base.as_ref().to_owned_string();
+                    let full_path = path.as_deref().full_path().to_owned_string();
+                    if is_markdown {
+                        Some(Box::new(MilkdownJs::new(
+                            element.clone(),
+                            original,
+                            content.as_ref().into(),
+                            make_on_change(&manager, &path, &writing),
+                            make_on_cursor_position_change(&manager, &path),
+                            cursor_position,
+                            base_path,
+                            full_path,
+                        )))
+                    } else {
+                        Some(Box::new(CodeMirrorJs::new(
+                            element.clone(),
+                            original,
+                            content.as_ref().into(),
+                            make_on_change(&manager, &path, &writing),
+                            make_on_cursor_position_change(&manager, &path),
+                            cursor_position,
+                            base_path,
+                            full_path,
+                        )))
+                    }
                 }
                 EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
             };

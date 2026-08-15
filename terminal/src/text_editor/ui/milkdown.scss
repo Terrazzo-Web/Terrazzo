@@ -1,0 +1,58 @@
+div.milkdown-editor {
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+
+    > [data-milkdown-pane] {
+        box-sizing: border-box;
+        width: 50%;
+        min-width: 0;
+        height: 100%;
+        overflow: auto;
+    }
+
+    > [data-milkdown-pane="wysiwyg"] {
+        border-right: 1px solid var(--color);
+        background-color: color-mix(in srgb,
+                var(--background-color) 90%,
+                black 10%);
+
+        :global(.milkdown),
+        :global(.ProseMirror) {
+            box-sizing: border-box;
+            min-height: 100%;
+        }
+
+        :global(.milkdown) {
+            --crepe-color-background: var(--background-color);
+            --crepe-color-on-background: var(--color);
+            --crepe-color-surface: color-mix(in srgb,
+                    var(--background-color) 85%,
+                    black 15%);
+            --crepe-color-on-surface: var(--color);
+            --crepe-color-primary: var(--link-color);
+        }
+    }
+
+    > [data-milkdown-pane="source"] {
+        :global(.cm-editor),
+        :global(.cm-mergeView) {
+            height: 100%;
+            min-width: 0;
+        }
+    }
+
+    @media (max-width: 720px) {
+        flex-direction: column;
+
+        > [data-milkdown-pane] {
+            width: 100%;
+            height: 50%;
+        }
+
+        > [data-milkdown-pane="wysiwyg"] {
+            border-right: 0;
+            border-bottom: 1px solid var(--color);
+        }
+    }
+}

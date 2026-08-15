@@ -66,11 +66,11 @@ class MilkdownJsImpl {
             fullPath,
         );
 
-        this.crepe = new JsDeps.Crepe({
+        this.crepe = new JsDeps.Milkdown.Crepe({
             root: wysiwygPane,
             defaultValue: content,
             features: {
-                [JsDeps.Crepe.Feature.Latex]: false,
+                [JsDeps.Milkdown.Crepe.Feature.Latex]: false,
             },
         });
         this.crepe.on((listener) => {
@@ -114,7 +114,7 @@ class MilkdownJsImpl {
         this.replacingMilkdown = true;
         this.replacementNotificationSeen = false;
         try {
-            this.crepe.editor.action(JsDeps.replaceAll(content));
+            this.crepe.editor.action(JsDeps.Milkdown.replaceAll(content));
             const canonicalMarkdown = this.crepe.getMarkdown();
             this.suppressedMilkdownMarkdown = this.replacementNotificationSeen ? null : canonicalMarkdown;
             return canonicalMarkdown;

@@ -60,14 +60,18 @@ const languages = {
     rs: rust,
 };
 
+const Milkdown = {
+    Crepe,
+    replaceAll,
+};
+
 // Export them for Webpack to expose as globals
 export {
     Terminal,
     FitAddon,
     WebLinksAddon,
 
-    Crepe,
-    replaceAll,
+    Milkdown,
 
     CodeMirrorJsImpl,
 

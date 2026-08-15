@@ -33,9 +33,11 @@ use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
 
+// TODO: move to terminal/src/text_editor/ui/milkdown.rs
 static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
 
-pub(super) fn is_markdown(path: &Path) -> bool {
+// TODO: move to terminal/src/text_editor/ui/milkdown.rs
+fn is_markdown(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
@@ -60,6 +62,7 @@ trait EditorBody {
     fn cargo_check(&self, _diagnostics: JsValue) {}
 }
 
+// TODO: Move to terminal/src/text_editor/ui/code_mirror.rs
 impl EditorBody for CodeMirrorJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
@@ -78,6 +81,7 @@ impl EditorBody for CodeMirrorJs {
     }
 }
 
+// TODO: Move to terminal/src/text_editor/ui/milkdown.rs
 impl EditorBody for MilkdownJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
@@ -96,6 +100,7 @@ impl EditorBody for MilkdownJs {
     }
 }
 
+// TODO: Move to terminal/src/text_editor/ui/pdf_viewer.rs
 impl EditorBody for PdfJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
@@ -122,11 +127,17 @@ pub fn editor(
         cursor_position,
         ..
     } = editor_state;
-    let is_pdf = matches!(document, EditorDocument::Pdf(_));
-    let is_markdown = is_markdown(&path.file);
-    let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
+    let editor_type = if matches!(document, EditorDocument::Pdf(_)) {
+        EditorType::Pdf
+    } else if is_markdown(&path.file) {
+        EditorType::Markdown
+    } else if path.file.extension() == Some("html".as_ref()) && show_html_preview {
+        EditorType::Html
+    } else {
+        EditorType::Text
+    };
     let html_preview = match &document {
-        EditorDocument::Text { content, .. } if is_html_preview => {
+        EditorDocument::Text { content, .. } if let EditorType::Html = editor_type => {
             Some(super::html_viewer::html_viewer(content.clone()))
         }
         _ => None,
@@ -143,7 +154,7 @@ pub fn editor(
             editor_body.focus();
         }
     });
-    let (input_overlay_html, input_overlay) = if !is_pdf && !is_html_preview {
+    let (input_overlay_html, input_overlay) = if editor_type.use_overlay() {
         let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
             autoclone!(editor_body);
             if let Some(editor_body) = &*editor_body.lock().unwrap() {
@@ -179,17 +190,15 @@ pub fn editor(
 
     tag(
         class = style::EDITOR,
-        class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
-        class = is_html_preview.then_some(super::html_viewer::style::HTML_VIEWER),
-        class = is_markdown.then_some(super::milkdown::style::MILKDOWN_EDITOR),
+        class = editor_type.class(),
         #[cfg(not(feature = "client-prod"))]
-        class = is_pdf.then_some("pdf-viewer"),
+        class = (editor_type == EditorType::Pdf).then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = is_html_preview.then_some("html-viewer"),
+        class = (editor_type == EditorType::Html).then_some("html-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = is_markdown.then_some("milkdown-editor"),
+        class = (editor_type == EditorType::Markdown).then_some("milkdown-editor"),
         #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf && !is_html_preview && !is_markdown).then_some("code-mirror-editor"),
+        class = (editor_type == EditorType::Text).then_some("code-mirror-editor"),
         html_preview..,
         input_overlay_html..,
         mouseenter = move |_| {
@@ -210,8 +219,9 @@ pub fn editor(
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Option<Box<dyn EditorBody>> = match &document {
-                EditorDocument::Text { .. } if is_html_preview => None,
-                EditorDocument::Text { original, content } => {
+                EditorDocument::Text { original, content }
+                    if editor_type == EditorType::Text || editor_type == EditorType::Markdown =>
+                {
                     let original = if show_editor_diff {
                         original
                             .as_deref()
@@ -227,8 +237,8 @@ pub fn editor(
                         .unwrap_or(JsValue::null());
                     let base_path = path.base.as_ref().to_owned_string();
                     let full_path = path.as_deref().full_path().to_owned_string();
-                    if is_markdown {
-                        Some(Box::new(MilkdownJs::new(
+                    if editor_type == EditorType::Text {
+                        Some(Box::new(CodeMirrorJs::new(
                             element.clone(),
                             original,
                             content.as_ref().into(),
@@ -239,7 +249,7 @@ pub fn editor(
                             full_path,
                         )))
                     } else {
-                        Some(Box::new(CodeMirrorJs::new(
+                        Some(Box::new(MilkdownJs::new(
                             element.clone(),
                             original,
                             content.as_ref().into(),
@@ -252,10 +262,37 @@ pub fn editor(
                     }
                 }
                 EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
+                EditorDocument::Text { .. } => None,
             };
             *editor_body.lock().unwrap() = body;
         },
     )
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EditorType {
+    Html,
+    Pdf,
+    Text,
+    Markdown,
+}
+
+impl EditorType {
+    fn use_overlay(self) -> bool {
+        match self {
+            EditorType::Html | EditorType::Pdf => false,
+            EditorType::Text | EditorType::Markdown => true,
+        }
+    }
+
+    fn class(self) -> Option<&'static str> {
+        Some(match self {
+            EditorType::Html => super::html_viewer::style::HTML_VIEWER,
+            EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
+            EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
+            EditorType::Text => return None,
+        })
+    }
 }
 
 #[autoclone]

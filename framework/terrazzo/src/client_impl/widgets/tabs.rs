@@ -33,7 +33,9 @@ pub trait TabsDescriptor: Clone + 'static {
 pub trait TabsState: Clone + 'static {
     type TabDescriptor: TabDescriptor<State = Self>;
     fn move_tab(&self, after_tab: Option<Self::TabDescriptor>, moved_tab_key: String);
-    // TODO: why is this needed? moving terminal tabs across tiles worked before without it
+    /// Shares drag state between tab lists whose insertion separators must accept
+    /// one another's tabs. Without this, each [`tabs`] instance only reveals its
+    /// own separators while one of its titles is being dragged.
     fn dragging(&self) -> Option<XSignal<bool>> {
         None
     }

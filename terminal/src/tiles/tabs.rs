@@ -30,6 +30,7 @@ use crate::tiles::id::TileId;
 
 terrazzo_css::import_style!(style, "tabs.scss");
 
+// TODO: thread_local! doesn't make much sense for UI code because the Javascript/Rust UI WASM code is single threaded.
 std::thread_local! {
     static TILE_TAB_DRAGGING: XSignal<bool> = XSignal::new("tile-tab-dragging", false);
 }

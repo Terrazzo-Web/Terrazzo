@@ -136,7 +136,7 @@ rustls = { version = "0.23.43" }
 rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.229", features = ["derive", "rc"] }
-serde-saphyr = { version = "1.0.1" }
+serde-saphyr = { version = "1.1.0" }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.151" }
 serde_urlencoded = { version = "0.7.1" }

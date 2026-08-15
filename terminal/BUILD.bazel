@@ -158,6 +158,20 @@ playwright_matrix_test(
 
 playwright_matrix_test(
     overrides = {
+        "tile-move-integration-test-debug": {
+            "target_server": ":terminal-server-debug",
+        },
+        "tile-move-integration-test-release": {
+            "target_server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-tile-move.spec.mjs",
+)
+
+playwright_matrix_test(
+    overrides = {
         "terminal-password-update-test-debug": {
             "target_server": ":terminal-server-debug",
         },

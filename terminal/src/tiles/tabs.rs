@@ -30,6 +30,14 @@ use crate::tiles::id::TileId;
 
 terrazzo_css::import_style!(style, "tabs.scss");
 
+std::thread_local! {
+    static TILE_TAB_DRAGGING: XSignal<bool> = XSignal::new("tile-tab-dragging", false);
+}
+
+fn tile_tab_dragging() -> XSignal<bool> {
+    TILE_TAB_DRAGGING.with(Clone::clone)
+}
+
 #[derive(Clone)]
 pub struct TileTabs {
     tabs: Rc<Vec<TileTab>>,
@@ -136,7 +144,6 @@ impl TabsState for TileTabsState {
 
     fn move_tab(&self, after_tab: Option<TileTab>, moved_tab_key: String) {
         let array_id = self.array_id;
-        let selected = self.selected.clone();
         spawn_local(async move {
             let moved_child = match moved_tab_key
                 .parse::<i64>()
@@ -150,13 +157,16 @@ impl TabsState for TileTabsState {
                 }
             };
             let after_child = after_tab.map(|tab| tab.id);
-            selected.set(Some(moved_child));
             RootTree::update(super::api::move_child(array_id, after_child, moved_child).await);
         });
     }
 
     fn drag_key() -> &'static str {
         "tile_tab_id"
+    }
+
+    fn dragging(&self) -> Option<XSignal<bool>> {
+        Some(tile_tab_dragging())
     }
 
     fn zone_id(&self) -> Option<String> {

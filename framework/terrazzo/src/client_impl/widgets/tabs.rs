@@ -33,6 +33,9 @@ pub trait TabsDescriptor: Clone + 'static {
 pub trait TabsState: Clone + 'static {
     type TabDescriptor: TabDescriptor<State = Self>;
     fn move_tab(&self, after_tab: Option<Self::TabDescriptor>, moved_tab_key: String);
+    fn dragging(&self) -> Option<XSignal<bool>> {
+        None
+    }
     fn drag_key() -> &'static str {
         "tab_id"
     }
@@ -96,7 +99,9 @@ pub fn tabs<T: TabsDescriptor>(
 ) -> XElement {
     let options = Ptr::new(TabsOptions::base_options().merge(&options));
     let tab_descriptors = || tabs_descriptor.tab_descriptors().iter();
-    let is_dragging = XSignal::new("is_dragging", false);
+    let is_dragging = state
+        .dragging()
+        .unwrap_or_else(|| XSignal::new("is_dragging", false));
 
     let drop_zone = move |e, tab| {
         autoclone!(state, is_dragging, options);

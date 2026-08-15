@@ -1,9 +1,21 @@
+use std::path::Path;
+
 use terrazzo::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 
+use super::editor::EditorBody;
+
 terrazzo_css::import_style!(pub(super) style, "milkdown.scss");
+
+static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
+
+pub(super) fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
+}
 
 pub struct MilkdownJs {
     inner: MilkdownJsImpl,
@@ -68,6 +80,24 @@ impl MilkdownJs {
 
     pub fn cargo_check(&self, diagnostics: JsValue) {
         self.inner.cargo_check(diagnostics);
+    }
+}
+
+impl EditorBody for MilkdownJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
+    }
+
+    fn insert_text(&self, text: String) {
+        self.insert_text(text);
+    }
+
+    fn focus(&self) {
+        self.focus();
+    }
+
+    fn cargo_check(&self, diagnostics: JsValue) {
+        self.cargo_check(diagnostics);
     }
 }
 

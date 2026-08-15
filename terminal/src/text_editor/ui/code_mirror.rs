@@ -3,6 +3,8 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 
+use super::editor::EditorBody;
+
 pub struct CodeMirrorJs {
     inner: CodeMirrorJsImpl,
     _onchange: Closure<dyn FnMut(JsValue)>,
@@ -64,6 +66,24 @@ impl CodeMirrorJs {
 
     pub fn cargo_check(&self, diagnostics: JsValue) {
         self.inner.cargo_check(diagnostics);
+    }
+}
+
+impl EditorBody for CodeMirrorJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
+    }
+
+    fn insert_text(&self, text: String) {
+        self.insert_text(text);
+    }
+
+    fn focus(&self) {
+        self.focus();
+    }
+
+    fn cargo_check(&self, diagnostics: JsValue) {
+        self.cargo_check(diagnostics);
     }
 }
 

@@ -20,6 +20,7 @@ use super::code_mirror::CodeMirrorJs;
 use super::fsio;
 use super::fsio::client::store_file;
 use super::milkdown::MilkdownJs;
+use super::milkdown::is_markdown;
 use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::frontend::input_overlay::InputOverlay;
@@ -33,16 +34,6 @@ use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
 
-// TODO: move to terminal/src/text_editor/ui/milkdown.rs
-static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
-
-// TODO: move to terminal/src/text_editor/ui/milkdown.rs
-fn is_markdown(path: &Path) -> bool {
-    path.extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
-}
-
 #[derive(Clone)]
 pub(super) enum EditorDocument {
     Text {
@@ -52,7 +43,7 @@ pub(super) enum EditorDocument {
     Pdf(Arc<str>),
 }
 
-trait EditorBody {
+pub(super) trait EditorBody {
     fn set_content(&self, content: String);
 
     fn insert_text(&self, _text: String) {}
@@ -60,51 +51,6 @@ trait EditorBody {
     fn focus(&self) {}
 
     fn cargo_check(&self, _diagnostics: JsValue) {}
-}
-
-// TODO: Move to terminal/src/text_editor/ui/code_mirror.rs
-impl EditorBody for CodeMirrorJs {
-    fn set_content(&self, content: String) {
-        self.set_content(content);
-    }
-
-    fn insert_text(&self, text: String) {
-        self.insert_text(text);
-    }
-
-    fn focus(&self) {
-        self.focus();
-    }
-
-    fn cargo_check(&self, diagnostics: JsValue) {
-        self.cargo_check(diagnostics);
-    }
-}
-
-// TODO: Move to terminal/src/text_editor/ui/milkdown.rs
-impl EditorBody for MilkdownJs {
-    fn set_content(&self, content: String) {
-        self.set_content(content);
-    }
-
-    fn insert_text(&self, text: String) {
-        self.insert_text(text);
-    }
-
-    fn focus(&self) {
-        self.focus();
-    }
-
-    fn cargo_check(&self, diagnostics: JsValue) {
-        self.cargo_check(diagnostics);
-    }
-}
-
-// TODO: Move to terminal/src/text_editor/ui/pdf_viewer.rs
-impl EditorBody for PdfJs {
-    fn set_content(&self, content: String) {
-        self.set_content(content);
-    }
 }
 
 #[autoclone]

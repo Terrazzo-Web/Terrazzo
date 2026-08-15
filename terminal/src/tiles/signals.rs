@@ -61,6 +61,8 @@ pub struct Tile {
     pub remote: XSignal<Remote>,
     pub title: XSignal<XString>,
     pub menu: MenuState,
+    #[cfg(feature = "terminal")]
+    pub terminal_ui: crate::terminal::ui::TerminalUiState,
 }
 
 impl Tiles {
@@ -98,6 +100,8 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
                     remote: XSignal::new("remote", remote.clone()),
                     title: XSignal::new("title", title.clone().into()),
                     menu: MenuState::default(),
+                    #[cfg(feature = "terminal")]
+                    terminal_ui: Default::default(),
                 }
                 .into()
             };
@@ -197,6 +201,8 @@ impl Default for Tiles {
             remote: XSignal::new("remote", Remote::default()),
             title: XSignal::new("title", format!("New tile {id}").into()),
             menu: MenuState::default(),
+            #[cfg(feature = "terminal")]
+            terminal_ui: Default::default(),
         }
         .into()
     }

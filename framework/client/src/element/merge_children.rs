@@ -225,9 +225,14 @@ fn create_new_element(
         document.create_element(tag_name)
     };
 
-    let html =
-        html.inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"));
-    let cur_element = LiveElement::new(html.ok()?);
+    let html = html
+        .inspect_err(|error| warn!("Create new element '{tag_name}' failed: {error:?}'"))
+        .ok()?;
+
+    #[cfg(feature = "diagnostics")]
+    set_tag_version_id(&html);
+
+    let cur_element = LiveElement::new(html);
 
     if let XKey::Named(key) = &new_element.key {
         let () = cur_element
@@ -242,6 +247,18 @@ fn create_new_element(
     }
 
     return Some(cur_element);
+}
+
+#[cfg(feature = "diagnostics")]
+fn set_tag_version_id(html: &Element) -> Option<()> {
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering::SeqCst;
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    let () = html
+        .set_attribute("data-trz-tag-id", &NEXT.fetch_add(1, SeqCst).to_string())
+        .inspect_err(|error| warn!("Failed to set tag version id: {error:?}"))
+        .ok()?;
+    Some(())
 }
 
 fn merge_text<'t>(

@@ -34,12 +34,14 @@ pipeline should remain the single persistence path for Markdown.
 
 ## Scope and behavior decisions
 
+// TODO: crate a static hardcoded fixed-size array of extensions so I can easily change it later
 - Match the `.md` extension initially. Do not silently broaden the feature to
   `.markdown` or other extensions without a separate product decision.
 - Both panes are editable. "Preview" means the WYSIWYG representation on the
   left, as in the playground, not a read-only rendered document.
 - Keep the right pane on Terrazzo's current CodeMirror configuration, including
   Markdown syntax support, search, cursor persistence, and the input overlay.
+// TODO: keep the git diff toggle even with Markdown files
 - Hide the git-diff toggle while a `.md` file uses the split editor. Showing the
   current two-editor diff inside the source half would create an unclear
   three-pane layout. Diff support for Markdown can be designed separately.

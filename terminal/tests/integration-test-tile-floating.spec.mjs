@@ -14,7 +14,7 @@ test.describe('Floating terminal tile', () => {
         await page.locator('.app-tile').first().waitFor({ timeout: 10 * SECOND });
     });
 
-    test('renders immediately after floating a populated split tile', async ({ page }) => {
+    test('preserves populated tiles when splitting and floating', async ({ page }) => {
         const tiles = page.locator('.app-tile');
         const initialTile = tiles.first();
 
@@ -31,6 +31,39 @@ test.describe('Floating terminal tile', () => {
         await addTerminalButton.click();
         await expect(rightTile.getByText('Terminal 1', { exact: true })).toBeVisible();
         await expect(rightTile.locator('.xterm')).toBeVisible({ timeout: 10 * SECOND });
+
+        await initialTile.locator('.app-menu-trigger').hover();
+        await initialTile.locator('li').filter({ hasText: /^Terminal$/ }).click();
+        const leftAddTerminalButton = initialTile.locator('.add-tab-icon img');
+        await expect(leftAddTerminalButton).toBeVisible();
+        await leftAddTerminalButton.click();
+        await expect(initialTile.locator('.xterm')).toBeVisible({ timeout: 10 * SECOND });
+
+        const xterms = page.locator('.xterm');
+        await expect(xterms).toHaveCount(2);
+        await tiles.evaluateAll((nodes) => {
+            window.__tilesBeforeSplit = nodes;
+        });
+        await xterms.evaluateAll((nodes) => {
+            window.__xtermsBeforeSplit = nodes;
+        });
+
+        await rightTile.locator('.app-menu-trigger').hover();
+        await rightTile.locator('.split-horizontal').click();
+        await expect(tiles).toHaveCount(3);
+        await expect(xterms).toHaveCount(2);
+        await expect.poll(() => tiles.evaluateAll((nodes) => (
+            window.__tilesBeforeSplit.every((node) => nodes.includes(node))
+        ))).toBe(true);
+        await expect.poll(() => xterms.evaluateAll((nodes) => (
+            nodes.length === window.__xtermsBeforeSplit.length
+            && nodes.every((node) => window.__xtermsBeforeSplit.includes(node))
+        ))).toBe(true);
+
+        const newTile = tiles.nth(2);
+        await newTile.locator('.app-menu-trigger').hover();
+        await newTile.locator('.tile-close').click();
+        await expect(tiles).toHaveCount(2);
 
         await rightTile.locator('.app-menu-trigger').hover();
         await rightTile.locator('.float-tile').click();

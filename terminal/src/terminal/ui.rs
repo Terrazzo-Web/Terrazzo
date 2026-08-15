@@ -42,14 +42,28 @@ pub struct TerminalsStateImpl {
 
 pub type TerminalsState = TerminalsStateImplPtr;
 
+#[derive(Clone)]
+pub struct TerminalUiState {
+    selected_tab: XSignal<TerminalId>,
+    terminal_tabs: XSignal<TerminalTabs>,
+}
+
+impl Default for TerminalUiState {
+    fn default() -> Self {
+        Self {
+            selected_tab: XSignal::new("selected-tab", TerminalId::from("Terminal")),
+            terminal_tabs: XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![]))),
+        }
+    }
+}
+
 static REFRESH: LazyLock<XSignal<()>> = LazyLock::new(|| XSignal::new("refresh-terminal-tabs", ()));
 
 #[autoclone]
 pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let tile_id = tile.id;
-    let terminal_id = TerminalId::from("Terminal");
-    let selected_tab = XSignal::new("selected-tab", terminal_id.clone());
-    let terminal_tabs = XSignal::new("terminal-tabs", TerminalTabs::from(Ptr::new(vec![])));
+    let selected_tab = tile.terminal_ui.selected_tab.clone();
+    let terminal_tabs = tile.terminal_ui.terminal_tabs.clone();
     let state = TerminalsState::from(TerminalsStateImpl {
         tile,
         selected_tab,

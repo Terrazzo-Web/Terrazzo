@@ -34,17 +34,19 @@ pipeline should remain the single persistence path for Markdown.
 
 ## Scope and behavior decisions
 
-// TODO: crate a static hardcoded fixed-size array of extensions so I can easily change it later
-- Match the `.md` extension initially. Do not silently broaden the feature to
-  `.markdown` or other extensions without a separate product decision.
+- Define a hardcoded fixed-size extension array, initially
+  `static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];`, and route files through a
+  shared `is_markdown` helper. This keeps the initial scope to `.md` while making
+  future extension additions a one-line change.
 - Both panes are editable. "Preview" means the WYSIWYG representation on the
   left, as in the playground, not a read-only rendered document.
 - Keep the right pane on Terrazzo's current CodeMirror configuration, including
   Markdown syntax support, search, cursor persistence, and the input overlay.
-// TODO: keep the git diff toggle even with Markdown files
-- Hide the git-diff toggle while a `.md` file uses the split editor. Showing the
-  current two-editor diff inside the source half would create an unclear
-  three-pane layout. Diff support for Markdown can be designed separately.
+- Keep the git-diff toggle for Markdown. When enabled, the left Crepe pane remains
+  the editable WYSIWYG view and the right source pane uses the existing CodeMirror
+  `MergeView`, with the original document read-only and the working document
+  editable. Edits from the working side continue to synchronize Crepe and save to
+  disk.
 - Keep the HTML preview toggle restricted to `.html`; Markdown always selects its
   dedicated split editor.
 - Store serialized Markdown, never rendered HTML or ProseMirror JSON.
@@ -126,9 +128,11 @@ Define `MilkdownJs` with the same useful lifetime guarantees as `CodeMirrorJs`:
 - expose or log asynchronous Crepe creation failures instead of leaving a blank
   pane with an unhandled promise rejection.
 
-The constructor should receive the existing content, callbacks, cursor position,
-base path, and full path. The source CodeMirror must receive the same path data so
-language selection and future diagnostics continue to work normally.
+The constructor should receive the optional original document, current content,
+callbacks, cursor position, base path, and full path. The source CodeMirror must
+receive the same `original` value currently selected by `show_editor_diff`, along
+with the same path data, so the existing editable/merge behavior, language
+selection, and future diagnostics continue to work normally.
 
 ### JavaScript owner and lifecycle
 
@@ -139,8 +143,11 @@ editor element:
 - `.milkdown-source-pane` on the right.
 
 Create Crepe with the loaded Markdown as `defaultValue`, and construct
-`CodeMirrorJsImpl` in the source host with the same content. The outer wrapper,
-not either child editor, owns synchronization and the Rust save callback.
+`CodeMirrorJsImpl` in the source host with the same content and optional original
+document. In diff mode, synchronization must always read and update the editable
+`b` editor selected by `CodeMirrorJsImpl`; the read-only original must never emit a
+save. The outer wrapper, not either child editor, owns synchronization and the
+Rust save callback.
 
 Crepe creation is asynchronous. Track `creating`, `ready`, and `destroyed` state so
 that:
@@ -182,25 +189,30 @@ initial load. Forward cursor changes only from the CodeMirror pane because the
 persisted cursor format uses source-document offsets and cannot safely be inferred
 from a ProseMirror selection without a mapping layer.
 
-## Task 3: Select Milkdown for `.md` files
+## Task 3: Select Milkdown for configured Markdown extensions
 
 Update `terminal/src/text_editor/ui/editor.rs`:
 
-- compute `is_markdown` from the selected file's `.md` extension;
+- add `static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];` and a shared
+  `is_markdown(path: &Path) -> bool` helper, then use that helper everywhere the
+  UI needs to classify a Markdown file;
 - render a `milkdown-editor` test class and the imported Milkdown layout class;
 - keep the input overlay enabled because the Markdown body remains editable;
 - instantiate `MilkdownJs` for Markdown text, `CodeMirrorJs` for other mutable
   text, the iframe for HTML preview, and `PdfJs` for PDFs;
+- pass the optional original content to `MilkdownJs` under the same
+  `show_editor_diff` condition used for ordinary CodeMirror files, so its source
+  pane switches between a plain editor and the existing merge view;
 - reuse the exact existing `make_on_change`, `make_on_cursor_position_change`,
   `writing`, file watcher, and `notify_edit` plumbing;
 - ensure filesystem reloads call `MilkdownJs::set_content`, which updates both
   panes while suppressing save callbacks.
 
-Update `toggle_editor_diff` in `terminal/src/text_editor/ui.rs` so it is hidden for
-`.md` data. Also update `is_focusable`: it currently assumes preview state is
-controlled only by `show_html_preview`; the focusable class should instead reflect
-whether the selected editor body is interactive, including Markdown regardless of
-the HTML preview signal.
+Keep `toggle_editor_diff` visible for modified Markdown files, using the same
+`original != content` rule as other text. Update `is_focusable`: it currently
+assumes preview state is controlled only by `show_html_preview`; the focusable
+class should instead reflect whether the selected editor body is interactive,
+including Markdown regardless of the HTML preview signal.
 
 No server/fsio changes should be necessary. If implementation appears to require a
 new save endpoint, stop and reassess the bridge first: Milkdown produces a Markdown
@@ -217,6 +229,9 @@ In `milkdown.scss` and the existing text-editor layout:
   outer tile or force the source editor off screen;
 - keep CodeMirror's current dark background and make the Crepe theme visually
   compatible with it;
+- in diff mode, keep both CodeMirror merge editors contained within the right half
+  with their existing horizontal overflow behavior; do not allow the merge view
+  to resize or cover the Crepe pane;
 - add a responsive narrow-width rule that stacks the WYSIWYG pane above the source
   pane if two usable columns cannot fit;
 - verify tooltips, slash menus, link popovers, and code-block editors are not
@@ -252,7 +267,11 @@ The primary test should:
    persisted to disk.
 9. Modify the file directly on disk after local writes have settled and assert
    that both panes reload to the external content without causing a save loop.
-10. Open a `.txt` file and assert it still uses the single CodeMirror editor; open
+10. Use a Markdown fixture with committed original content, edit it, reopen it,
+    enable the diff toggle, and assert that the right pane contains the original
+    and editable working CodeMirror views while the left Crepe pane remains
+    visible. Edit the working view and verify Crepe and the disk file update.
+11. Open a `.txt` file and assert it still uses the single CodeMirror editor; open
     an `.html` file and assert its current preview/source toggle still works.
 
 Avoid asserting Milkdown's complete serialized Markdown byte-for-byte after rich
@@ -280,8 +299,13 @@ bazel test --test_output=errors \
 ## Completion criteria
 
 - Opening `.md` displays editable Crepe and Markdown source panes side by side.
+- Markdown detection is centralized in a fixed-size extension array that can be
+  extended without changing editor routing call sites.
 - Editing either pane updates the other without oscillation, duplicate saves, or
   cursor jumps in the actively edited pane.
+- The Markdown diff toggle keeps Crepe visible and renders the original/working
+  merge view within the source pane; only working-side changes are synchronized
+  and saved.
 - Markdown changes reach the existing synchronization indicator and are written
   to the selected local or remote file.
 - An external file update refreshes both panes without being echoed back as a

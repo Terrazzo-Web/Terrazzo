@@ -1,4 +1,7 @@
-# Website Debugging
+# AI Website Debugging Playbook
+
+Use this playbook to compile the client, run the local server, and inspect the
+website with Playwright.
 
 ## Start the local server
 
@@ -28,22 +31,11 @@ up to date and skip recompiling the website.
 
 ## Use the Bazel Playwright environment
 
-Use the same Playwright dependency and browser environment as the Bazel
-integration tests. Follow the test structure and selectors in
-`terminal/tests/integration-test-terminal.spec.mjs` and the other
-`integration-test-*.spec.mjs` files.
+Use the Playwright dependency and browser environment prepared by Bazel. Do not
+install a separate Playwright copy.
 
-For a checked-in integration test, add or update its target in
-`terminal/BUILD.bazel`, then run the debug target through Bazel. For example:
-
-```sh
-bazel test //terminal:terminal-integration-test-debug \
-  --test_output=streamed
-```
-
-For an ad hoc Playwright spec against the server already running on port 3100,
-prepare and reuse Bazel's Playwright bundle instead of installing a separate
-copy:
+Prepare Bazel's Playwright bundle, create an isolated working directory, and
+run an ad hoc spec against the server already running on port 3100:
 
 ```sh
 bazel build //bazel:playwright_setup
@@ -63,7 +55,29 @@ BASE_URL=http://127.0.0.1:3100 \
 
 The debug spec can use the same login behavior as the site: wait for
 `input[type="password"]`, fill `123` if it is visible, and dispatch its `change`
-event before waiting for the application UI.
+event before waiting for the application UI. A minimal setup is:
+
+```js
+import { expect, test } from '@playwright/test';
+
+const baseUrl = process.env.BASE_URL ?? 'http://127.0.0.1:3100';
+
+test('inspect the local website', async ({ page }) => {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+
+    const password = page.locator('input[type="password"]');
+    if (await password.isVisible().catch(() => false)) {
+        await password.fill('123');
+        await password.dispatchEvent('change');
+    }
+
+    await expect(page.locator('.app-menu-trigger').first()).toBeVisible({
+        timeout: 10_000,
+    });
+
+    // Continue inspecting the page with Playwright locators and assertions.
+});
+```
 
 ## Signpost menu check
 

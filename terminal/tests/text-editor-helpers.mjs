@@ -138,6 +138,10 @@ export function getHtmlViewerFrame(page) {
     return page.locator('.html-viewer iframe[data-viewer="html"]');
 }
 
+export function getHtmlSource(page) {
+    return page.locator('.html-viewer .html-source-pane .cm-content');
+}
+
 export function getCreateFileIcon(page) {
     return page.locator('.create-file-icon');
 }

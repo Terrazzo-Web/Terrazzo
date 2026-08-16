@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use terrazzo::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -8,14 +6,6 @@ use web_sys::Element;
 use super::editor::EditorBody;
 
 terrazzo_css::import_style!(pub(super) style, "milkdown.scss");
-
-static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
-
-pub(super) fn is_markdown(path: &Path) -> bool {
-    path.extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
-}
 
 pub struct MilkdownJs {
     inner: MilkdownJsImpl,
@@ -40,7 +30,8 @@ impl std::ops::Deref for MilkdownJs {
 impl MilkdownJs {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        element: Element,
+        wysiwyg_pane: Element,
+        source_pane: Element,
         original: JsValue,
         content: JsValue,
         onchange: Closure<dyn FnMut(JsValue)>,
@@ -48,10 +39,12 @@ impl MilkdownJs {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
+        focus_source: bool,
     ) -> Self {
         Self {
             inner: MilkdownJsImpl::new(
-                element,
+                wysiwyg_pane,
+                source_pane,
                 original,
                 content,
                 &onchange,
@@ -59,7 +52,7 @@ impl MilkdownJs {
                 cursor_position,
                 base_path,
                 full_path,
-                cfg!(not(feature = "client-prod")),
+                focus_source,
             ),
             _onchange: onchange,
             _oncursor: oncursor,
@@ -109,7 +102,8 @@ extern "C" {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        element: Element,
+        wysiwyg_pane: Element,
+        source_pane: Element,
         original: JsValue,
         content: JsValue,
         onchange: &Closure<dyn FnMut(JsValue)>,
@@ -117,7 +111,7 @@ extern "C" {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
-        test_mode: bool,
+        focus_source: bool,
     ) -> MilkdownJsImpl;
 
     #[wasm_bindgen(method)]

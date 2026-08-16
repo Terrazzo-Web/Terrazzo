@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -8,7 +8,7 @@ import {
     SECOND,
     copyPlantUmlPdf,
     expectPdfPage,
-    getCodeMirrorContent,
+    getHtmlSource,
     getHtmlViewerFrame,
     getPdfAnnotationLayer,
     getPdfPage,
@@ -19,6 +19,7 @@ import {
     openFolderFile,
     renderedCssWidth,
     renderedPixelCount,
+    replaceEditorText,
     selectedPdfText,
     setBasePath,
 } from './text-editor-helpers.mjs';
@@ -140,9 +141,10 @@ test.describe('Text editor viewers', () => {
 
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-html-'));
         const fileName = 'preview.html';
+        const filePath = path.join(baseDir, fileName);
         await mkdir(path.join(baseDir, 'nested'), { recursive: true });
         await writeFile(
-            path.join(baseDir, fileName),
+            filePath,
             [
                 '<!doctype html>',
                 '<html>',
@@ -162,7 +164,11 @@ test.describe('Text editor viewers', () => {
         await expect(frame).toHaveAttribute('sandbox', '');
         const htmlPreviewToggle = page.locator('.toggle-html-preview');
         await expect(htmlPreviewToggle).toBeVisible({ timeout: 10 * SECOND });
-        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show HTML source');
+        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show editor');
+
+        await page.locator('.refresh-editor').click();
+        await expect(htmlPreviewToggle).toBeVisible({ timeout: 10 * SECOND });
+        await expect(frame).toBeVisible({ timeout: 10 * SECOND });
 
         await expect
             .poll(async () => {
@@ -177,12 +183,34 @@ test.describe('Text editor viewers', () => {
         await expect(contentFrame.locator('.ready')).toHaveText('Rendered inside the iframe');
 
         await htmlPreviewToggle.click();
-        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Preview HTML');
-        await expect(getHtmlViewerFrame(page)).toHaveCount(0, { timeout: 10 * SECOND });
-        await expect(getCodeMirrorContent(page)).toContainText('HTML preview works', { timeout: 10 * SECOND });
+        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show preview and editor');
+        await expect(getHtmlViewerFrame(page)).not.toBeVisible();
+        await expect(getHtmlSource(page)).toContainText('HTML preview works', {
+            timeout: 10 * SECOND,
+        });
 
         await htmlPreviewToggle.click();
-        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show HTML source');
+        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show preview');
         await expect(getHtmlViewerFrame(page)).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getHtmlSource(page)).toBeVisible();
+
+        const updatedHtml = '<main><h1>Updated from CodeMirror</h1></main>';
+        await replaceEditorText(page, getHtmlSource(page), updatedHtml);
+        await expect
+            .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
+            .toBe(updatedHtml);
+        await expect
+            .poll(async () => {
+                const updatedFrame = await getHtmlViewerFrame(page)
+                    .elementHandle()
+                    .then((handle) => handle?.contentFrame());
+                return updatedFrame?.locator('h1').textContent();
+            }, { timeout: 10 * SECOND })
+            .toBe('Updated from CodeMirror');
+
+        await htmlPreviewToggle.click();
+        await expect(htmlPreviewToggle).toHaveAttribute('title', 'Show editor');
+        await expect(getHtmlViewerFrame(page)).toBeVisible();
+        await expect(getHtmlSource(page)).not.toBeVisible();
     });
 });

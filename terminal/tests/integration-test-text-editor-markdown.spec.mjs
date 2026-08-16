@@ -54,8 +54,13 @@ test.describe('Markdown editor', () => {
         const wysiwyg = getMilkdownWysiwyg(page);
         const milkdownContent = getMilkdownContent(page);
         const source = getMilkdownSource(page);
+        const previewToggle = page.locator('.toggle-html-preview');
         await expect(wysiwyg).toBeVisible({ timeout: 10 * SECOND });
-        await expect(source).toBeVisible({ timeout: 10 * SECOND });
+        await expect(wysiwyg).toHaveAttribute('data-milkdown-ready', 'true', {
+            timeout: 10 * SECOND,
+        });
+        await expect(source).not.toBeVisible();
+        await expect(previewToggle).toHaveAttribute('title', 'Show editor');
         await expect(milkdownContent.locator('h1')).toHaveText('Milkdown heading');
         await expect(milkdownContent.locator('em')).toHaveText('Markdown');
         await expect(milkdownContent.locator('a')).toHaveText('Milkdown');
@@ -63,21 +68,38 @@ test.describe('Markdown editor', () => {
         await expect(milkdownContent.locator('.milkdown-code-block')).toContainText('console.log');
         await expect(source).toContainText('# Milkdown heading');
 
+        await page.locator('.refresh-editor').click();
+        await expect(page.locator('.toggle-html-preview')).toBeVisible({ timeout: 10 * SECOND });
+        await expect(getMilkdownWysiwyg(page)).toHaveAttribute('data-milkdown-ready', 'true', {
+            timeout: 10 * SECOND,
+        });
+
         const paragraph = milkdownContent.locator('p').first();
         await paragraph.click();
         await page.keyboard.press('End');
         await page.keyboard.insertText(' Edited in Milkdown.');
 
+        await expect(paragraph).toContainText('Edited in Milkdown.');
         await expect(source).toContainText('Edited in Milkdown.', { timeout: 10 * SECOND });
         await expect
             .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
             .toContain('Edited in Milkdown.');
+
+        await previewToggle.click();
+        await expect(wysiwyg).not.toBeVisible();
+        await expect(source).toBeVisible();
+        await expect(previewToggle).toHaveAttribute('title', 'Show preview and editor');
 
         const sourceReplacement = '# Source heading\n\nUpdated from **CodeMirror**.\n';
         await replaceEditorText(page, source, sourceReplacement);
         await expect(milkdownContent.locator('h1')).toHaveText('Source heading', { timeout: 10 * SECOND });
         await expect(milkdownContent.locator('strong')).toHaveText('CodeMirror');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(sourceReplacement);
+
+        await previewToggle.click();
+        await expect(wysiwyg).toBeVisible();
+        await expect(source).toBeVisible();
+        await expect(previewToggle).toHaveAttribute('title', 'Show preview');
 
         const externalReplacement = '# External heading\n\nUpdated directly on disk.';
         await writeFile(filePath, externalReplacement);
@@ -96,12 +118,15 @@ test.describe('Markdown editor', () => {
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
+        const previewToggle = page.locator('.toggle-html-preview');
+        await previewToggle.click();
         const source = getMilkdownSource(page);
         await expect(source).toContainText('Hello, World!', { timeout: 10 * SECOND });
         await replaceEditorText(page, source, '# Working copy\n\nChanged in Markdown.');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toContain('Working copy');
 
         await reopenFolderFile(page, fileName);
+        await previewToggle.click();
         const diffToggle = page.locator('.toggle-editor-diff');
         await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
         await diffToggle.click();
@@ -116,6 +141,46 @@ test.describe('Markdown editor', () => {
         await replaceEditorText(page, diffContents.nth(1), '# Diff edit\n\nSaved from the working side.');
         await expect(getMilkdownContent(page).locator('h1')).toHaveText('Diff edit', { timeout: 10 * SECOND });
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toContain('Diff edit');
+    });
+
+    test('keeps CodeMirror source authoritative when Milkdown normalizes Markdown', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const fileName = 'slides.md';
+        const { baseDir, filePath } = await createTempFile(fileName);
+        const initial = [
+            '---',
+            'theme: light-icons',
+            'layout: two-cols',
+            '---',
+            '',
+            '# Slide title',
+            '',
+            '::right::',
+            '',
+            '![Meaningful alt text](./image.png)',
+        ].join('\n');
+        await writeFile(filePath, initial);
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        await expect(getMilkdownWysiwyg(page)).toBeVisible({ timeout: 10 * SECOND });
+        await page.waitForTimeout(2 * SECOND);
+        await expect.poll(async () => readFile(filePath, 'utf8')).toBe(initial);
+
+        const previewToggle = page.locator('.toggle-html-preview');
+        await previewToggle.click();
+        const source = getMilkdownSource(page);
+        await expect(source).toBeVisible();
+        const replacement = initial.replace('Slide title', 'Source-owned title');
+        await replaceEditorText(page, source, replacement);
+        await expect
+            .poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND })
+            .toBe(replacement);
+        await page.waitForTimeout(2 * SECOND);
+        await expect.poll(async () => readFile(filePath, 'utf8')).toBe(replacement);
     });
 
     test('keeps existing text and HTML routing', async ({ page }) => {

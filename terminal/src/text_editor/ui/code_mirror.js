@@ -116,7 +116,7 @@ class CodeMirrorJsImpl {
     }
 
     destroy() {
-        this.editorView.destroy();
+        this.rootView.destroy();
         console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
     }
 

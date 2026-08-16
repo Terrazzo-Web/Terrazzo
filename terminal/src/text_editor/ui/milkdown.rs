@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use terrazzo::prelude::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -5,27 +7,38 @@ use web_sys::Element;
 
 use super::editor::EditorBody;
 
-pub struct CodeMirrorJs {
-    inner: CodeMirrorJsImpl,
+terrazzo_css::import_style!(pub(super) style, "milkdown.scss");
+
+static MARKDOWN_EXTENSIONS: [&str; 1] = ["md"];
+
+pub(super) fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| MARKDOWN_EXTENSIONS.contains(&extension))
+}
+
+pub struct MilkdownJs {
+    inner: MilkdownJsImpl,
     _onchange: Closure<dyn FnMut(JsValue)>,
     _oncursor: Closure<dyn FnMut(JsValue)>,
 }
 
-impl Drop for CodeMirrorJs {
+impl Drop for MilkdownJs {
     fn drop(&mut self) {
         self.destroy();
     }
 }
 
-impl std::ops::Deref for CodeMirrorJs {
-    type Target = CodeMirrorJsImpl;
+impl std::ops::Deref for MilkdownJs {
+    type Target = MilkdownJsImpl;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl CodeMirrorJs {
+impl MilkdownJs {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         element: Element,
         original: JsValue,
@@ -37,7 +50,7 @@ impl CodeMirrorJs {
         full_path: String,
     ) -> Self {
         Self {
-            inner: CodeMirrorJsImpl::new(
+            inner: MilkdownJsImpl::new(
                 element,
                 original,
                 content,
@@ -46,6 +59,7 @@ impl CodeMirrorJs {
                 cursor_position,
                 base_path,
                 full_path,
+                cfg!(not(feature = "client-prod")),
             ),
             _onchange: onchange,
             _oncursor: oncursor,
@@ -69,7 +83,7 @@ impl CodeMirrorJs {
     }
 }
 
-impl EditorBody for CodeMirrorJs {
+impl EditorBody for MilkdownJs {
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -87,12 +101,13 @@ impl EditorBody for CodeMirrorJs {
     }
 }
 
-#[wasm_bindgen(module = "/src/text_editor/ui/code_mirror.js")]
+#[wasm_bindgen(module = "/src/text_editor/ui/milkdown.js")]
 extern "C" {
     #[derive(Clone)]
-    pub type CodeMirrorJsImpl;
+    pub type MilkdownJsImpl;
 
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         element: Element,
         original: JsValue,
@@ -102,20 +117,21 @@ extern "C" {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
-    ) -> CodeMirrorJsImpl;
+        test_mode: bool,
+    ) -> MilkdownJsImpl;
 
     #[wasm_bindgen(method)]
-    fn destroy(this: &CodeMirrorJsImpl);
+    fn destroy(this: &MilkdownJsImpl);
 
     #[wasm_bindgen(method)]
-    pub fn set_content(this: &CodeMirrorJsImpl, content: String);
+    pub fn set_content(this: &MilkdownJsImpl, content: String);
 
     #[wasm_bindgen(method)]
-    pub fn insert_text(this: &CodeMirrorJsImpl, text: String);
+    pub fn insert_text(this: &MilkdownJsImpl, text: String);
 
     #[wasm_bindgen(method)]
-    pub fn focus(this: &CodeMirrorJsImpl);
+    pub fn focus(this: &MilkdownJsImpl);
 
     #[wasm_bindgen(method)]
-    pub fn cargo_check(this: &CodeMirrorJsImpl, diagnostics: JsValue);
+    pub fn cargo_check(this: &MilkdownJsImpl, diagnostics: JsValue);
 }

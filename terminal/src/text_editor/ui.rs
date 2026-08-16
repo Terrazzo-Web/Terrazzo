@@ -54,6 +54,7 @@ pub mod drag;
 mod editor;
 mod folder;
 mod html_viewer;
+mod milkdown;
 mod pdf_viewer;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
@@ -170,13 +171,7 @@ fn toggle_html_preview(
     #[signal] editor_state: EditorState,
     show_html_preview: XSignal<bool>,
 ) -> XElement {
-    let is_html = match editor_state {
-        EditorState::Data(editor_state) => {
-            editor_state.path.file.extension() == Some("html".as_ref())
-        }
-        _ => false,
-    };
-    if !is_html {
+    if !editor_state.is_html() {
         return tag(style::display = "none", style::visibility = "hidden");
     }
 
@@ -213,11 +208,7 @@ fn toggle_editor_diff(
     #[signal] show_html_preview: bool,
 ) -> XElement {
     let has_diff = match editor_state {
-        EditorState::Data(editor_state)
-            if editor_state.path.file.extension() == Some("html".as_ref()) && show_html_preview =>
-        {
-            false
-        }
+        EditorState::Data(_) if editor_state.is_html() && show_html_preview => false,
         EditorState::Data(editor_state) => match &*editor_state.data {
             fsio::File::TextFile {
                 original: Some(original),
@@ -553,12 +544,12 @@ fn is_focusable(
     #[signal] state: EditorState,
     #[signal] show_html_preview: bool,
 ) -> XAttributeValue {
-    if !show_html_preview
-        && let EditorState::Data(EditorDataState { data, .. }) = &state
-        && let fsio::File::TextFile { .. } = **data
-    {
-        Some(style::IS_FOCUSABLE)
-    } else {
-        None
-    }
+    let EditorState::Data(EditorDataState { data, .. }) = &state else {
+        return None;
+    };
+    let fsio::File::TextFile { .. } = **data else {
+        return None;
+    };
+    let is_html_preview = state.is_html() && show_html_preview;
+    (!is_html_preview).then_some(style::IS_FOCUSABLE)
 }

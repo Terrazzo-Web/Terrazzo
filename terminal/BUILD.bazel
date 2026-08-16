@@ -202,6 +202,21 @@ playwright_matrix_test(
 playwright_matrix_test(
     extra_data = ["tests/text-editor-helpers.mjs"],
     overrides = {
+        "text-editor-markdown-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "text-editor-markdown-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-text-editor-markdown.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
         "text-editor-file-ops-integration-test-debug": {
             "target_server": ":text-editor-server-debug",
         },

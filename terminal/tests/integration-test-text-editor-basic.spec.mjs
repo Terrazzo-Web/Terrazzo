@@ -223,7 +223,7 @@ test.describe('Text editor basic', () => {
     test('shows a git diff for modified files and returns to plain view when reverted', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 
-        const { baseDir, fileName, filePath } = await createCommittedReadme();
+        const { baseDir, fileName, filePath } = await createCommittedReadme('README.txt');
 
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);

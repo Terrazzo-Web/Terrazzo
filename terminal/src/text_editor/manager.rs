@@ -39,11 +39,23 @@ pub(super) enum EditorState {
     Empty,
 }
 
+impl EditorState {
+    pub(super) fn is_html(&self) -> bool {
+        matches!(self, Self::Data(editor_state) if editor_state.is_html())
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct EditorDataState {
     pub path: FilePath<Arc<Path>>,
     pub data: Arc<fsio::File>,
     pub cursor_position: Option<fsio::CursorPosition>,
+}
+
+impl EditorDataState {
+    pub(super) fn is_html(&self) -> bool {
+        self.path.file.extension() == Some("html".as_ref())
+    }
 }
 
 impl std::fmt::Debug for EditorDataState {

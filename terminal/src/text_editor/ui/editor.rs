@@ -68,6 +68,7 @@ pub fn editor(
     show_editor_diff: bool,
     show_html_preview: bool,
 ) -> XElement {
+    let is_html = editor_state.is_html();
     let EditorDataState {
         path,
         cursor_position,
@@ -77,7 +78,7 @@ pub fn editor(
         EditorType::Pdf
     } else if is_markdown(&path.file) {
         EditorType::Markdown
-    } else if path.file.extension() == Some("html".as_ref()) && show_html_preview {
+    } else if is_html && show_html_preview {
         EditorType::Html
     } else {
         EditorType::Text

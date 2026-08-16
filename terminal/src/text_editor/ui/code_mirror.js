@@ -122,7 +122,7 @@ class CodeMirrorJsImpl {
 
     set_content(content) {
         const current = this.editorView.state.doc;
-        if (current == content) return;
+        if (current.toString() === content) return;
         this.reloadFromDisk = true;
         try {
             const changes = {

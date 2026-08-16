@@ -26,6 +26,7 @@ use super::fsio::ROOT_BASE_PATH;
 use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
+use super::manager::PreviewMode;
 use super::manager::TextEditorManager;
 use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
@@ -45,7 +46,6 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
 
@@ -86,7 +86,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         show_editor_diff: XSignal::new("show-editor-diff", false),
-        show_html_preview: XSignal::new("show-html-preview", true),
+        show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
         notify_service: Ptr::new(NotifyService::new(remote)),
@@ -136,14 +136,14 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
 impl TextEditorManager {
     #[html]
     fn refresh_editor(&self) -> XElement {
-        let tile = self.tile.clone();
+        let file_path = self.path.file.clone();
         img(
             class = style::REFRESH_EDITOR,
             #[cfg(not(feature = "client-prod"))]
             class = "refresh-editor",
             src = icons::refresh(),
             title = "Refresh editor",
-            click = move |_| tile.app.force(App::TextEditor),
+            click = move |_| file_path.force(file_path.get_value_untracked()),
         )
     }
 }
@@ -169,23 +169,23 @@ fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
 #[template(tag = span)]
 fn toggle_html_preview(
     #[signal] editor_state: EditorState,
-    show_html_preview: XSignal<bool>,
+    show_html_preview: XSignal<PreviewMode>,
 ) -> XElement {
-    if !editor_state.is_html() {
+    if !editor_state.supports_preview() {
         return tag(style::display = "none", style::visibility = "hidden");
     }
 
     #[template(wrap = true)]
-    fn make_class(#[signal] show_html_preview: bool) -> XAttributeValue {
-        show_html_preview.then_some(style::ACTIVE)
+    fn make_class(#[signal] show_html_preview: PreviewMode) -> XAttributeValue {
+        (show_html_preview != PreviewMode::Editor).then_some(style::ACTIVE)
     }
 
     #[template(wrap = true)]
-    fn make_title(#[signal] show_html_preview: bool) -> XAttributeValue {
-        if show_html_preview {
-            "Show HTML source"
-        } else {
-            "Preview HTML"
+    fn make_title(#[signal] show_html_preview: PreviewMode) -> XAttributeValue {
+        match show_html_preview {
+            PreviewMode::Preview => "Show editor",
+            PreviewMode::Editor => "Show preview and editor",
+            PreviewMode::SideBySide => "Show preview",
         }
     }
 
@@ -196,7 +196,7 @@ fn toggle_html_preview(
         class = "toggle-html-preview",
         src = icons::text_editor(),
         title %= make_title(show_html_preview.clone()),
-        click = move |_| show_html_preview.update(|show| Some(!show)),
+        click = move |_| show_html_preview.update(|show| Some(show.next())),
     )
 }
 
@@ -205,10 +205,14 @@ fn toggle_html_preview(
 fn toggle_editor_diff(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
     let has_diff = match editor_state {
-        EditorState::Data(_) if editor_state.is_html() && show_html_preview => false,
+        EditorState::Data(_)
+            if editor_state.supports_preview() && !show_html_preview.shows_editor() =>
+        {
+            false
+        }
         EditorState::Data(editor_state) => match &*editor_state.data {
             fsio::File::TextFile {
                 original: Some(original),
@@ -254,7 +258,7 @@ fn editor_container(
     manager: Ptr<TextEditorManager>,
     #[signal] editor_state: EditorState,
     #[signal] show_editor_diff: bool,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data {
@@ -542,7 +546,7 @@ pub enum RemoveBehavior {
 #[template(wrap = true)]
 fn is_focusable(
     #[signal] state: EditorState,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XAttributeValue {
     let EditorState::Data(EditorDataState { data, .. }) = &state else {
         return None;
@@ -550,6 +554,6 @@ fn is_focusable(
     let fsio::File::TextFile { .. } = **data else {
         return None;
     };
-    let is_html_preview = state.is_html() && show_html_preview;
+    let is_html_preview = state.is_html() && show_html_preview == PreviewMode::Preview;
     (!is_html_preview).then_some(style::IS_FOCUSABLE)
 }

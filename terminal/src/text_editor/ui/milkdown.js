@@ -4,15 +4,16 @@ class MilkdownJsImpl {
     createPromise;
     ready;
     destroyed;
-    replacingMilkdown;
-    replacementNotificationSeen;
+    updatingMilkdownFromSource;
+    sourceReplacementNotificationSeen;
     suppressedMilkdownMarkdown;
     pendingContent;
     lastFocusedPane;
     fullPath;
 
     constructor(
-        element,
+        wysiwygPane,
+        sourcePane,
         original,
         content,
         onchange,
@@ -20,40 +21,33 @@ class MilkdownJsImpl {
         cursorPosition,
         basePath,
         fullPath,
-        testMode,
+        focusSource,
     ) {
         this.ready = false;
         this.destroyed = false;
-        this.replacingMilkdown = false;
-        this.replacementNotificationSeen = false;
+        this.updatingMilkdownFromSource = false;
+        this.sourceReplacementNotificationSeen = false;
         this.suppressedMilkdownMarkdown = null;
         this.pendingContent = content;
+        this.onchange = onchange;
         this.lastFocusedPane = "wysiwyg";
         this.fullPath = fullPath;
+        wysiwygPane.inert = true;
+        wysiwygPane.dataset.milkdownReady = "false";
 
-        const wysiwygPane = document.createElement("div");
-        wysiwygPane.dataset.milkdownPane = "wysiwyg";
-        const sourcePane = document.createElement("div");
-        sourcePane.dataset.milkdownPane = "source";
-        if (testMode) {
-            wysiwygPane.classList.add("milkdown-wysiwyg-pane");
-            sourcePane.classList.add("milkdown-source-pane");
-        }
         wysiwygPane.addEventListener("focusin", () => {
             this.lastFocusedPane = "wysiwyg";
         });
         sourcePane.addEventListener("focusin", () => {
             this.lastFocusedPane = "source";
         });
-        element.append(wysiwygPane, sourcePane);
         this.wysiwygPane = wysiwygPane;
 
         const sourceOnChange = (markdown) => {
             if (this.destroyed) return;
-            const canonicalMarkdown = this.replaceMilkdownContent(markdown);
-            this.pendingContent = canonicalMarkdown;
-            this.source.set_content(canonicalMarkdown);
-            onchange(canonicalMarkdown);
+            this.pendingContent = markdown;
+            this.updateMilkdownFromSource(markdown);
+            onchange(markdown);
         };
         this.source = new JsDeps.CodeMirrorJsImpl(
             sourcePane,
@@ -65,6 +59,9 @@ class MilkdownJsImpl {
             basePath,
             fullPath,
         );
+        // CodeMirror focuses itself during construction. Restore the mode's
+        // intended focus target after its focusin handler has run.
+        this.lastFocusedPane = focusSource ? "source" : "wysiwyg";
 
         this.crepe = new JsDeps.Milkdown.Crepe({
             root: wysiwygPane,
@@ -76,18 +73,26 @@ class MilkdownJsImpl {
         this.crepe.on((listener) => {
             listener.markdownUpdated((_ctx, markdown) => {
                 if (this.destroyed || !this.ready) return;
-                if (this.replacingMilkdown || this.suppressedMilkdownMarkdown === markdown) {
-                    this.replacementNotificationSeen ||= this.replacingMilkdown;
+                if (this.updatingMilkdownFromSource) {
+                    this.sourceReplacementNotificationSeen = true;
                     this.suppressedMilkdownMarkdown = null;
-                    this.pendingContent = markdown;
-                    this.source.set_content(markdown);
                     return;
                 }
-                this.pendingContent = markdown;
-                this.source.set_content(markdown);
-                onchange(markdown);
+                if (this.suppressedMilkdownMarkdown === markdown) {
+                    this.suppressedMilkdownMarkdown = null;
+                    return;
+                }
+                this.propagateMilkdownMarkdown(markdown);
             });
         });
+        this.onMilkdownInput = () => {
+            if (this.destroyed || !this.ready || this.updatingMilkdownFromSource) return;
+            queueMicrotask(() => {
+                if (this.destroyed || !this.ready || this.updatingMilkdownFromSource) return;
+                this.propagateMilkdownMarkdown(this.crepe.getMarkdown());
+            });
+        };
+        wysiwygPane.addEventListener("input", this.onMilkdownInput);
 
         this.createPromise = this.crepe.create()
             .then(() => {
@@ -96,36 +101,45 @@ class MilkdownJsImpl {
                     return;
                 }
                 this.ready = true;
-                const canonicalMarkdown = this.replaceMilkdownContent(this.pendingContent);
-                this.pendingContent = canonicalMarkdown;
-                this.source.set_content(canonicalMarkdown);
+                this.updateMilkdownFromSource(this.pendingContent);
+                wysiwygPane.inert = false;
+                wysiwygPane.dataset.milkdownReady = "true";
                 this.focus();
             })
             .catch((error) => {
                 if (this.destroyed) return;
+                wysiwygPane.inert = false;
                 console.error(`Failed to create Milkdown at path "${this.fullPath}".`, error);
                 wysiwygPane.dataset.milkdownStatus = "error";
                 wysiwygPane.textContent = `Failed to load Markdown editor: ${error}`;
             });
     }
 
-    replaceMilkdownContent(content) {
-        if (!this.ready || this.destroyed || this.crepe.getMarkdown() === content) return content;
-        this.replacingMilkdown = true;
-        this.replacementNotificationSeen = false;
+    updateMilkdownFromSource(content) {
+        if (!this.ready || this.destroyed || this.crepe.getMarkdown() === content) return;
+        this.updatingMilkdownFromSource = true;
+        this.sourceReplacementNotificationSeen = false;
         try {
             this.crepe.editor.action(JsDeps.Milkdown.replaceAll(content));
-            const canonicalMarkdown = this.crepe.getMarkdown();
-            this.suppressedMilkdownMarkdown = this.replacementNotificationSeen ? null : canonicalMarkdown;
-            return canonicalMarkdown;
+            this.suppressedMilkdownMarkdown = this.sourceReplacementNotificationSeen
+                ? null
+                : this.crepe.getMarkdown();
         } finally {
-            this.replacingMilkdown = false;
+            this.updatingMilkdownFromSource = false;
         }
+    }
+
+    propagateMilkdownMarkdown(markdown) {
+        if (this.pendingContent === markdown) return;
+        this.pendingContent = markdown;
+        this.source.set_content(markdown);
+        this.onchange(markdown);
     }
 
     destroy() {
         if (this.destroyed) return;
         this.destroyed = true;
+        this.wysiwygPane.removeEventListener("input", this.onMilkdownInput);
         this.source.destroy();
         if (this.ready) {
             this.crepe.destroy();
@@ -137,9 +151,7 @@ class MilkdownJsImpl {
         if (this.destroyed) return;
         this.pendingContent = content;
         this.source.set_content(content);
-        const canonicalMarkdown = this.replaceMilkdownContent(content);
-        this.pendingContent = canonicalMarkdown;
-        this.source.set_content(canonicalMarkdown);
+        this.updateMilkdownFromSource(content);
     }
 
     insert_text(text) {

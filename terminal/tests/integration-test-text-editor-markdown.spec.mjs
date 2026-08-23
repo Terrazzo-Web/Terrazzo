@@ -183,6 +183,44 @@ test.describe('Markdown editor', () => {
         await expect.poll(async () => readFile(filePath, 'utf8')).toBe(replacement);
     });
 
+    test('does not focus or scroll Milkdown when hovered', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+
+        const fileName = 'long-notes.md';
+        const { baseDir, filePath } = await createTempFile(fileName);
+        const paragraphs = Array.from(
+            { length: 80 },
+            (_, index) => `Paragraph ${index + 1}: enough text to make the Milkdown pane scroll.`,
+        );
+        await writeFile(filePath, paragraphs.join('\n\n'));
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        const wysiwyg = getMilkdownWysiwyg(page);
+        const content = getMilkdownContent(page);
+        await expect(wysiwyg).toHaveAttribute('data-milkdown-ready', 'true', {
+            timeout: 10 * SECOND,
+        });
+
+        await content.locator('p').last().click();
+        const focusTarget = page.locator('.file-path-selector-field');
+        const previewToggle = page.locator('.toggle-html-preview');
+        await focusTarget.focus();
+        await expect(focusTarget).toBeFocused();
+        await wysiwyg.evaluate((pane) => {
+            pane.scrollTop = 0;
+        });
+
+        await previewToggle.hover();
+        await wysiwyg.hover();
+        await page.waitForTimeout(500);
+
+        await expect.poll(() => wysiwyg.evaluate((pane) => pane.scrollTop)).toBe(0);
+        await expect(focusTarget).toBeFocused();
+    });
+
     test('keeps existing text and HTML routing', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

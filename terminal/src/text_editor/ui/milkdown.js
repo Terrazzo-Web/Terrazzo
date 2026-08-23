@@ -166,7 +166,9 @@ class MilkdownJsImpl {
             this.source.focus();
             return;
         }
-        this.wysiwygPane.querySelector('[contenteditable="true"]')?.focus();
+        this.wysiwygPane
+            .querySelector('[contenteditable="true"]')
+            ?.focus({ preventScroll: true });
     }
 
     cargo_check(diagnostics) {

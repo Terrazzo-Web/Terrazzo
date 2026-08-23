@@ -205,8 +205,10 @@ test.describe('Markdown editor', () => {
         });
 
         await content.locator('p').last().click();
+        const focusTarget = page.locator('.file-path-selector-field');
         const previewToggle = page.locator('.toggle-html-preview');
-        await previewToggle.focus();
+        await focusTarget.focus();
+        await expect(focusTarget).toBeFocused();
         await wysiwyg.evaluate((pane) => {
             pane.scrollTop = 0;
         });
@@ -216,7 +218,7 @@ test.describe('Markdown editor', () => {
         await page.waitForTimeout(500);
 
         await expect.poll(() => wysiwyg.evaluate((pane) => pane.scrollTop)).toBe(0);
-        await expect(previewToggle).toBeFocused();
+        await expect(focusTarget).toBeFocused();
     });
 
     test('keeps existing text and HTML routing', async ({ page }) => {

@@ -183,7 +183,7 @@ test.describe('Markdown editor', () => {
         await expect.poll(async () => readFile(filePath, 'utf8')).toBe(replacement);
     });
 
-    test('does not scroll to the Milkdown selection when hovered', async ({ page }) => {
+    test('does not focus or scroll Milkdown when hovered', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 
         const fileName = 'long-notes.md';
@@ -213,10 +213,10 @@ test.describe('Markdown editor', () => {
 
         await previewToggle.hover();
         await wysiwyg.hover();
-        await page.waitForTimeout(100);
+        await page.waitForTimeout(500);
 
         await expect.poll(() => wysiwyg.evaluate((pane) => pane.scrollTop)).toBe(0);
-        await expect(content).toBeFocused();
+        await expect(previewToggle).toBeFocused();
     });
 
     test('keeps existing text and HTML routing', async ({ page }) => {

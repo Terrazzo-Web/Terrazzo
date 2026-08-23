@@ -203,7 +203,7 @@ pub fn editor(
                         warn!("Failed to focus: {error:?}");
                     })
                 });
-            } else {
+            } else if editor_type != EditorType::Markdown {
                 focus_editor()
             }
         },

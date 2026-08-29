@@ -2,6 +2,9 @@
 host = "localhost"
 ports = [3101]
 trash = "~/.terrazzo/trash"
+tantivy_cache = ".tantivy-cache"
+search_index_refresh = "1h"
+search_index_stale_after = "5m"
 pidfile = "~/.terrazzo/terminal-3101.pid"
 private_root_ca = "~/.terrazzo/root_ca"
 token_lifetime = "5m"

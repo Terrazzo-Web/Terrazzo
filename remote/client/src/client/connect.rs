@@ -1,6 +1,7 @@
 use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
 use futures::FutureExt as _;
 use futures::StreamExt as _;
@@ -82,15 +83,23 @@ impl super::Client {
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
-        let eos2 = eos.clone();
+        let (unhealthy_tx, unhealthy_rx) = oneshot::channel();
+        let unhealthy_rx = unhealthy_rx.shared();
+        let eos2 = futures::future::select(eos.clone(), unhealthy_rx.clone());
         let incoming = futures::stream::once(ready(Ok(connection)))
             .chain(futures::stream::once(async move {
-                let () = eos2.await.map_err(ConnectError::Stream)?;
+                match eos2.await {
+                    Either::Left((eos, unhealthy_rx)) => {
+                        handle_close_timeout("EOS", eos, "Unhealthy", unhealthy_rx)
+                    }
+                    Either::Right((unhealthy_rx, eos)) => {
+                        handle_close_timeout("Unhealthy", unhealthy_rx, "EOS", eos)
+                    }
+                }
                 Err(ConnectError::Disconnected)
             }))
             .in_current_span();
 
-        let (unhealthy_tx, unhealthy_rx) = oneshot::channel();
         let current_span = Span::current();
         let grpc_server = self
             .client_service
@@ -128,6 +137,42 @@ impl super::Client {
         info!("Done");
         Ok(())
     }
+}
+
+fn handle_close_timeout<E1: std::error::Error, E2: std::error::Error>(
+    result_is: &'static str,
+    result: Result<(), E1>,
+    pending_is: &'static str,
+    pending: impl Future<Output = Result<(), E2>> + Send + Clone + 'static,
+) {
+    match result {
+        Ok(()) => warn!("Stream closed with {result_is}:OK"),
+        Err(error) => warn!("Stream closed with {result_is}:{error}"),
+    }
+    let close_latency = {
+        let start = Instant::now();
+        move || humantime::format_duration(start.elapsed())
+    };
+    tokio::spawn(
+        async move {
+            const MINUTE: Duration = Duration::from_secs(60 * 5);
+            match tokio::time::timeout(MINUTE, pending).await {
+                Ok(Ok(())) => {
+                    info!("{pending_is} triggered after {}", close_latency())
+                }
+                Ok(Err(error)) => {
+                    warn!(
+                        "{pending_is} triggered after {} with {error}",
+                        close_latency()
+                    )
+                }
+                Err(tokio::time::error::Elapsed { .. }) => {
+                    warn!("{pending_is} never triggered until {}", close_latency())
+                }
+            }
+        }
+        .in_current_span(),
+    );
 }
 
 trait HasTimeout: Future + Sized {

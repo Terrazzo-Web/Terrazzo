@@ -45,6 +45,7 @@ pbkdf2 = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
+quick_cache = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 rpassword = { workspace = true, optional = true }
 rustls-native-certs = { workspace = true, optional = true }
@@ -227,6 +228,7 @@ text-editor-server = [
   "dep:libc",
   "dep:lru",
   "dep:notify",
+  "dep:quick_cache",
   "dep:regex",
   "dep:tantivy",
   "dep:tokio-stream",

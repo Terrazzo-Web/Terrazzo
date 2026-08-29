@@ -142,6 +142,7 @@ TEXT_EDITOR_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERV
     "@crates//:libc",
     "@crates//:lru",
     "@crates//:notify",
+    "@crates//:quick_cache",
     "@crates//:regex",
     "@crates//:tantivy",
     "@crates//:tokio-stream",

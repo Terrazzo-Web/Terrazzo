@@ -122,6 +122,7 @@ proc-macro2 = { version = "1.0.107" }
 prost = { version = "0.14.4" }
 prost-types = { version = "0.14.4" }
 quote = { version = "1.0.47" }
+quick_cache = { version = "0.7.0" }
 rcgen = { version = "0.14.9" }
 regex = { version = "1.13.1" }
 reqwest = { version = "0.13.4" }

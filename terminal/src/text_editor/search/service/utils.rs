@@ -1,16 +1,20 @@
-use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::LazyLock;
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
 use futures::Stream;
 use futures::StreamExt as _;
+use quick_cache::UnitWeighter;
+use quick_cache::sync::Cache;
+use quick_cache::sync::EntryAction;
+use quick_cache::sync::EntryResult;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::io::BufReader;
 use tokio_stream::wrappers::LinesStream;
@@ -23,18 +27,21 @@ const EXPIRE_AFTER: Duration = Duration::from_secs(60 * 60);
 
 type CacheKey = (PathBuf, PathBuf);
 
-static GIT_FILES_CACHE: LazyLock<Mutex<HashMap<CacheKey, Arc<CacheEntry>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+static GIT_FILES_CACHE: LazyLock<Cache<CacheKey, Arc<CacheEntry>>> =
+    LazyLock::new(|| Cache::with_weighter(64, u64::MAX, UnitWeighter));
+static GIT_FILES_CACHE_CLEANUP: LazyLock<()> = LazyLock::new(|| {
+    tokio::spawn(async {
+        loop {
+            tokio::time::sleep(EXPIRE_AFTER).await;
+            GIT_FILES_CACHE.retain(|_, entry| entry.updated.elapsed() < EXPIRE_AFTER);
+        }
+    });
+});
 
 struct CacheEntry {
-    state: Mutex<CacheState>,
-    changed: tokio::sync::Notify,
-}
-
-struct CacheState {
-    data: Option<Arc<Vec<CachedLine>>>,
+    lines: Arc<Vec<CachedLine>>,
     updated: Instant,
-    refreshing: bool,
+    refreshing: AtomicBool,
 }
 
 #[derive(Clone)]
@@ -102,125 +109,64 @@ async fn cached_git_files(
     base: Arc<Path>,
     pathspec: PathBuf,
 ) -> Result<Arc<Vec<CachedLine>>, SearchError> {
+    LazyLock::force(&GIT_FILES_CACHE_CLEANUP);
     let key = (repo_root.to_path_buf(), base.to_path_buf());
-
-    loop {
-        let (entry, load) = {
-            let mut cache = GIT_FILES_CACHE.lock().unwrap();
-            if let Some(entry) = cache.get(&key) {
-                let state = entry.state.lock().unwrap();
-                let expired = state
-                    .data
-                    .as_ref()
-                    .is_some_and(|_| state.updated.elapsed() >= EXPIRE_AFTER);
-                if !expired || state.refreshing {
-                    (entry.clone(), false)
-                } else {
-                    drop(state);
-                    let entry = new_loading_entry();
-                    cache.insert(key.clone(), entry.clone());
-                    (entry, true)
-                }
+    let result = GIT_FILES_CACHE
+        .entry_async(&key, |_, entry| {
+            if entry.updated.elapsed() >= EXPIRE_AFTER {
+                EntryAction::ReplaceWithGuard
             } else {
-                let entry = new_loading_entry();
-                cache.insert(key.clone(), entry.clone());
-                (entry, true)
+                EntryAction::Retain(entry.clone())
             }
-        };
+        })
+        .await;
+    let guard = match result {
+        EntryResult::Retained(entry) => {
+            if entry.updated.elapsed() >= REFRESH_AFTER
+                && entry
+                    .refreshing
+                    .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+                    .is_ok()
+            {
+                spawn_refresh(key, entry.clone(), repo_root.clone(), pathspec.clone());
+            }
+            return Ok(entry.lines.clone());
+        }
+        EntryResult::Replaced(guard, _) | EntryResult::Vacant(guard) => guard,
+        EntryResult::Removed(_, _) | EntryResult::Timeout => unreachable!(),
+    };
 
-        if load {
-            let result = load_git_files(&repo_root, &pathspec).await;
-            match result {
-                Ok(lines) => {
-                    let lines = Arc::new(lines);
-                    let mut state = entry.state.lock().unwrap();
-                    state.data = Some(lines.clone());
-                    state.updated = Instant::now();
-                    state.refreshing = false;
-                    drop(state);
-                    entry.changed.notify_waiters();
-                    return Ok(lines);
-                }
-                Err(error) => {
-                    entry.state.lock().unwrap().refreshing = false;
-                    entry.changed.notify_waiters();
-                    return Err(error);
-                }
-            }
-        }
-
-        let changed = entry.changed.notified();
-        let (cached, should_load) = {
-            let mut state = entry.state.lock().unwrap();
-            if let Some(lines) = state.data.clone() {
-                let should_refresh = state.updated.elapsed() >= REFRESH_AFTER && !state.refreshing;
-                if should_refresh {
-                    state.refreshing = true;
-                }
-                (Some((lines, should_refresh)), false)
-            } else if !state.refreshing {
-                state.refreshing = true;
-                (None, true)
-            } else {
-                (None, false)
-            }
-        };
-        if let Some((lines, should_refresh)) = cached {
-            if should_refresh {
-                spawn_refresh(entry.clone(), repo_root.clone(), pathspec.clone());
-            }
-            return Ok(lines);
-        }
-        if should_load {
-            let result = load_git_files(&repo_root, &pathspec).await;
-            match result {
-                Ok(lines) => {
-                    let lines = Arc::new(lines);
-                    let mut state = entry.state.lock().unwrap();
-                    state.data = Some(lines.clone());
-                    state.updated = Instant::now();
-                    state.refreshing = false;
-                    drop(state);
-                    entry.changed.notify_waiters();
-                    return Ok(lines);
-                }
-                Err(error) => {
-                    entry.state.lock().unwrap().refreshing = false;
-                    entry.changed.notify_waiters();
-                    return Err(error);
-                }
-            }
-        }
-        changed.await;
-    }
+    let lines = Arc::new(load_git_files(&repo_root, &pathspec).await?);
+    let entry = Arc::new(CacheEntry {
+        lines: lines.clone(),
+        updated: Instant::now(),
+        refreshing: AtomicBool::new(false),
+    });
+    let _ = guard.insert(entry);
+    Ok(lines)
 }
 
-fn new_loading_entry() -> Arc<CacheEntry> {
-    Arc::new(CacheEntry {
-        state: Mutex::new(CacheState {
-            data: None,
-            updated: Instant::now(),
-            refreshing: true,
-        }),
-        changed: tokio::sync::Notify::new(),
-    })
-}
-
-fn spawn_refresh(entry: Arc<CacheEntry>, repo_root: Arc<Path>, pathspec: PathBuf) {
+fn spawn_refresh(key: CacheKey, entry: Arc<CacheEntry>, repo_root: Arc<Path>, pathspec: PathBuf) {
     tokio::spawn(async move {
         match load_git_files(&repo_root, &pathspec).await {
             Ok(lines) => {
-                let mut state = entry.state.lock().unwrap();
-                state.data = Some(Arc::new(lines));
-                state.updated = Instant::now();
-                state.refreshing = false;
+                let refreshed = Arc::new(CacheEntry {
+                    lines: Arc::new(lines),
+                    updated: Instant::now(),
+                    refreshing: AtomicBool::new(false),
+                });
+                let _ = GIT_FILES_CACHE.entry(&key, Some(Duration::ZERO), |_, current| {
+                    if Arc::ptr_eq(current, &entry) {
+                        *current = refreshed;
+                    }
+                    EntryAction::Retain(())
+                });
             }
             Err(error) => {
-                entry.state.lock().unwrap().refreshing = false;
                 warn!(%error, ?repo_root, ?pathspec, "Failed to refresh git files cache");
             }
         }
-        entry.changed.notify_waiters();
+        entry.refreshing.store(false, Ordering::Release);
     });
 }
 

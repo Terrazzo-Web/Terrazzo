@@ -5,7 +5,9 @@ use std::time::Instant;
 
 use futures::FutureExt as _;
 use futures::StreamExt as _;
+use futures::future::BoxFuture;
 use futures::future::Either;
+use futures::future::Shared;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -37,10 +39,11 @@ impl super::Client {
     pub(super) async fn connect(
         &self,
         client_id: ClientId,
-        shutdown: impl Future<Output = ()> + Unpin,
+        shutdown: Shared<BoxFuture<'static, ()>>,
         timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
+        let start = Instant::now();
         info!(uri = self.uri, sni = ?self.sni_override, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
@@ -114,9 +117,13 @@ impl super::Client {
             .add_service(HealthServiceServer::new(HealthServiceImpl::new(
                 self.current_auth_code.clone(),
                 unhealthy_tx,
+                shutdown.clone(),
             )));
 
-        info!("Serving");
+        info!(
+            elapsed = humantime::format_duration(start.elapsed()).to_string(),
+            "Serving"
+        );
 
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
@@ -131,10 +138,14 @@ impl super::Client {
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)
             .await?;
+        debug!("Waiting for EOS");
         if let Some(eos) = eos.peek().cloned() {
             let () = eos.map_err(ConnectError::Stream)?;
         }
-        info!("Done");
+        info!(
+            elapsed = humantime::format_duration(start.elapsed()).to_string(),
+            "Done"
+        );
         Ok(())
     }
 }

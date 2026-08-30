@@ -2,12 +2,16 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
+use futures::future::Shared;
 use humantime::format_duration;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use prost_types::DurationError;
 use tokio::sync::oneshot;
 use tokio::time::error::Elapsed;
+use tonic::Status;
 use tracing::Instrument as _;
 use tracing::debug;
 use tracing::error;
@@ -27,6 +31,7 @@ use super::AuthCode;
 pub struct HealthServiceImpl {
     current_auth_code: Arc<Mutex<AuthCode>>,
     health_report: Arc<Mutex<HealthReport>>,
+    shutdown: Shared<BoxFuture<'static, ()>>,
 }
 
 struct HealthReport {
@@ -35,13 +40,18 @@ struct HealthReport {
 }
 
 impl HealthServiceImpl {
-    pub fn new(current_auth_code: Arc<Mutex<AuthCode>>, on_unhealthy: oneshot::Sender<()>) -> Self {
+    pub fn new(
+        current_auth_code: Arc<Mutex<AuthCode>>,
+        on_unhealthy: oneshot::Sender<()>,
+        shutdown: Shared<BoxFuture<'static, ()>>,
+    ) -> Self {
         let health_service = Self {
             current_auth_code,
             health_report: Arc::new(Mutex::new(HealthReport {
                 report_ping: None,
                 on_unhealthy: Some(on_unhealthy),
             })),
+            shutdown,
         };
         health_service.schedule_timeout();
         return health_service;
@@ -120,7 +130,16 @@ impl HealthService for HealthServiceImpl {
             let delay = Duration::try_from(delay).map_err(PingError::from)?;
             let delay_printed = format_duration(delay);
             info!(connection_id, delay = %delay_printed, "Received ping");
-            tokio::time::sleep(delay).await;
+            match futures::future::select(self.shutdown.clone(), tokio::time::sleep(delay).shared())
+                .await
+            {
+                futures::future::Either::Left(((), _delay)) => {
+                    const MSG: &str = "Pong delay canceled due to shutdown";
+                    debug!("{MSG}");
+                    return Err(Status::aborted(MSG));
+                }
+                futures::future::Either::Right(((), _shutdown)) => {}
+            }
         } else {
             info!(connection_id, "Received ping");
         };

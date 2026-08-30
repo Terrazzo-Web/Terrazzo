@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use connect::ConnectError;
 use futures::FutureExt as _;
+use futures::future::BoxFuture;
 use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -138,6 +139,7 @@ async fn run_impl(
     scopeguard::defer! { let _ = terminated_tx.send(()); };
     let retry_strategy0 = this.retry_strategy.clone();
     let mut retry_strategy = retry_strategy0.clone();
+    let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
     let is_shutdown = is_shutdown(shutdown_rx.clone());

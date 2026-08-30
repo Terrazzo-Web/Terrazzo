@@ -174,13 +174,15 @@ unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
 uuid = { version = "1.26.0", features = ["fast-rng", "serde", "v4"] }
 walkdir = { version = "2.5.0" }
-webrtc = { version = "=0.20.3", default-features = false, features = ["runtime-tokio"] }
 wasm-bindgen = { version = "0.2.127" }
 wasm-bindgen-cli = { version = "0.2.127" }
 wasm-bindgen-futures = { version = "0.4.77" }
 wasm-bindgen-test = { version = "0.3.77" }
 wasm-streams = { version = "0.5.0" }
 web-sys = { version = "0.3.104" }
+webrtc = { version = "=0.20.3", default-features = false, features = [
+  "runtime-tokio",
+] }
 winnow = { version = "1.0.4" }
 x509-parser = { version = "0.18.1" }
 

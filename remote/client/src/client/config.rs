@@ -6,6 +6,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use reqwest::Url;
 use tracing::debug;
 use trz_gateway_common::id::ClientName;
@@ -116,25 +118,18 @@ pub(crate) fn sni_override_resolution<C: ClientConfig>(
     Ok(Some((sni_override.to_owned(), SocketAddr::new(ip, port))))
 }
 
-/* TODO: error should be formatted as
-
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum MyErrorCodes {
-    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
-    MyErrorCode(MaybeAnotherError),
-*/
-#[derive(thiserror::Error, Debug)]
 pub enum SniOverrideError {
-    #[error("{0}")]
+    #[error("[{n}] Failed to parse the Gateway URL: {0}", n = self.name())]
     Url(#[from] url::ParseError),
 
-    #[error("The Gateway URL must include a host when using SNI override")]
+    #[error("[{n}] The Gateway URL must include a host when using SNI override", n = self.name())]
     MissingBaseUrlHost,
 
-    #[error("The Gateway URL must include or imply a port when using SNI override")]
+    #[error("[{n}] The Gateway URL must include or imply a port when using SNI override", n = self.name())]
     MissingBaseUrlPort,
 
-    #[error("Invalid SNI override: {0}")]
+    #[error("[{n}] Invalid SNI override: {0}", n = self.name())]
     InvalidSniOverride(String),
 }

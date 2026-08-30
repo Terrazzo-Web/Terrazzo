@@ -17,6 +17,8 @@ use futures::StreamExt as _;
 use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use futures::future::Shared;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use notify::RecommendedWatcher;
 use notify::RecursiveMode;
 use notify::Watcher as _;
@@ -109,32 +111,25 @@ struct WatcherState {
     directories: HashSet<PathBuf>,
 }
 
-/* TODO: error should be formatted as
-
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum MyErrorCodes {
-    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
-    MyErrorCode(MaybeAnotherError),
-*/
-#[derive(Debug, thiserror::Error)]
 pub enum SearchIndexError {
-    #[error("Failed to access the Tantivy cache: {0}")]
+    #[error("[{n}] Failed to access the Tantivy cache: {0}", n = self.name())]
     Io(#[from] std::io::Error),
 
-    #[error("Tantivy index error: {0}")]
+    #[error("[{n}] Tantivy index operation failed: {0}", n = self.name())]
     Tantivy(#[from] tantivy::TantivyError),
 
-    #[error("Failed to watch repository files: {0}")]
+    #[error("[{n}] Failed to watch repository files: {0}", n = self.name())]
     Notify(#[from] notify::Error),
 
-    #[error("Failed to open the Tantivy cache: {0}")]
+    #[error("[{n}] Failed to open the Tantivy cache: {0}", n = self.name())]
     OpenDirectory(#[from] tantivy::directory::error::OpenDirectoryError),
 
-    #[error("Failed to list Git files: {0}")]
+    #[error("[{n}] Failed to list Git files: {0}", n = self.name())]
     GitFiles(String),
 
-    #[error("Search index writer stopped")]
+    #[error("[{n}] Search index writer stopped", n = self.name())]
     WriterStopped,
 }
 

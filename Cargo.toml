@@ -78,7 +78,7 @@ trz-gateway-client = { version = "0.2.17", path = "remote/client" }
 trz-gateway-common = { version = "0.2.17", path = "remote/common" }
 trz-gateway-server = { version = "0.2.17", path = "remote/server" }
 
-async-trait = { version = "0.1.89" }
+async-trait = { version = "0.1.92" }
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
@@ -153,11 +153,11 @@ tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.20" }
 tls-parser = { version = "0.12.2" }
-tokio = { version = "1.52.3" }
+tokio = { version = "1.53.1" }
 tokio-rustls = { version = "0.26.4" }
-tokio-stream = { version = "0.1.18", features = ["io-util"] }
+tokio-stream = { version = "0.1.19", features = ["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
-tokio-util = { version = "0.7.18" }
+tokio-util = { version = "0.7.19" }
 toml = { version = "1.1.4" }
 tonic = { version = "0.14.6" }
 tonic-prost = { version = "0.14.6" }
@@ -180,7 +180,7 @@ wasm-bindgen-futures = { version = "0.4.77" }
 wasm-bindgen-test = { version = "0.3.77" }
 wasm-streams = { version = "0.5.0" }
 web-sys = { version = "0.3.104" }
-webrtc = { version = "=0.20.4", default-features = false, features = [
+webrtc = { version = "0.20.4", default-features = false, features = [
   "runtime-tokio",
 ] }
 winnow = { version = "1.0.4" }

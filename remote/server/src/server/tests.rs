@@ -24,6 +24,8 @@ use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
+use trz_gateway_common::p2p::peer_connection::LocalIceEvent;
+use trz_gateway_common::p2p::peer_connection::PeerConnectionBuilder;
 use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
@@ -32,6 +34,7 @@ use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
 use trz_gateway_common::security_configuration::trusted_store::pem::PemTrustedStore;
+use trz_gateway_common::security_configuration::trusted_store::root_cert_store::ToRootCertStore as _;
 use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 use trz_gateway_common::x509::PemString as _;
 use trz_gateway_common::x509::ca::make_intermediate;
@@ -43,6 +46,7 @@ use trz_gateway_common::x509::validity::Validity;
 use super::Server;
 use super::gateway_config::GatewayConfig;
 use super::gateway_config::Ports;
+use super::gateway_config::p2p::P2pRegistrationConfig;
 use super::root_ca_configuration;
 use super::root_ca_configuration::RootCaConfigError;
 use crate::auth_code::AuthCode;
@@ -247,6 +251,145 @@ async fn p2p_signaling_routes_offer_and_answer() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[tokio::test]
+async fn p2p_server_answers_and_serves_tls_http() -> Result<(), Box<dyn Error>> {
+    use rustls::pki_types::ServerName;
+    use tokio_tungstenite::connect_async;
+
+    let _use_temp_dir = use_temp_dir();
+    let signaling_config = TestConfig::new();
+    let (_signaling, signaling_handle, _crash) = Server::run(signaling_config.clone()).await?;
+    let _signaling_client = make_client(&signaling_config).await?;
+
+    let p2p = P2pRegistrationConfig {
+        ice_servers: vec![],
+        retry_strategy: Duration::from_secs(5).into(),
+        handshake_timeout: Duration::from_secs(10),
+        ..P2pRegistrationConfig::new(
+            format!("ws://{}:{}", signaling_config.host(), signaling_config.port),
+            "nat-server".into(),
+        )
+    };
+    let target_config = TestConfig::new_with_p2p(p2p);
+    let (_target, target_handle, _crash) = Server::run(target_config.clone()).await?;
+    let _target_client = make_client(&target_config).await?;
+
+    let connect_url = format!(
+        "ws://{}:{}/p2p/connect/nat-server",
+        signaling_config.host(),
+        signaling_config.port,
+    );
+    let (mut cancelled, _) = connect_async(&connect_url).await?;
+    send_signal(
+        &mut cancelled,
+        SignalMessage::Hello {
+            protocol_version: PROTOCOL_VERSION,
+        },
+    )
+    .await?;
+    let cancelled_id = match receive_signal(&mut cancelled).await? {
+        SignalMessage::Start { connection_id } => connection_id,
+        message => panic!("unexpected signaling message: {message:?}"),
+    };
+    send_signal(
+        &mut cancelled,
+        SignalMessage::Cancel {
+            connection_id: cancelled_id,
+        },
+    )
+    .await?;
+    let _ = cancelled.close(None).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let (mut signaling, _) =
+        tokio::time::timeout(Duration::from_secs(1), connect_async(&connect_url)).await??;
+    send_signal(
+        &mut signaling,
+        SignalMessage::Hello {
+            protocol_version: PROTOCOL_VERSION,
+        },
+    )
+    .await?;
+    let connection_id = match receive_signal(&mut signaling).await? {
+        SignalMessage::Start { connection_id } => connection_id,
+        message => panic!("unexpected signaling message: {message:?}"),
+    };
+
+    let (local_ice_tx, mut local_ice_rx) = tokio::sync::mpsc::channel(64);
+    let peer = PeerConnectionBuilder::new(vec![], local_ice_tx)
+        .build()
+        .await?;
+    let pending = peer.create_reliable_data_channel().await?;
+    let offer = peer.create_offer().await?;
+    send_signal(
+        &mut signaling,
+        SignalMessage::Description {
+            connection_id,
+            description: offer,
+        },
+    )
+    .await?;
+
+    let open = pending.wait_open();
+    tokio::pin!(open);
+    let io = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            tokio::select! {
+                local_ice = local_ice_rx.recv() => match local_ice.expect("local ICE") {
+                    LocalIceEvent::Candidate(candidate) => {
+                        send_signal(&mut signaling, SignalMessage::IceCandidate {
+                            connection_id,
+                            candidate,
+                        }).await?;
+                    }
+                    LocalIceEvent::EndOfCandidates => {
+                        send_signal(&mut signaling, SignalMessage::EndOfCandidates {
+                            connection_id,
+                        }).await?;
+                    }
+                    LocalIceEvent::Error(error) => return Err(error.into()),
+                },
+                incoming = receive_signal(&mut signaling) => match incoming? {
+                    SignalMessage::Description {
+                        connection_id: id,
+                        description: answer @ SessionDescription::Answer(_),
+                    } if id == connection_id => peer.set_remote_description(answer).await?,
+                    SignalMessage::IceCandidate {
+                        connection_id: id,
+                        candidate,
+                    } if id == connection_id => peer.add_remote_candidate(candidate).await?,
+                    SignalMessage::EndOfCandidates { connection_id: id }
+                        if id == connection_id => peer.end_remote_candidates().await?,
+                    SignalMessage::Failure { detail, .. } => return Err(detail.into()),
+                    message => panic!("unexpected signaling message: {message:?}"),
+                },
+                opened = &mut open => break Ok::<_, Box<dyn Error>>(opened?),
+            }
+        }
+    })
+    .await??;
+
+    let roots = target_config
+        .tls_config
+        .trusted_store
+        .to_root_cert_store()?;
+    let tls_client = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(Arc::new(tls_client));
+    let mut tls = connector
+        .connect(ServerName::try_from("localhost")?, io)
+        .await?;
+    send_plaintext_keep_alive_request_to(&mut tls, &target_config, "/status").await?;
+    assert_eq!(StatusCode::OK, read_http_response_status(&mut tls).await?);
+
+    let _ = signaling.close(None).await;
+    peer.close().await?;
+    let () = target_handle.stop("End of test").await?;
+    let () = signaling_handle.stop("End of test").await?;
+    Ok(())
+}
+
 async fn send_signal<S>(
     socket: &mut tokio_tungstenite::WebSocketStream<S>,
     message: SignalMessage,
@@ -404,14 +547,22 @@ async fn send_certificate_request(
 }
 
 async fn send_plaintext_keep_alive_request(
-    stream: &mut TcpStream,
+    stream: &mut (impl tokio::io::AsyncWrite + Unpin),
     config: &TestConfig,
+) -> Result<(), Box<dyn Error>> {
+    send_plaintext_keep_alive_request_to(stream, config, "/404-not-found").await
+}
+
+async fn send_plaintext_keep_alive_request_to(
+    stream: &mut (impl tokio::io::AsyncWrite + Unpin),
+    config: &TestConfig,
+    path: &str,
 ) -> Result<(), Box<dyn Error>> {
     stream
         .write_all(
             format!(
-                "GET /404-not-found HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\n\r\n",
-                config.host()
+                "GET {path} HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\n\r\n",
+                config.host(),
             )
             .as_bytes(),
         )
@@ -420,7 +571,9 @@ async fn send_plaintext_keep_alive_request(
     Ok(())
 }
 
-async fn read_http_response_status(stream: &mut TcpStream) -> Result<StatusCode, Box<dyn Error>> {
+async fn read_http_response_status(
+    stream: &mut (impl tokio::io::AsyncRead + Unpin),
+) -> Result<StatusCode, Box<dyn Error>> {
     let mut response = Vec::new();
     let header_end = loop {
         let mut chunk = [0; 1024];
@@ -470,10 +623,19 @@ struct TestConfig {
     port: u16,
     root_ca: Arc<PemCertificate>,
     tls_config: <TestConfig as GatewayConfig>::TlsConfig,
+    p2p_registration: Option<P2pRegistrationConfig>,
 }
 
 impl TestConfig {
     fn new() -> Arc<Self> {
+        Self::new_impl(None)
+    }
+
+    fn new_with_p2p(p2p_registration: P2pRegistrationConfig) -> Arc<Self> {
+        Self::new_impl(Some(p2p_registration))
+    }
+
+    fn new_impl(p2p_registration: Option<P2pRegistrationConfig>) -> Arc<Self> {
         enable_tracing_for_tests();
         let root_ca = make_root_ca().expect("root_ca_config()");
         let tls_config = make_tls_config().expect("tls_config()");
@@ -481,6 +643,7 @@ impl TestConfig {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
             root_ca,
             tls_config,
+            p2p_registration,
         })
     }
 }
@@ -496,6 +659,10 @@ impl GatewayConfig for TestConfig {
 
     fn ports(&self) -> impl Ports + 'static {
         vec![self.port]
+    }
+
+    fn p2p_registration(&self) -> Option<P2pRegistrationConfig> {
+        self.p2p_registration.clone()
     }
 
     type RootCaConfig = Arc<PemCertificate>;

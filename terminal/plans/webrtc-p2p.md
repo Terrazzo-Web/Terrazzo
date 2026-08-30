@@ -279,6 +279,54 @@ Serving TLS again inside WebRTC is intentional. WebRTC DTLS secures the peer lin
 while the existing Terrazzo TLS certificate authenticates the requested server
 name and preserves all current `/remote/certificate` security behavior.
 
+### Task 3 implementation log (2026-08-30)
+
+- Added disabled-by-default `GatewayConfig::p2p_registration()` settings for the
+  signaling base URL, globally unique `ClientName`, STUN/TURN servers, existing
+  `RetryStrategy`, negotiation deadline, redacted bearer authorization material,
+  and a concurrent-session limit. The `Arc<GatewayConfig>` delegation preserves
+  the option without changing existing configurations.
+- Added the NATed server role in `remote/server/src/server/p2p/server_role.rs`.
+  Enabled gateways connect outward over WS/WSS, send the versioned registration
+  hello, retry disconnections with bounded backoff, and multiplex session traffic
+  through bounded queues. Signaling URLs and names are URL-encoded, bearer
+  credentials are never included in debug output, and incoming frames are capped
+  at the shared signaling size bound.
+- Each session has an independent answering `PeerConnection`: offers and queued
+  client ICE are applied through the shared `trz-gateway-common` builder, answers
+  and local ICE are trickled back, and only ordered/unlimited-retransmission data
+  channels are accepted. Cancellation and negotiation failures are isolated so a
+  failed session cannot tear down the persistent registration.
+- Added a semaphore that covers both negotiation and the full lifetime of the
+  resulting P2P HTTP connection. Capacity exhaustion reports the structured
+  signaling failure instead of allocating another peer connection.
+- Added `Server::serve_p2p_connection`, which applies the gateway's existing
+  Rustls server configuration to `DataChannelIo` and serves the same `make_app()`
+  router with Hyper's HTTP/1.1-or-HTTP/2 connection builder. The TCP listener's
+  header-read and keepalive timeout settings are also applied to P2P connections.
+- Bound the registration loop, negotiating peers, active WebRTC connections, TLS,
+  and Hyper serving to the existing server shutdown future. The peer connection
+  is explicitly closed when its HTTP connection finishes or shutdown wins.
+- Added unit coverage for defaults, secret redaction, and encoded/authenticated
+  registration requests. Added a real end-to-end test that starts a signaling
+  gateway and a separately registered server, verifies a cancelled session does
+  not remove the registration, negotiates a reliable WebRTC channel with host ICE,
+  performs the inner TLS handshake, and receives HTTP 200 from `/status` through
+  the existing Axum application.
+- Validation completed:
+
+  ```text
+  cargo fmt --all -- --check                                      PASS
+  cargo check -p trz-gateway-server                               PASS
+  cargo clippy -p trz-gateway-server --all-targets -- -D warnings PASS
+  cargo test -p trz-gateway-server server_role::tests             PASS
+  cargo test -p trz-gateway-server gateway_config::p2p::tests     PASS
+  cargo test -p trz-gateway-server p2p_server_answers_and_serves_tls_http PASS
+  cargo test -p trz-gateway-server                               PASS (19 tests)
+  CARGO_BAZEL_REPIN=1 bazel mod deps                              PASS
+  bazel test --test_output=errors //remote/server:server-test     PASS
+  ```
+
 ## Task 4: Client connector and configuration
 
 1. Extend `ClientConfig` with a backward-compatible transport selection, for

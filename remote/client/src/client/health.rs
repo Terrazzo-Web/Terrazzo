@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use humantime::format_duration;

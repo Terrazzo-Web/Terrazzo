@@ -11,6 +11,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::Element;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
@@ -33,7 +34,6 @@ use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
-use web_sys::Element;
 
 #[derive(Clone)]
 pub(super) enum EditorDocument {

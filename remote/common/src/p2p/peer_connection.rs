@@ -4,6 +4,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use webrtc::data_channel::DataChannel;
@@ -329,19 +331,21 @@ impl PeerConnectionEventHandler for EventHandler {
 }
 
 /// Failure while constructing or driving a shared P2P connection.
-#[derive(Debug, thiserror::Error)]
+#[nameth]
+#[derive(thiserror::Error, Debug)]
 pub enum PeerConnectionError {
     /// The underlying WebRTC implementation failed.
-    #[error("WebRTC: {0}")]
+    #[error("[{n}] WebRTC operation failed: {0}", n = self.name())]
     WebRtc(#[from] webrtc::error::Error),
 
     /// The peer closed before providing its data channel.
-    #[error("Peer closed before providing a data channel")]
+    #[error("[{n}] Peer closed before providing a data channel", n = self.name())]
     PeerClosed,
 
     /// The peer proposed a lossy or unordered channel.
     #[error(
-        "Data channel is not fully reliable: ordered={ordered}, max_packet_life_time={max_packet_life_time:?}, max_retransmits={max_retransmits:?}"
+        "[{n}] Data channel is not fully reliable: ordered={ordered}, max_packet_life_time={max_packet_life_time:?}, max_retransmits={max_retransmits:?}",
+        n = self.name()
     )]
     UnreliableDataChannel {
         /// Whether delivery is ordered.
@@ -355,11 +359,11 @@ pub enum PeerConnectionError {
     },
 
     /// A candidate arrived after the explicit end marker.
-    #[error("Received an ICE candidate after end-of-candidates")]
+    #[error("[{n}] Received an ICE candidate after end-of-candidates", n = self.name())]
     CandidateAfterEnd,
 
     /// The data-channel stream failed.
-    #[error("Data channel I/O: {0}")]
+    #[error("[{n}] Data channel I/O failed: {0}", n = self.name())]
     Io(#[from] std::io::Error),
 }
 

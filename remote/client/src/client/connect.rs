@@ -12,6 +12,8 @@ use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use reqwest::Url;
+use tokio::io::AsyncRead;
+use tokio::io::AsyncWrite;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
@@ -29,6 +31,7 @@ use trz_gateway_common::protos::terrazzo::remote::health::health_service_server:
 use trz_gateway_common::to_async_io::WebSocketIo;
 
 use self::tungstenite::client::IntoClientRequest as _;
+use super::config::ClientTransport;
 use super::config::SniOverrideError;
 use super::config::set_sni_override;
 use super::connection::Connection;
@@ -44,7 +47,7 @@ impl super::Client {
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         let start = Instant::now();
-        info!(uri = self.uri, sni = ?self.sni_override, "Connecting WebSocket");
+        info!(uri = self.uri, sni = ?self.sni_override, transport = ?self.transport, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
@@ -58,10 +61,7 @@ impl super::Client {
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_tcp(&request, disable_nagle)
-            .timeout(timeout)
-            .await
-            .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??;
+        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout).await?;
         let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             tls_request,
             socket,
@@ -229,6 +229,27 @@ async fn connect_tcp(
     Ok(socket)
 }
 
+trait TransportIo: AsyncRead + AsyncWrite + Unpin + Send {}
+
+impl<T> TransportIo for T where T: AsyncRead + AsyncWrite + Unpin + Send {}
+
+async fn connect_transport(
+    transport: &ClientTransport,
+    request: &tungstenite::handshake::client::Request,
+    disable_nagle: bool,
+    timeout: Duration,
+) -> Result<Box<dyn TransportIo>, ConnectError> {
+    match transport {
+        ClientTransport::Direct => Ok(Box::new(
+            connect_tcp(request, disable_nagle)
+                .timeout(timeout)
+                .await
+                .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
+        )),
+        ClientTransport::WebRtc(config) => Ok(Box::new(crate::p2p::connect(config).await?)),
+    }
+}
+
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -250,6 +271,9 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     TcpConnect(std::io::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    P2p(#[from] crate::p2p::P2pConnectError),
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),

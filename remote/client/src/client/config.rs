@@ -5,11 +5,15 @@ use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::time::Duration;
 
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use reqwest::Url;
 use tracing::debug;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::is_global::IsGlobal;
+use trz_gateway_common::p2p::peer_connection::IceServer;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use uuid::Uuid;
 
@@ -61,6 +65,11 @@ pub trait ClientConfig: IsGlobal {
     fn sni_override(&self) -> Option<&str> {
         None
     }
+
+    /// Selects how the Gateway is reached. Direct sockets remain the default.
+    fn transport(&self) -> ClientTransport {
+        ClientTransport::Direct
+    }
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
@@ -79,6 +88,60 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
 
     fn sni_override(&self) -> Option<&str> {
         self.as_ref().sni_override()
+    }
+
+    fn transport(&self) -> ClientTransport {
+        self.as_ref().transport()
+    }
+}
+
+/// Network transport used to reach the Gateway.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum ClientTransport {
+    /// Connect directly to the host and port in [`ClientConfig::base_url`].
+    #[default]
+    Direct,
+
+    /// Reach a NATed Gateway through its public signaling server.
+    WebRtc(P2pClientConfig),
+}
+
+/// Client-side WebRTC signaling and ICE configuration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct P2pClientConfig {
+    /// Public signaling server base URL.
+    pub signaling_url: String,
+
+    /// Globally unique name registered by the target Gateway.
+    pub server_name: ClientName,
+
+    /// STUN or TURN servers used to discover a viable ICE pair.
+    pub ice_servers: Vec<IceServer>,
+
+    /// Maximum time to establish the signaling WebSocket and receive a session ID.
+    pub signaling_timeout: Duration,
+
+    /// Maximum time to exchange SDP/ICE and open the reliable data channel.
+    pub handshake_timeout: Duration,
+
+    /// Overall deadline for the complete P2P connection attempt.
+    pub connect_timeout: Duration,
+}
+
+impl P2pClientConfig {
+    /// Creates a configuration with bounded timeouts and Google's public STUN server.
+    pub fn new(signaling_url: impl Into<String>, server_name: ClientName) -> Self {
+        Self {
+            signaling_url: signaling_url.into(),
+            server_name,
+            ice_servers: vec![IceServer {
+                urls: vec!["stun:stun.l.google.com:19302".to_owned()],
+                ..IceServer::default()
+            }],
+            signaling_timeout: Duration::from_secs(10),
+            handshake_timeout: Duration::from_secs(30),
+            connect_timeout: Duration::from_secs(45),
+        }
     }
 }
 
@@ -116,17 +179,38 @@ pub(crate) fn sni_override_resolution<C: ClientConfig>(
     Ok(Some((sni_override.to_owned(), SocketAddr::new(ip, port))))
 }
 
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum SniOverrideError {
-    #[error("{0}")]
+    #[error("[{n}] Failed to parse the Gateway URL: {0}", n = self.name())]
     Url(#[from] url::ParseError),
 
-    #[error("The Gateway URL must include a host when using SNI override")]
+    #[error("[{n}] The Gateway URL must include a host when using SNI override", n = self.name())]
     MissingBaseUrlHost,
 
-    #[error("The Gateway URL must include or imply a port when using SNI override")]
+    #[error("[{n}] The Gateway URL must include or imply a port when using SNI override", n = self.name())]
     MissingBaseUrlPort,
 
-    #[error("Invalid SNI override: {0}")]
+    #[error("[{n}] Invalid SNI override: {0}", n = self.name())]
     InvalidSniOverride(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transport_defaults_to_direct_and_p2p_defaults_are_bounded() {
+        assert_eq!(ClientTransport::Direct, ClientTransport::default());
+
+        let config = P2pClientConfig::new("https://signal.example", "gateway".into());
+        assert_eq!("https://signal.example", config.signaling_url);
+        assert_eq!("gateway", config.server_name.as_ref());
+        assert_eq!(
+            vec!["stun:stun.l.google.com:19302"],
+            config.ice_servers[0].urls
+        );
+        assert!(config.signaling_timeout < config.handshake_timeout);
+        assert!(config.handshake_timeout < config.connect_timeout);
+    }
 }

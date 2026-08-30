@@ -25,7 +25,13 @@ axum-server = { workspace = true, features = ["tls-rustls"] }
 bytes = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
-hyper-util = { workspace = true, features = ["http1", "http2", "server-auto", "service", "tokio"] }
+hyper-util = { workspace = true, features = [
+  "http1",
+  "http2",
+  "server-auto",
+  "service",
+  "tokio",
+] }
 instant-acme = { workspace = true, optional = true }
 nameth = { workspace = true }
 openssl = { workspace = true }
@@ -44,8 +50,8 @@ tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
 tonic = { workspace = true }
 tower = { workspace = true, features = ["balance", "buffer", "util"] }
 tracing = { workspace = true }
-uuid = { workspace = true }
 url = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 mime = { workspace = true }

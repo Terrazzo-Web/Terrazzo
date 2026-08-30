@@ -360,6 +360,41 @@ name and preserves all current `/remote/certificate` security behavior.
    small Hyper client connector behind the same internal abstraction instead of
    weakening or duplicating TLS verification.
 
+### Task 4 implementation log (2026-08-30)
+
+- Added backward-compatible `ClientTransport` selection to `ClientConfig`.
+  Direct sockets remain the default, while `P2pClientConfig` keeps the public
+  signaling URL and registered server name separate from the target HTTPS
+  authority/SNI. It includes STUN/TURN configuration plus bounded signaling,
+  WebRTC-handshake, and overall-connect deadlines.
+- Added client-side signaling in `remote/client/src/p2p.rs`. Each connection opens
+  `/p2p/connect/{server_name}`, sends the protocol hello, creates a fully reliable
+  ordered data channel and SDP offer, trickles ICE in both directions, and returns
+  a byte stream only after the data channel opens. URL path segments are encoded,
+  signaling frames are bounded, and cancellation or timeout closes the peer.
+- Added a transport abstraction to `client/connect.rs`. Direct mode still creates
+  the existing TCP connection; P2P mode supplies a fresh WebRTC stream. Both then
+  use the same target TLS validation, WebSocket tunnel, inner client TLS, health,
+  retry, shutdown, and tonic gRPC-serving path.
+- Verified that reqwest 0.13's `connector_layer` wraps the completed connector,
+  including TLS, and therefore cannot replace only the underlying TCP stream.
+  Implemented the planned Hyper fallback for P2P certificate requests while
+  leaving direct requests on reqwest. The P2P path applies the same trusted roots,
+  target hostname/SNI validation, ALPN, HTTP/1.1 or HTTP/2, and existing
+  `/remote/certificate` request/response handling.
+- Added default-configuration and encoded-signaling-URL tests. Existing direct
+  client integration coverage remains unchanged and green.
+- Validation completed:
+
+  ```text
+  cargo fmt --all -- --check                                      PASS
+  cargo check -p trz-gateway-client                               PASS
+  cargo clippy -p trz-gateway-client --all-targets -- -D warnings PASS
+  cargo test -p trz-gateway-client                                PASS (7 tests)
+  CARGO_BAZEL_REPIN=1 bazel mod deps                              PASS
+  bazel test --test_output=errors //remote/client:client-test     PASS
+  ```
+
 ## Task 5: End-to-end certificate test
 
 Add a test in `remote/client/src/tests.rs` with a dedicated P2P fixture:

@@ -9,6 +9,7 @@ use trz_gateway_common::id::ClientName;
 
 use super::Server;
 
+mod server;
 pub(super) mod signaling;
 
 impl Server {

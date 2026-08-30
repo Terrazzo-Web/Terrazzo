@@ -1,7 +1,6 @@
 //! Tokio byte-stream adapter for reliable WebRTC data channels.
 
 use std::future::Future as _;
-use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -49,7 +48,7 @@ impl DataChannelIo {
     }
 
     /// Resolves only after the WebRTC data channel reports that it is open.
-    pub async fn wait_open(mut self) -> io::Result<Self> {
+    pub async fn wait_open(mut self) -> std::io::Result<Self> {
         let Some(opened_rx) = self.opened_rx.take() else {
             return Ok(self);
         };
@@ -95,17 +94,17 @@ impl DataChannelIo {
         self.terminal_error.lock().expect("terminal_error").clone()
     }
 
-    fn current_error(&self, fallback: &'static str) -> io::Error {
+    fn current_error(&self, fallback: &'static str) -> std::io::Error {
         self.stored_error()
             .map(StoredError::into_io)
-            .unwrap_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, fallback))
+            .unwrap_or_else(|| std::io::Error::new(std::io::ErrorKind::BrokenPipe, fallback))
     }
 
     fn poll_send_command(
         &mut self,
         context: &mut Context<'_>,
         command: impl FnOnce() -> WriteCommand,
-    ) -> Poll<io::Result<()>> {
+    ) -> Poll<std::io::Result<()>> {
         match self.write_tx.poll_reserve(context) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Err(_)) => Poll::Ready(Err(self.current_error("Data channel is closed"))),
@@ -119,13 +118,13 @@ impl DataChannelIo {
     fn poll_reply(
         reply: &mut oneshot::Receiver<Result<(), StoredError>>,
         context: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    ) -> Poll<std::io::Result<()>> {
         match Pin::new(reply).poll(context) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(Ok(()))) => Poll::Ready(Ok(())),
             Poll::Ready(Ok(Err(error))) => Poll::Ready(Err(error.into_io())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
+            Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
                 "Data channel writer stopped",
             ))),
         }
@@ -137,7 +136,7 @@ impl AsyncRead for DataChannelIo {
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+    ) -> Poll<std::io::Result<()>> {
         loop {
             if self.read_buffer.has_remaining() {
                 let length = self.read_buffer.remaining().min(buffer.remaining());
@@ -164,10 +163,10 @@ impl AsyncWrite for DataChannelIo {
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
         buffer: &[u8],
-    ) -> Poll<Result<usize, io::Error>> {
+    ) -> Poll<Result<usize, std::io::Error>> {
         if self.shutdown_complete || self.shutdown_rx.is_some() {
-            return Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
+            return Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
                 "Data channel writer is shut down",
             )));
         }
@@ -197,7 +196,7 @@ impl AsyncWrite for DataChannelIo {
     fn poll_flush(
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
-    ) -> Poll<Result<(), io::Error>> {
+    ) -> Poll<Result<(), std::io::Error>> {
         if self.shutdown_complete {
             return Poll::Ready(Ok(()));
         }
@@ -233,7 +232,7 @@ impl AsyncWrite for DataChannelIo {
     fn poll_shutdown(
         mut self: Pin<&mut Self>,
         context: &mut Context<'_>,
-    ) -> Poll<Result<(), io::Error>> {
+    ) -> Poll<Result<(), std::io::Error>> {
         if self.shutdown_complete {
             return Poll::Ready(Ok(()));
         }
@@ -272,20 +271,20 @@ impl Drop for DataChannelIo {
 
 #[derive(Clone, Debug)]
 struct StoredError {
-    kind: io::ErrorKind,
+    kind: std::io::ErrorKind,
     message: Arc<str>,
 }
 
 impl StoredError {
-    fn new(kind: io::ErrorKind, message: impl Into<Arc<str>>) -> Self {
+    fn new(kind: std::io::ErrorKind, message: impl Into<Arc<str>>) -> Self {
         Self {
             kind,
             message: message.into(),
         }
     }
 
-    fn into_io(self) -> io::Error {
-        io::Error::new(self.kind, self.message.to_string())
+    fn into_io(self) -> std::io::Error {
+        std::io::Error::new(self.kind, self.message.to_string())
     }
 }
 
@@ -310,20 +309,20 @@ enum ChannelEvent {
 
 #[async_trait]
 trait DataChannelTransport: Send + Sync + 'static {
-    async fn send(&self, data: BytesMut) -> io::Result<()>;
+    async fn send(&self, data: BytesMut) -> std::io::Result<()>;
     async fn poll(&self) -> Option<ChannelEvent>;
-    async fn close(&self) -> io::Result<()>;
+    async fn close(&self) -> std::io::Result<()>;
 }
 
 struct WebRtcTransport(Arc<dyn DataChannel>);
 
 #[async_trait]
 impl DataChannelTransport for WebRtcTransport {
-    async fn send(&self, data: BytesMut) -> io::Result<()> {
+    async fn send(&self, data: BytesMut) -> std::io::Result<()> {
         self.0
             .send(data)
             .await
-            .map_err(|error| io::Error::other(error.to_string()))
+            .map_err(|error| std::io::Error::other(error.to_string()))
     }
 
     async fn poll(&self) -> Option<ChannelEvent> {
@@ -343,11 +342,11 @@ impl DataChannelTransport for WebRtcTransport {
         }
     }
 
-    async fn close(&self) -> io::Result<()> {
+    async fn close(&self) -> std::io::Result<()> {
         self.0
             .close()
             .await
-            .map_err(|error| io::Error::other(error.to_string()))
+            .map_err(|error| std::io::Error::other(error.to_string()))
     }
 }
 
@@ -363,7 +362,7 @@ async fn read_data_channel(
             let _ = read_tx.send(ReadEvent::Eof).await;
             if let Some(opened_tx) = opened_tx.take() {
                 let _ = opened_tx.send(Err(StoredError::new(
-                    io::ErrorKind::BrokenPipe,
+                    std::io::ErrorKind::BrokenPipe,
                     "Data channel closed before opening",
                 )));
             }
@@ -384,14 +383,15 @@ async fn read_data_channel(
                 let _ = read_tx.send(ReadEvent::Eof).await;
                 if let Some(opened_tx) = opened_tx.take() {
                     let _ = opened_tx.send(Err(StoredError::new(
-                        io::ErrorKind::BrokenPipe,
+                        std::io::ErrorKind::BrokenPipe,
                         "Data channel closed before opening",
                     )));
                 }
                 break;
             }
             ChannelEvent::Error => {
-                let error = StoredError::new(io::ErrorKind::ConnectionReset, "Data channel error");
+                let error =
+                    StoredError::new(std::io::ErrorKind::ConnectionReset, "Data channel error");
                 set_terminal_error(&terminal_error, error.clone());
                 let _ = read_tx.send(ReadEvent::Error(error.clone())).await;
                 if let Some(opened_tx) = opened_tx.take() {
@@ -492,22 +492,24 @@ mod tests {
 
     #[async_trait]
     impl DataChannelTransport for MockDataChannel {
-        async fn send(&self, data: BytesMut) -> io::Result<()> {
+        async fn send(&self, data: BytesMut) -> std::io::Result<()> {
             self.send_permits
                 .acquire()
                 .await
-                .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "send gate closed"))?
+                .map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::BrokenPipe, "send gate closed")
+                })?
                 .forget();
-            self.sent_tx
-                .send(data)
-                .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "sent receiver closed"))
+            self.sent_tx.send(data).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::BrokenPipe, "sent receiver closed")
+            })
         }
 
         async fn poll(&self) -> Option<ChannelEvent> {
             self.event_rx.lock().await.recv().await
         }
 
-        async fn close(&self) -> io::Result<()> {
+        async fn close(&self) -> std::io::Result<()> {
             self.closes.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -608,9 +610,9 @@ mod tests {
 
         let mut byte = [0];
         let read_error = io.read_exact(&mut byte).await.unwrap_err();
-        assert_eq!(io::ErrorKind::ConnectionReset, read_error.kind());
+        assert_eq!(std::io::ErrorKind::ConnectionReset, read_error.kind());
         let write_error = io.write_all(b"x").await.unwrap_err();
-        assert_eq!(io::ErrorKind::ConnectionReset, write_error.kind());
+        assert_eq!(std::io::ErrorKind::ConnectionReset, write_error.kind());
     }
 
     #[tokio::test]
@@ -623,11 +625,11 @@ mod tests {
 
         io.write_all(b"x").await.unwrap();
         assert_eq!(
-            io::ErrorKind::BrokenPipe,
+            std::io::ErrorKind::BrokenPipe,
             io.flush().await.unwrap_err().kind()
         );
         assert_eq!(
-            io::ErrorKind::BrokenPipe,
+            std::io::ErrorKind::BrokenPipe,
             io.write_all(b"y").await.unwrap_err().kind()
         );
     }

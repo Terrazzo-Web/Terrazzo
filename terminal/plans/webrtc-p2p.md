@@ -87,22 +87,29 @@ The signaling registry should be a component owned by `trz_gateway_server::Serve
 and backed by concurrent maps:
 
 - one active registration per `ClientName`;
+- registration waiters keyed by `ClientName` so clients can arrive before servers;
 - pending sessions keyed by `P2pConnectionId`;
 - bounded per-peer queues and a short handshake deadline;
 - cleanup on either WebSocket closing, timeout, server shutdown, or explicit
   cancellation.
 
-// TODO: revise that: second registration cancels and replaces the first one.
-// TODO: revise that: /p2p/connect/{server_name} waits for up to 30s for a server to register before returning 404
-Reject a second live registration for the same name with HTTP 409 instead of
-silently replacing it. Return 404 when a client names an offline server, 429 when
-per-peer/global pending-session limits are reached, and close malformed or
-oversized signaling streams. ICE candidates may arrive before the remote SDP is
+A second registration for the same name atomically replaces the first. Cancel
+the old registration's pending sessions and close its control WebSocket so it
+cannot continue relaying messages. Associate cleanup with a registration
+generation/token so the displaced connection's close handler cannot remove its
+replacement.
+
+`/p2p/connect/{server_name}` waits for up to 30 seconds for that server to
+register. Wake all waiters when registration succeeds, then bind each request to
+the current registration generation. Return 404 only when the 30-second wait
+expires; return 429 when per-peer/global pending-session limits are reached, and
+close malformed or oversized signaling streams. Client cancellation must remove
+its waiter immediately. ICE candidates may arrive before the remote SDP is
 installed, so each peer must queue them until `set_remote_description` succeeds.
 
 `ClientName` is a routing key, not proof of identity. End-to-end TLS prevents a
 signaling node or a name hijacker from reading or impersonating the target HTTP
-server, but an unauthenticated duplicate registration can cause denial of
+server, but an unauthenticated replacement registration can cause denial of
 service. Before enabling this API on an untrusted public gateway, add an
 `AppConfig`/`GatewayConfig` registration-authorization hook (mTLS, bearer token,
 or a deployment-specific policy). Keep that decision separate from the WebRTC
@@ -137,18 +144,26 @@ Keep the transport implementation in a focused shared module or a new small
 1. Add `remote/server/src/server/p2p/signaling.rs` (and subordinate protocol/state
    files as needed), store its registry in `Server`, and register the two routes
    in `make_app`.
-2. On `/p2p/register/{server_name}`, reserve the unique name and relay session
-   starts, client offers, and client ICE candidates to the registered server.
-   Relay answers, server candidates, cancellation, and failures back to the
-   matching client.
-3. On `/p2p/connect/{server_name}`, verify the server is online, allocate the
-   session, attach it to that registration, and enforce the handshake timeout.
+2. On `/p2p/register/{server_name}`, atomically install a new registration,
+   cancel and displace any previous registration under that name, notify waiting
+   clients, and relay session starts, client offers, and client ICE candidates to
+   the registered server. Relay answers, server candidates, cancellation, and
+   failures back to the matching client. Guard removal by registration generation
+   so stale cleanup cannot remove the current registration.
+3. On `/p2p/connect/{server_name}`, wait up to 30 seconds for a registration,
+   allocate the session against the registration generation found, attach it to
+   that registration, and enforce the separate handshake timeout. Remove the
+   waiter promptly if the HTTP request is cancelled and return 404 if the wait
+   expires.
 4. Do not interpret SDP beyond size/type validation and do not become a fallback
    data relay. A connection that cannot find a viable ICE pair should fail with a
    useful error that points to TURN configuration.
 5. Tie all registry and relay tasks to `Server::shutdown` and add focused Axum
-   tests for registration collision, offline lookup, correct session routing,
-   malformed messages, timeout, disconnect cleanup, and shutdown.
+   tests for replacement cancelling the old registration and sessions, stale
+   cleanup preserving the replacement, connect-before-register wakeup, the
+   30-second offline timeout, cancelled-waiter cleanup, correct session routing,
+   malformed messages, handshake timeout, disconnect cleanup, and shutdown. Use
+   Tokio's paused clock for the 30-second behavior rather than slowing the suite.
 
 ## Task 3: NATed server role
 

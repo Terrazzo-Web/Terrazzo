@@ -13,7 +13,7 @@ use trz_gateway_common::p2p::protocol::SignalMessage;
 use super::MAX_PENDING_SESSIONS;
 use super::MAX_SESSIONS_PER_SERVER;
 use super::SIGNAL_QUEUE_CAPACITY;
-use super::Session;
+use super::session::Session;
 
 /// One generation of a server's persistent registration WebSocket.
 ///

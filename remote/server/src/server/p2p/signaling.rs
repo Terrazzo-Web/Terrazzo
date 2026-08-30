@@ -26,12 +26,15 @@ use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
+use self::waiter_guard::WaiterGuard;
+
 use self::session::Session;
 
 use self::registration::Registration;
 
 mod registration;
 mod session;
+mod waiter_guard;
 
 #[cfg(test)]
 mod tests;
@@ -355,27 +358,6 @@ impl Signaling {
         };
         for registration in registrations {
             registration.cancel(FailureCode::PeerDisconnected, "Signaling server shut down");
-        }
-    }
-}
-
-/// Removes a registration waiter from the registry on completion or cancellation.
-struct WaiterGuard {
-    signaling: Arc<Signaling>,
-    server_name: ClientName,
-}
-
-impl Drop for WaiterGuard {
-    fn drop(&mut self) {
-        let mut state = self.signaling.state.lock().expect("signaling state");
-        let remove = if let Some(waiters) = state.waiters.get_mut(&self.server_name) {
-            waiters.count -= 1;
-            waiters.count == 0
-        } else {
-            false
-        };
-        if remove {
-            state.waiters.remove(&self.server_name);
         }
     }
 }

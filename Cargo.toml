@@ -181,6 +181,9 @@ wasm-bindgen-futures = { version = "0.4.77" }
 wasm-bindgen-test = { version = "0.3.77" }
 wasm-streams = { version = "0.5.0" }
 web-sys = { version = "0.3.104" }
+webrtc = { version = "=0.20.3", default-features = false, features = [
+  "runtime-tokio",
+] }
 winnow = { version = "1.0.4" }
 x509-parser = { version = "0.18.1" }
 

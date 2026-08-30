@@ -217,6 +217,9 @@ surface in the existing common crate instead of introducing another crate.
   `/p2p/register/{server_name}` plus `/p2p/connect/{server_name}` from the
   existing Axum application. The implementation continues to use the Task 1
   DTOs in `trz-gateway-common`; no additional crate was introduced.
+- Documented the registry, registration generation, waiter lifetime, session
+  binding, and direction-validation helpers so their concurrency and cleanup
+  invariants are explicit at their definitions.
 - Registration WebSockets require the versioned `Hello` message before becoming
   visible. Installing a duplicate `ClientName` atomically replaces the previous
   generation, closes its relay, fails all of its pending sessions, and wakes all

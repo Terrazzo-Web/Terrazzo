@@ -35,6 +35,11 @@ const MAX_SESSIONS_PER_SERVER: usize = 64;
 const MAX_PENDING_SESSIONS: usize = 1024;
 const MAX_SIGNAL_MESSAGE_SIZE: usize = MAX_SDP_LEN + 64 * 1024;
 
+/// Coordinates server registrations and pending P2P signaling sessions.
+///
+/// One instance is owned by [`super::super::Server`]. Its maps contain only
+/// signaling metadata; WebRTC media and application traffic never pass through
+/// this component.
 #[derive(Default)]
 pub(in crate::server) struct Signaling {
     state: Mutex<State>,
@@ -43,17 +48,27 @@ pub(in crate::server) struct Signaling {
     shutdown: watch::Sender<bool>,
 }
 
+/// Registry state updated atomically while holding [`Signaling::state`].
 #[derive(Default)]
 struct State {
     registrations: HashMap<ClientName, Arc<Registration>>,
     waiters: HashMap<ClientName, Waiters>,
 }
 
+/// Subscribers waiting for one server name to acquire an active registration.
+///
+/// `count` tracks live wait futures so the map entry can be removed promptly
+/// when all requests complete or are cancelled.
 struct Waiters {
     sender: watch::Sender<Option<Arc<Registration>>>,
     count: usize,
 }
 
+/// One generation of a server's persistent registration WebSocket.
+///
+/// Sessions are scoped to this generation. Replacing the registration marks it
+/// inactive, fails its sessions, and closes its relay without affecting the new
+/// generation installed under the same name.
 struct Registration {
     generation: u64,
     outgoing: mpsc::Sender<SignalMessage>,
@@ -63,6 +78,7 @@ struct Registration {
     close: watch::Sender<bool>,
 }
 
+/// One client connection attempt attached to a specific registration.
 struct Session {
     connection_id: P2pConnectionId,
     registration: Arc<Registration>,
@@ -441,6 +457,7 @@ impl Registration {
     }
 }
 
+/// Removes a registration waiter from the registry on completion or cancellation.
 struct WaiterGuard {
     signaling: Arc<Signaling>,
     server_name: ClientName,
@@ -497,6 +514,7 @@ async fn send_json(socket: &mut ws::WebSocket, message: &SignalMessage) -> Resul
         .map_err(|_| ())
 }
 
+/// Returns whether a registered server may send this message toward a client.
 fn valid_server_message(message: &SignalMessage) -> bool {
     matches!(
         message,
@@ -510,6 +528,7 @@ fn valid_server_message(message: &SignalMessage) -> bool {
     )
 }
 
+/// Returns whether a connecting client may send this message toward a server.
 fn valid_client_message(message: &SignalMessage) -> bool {
     matches!(
         message,

@@ -45,6 +45,16 @@ pub struct IceServer {
     pub credential: String,
 }
 
+impl From<IceServer> for RTCIceServer {
+    fn from(ice_server: IceServer) -> Self {
+        Self {
+            urls: ice_server.urls,
+            username: ice_server.username,
+            credential: ice_server.credential,
+        }
+    }
+}
+
 /// Local ICE events that callers relay through the signaling server.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LocalIceEvent {
@@ -76,6 +86,7 @@ impl PeerConnectionBuilder {
     }
 
     /// Overrides local UDP bind addresses, primarily for hermetic tests.
+    #[cfg(test)]
     pub fn with_udp_addrs(mut self, udp_addrs: Vec<String>) -> Self {
         self.udp_addrs = udp_addrs;
         self
@@ -93,11 +104,7 @@ impl PeerConnectionBuilder {
             .with_ice_servers(
                 self.ice_servers
                     .into_iter()
-                    .map(|server| RTCIceServer {
-                        urls: server.urls,
-                        username: server.username,
-                        credential: server.credential,
-                    })
+                    .map(RTCIceServer::from)
                     .collect(),
             )
             .build();
@@ -251,6 +258,7 @@ impl PendingDataChannel {
     }
 }
 
+/// Tracks remote ICE signaling state and queues events until the remote SDP is set.
 #[derive(Default)]
 struct RemoteIceState {
     description_set: bool,

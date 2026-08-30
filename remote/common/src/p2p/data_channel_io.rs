@@ -1,6 +1,7 @@
 //! Tokio byte-stream adapter for reliable WebRTC data channels.
 
 use std::future::Future as _;
+use std::io::ErrorKind;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -97,7 +98,7 @@ impl DataChannelIo {
     fn current_error(&self, fallback: &'static str) -> std::io::Error {
         self.stored_error()
             .map(StoredError::into_io)
-            .unwrap_or_else(|| std::io::Error::new(std::io::ErrorKind::BrokenPipe, fallback))
+            .unwrap_or_else(|| std::io::Error::new(ErrorKind::BrokenPipe, fallback))
     }
 
     fn poll_send_command(
@@ -124,7 +125,7 @@ impl DataChannelIo {
             Poll::Ready(Ok(Ok(()))) => Poll::Ready(Ok(())),
             Poll::Ready(Ok(Err(error))) => Poll::Ready(Err(error.into_io())),
             Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
+                ErrorKind::BrokenPipe,
                 "Data channel writer stopped",
             ))),
         }
@@ -147,7 +148,6 @@ impl AsyncRead for DataChannelIo {
 
             match self.read_rx.poll_recv(context) {
                 Poll::Pending => return Poll::Pending,
-                Poll::Ready(Some(ReadEvent::Data(bytes))) if bytes.is_empty() => continue,
                 Poll::Ready(Some(ReadEvent::Data(bytes))) => self.read_buffer = bytes,
                 Poll::Ready(Some(ReadEvent::Error(error))) => {
                     return Poll::Ready(Err(error.into_io()));
@@ -166,7 +166,7 @@ impl AsyncWrite for DataChannelIo {
     ) -> Poll<Result<usize, std::io::Error>> {
         if self.shutdown_complete || self.shutdown_rx.is_some() {
             return Poll::Ready(Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
+                ErrorKind::BrokenPipe,
                 "Data channel writer is shut down",
             )));
         }
@@ -271,12 +271,12 @@ impl Drop for DataChannelIo {
 
 #[derive(Clone, Debug)]
 struct StoredError {
-    kind: std::io::ErrorKind,
+    kind: ErrorKind,
     message: Arc<str>,
 }
 
 impl StoredError {
-    fn new(kind: std::io::ErrorKind, message: impl Into<Arc<str>>) -> Self {
+    fn new(kind: ErrorKind, message: impl Into<Arc<str>>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -362,7 +362,7 @@ async fn read_data_channel(
             let _ = read_tx.send(ReadEvent::Eof).await;
             if let Some(opened_tx) = opened_tx.take() {
                 let _ = opened_tx.send(Err(StoredError::new(
-                    std::io::ErrorKind::BrokenPipe,
+                    ErrorKind::BrokenPipe,
                     "Data channel closed before opening",
                 )));
             }
@@ -383,15 +383,14 @@ async fn read_data_channel(
                 let _ = read_tx.send(ReadEvent::Eof).await;
                 if let Some(opened_tx) = opened_tx.take() {
                     let _ = opened_tx.send(Err(StoredError::new(
-                        std::io::ErrorKind::BrokenPipe,
+                        ErrorKind::BrokenPipe,
                         "Data channel closed before opening",
                     )));
                 }
                 break;
             }
             ChannelEvent::Error => {
-                let error =
-                    StoredError::new(std::io::ErrorKind::ConnectionReset, "Data channel error");
+                let error = StoredError::new(ErrorKind::ConnectionReset, "Data channel error");
                 set_terminal_error(&terminal_error, error.clone());
                 let _ = read_tx.send(ReadEvent::Error(error.clone())).await;
                 if let Some(opened_tx) = opened_tx.take() {

@@ -21,6 +21,7 @@ use trz_gateway_common::x509::name::CertitficateName;
 use trz_gateway_common::x509::validity::Validity;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 use trz_gateway_server::server::gateway_config::Ports;
+use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationConfig;
 use trz_gateway_server::server::root_ca_configuration;
 use trz_gateway_server::server::root_ca_configuration::RootCaConfigError;
 
@@ -34,18 +35,36 @@ pub struct TestGatewayConfig {
     port: u16,
     root_ca: Arc<PemCertificate>,
     tls_config: <Self as GatewayConfig>::TlsConfig,
+    p2p_registration: Option<P2pRegistrationConfig>,
 }
 
 impl TestGatewayConfig {
     pub fn new() -> Arc<Self> {
+        Self::new_impl(None)
+    }
+
+    pub fn new_with_p2p(p2p_registration: P2pRegistrationConfig) -> Arc<Self> {
+        Self::new_impl(Some(p2p_registration))
+    }
+
+    fn new_impl(p2p_registration: Option<P2pRegistrationConfig>) -> Arc<Self> {
         enable_tracing_for_tests();
-        let root_ca = make_root_ca().expect("test_root_ca()");
-        let tls_config = make_tls_config().expect("tls_config()");
+        let root_ca = if p2p_registration.is_some() {
+            make_isolated_root_ca().expect("isolated test_root_ca()")
+        } else {
+            make_root_ca().expect("test_root_ca()")
+        };
+        let tls_config = make_tls_config(root_ca.clone()).expect("tls_config()");
         Arc::new(Self {
             port: portpicker::pick_unused_port().expect("pick_unused_port()"),
             root_ca,
             tls_config,
+            p2p_registration,
         })
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
     }
 }
 
@@ -60,6 +79,10 @@ impl GatewayConfig for TestGatewayConfig {
 
     fn ports(&self) -> impl Ports + 'static {
         vec![self.port]
+    }
+
+    fn p2p_registration(&self) -> Option<P2pRegistrationConfig> {
+        self.p2p_registration.clone()
     }
 
     type RootCaConfig = Arc<PemCertificate>;
@@ -82,7 +105,21 @@ impl GatewayConfig for TestGatewayConfig {
 
 fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     let temp_dir = TEMP_DIR.get();
+    make_root_ca_at(ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)))
+}
 
+fn make_isolated_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
+    let temp_dir = TEMP_DIR.get();
+    let id = uuid::Uuid::new_v4();
+    make_root_ca_at(CertificateInfo {
+        certificate: temp_dir.path().join(format!("root-ca-cert-{id}.pem")),
+        private_key: temp_dir.path().join(format!("root-ca-key-{id}.pem")),
+    })
+}
+
+fn make_root_ca_at(
+    files: CertificateInfo<std::path::PathBuf>,
+) -> Result<Arc<PemCertificate>, RootCaConfigError> {
     static MUTEX: std::sync::Mutex<()> = Mutex::new(());
     let _lock = MUTEX.lock().unwrap();
     let root_ca = root_ca_configuration::load_root_ca(
@@ -90,7 +127,7 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
             common_name: Some("Test Root CA"),
             ..CertitficateName::default()
         },
-        ROOT_CA_FILENAME.map(|filename| temp_dir.path().join(filename)),
+        files,
         Validity { from: 0, to: 365 }
             .try_map(Asn1Time::days_from_now)
             .expect("Asn1Time::days_from_now")
@@ -101,8 +138,9 @@ fn make_root_ca() -> Result<Arc<PemCertificate>, RootCaConfigError> {
     Ok(Arc::new(root_ca))
 }
 
-fn make_tls_config() -> Result<<TestGatewayConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
-    let root_ca_config = make_root_ca()?;
+fn make_tls_config(
+    root_ca_config: Arc<PemCertificate>,
+) -> Result<<TestGatewayConfig as GatewayConfig>::TlsConfig, Box<dyn Error>> {
     let root_ca = root_ca_config.certificate()?;
     let root_certificate_pem = root_ca_config.certificate_pem.clone();
     let validity = root_ca.certificate.as_ref().try_into()?;

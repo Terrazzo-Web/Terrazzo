@@ -10,6 +10,7 @@ use self::end_to_end::EndToEnd;
 
 mod calculator;
 mod end_to_end;
+mod p2p_certificate;
 mod test_client_config;
 mod test_gateway_config;
 mod test_tunnel_config;

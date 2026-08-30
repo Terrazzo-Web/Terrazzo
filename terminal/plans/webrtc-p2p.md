@@ -424,6 +424,42 @@ Add negative integration coverage for an unknown server name and a target TLS
 name/root mismatch. The latter proves that successful WebRTC negotiation does not
 bypass end-to-end server authentication.
 
+### Task 5 implementation log (2026-08-30)
+
+- Added the ignored network test
+  `tests::p2p_certificate::p2p_certificate_via_google_stun`. It first configures
+  Google as the only ICE discovery service and requires a server-reflexive
+  candidate, so a host-only WebRTC success cannot produce a false positive.
+- Added a dedicated two-gateway fixture. The signaling gateway and target gateway
+  use dynamic localhost ports, the target registers under a UUID-backed
+  `ClientName`, and a signaling handshake/cancel probe waits until that
+  registration is visible before the certificate request begins.
+- Kept the target's TCP port out of the client configuration. The client knows only
+  the signaling URL, registered server name, target TLS name, and target trusted
+  root, then calls the existing `make_client_certificate` path through WebRTC and
+  inner TLS.
+- Gave the P2P target an isolated root CA. The test verifies the returned leaf's
+  client common name and target-root signature, and verifies it is not signed by
+  the signaling gateway's root. This demonstrates that application HTTP data
+  terminates at the target rather than at the signaling node.
+- Added negative coverage in the same bounded fixture for an unknown registered
+  server name and a wrong target TLS hostname. The latter completes WebRTC setup
+  but fails the inner TLS handshake, proving P2P does not bypass server identity
+  validation.
+- Applied per-phase and overall deadlines, explicitly closed the standalone STUN
+  probe peer, and stopped both gateway handles before returning. The test is
+  `#[ignore]` so Cargo and Bazel's normal hermetic/offline suites compile but do
+  not execute it; its doc comment includes the explicit network-test command.
+- Validation completed:
+
+  ```text
+  cargo fmt --all -- --check                                      PASS
+  cargo test -p trz-gateway-client p2p_certificate_via_google_stun --no-run PASS
+  cargo clippy -p trz-gateway-client --all-targets -- -D warnings PASS
+  cargo test -p trz-gateway-client                                PASS (8 passed, 1 ignored)
+  cargo test -p trz-gateway-client p2p_certificate_via_google_stun -- --ignored PASS
+  ```
+
 ## Validation
 
 Run the smallest relevant checks after each task, then the combined paths:

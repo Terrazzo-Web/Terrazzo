@@ -49,6 +49,7 @@ pub async fn search(
 ) -> Result<TextStream, ServerFnError> {
     debug!(%remote, "Calling search({base:?}, {input:?})");
     let stream = SEARCH_FN.call(remote, (base, input)).await?;
+    let stream = stream.inspect_err(|error| warn!(%error, "Search stream failed"));
     let stream = stream.filter_map(|item| {
         let item = item.map(|item| {
             serialize_line(&item)

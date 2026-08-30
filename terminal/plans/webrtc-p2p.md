@@ -134,10 +134,55 @@ wire protocol so the local integration test can use an allow-all policy.
    URLs, emits local candidates to a signaling sink, applies remote candidates in
    order, and resolves only after the reliable data channel is open.
 
-Keep the transport implementation in a focused shared module or a new small
-`trz-gateway-p2p` crate rather than duplicating WebRTC callback/state code in
-`trz-gateway-client` and `trz-gateway-server`. Prefer the new crate if adding
-`webrtc` to `trz-gateway-common` would force the dependency into unrelated users.
+Keep the transport implementation in the focused `trz_gateway_common::p2p`
+module rather than duplicating WebRTC callback/state code in
+`trz-gateway-client` and `trz-gateway-server`. This deliberately keeps the shared
+surface in the existing common crate instead of introducing another crate.
+
+### Task 1 implementation log (2026-08-30)
+
+- Added an exact `webrtc = 0.20.3` workspace dependency with only its Tokio
+  runtime feature, enabled the supporting Tokio features in
+  `trz-gateway-common`, and updated the Cargo and generated Bazel module lock
+  files. Bazel consumes the same common manifest through `all_crate_deps`, so no
+  handwritten external Bazel dependency list was needed.
+- Added `trz_gateway_common::p2p::protocol` with a UUID-backed
+  `P2pConnectionId`, protocol-versioned `Hello`, offer/answer, candidate,
+  end-of-candidates, cancel, and structured failure messages. Validation bounds
+  SDP, candidate, URL, and failure strings and provides an active-connection
+  check that rejects unknown IDs.
+- Added `trz_gateway_common::p2p::data_channel_io::DataChannelIo`. It exposes a
+  WebRTC data channel as `AsyncRead + AsyncWrite`, joins incoming message
+  boundaries into a byte stream, splits writes into 16 KiB binary messages, uses
+  bounded read/write queues, waits for the crate's bounded send path, makes flush
+  ordering cancellation-safe, and maps close/error/send failure into Tokio EOF or
+  `io::Error`. Local shutdown is idempotent.
+- Added `trz_gateway_common::p2p::peer_connection`. The shared builder accepts
+  STUN/TURN definitions and UDP bind addresses, emits candidates plus an explicit
+  end marker to a bounded signaling sink, queues candidates received before SDP,
+  applies them serially in arrival order, and configures a 16 MiB WebRTC send
+  buffer. Both created and accepted channels are rejected unless they are ordered
+  with unlimited retransmission/lifetime; `PendingDataChannel::wait_open` returns
+  the byte stream only after the WebRTC open event.
+- Added hermetic tests for protocol round-trips and validation, fragmented and
+  coalesced I/O, bounded backpressure, flush/send errors, EOF, idempotent
+  simultaneous close, and error propagation. A real two-peer test exchanges SDP
+  and trickled host ICE candidates over in-memory signaling channels, opens the
+  reliable channel on wildcard local UDP sockets, and transfers bytes without
+  contacting an external network.
+- Removed the pre-existing argument-less `reqwest::ClientBuilder::connector_layer`
+  placeholder from `remote/client/src/http_client.rs`. It was not a functional
+  layer and prevented the current direct client from compiling; Task 4 will add
+  the actual P2P connector.
+- Validation completed:
+
+  ```text
+  cargo fmt --all -- --check                                  PASS
+  cargo clippy -p trz-gateway-common --all-targets -- -D warnings  PASS
+  cargo test -p trz-gateway-common                            PASS (54 tests)
+  cargo check -p trz-gateway-client -p trz-gateway-server     PASS
+  bazel test --test_output=errors //remote/common:common-test PASS
+  ```
 
 ## Task 2: Signaling node
 

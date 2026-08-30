@@ -2,29 +2,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
-
-use axum::extract::WebSocketUpgrade;
-use axum::extract::ws;
-use axum::http::StatusCode;
-use axum::response::IntoResponse as _;
-use axum::response::Response;
-use futures::SinkExt as _;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
-use tracing::Instrument as _;
-use tracing::info_span;
-use tracing::warn;
-use trz_gateway_common::id::ClientName;
 use trz_gateway_common::p2p::protocol::FailureCode;
-use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
 use trz_gateway_common::p2p::protocol::P2pConnectionId;
-use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
-use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
+
+use super::MAX_PENDING_SESSIONS;
+use super::MAX_SESSIONS_PER_SERVER;
+use super::SIGNAL_QUEUE_CAPACITY;
+use super::Session;
 
 /// One generation of a server's persistent registration WebSocket.
 ///
@@ -32,16 +21,32 @@ use trz_gateway_common::p2p::protocol::SignalMessage;
 /// inactive, fails its sessions, and closes its relay without affecting the new
 /// generation installed under the same name.
 pub struct Registration {
-    generation: u64,
-    outgoing: mpsc::Sender<SignalMessage>,
+    pub generation: u64,
+    pub outgoing: mpsc::Sender<SignalMessage>,
     sessions: Mutex<HashMap<P2pConnectionId, mpsc::Sender<SignalMessage>>>,
     pending_sessions: Arc<AtomicUsize>,
-    active: AtomicBool,
-    close: watch::Sender<bool>,
+    pub active: AtomicBool,
+    pub close: watch::Sender<bool>,
 }
 
 impl Registration {
-    fn create_session(self: &Arc<Self>) -> Result<Session, ()> {
+    pub fn new(
+        generation: u64,
+        outgoing: mpsc::Sender<SignalMessage>,
+        pending_sessions: Arc<AtomicUsize>,
+        close: watch::Sender<bool>,
+    ) -> Self {
+        Self {
+            generation,
+            outgoing,
+            sessions: Mutex::new(HashMap::new()),
+            pending_sessions,
+            active: AtomicBool::new(true),
+            close,
+        }
+    }
+
+    pub fn create_session(self: &Arc<Self>) -> Result<Session, ()> {
         if !self.active.load(Ordering::Acquire) {
             return Err(());
         }
@@ -76,7 +81,7 @@ impl Registration {
         })
     }
 
-    fn relay_to_client(&self, message: SignalMessage) -> Result<(), ()> {
+    pub fn relay_to_client(&self, message: SignalMessage) -> Result<(), ()> {
         message.validate().map_err(|_| ())?;
         let connection_id = message.connection_id().ok_or(())?;
         self.sessions
@@ -88,7 +93,7 @@ impl Registration {
             .map_err(|_| ())
     }
 
-    fn remove_session(&self, connection_id: P2pConnectionId) {
+    pub fn remove_session(&self, connection_id: P2pConnectionId) {
         if self
             .sessions
             .lock()
@@ -100,7 +105,7 @@ impl Registration {
         }
     }
 
-    fn cancel(&self, code: FailureCode, detail: &str) {
+    pub fn cancel(&self, code: FailureCode, detail: &str) {
         if !self.active.swap(false, Ordering::AcqRel) {
             return;
         }

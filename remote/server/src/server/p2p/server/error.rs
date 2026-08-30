@@ -1,5 +1,6 @@
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
+use tokio_tungstenite::tungstenite;
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -14,13 +15,13 @@ pub enum P2pServerError {
     Url(#[from] url::ParseError),
 
     #[error("[{n}] Failed to build signaling request: {0}", n = self.name())]
-    Request(#[from] tokio_tungstenite::tungstenite::http::Error),
+    Request(#[from] tungstenite::http::Error),
 
     #[error("[{n}] Invalid signaling authorization header: {0}", n = self.name())]
-    Header(#[from] tokio_tungstenite::tungstenite::http::header::InvalidHeaderValue),
+    Header(#[from] tungstenite::http::header::InvalidHeaderValue),
 
     #[error("[{n}] Signaling WebSocket failed: {0}", n = self.name())]
-    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
+    WebSocket(#[from] tungstenite::Error),
 
     #[error("[{n}] Invalid signaling JSON: {0}", n = self.name())]
     Json(#[from] serde_json::Error),

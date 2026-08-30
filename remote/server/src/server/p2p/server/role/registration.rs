@@ -16,15 +16,15 @@ use trz_gateway_common::p2p::protocol::MAX_FAILURE_DETAIL_LEN;
 use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
+use super::SESSION_QUEUE_CAPACITY;
+use super::send_signal;
 use crate::server::Server;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
 use crate::server::p2p::server::answer::AnswerSession;
 use crate::server::p2p::server::error::P2pServerError;
 use crate::server::p2p::server::role::REGISTRATION_QUEUE_CAPACITY;
 
-use super::SESSION_QUEUE_CAPACITY;
-
-struct Registration {
+pub struct Registration {
     server: Arc<Server>,
     config: P2pRegistrationConfig,
     semaphore: Arc<Semaphore>,
@@ -36,7 +36,7 @@ struct Registration {
 }
 
 impl Registration {
-    fn new(server: Arc<Server>, config: P2pRegistrationConfig) -> Self {
+    pub fn new(server: Arc<Server>, config: P2pRegistrationConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.max_sessions));
         let (outgoing, outgoing_rx) = mpsc::channel(REGISTRATION_QUEUE_CAPACITY);
         let (done_tx, done_rx) = mpsc::channel(config.max_sessions);
@@ -52,7 +52,7 @@ impl Registration {
         }
     }
 
-    async fn run(
+    pub async fn run(
         mut self,
         mut socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
     ) -> Result<(), P2pServerError> {

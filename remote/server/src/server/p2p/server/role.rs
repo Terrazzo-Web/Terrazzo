@@ -1,19 +1,13 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 use futures::FutureExt as _;
 use futures::SinkExt as _;
-use futures::StreamExt as _;
 use hyper_util::rt::TokioExecutor;
 use hyper_util::rt::TokioIo;
 use hyper_util::rt::TokioTimer;
 use hyper_util::server::conn::auto;
 use hyper_util::service::TowerToHyperService;
-use tokio::net::TcpStream;
-use tokio::sync::Semaphore;
-use tokio::sync::mpsc;
-use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite;
@@ -24,15 +18,12 @@ use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::p2p::data_channel_io::DataChannelIo;
-use trz_gateway_common::p2p::protocol::FailureCode;
-use trz_gateway_common::p2p::protocol::MAX_FAILURE_DETAIL_LEN;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
-use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 use url::Url;
 
-use super::answer::AnswerSession;
+use self::registration::Registration;
 use super::error::P2pServerError;
 use crate::server::HTTP_TIMEOUT;
 use crate::server::Server;
@@ -53,29 +44,8 @@ impl Server {
         let server = self.clone();
         let server_name = config.server_name.clone();
         tokio::spawn(
-            async move {
-                let mut retry = config.retry_strategy.clone();
-                loop {
-                    let started = Instant::now();
-                    let result = server.clone().run_p2p_registration(config.clone()).await;
-                    if server.shutdown.clone().now_or_never().is_some() {
-                        return;
-                    }
-                    match result {
-                        Ok(()) => info!("P2P signaling registration closed"),
-                        Err(error) => warn!(%error, "P2P signaling registration failed"),
-                    }
-                    if started.elapsed() >= config.retry_strategy.max_delay() {
-                        retry = config.retry_strategy.clone();
-                    }
-                    let delay = retry.wait();
-                    tokio::select! {
-                        () = delay => {}
-                        () = server.shutdown.clone() => return,
-                    }
-                }
-            }
-            .instrument(info_span!("P2pServer", %server_name)),
+            start_p2p_registration_impl(config, server)
+                .instrument(info_span!("P2pServer", %server_name)),
         );
     }
 
@@ -126,6 +96,29 @@ impl Server {
             .serve_connection(TokioIo::new(tls), service)
             .await
             .map_err(P2pServerError::ServeHttp)
+    }
+}
+
+async fn start_p2p_registration_impl(config: P2pRegistrationConfig, server: Arc<Server>) {
+    let mut retry = config.retry_strategy.clone();
+    loop {
+        let started = Instant::now();
+        let result = server.clone().run_p2p_registration(config.clone()).await;
+        if server.shutdown.clone().now_or_never().is_some() {
+            return;
+        }
+        match result {
+            Ok(()) => info!("P2P signaling registration closed"),
+            Err(error) => warn!(%error, "P2P signaling registration failed"),
+        }
+        if started.elapsed() >= config.retry_strategy.max_delay() {
+            retry = config.retry_strategy.clone();
+        }
+        let delay = retry.wait();
+        tokio::select! {
+            () = delay => {}
+            () = server.shutdown.clone() => return,
+        }
     }
 }
 

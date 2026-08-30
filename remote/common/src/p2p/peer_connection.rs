@@ -329,6 +329,14 @@ impl PeerConnectionEventHandler for EventHandler {
 }
 
 /// Failure while constructing or driving a shared P2P connection.
+/* TODO: error should be formatted as
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum MyErrorCodes {
+    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
+    MyErrorCode(MaybeAnotherError),
+*/
 #[derive(Debug, thiserror::Error)]
 pub enum PeerConnectionError {
     /// The underlying WebRTC implementation failed.

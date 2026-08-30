@@ -109,6 +109,14 @@ struct WatcherState {
     directories: HashSet<PathBuf>,
 }
 
+/* TODO: error should be formatted as
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum MyErrorCodes {
+    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
+    MyErrorCode(MaybeAnotherError),
+*/
 #[derive(Debug, thiserror::Error)]
 pub enum SearchIndexError {
     #[error("Failed to access the Tantivy cache: {0}")]

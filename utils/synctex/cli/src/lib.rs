@@ -79,6 +79,14 @@ struct Sheet {
     content: bool,
 }
 
+/* TODO: error should be formatted as
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum MyErrorCodes {
+    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
+    MyErrorCode(MaybeAnotherError),
+*/
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]

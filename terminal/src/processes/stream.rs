@@ -46,6 +46,14 @@ where
 }
 
 #[derive(thiserror::Error, Debug)]
+/* TODO: error should be formatted as
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum MyErrorCodes {
+    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
+    MyErrorCode(MaybeAnotherError),
+*/
 pub enum GetOrCreateProcessError {
     #[error("OpenProcessError: {0}")]
     OpenProcessError(#[from] OpenProcessError),

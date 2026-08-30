@@ -286,7 +286,10 @@ name and preserves all current `/remote/certificate` security behavior.
   `RetryStrategy`, negotiation deadline, redacted bearer authorization material,
   and a concurrent-session limit. The `Arc<GatewayConfig>` delegation preserves
   the option without changing existing configurations.
-- Added the NATed server role in `remote/server/src/server/p2p/server_role.rs`.
+- Added the NATed server role under `remote/server/src/server/p2p/server/`, split
+  into `role.rs`, `answer.rs`, and `error.rs` so registration, per-session WebRTC
+  answering, and errors have separate ownership. The registration event loop and
+  signaling-message dispatch are encapsulated in dedicated methods.
   Enabled gateways connect outward over WS/WSS, send the versioned registration
   hello, retry disconnections with bounded backoff, and multiplex session traffic
   through bounded queues. Signaling URLs and names are URL-encoded, bearer
@@ -319,7 +322,7 @@ name and preserves all current `/remote/certificate` security behavior.
   cargo fmt --all -- --check                                      PASS
   cargo check -p trz-gateway-server                               PASS
   cargo clippy -p trz-gateway-server --all-targets -- -D warnings PASS
-  cargo test -p trz-gateway-server server_role::tests             PASS
+  cargo test -p trz-gateway-server server::role::tests            PASS
   cargo test -p trz-gateway-server gateway_config::p2p::tests     PASS
   cargo test -p trz-gateway-server p2p_server_answers_and_serves_tls_http PASS
   cargo test -p trz-gateway-server                               PASS (19 tests)

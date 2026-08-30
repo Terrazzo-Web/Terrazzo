@@ -116,6 +116,14 @@ pub(crate) fn sni_override_resolution<C: ClientConfig>(
     Ok(Some((sni_override.to_owned(), SocketAddr::new(ip, port))))
 }
 
+/* TODO: error should be formatted as
+
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum MyErrorCodes {
+    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
+    MyErrorCode(MaybeAnotherError),
+*/
 #[derive(thiserror::Error, Debug)]
 pub enum SniOverrideError {
     #[error("{0}")]

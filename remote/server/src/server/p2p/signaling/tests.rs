@@ -11,7 +11,6 @@ use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
 use super::REGISTRATION_WAIT_TIMEOUT;
-
 use super::SIGNAL_QUEUE_CAPACITY;
 use super::Signaling;
 use super::parse_message;

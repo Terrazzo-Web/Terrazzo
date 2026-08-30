@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+
 use tokio::sync::mpsc;
 use tokio::sync::watch;
 use trz_gateway_common::p2p::protocol::FailureCode;

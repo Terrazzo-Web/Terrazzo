@@ -26,11 +26,9 @@ use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
-use self::waiter_guard::WaiterGuard;
-
-use self::session::Session;
-
 use self::registration::Registration;
+use self::session::Session;
+use self::waiter_guard::WaiterGuard;
 
 mod registration;
 mod session;

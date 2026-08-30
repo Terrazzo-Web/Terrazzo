@@ -711,10 +711,11 @@ fn modified_nanos(modified: SystemTime) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::watch_directories;
     use std::collections::HashSet;
     use std::path::Path;
     use std::path::PathBuf;
+
+    use super::watch_directories;
 
     #[test]
     fn watch_only_directories_containing_git_files() {

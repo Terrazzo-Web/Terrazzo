@@ -210,6 +210,50 @@ surface in the existing common crate instead of introducing another crate.
    malformed messages, handshake timeout, disconnect cleanup, and shutdown. Use
    Tokio's paused clock for the 30-second behavior rather than slowing the suite.
 
+### Task 2 implementation log (2026-08-30)
+
+- Added a signaling registry owned by `trz_gateway_server::Server` under
+  `remote/server/src/server/p2p/signaling.rs` and exposed
+  `/p2p/register/{server_name}` plus `/p2p/connect/{server_name}` from the
+  existing Axum application. The implementation continues to use the Task 1
+  DTOs in `trz-gateway-common`; no additional crate was introduced.
+- Documented the registry, registration generation, waiter lifetime, session
+  binding, and direction-validation helpers so their concurrency and cleanup
+  invariants are explicit at their definitions.
+- Registration WebSockets require the versioned `Hello` message before becoming
+  visible. Installing a duplicate `ClientName` atomically replaces the previous
+  generation, closes its relay, fails all of its pending sessions, and wakes all
+  clients waiting for that name. Pointer/generation-guarded cleanup prevents the
+  displaced WebSocket from deleting its replacement.
+- Connect requests wait up to 30 seconds for a registration, remove their waiter
+  immediately when cancelled, allocate an unpredictable connection ID, and bind
+  the session to the selected registration. Per-server and global session caps,
+  bounded signaling queues, maximum WebSocket message sizes, and HTTP 429
+  responses bound resource use.
+- Added direction-aware typed JSON relaying: starts, offers, and client ICE flow
+  toward the registered server; answers, server ICE, cancellation, and failures
+  flow back only to the client owning the matching connection ID. SDP remains an
+  opaque validated string and application bytes are never relayed by signaling.
+- Added a separate 30-second handshake deadline. Expiry sends both peers a
+  structured `NegotiationFailed` message that points to TURN configuration when
+  direct ICE cannot find a viable pair. WebSocket close, replacement, explicit
+  cancellation, timeout, and gateway shutdown all release the session count and
+  relay state.
+- Added registry tests for replacement and stale cleanup, connect-before-register,
+  cancelled waiter removal, the paused-clock offline timeout, message routing,
+  malformed/wrong-direction messages, disconnect cleanup, and shutdown. Added a
+  live Axum WebSocket test that exercises both public routes, relays an offer and
+  answer under the same connection ID, and advances Tokio's paused clock to
+  verify handshake timeout delivery to both peers.
+- Validation completed:
+
+  ```text
+  cargo check -p trz-gateway-server                              PASS
+  cargo clippy -p trz-gateway-server --all-targets -- -D warnings PASS
+  cargo test -p trz-gateway-server server::p2p::signaling::tests PASS (6 tests)
+  cargo test -p trz-gateway-server p2p_signaling_routes_offer_and_answer PASS
+  ```
+
 ## Task 3: NATed server role
 
 1. Add optional P2P registration configuration to the gateway/server config:

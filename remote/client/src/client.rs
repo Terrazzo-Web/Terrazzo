@@ -143,7 +143,7 @@ async fn run_impl(
     let is_shutdown = is_shutdown(shutdown_rx.clone());
 
     let mut serving_tx: Option<oneshot::Sender<()>> = Some(serving_tx);
-    loop {
+    for attempt in 0usize.. {
         let start = Instant::now();
         let result = this
             .connect(
@@ -152,6 +152,7 @@ async fn run_impl(
                 retry_strategy.peek() / 2,
                 &mut serving_tx,
             )
+            .instrument(info_span!("Connect", attempt))
             .await;
         if is_shutdown.load(SeqCst) {
             return;

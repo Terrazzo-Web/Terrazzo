@@ -30,6 +30,7 @@ where
     {
         builder = builder.resolve(&sni_override, socket_addr);
     }
+    builder.connector_layer(/* TODO: if building a client over WebRTC, add a layer here to connect over WebRTC and not a normal socket to some reachable endpoint */);
     builder.build().map_err(MakeHttpClientError::Build)
 }
 

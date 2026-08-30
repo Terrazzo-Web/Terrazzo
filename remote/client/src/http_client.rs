@@ -45,12 +45,11 @@ impl HttpClient {
     ) -> Result<HttpResponse, HttpRequestError> {
         match self {
             Self::Direct(client) => {
-                let response = client
+                let request = client
                     .get(url)
                     .header(CONTENT_TYPE, content_type)
-                    .body(body)
-                    .send()
-                    .await?;
+                    .body(body);
+                let response = request.send().await?;
                 Ok(HttpResponse {
                     status: response.status(),
                     body: response.text().await?,

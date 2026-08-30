@@ -92,6 +92,8 @@ and backed by concurrent maps:
 - cleanup on either WebSocket closing, timeout, server shutdown, or explicit
   cancellation.
 
+// TODO: revise that: second registration cancels and replaces the first one.
+// TODO: revise that: /p2p/connect/{server_name} waits for up to 30s for a server to register before returning 404
 Reject a second live registration for the same name with HTTP 409 instead of
 silently replacing it. Return 404 when a client names an offline server, 429 when
 per-peer/global pending-session limits are reached, and close malformed or

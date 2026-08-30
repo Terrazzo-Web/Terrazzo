@@ -234,9 +234,7 @@ impl Signaling {
                     Some(Ok(message)) => match parse_session_message(message) {
                         Ok(message) if valid_server_message(&message) => {
                             if registration.relay_to_client(message).is_err() {
-                                warn!(
-                                    "Ignoring signaling message for a session that already ended"
-                                );
+                                warn!("Ignoring signaling message for a session that already ended");
                             }
                         }
                         _ => break,

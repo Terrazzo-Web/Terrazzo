@@ -1,74 +1,70 @@
-/* TODO: error should be formatted as
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
-pub enum MyErrorCodes {
-    #[error("[{n}] <Some error explanation>: {0}", n = self.name())]
-    MyErrorCode(MaybeAnotherError),
-*/
-#[derive(Debug, thiserror::Error)]
-pub(super) enum P2pServerError {
-    #[error("Invalid P2P server configuration: {0}")]
+pub enum P2pServerError {
+    #[error("[{n}] Invalid P2P server configuration: {0}", n = self.name())]
     InvalidConfig(String),
 
-    #[error("Invalid signaling URL scheme")]
+    #[error("[{n}] Invalid signaling URL scheme", n = self.name())]
     InvalidUrlScheme,
 
-    #[error("Signaling URL: {0}")]
+    #[error("[{n}] Invalid signaling URL: {0}", n = self.name())]
     Url(#[from] url::ParseError),
 
-    #[error("Signaling request: {0}")]
+    #[error("[{n}] Failed to build signaling request: {0}", n = self.name())]
     Request(#[from] tokio_tungstenite::tungstenite::http::Error),
 
-    #[error("Signaling authorization header: {0}")]
+    #[error("[{n}] Invalid signaling authorization header: {0}", n = self.name())]
     Header(#[from] tokio_tungstenite::tungstenite::http::header::InvalidHeaderValue),
 
-    #[error("Signaling WebSocket: {0}")]
+    #[error("[{n}] Signaling WebSocket failed: {0}", n = self.name())]
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
 
-    #[error("Signaling JSON: {0}")]
+    #[error("[{n}] Invalid signaling JSON: {0}", n = self.name())]
     Json(#[from] serde_json::Error),
 
-    #[error("Signaling protocol: {0}")]
+    #[error("[{n}] Invalid signaling protocol message: {0}", n = self.name())]
     Validation(#[from] trz_gateway_common::p2p::protocol::ValidationError),
 
-    #[error("Signaling protocol: {0}")]
+    #[error("[{n}] Signaling protocol error: {0}", n = self.name())]
     Protocol(String),
 
-    #[error("Signaling registration closed")]
+    #[error("[{n}] Signaling registration closed", n = self.name())]
     RegistrationClosed,
 
-    #[error("Peer cancelled: {0}")]
+    #[error("[{n}] Peer cancelled the session: {0}", n = self.name())]
     PeerCancelled(String),
 
-    #[error("WebRTC handshake timed out")]
+    #[error("[{n}] WebRTC handshake timed out", n = self.name())]
     HandshakeTimeout,
 
-    #[error("Server is shutting down")]
+    #[error("[{n}] Server is shutting down", n = self.name())]
     Shutdown,
 
-    #[error("WebRTC: {0}")]
+    #[error("[{n}] WebRTC connection failed: {0}", n = self.name())]
     PeerConnection(#[from] trz_gateway_common::p2p::peer_connection::PeerConnectionError),
 
-    #[error("WebRTC session task: {0}")]
+    #[error("[{n}] WebRTC session task failed: {0}", n = self.name())]
     SessionTask(tokio::task::JoinError),
 
-    #[error("P2P TLS: {0}")]
+    #[error("[{n}] P2P TLS connection failed: {0}", n = self.name())]
     Tls(#[from] std::io::Error),
 
-    #[error("P2P HTTP: {0}")]
+    #[error("[{n}] P2P HTTP connection failed: {0}", n = self.name())]
     ServeHttp(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl P2pServerError {
-    pub(super) fn should_report_to_peer(&self) -> bool {
+    pub fn should_report_to_peer(&self) -> bool {
         !matches!(
             self,
             Self::RegistrationClosed | Self::PeerCancelled(_) | Self::Shutdown
         )
     }
 
-    pub(super) fn peer_detail(&self) -> &'static str {
+    pub fn peer_detail(&self) -> &'static str {
         match self {
             Self::HandshakeTimeout => {
                 "WebRTC handshake timed out; configure TURN when direct ICE is unavailable"

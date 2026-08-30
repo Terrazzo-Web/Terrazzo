@@ -310,6 +310,10 @@ name and preserves all current `/remote/certificate` security behavior.
 - Bound the registration loop, negotiating peers, active WebRTC connections, TLS,
   and Hyper serving to the existing server shutdown future. The peer connection
   is explicitly closed when its HTTP connection finishes or shutdown wins.
+- Addressed the follow-up error-format review by applying `#[nameth]` and
+  variant-prefixed, contextual messages to every TODO-marked error enum in the
+  P2P server, shared peer connection, client configuration, terminal process and
+  search services, and SyncTeX CLI.
 - Added unit coverage for defaults, secret redaction, and encoded/authenticated
   registration requests. Added a real end-to-end test that starts a signaling
   gateway and a separately registered server, verifies a cancelled session does

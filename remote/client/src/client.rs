@@ -31,6 +31,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use uuid::Uuid;
 
+use self::config::ClientTransport;
 use self::config::SniOverrideError;
 use self::config::url;
 use self::service::ClientService;
@@ -57,6 +58,9 @@ pub struct Client {
 
     /// The TLS server name to validate when it differs from [Self::uri].
     sni_override: Option<String>,
+
+    /// How the Gateway is reached before applying its TLS protocol.
+    transport: ClientTransport,
 
     /// The TLS client is used to create the secure WebSocket tunnel.
     ///
@@ -95,6 +99,7 @@ impl Client {
             client_name,
             uri: url(&config, &tunnel_path)?.to_string(),
             sni_override: config.sni_override().map(ToOwned::to_owned),
+            transport: config.transport(),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),

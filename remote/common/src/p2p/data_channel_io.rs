@@ -449,6 +449,7 @@ fn set_terminal_error(terminal_error: &Mutex<Option<StoredError>>, error: Stored
 
 #[cfg(test)]
 mod tests {
+    use std::io::ErrorKind;
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
@@ -495,13 +496,11 @@ mod tests {
             self.send_permits
                 .acquire()
                 .await
-                .map_err(|_| {
-                    std::io::Error::new(std::io::ErrorKind::BrokenPipe, "send gate closed")
-                })?
+                .map_err(|_| std::io::Error::new(ErrorKind::BrokenPipe, "send gate closed"))?
                 .forget();
-            self.sent_tx.send(data).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::BrokenPipe, "sent receiver closed")
-            })
+            self.sent_tx
+                .send(data)
+                .map_err(|_| std::io::Error::new(ErrorKind::BrokenPipe, "sent receiver closed"))
         }
 
         async fn poll(&self) -> Option<ChannelEvent> {
@@ -609,9 +608,9 @@ mod tests {
 
         let mut byte = [0];
         let read_error = io.read_exact(&mut byte).await.unwrap_err();
-        assert_eq!(std::io::ErrorKind::ConnectionReset, read_error.kind());
+        assert_eq!(ErrorKind::ConnectionReset, read_error.kind());
         let write_error = io.write_all(b"x").await.unwrap_err();
-        assert_eq!(std::io::ErrorKind::ConnectionReset, write_error.kind());
+        assert_eq!(ErrorKind::ConnectionReset, write_error.kind());
     }
 
     #[tokio::test]
@@ -623,12 +622,9 @@ mod tests {
         let mut io = io.wait_open().await.unwrap();
 
         io.write_all(b"x").await.unwrap();
+        assert_eq!(ErrorKind::BrokenPipe, io.flush().await.unwrap_err().kind());
         assert_eq!(
-            std::io::ErrorKind::BrokenPipe,
-            io.flush().await.unwrap_err().kind()
-        );
-        assert_eq!(
-            std::io::ErrorKind::BrokenPipe,
+            ErrorKind::BrokenPipe,
             io.write_all(b"y").await.unwrap_err().kind()
         );
     }

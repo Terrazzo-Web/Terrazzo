@@ -55,7 +55,6 @@ mod certificate;
 pub mod gateway_config;
 mod http_or_https;
 mod issuer_config;
-mod p2p;
 pub mod root_ca_configuration;
 mod tunnel;
 
@@ -75,7 +74,6 @@ pub struct Server {
     tls_server: RustlsConfig,
     tls_client: Arc<DynamicConfig<Result<TlsConnector, Arc<dyn IsGlobalError>>, RO>>,
     connections: Arc<Connections>,
-    p2p_signaling: Arc<p2p::signaling::Signaling>,
     issuer_config: Arc<DynamicConfig<Result<Arc<IssuerConfig>, Arc<dyn IsGlobalError>>, RO>>,
     app_config: Box<dyn AppConfig>,
     set_current_endpoint: Option<PathBuf>,
@@ -128,7 +126,6 @@ impl Server {
                     )
                 });
 
-        let p2p_signaling = Arc::new(p2p::signaling::Signaling::default());
         let server = Arc::new(Self {
             shutdown: shutdown_rx.shared(),
             root_ca,
@@ -140,7 +137,6 @@ impl Server {
                     .map_err(|x| x.clone() as Arc<dyn IsGlobalError>)
             }),
             connections: Arc::new(Connections::default()),
-            p2p_signaling: p2p_signaling.clone(),
             issuer_config: dynamic_client_config_view.view(|tls_client| {
                 (*(tls_client.as_ref()))
                     .as_ref()
@@ -149,14 +145,6 @@ impl Server {
             }),
             app_config: Box::new(config.app_config()),
             set_current_endpoint: config.set_current_endpoint(),
-        });
-
-        tokio::spawn({
-            let shutdown = server.shutdown.clone();
-            async move {
-                shutdown.await;
-                p2p_signaling.shutdown();
-            }
         });
 
         let (host, ports) = (config.host(), config.ports());

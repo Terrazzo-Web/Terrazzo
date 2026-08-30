@@ -5,8 +5,6 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 
-use futures::SinkExt as _;
-use futures::StreamExt as _;
 use mime::APPLICATION_JSON;
 use openssl::asn1::Asn1Time;
 use openssl::pkey::HasPublic;
@@ -24,10 +22,6 @@ use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::p2p::protocol::FailureCode;
-use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
-use trz_gateway_common::p2p::protocol::SessionDescription;
-use trz_gateway_common::p2p::protocol::SignalMessage;
 use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::pem::PemCertificate;
@@ -162,117 +156,6 @@ async fn tunnel() -> Result<(), Box<dyn Error>> {
 
     let () = handle.stop("End of test").await?;
     Ok(())
-}
-
-#[tokio::test]
-async fn p2p_signaling_routes_offer_and_answer() -> Result<(), Box<dyn Error>> {
-    use tokio_tungstenite::connect_async;
-
-    let _use_temp_dir = use_temp_dir();
-    let config = TestConfig::new();
-    let (_server, handle, _crash) = Server::run(config.clone()).await?;
-    let _client = make_client(&config).await?;
-    let endpoint = |role: &str| {
-        format!(
-            "ws://{}:{}/p2p/{role}/integration-server",
-            config.host(),
-            config.port
-        )
-    };
-
-    let (mut registered_server, _) = connect_async(endpoint("register")).await?;
-    send_signal(
-        &mut registered_server,
-        SignalMessage::Hello {
-            protocol_version: PROTOCOL_VERSION,
-        },
-    )
-    .await?;
-    let (mut connecting_client, _) = connect_async(endpoint("connect")).await?;
-    send_signal(
-        &mut connecting_client,
-        SignalMessage::Hello {
-            protocol_version: PROTOCOL_VERSION,
-        },
-    )
-    .await?;
-
-    let client_start = receive_signal(&mut connecting_client).await?;
-    let server_start = receive_signal(&mut registered_server).await?;
-    let connection_id = match (client_start, server_start) {
-        (
-            SignalMessage::Start {
-                connection_id: client_id,
-            },
-            SignalMessage::Start {
-                connection_id: server_id,
-            },
-        ) if client_id == server_id => client_id,
-        messages => panic!("unexpected start messages: {messages:?}"),
-    };
-
-    let offer = SignalMessage::Description {
-        connection_id,
-        description: SessionDescription::Offer("offer".into()),
-    };
-    send_signal(&mut connecting_client, offer.clone()).await?;
-    assert_eq!(offer, receive_signal(&mut registered_server).await?);
-
-    let answer = SignalMessage::Description {
-        connection_id,
-        description: SessionDescription::Answer("answer".into()),
-    };
-    send_signal(&mut registered_server, answer.clone()).await?;
-    assert_eq!(answer, receive_signal(&mut connecting_client).await?);
-
-    tokio::time::pause();
-    tokio::time::advance(Duration::from_secs(31)).await;
-    for failure in [
-        receive_signal(&mut connecting_client).await?,
-        receive_signal(&mut registered_server).await?,
-    ] {
-        assert!(matches!(
-            failure,
-            SignalMessage::Failure {
-                connection_id: id,
-                code: FailureCode::NegotiationFailed,
-                ref detail,
-            } if id == connection_id && detail.contains("TURN")
-        ));
-    }
-
-    let _ = connecting_client.close(None).await;
-    let _ = registered_server.close(None).await;
-    let () = handle.stop("End of test").await?;
-    Ok(())
-}
-
-async fn send_signal<S>(
-    socket: &mut tokio_tungstenite::WebSocketStream<S>,
-    message: SignalMessage,
-) -> Result<(), Box<dyn Error>>
-where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
-{
-    use tokio_tungstenite::tungstenite::Message;
-    socket
-        .send(Message::Text(serde_json::to_string(&message)?.into()))
-        .await?;
-    Ok(())
-}
-
-async fn receive_signal<S>(
-    socket: &mut tokio_tungstenite::WebSocketStream<S>,
-) -> Result<SignalMessage, Box<dyn Error>>
-where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
-{
-    use tokio_tungstenite::tungstenite::Message;
-    let message = socket.next().await.ok_or("WebSocket closed")??;
-    let Message::Text(text) = message else {
-        return Err("Expected text signaling message".into());
-    };
-    Ok(serde_json::from_str(&text)?)
 }
 
 #[tokio::test]

@@ -14,6 +14,7 @@ rust_rules_matrix(
             "deps": [
                 "@crates//:instant-acme",
                 "@crates//:rcgen",
+                "@crates//:serde_json",
             ],
         },
     },

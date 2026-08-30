@@ -13,6 +13,7 @@ use reqwest::Url;
 use tracing::debug;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::is_global::IsGlobal;
+use trz_gateway_common::p2p::GOOGLE_STUN;
 use trz_gateway_common::p2p::peer_connection::IceServer;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use uuid::Uuid;
@@ -135,7 +136,7 @@ impl P2pClientConfig {
             signaling_url: signaling_url.into(),
             server_name,
             ice_servers: vec![IceServer {
-                urls: vec!["stun:stun.l.google.com:19302".to_owned()],
+                urls: vec![GOOGLE_STUN.to_owned()],
                 ..IceServer::default()
             }],
             signaling_timeout: Duration::from_secs(10),
@@ -197,6 +198,8 @@ pub enum SniOverrideError {
 
 #[cfg(test)]
 mod tests {
+    use trz_gateway_common::p2p::GOOGLE_STUN;
+
     use super::*;
 
     #[test]
@@ -206,10 +209,7 @@ mod tests {
         let config = P2pClientConfig::new("https://signal.example", "gateway".into());
         assert_eq!("https://signal.example", config.signaling_url);
         assert_eq!("gateway", config.server_name.as_ref());
-        assert_eq!(
-            vec!["stun:stun.l.google.com:19302"],
-            config.ice_servers[0].urls
-        );
+        assert_eq!(vec![GOOGLE_STUN], config.ice_servers[0].urls);
         assert!(config.signaling_timeout < config.handshake_timeout);
         assert!(config.handshake_timeout < config.connect_timeout);
     }

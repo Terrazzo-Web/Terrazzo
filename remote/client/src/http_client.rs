@@ -15,6 +15,7 @@ use reqwest::Certificate;
 use rustls::ClientConfig as RustlsClientConfig;
 use rustls::pki_types::ServerName;
 use tokio_rustls::TlsConnector;
+use tracing::debug;
 use trz_gateway_common::security_configuration::custom_server_certificate_verifier::ChainOnlyServerCertificateVerifier;
 use trz_gateway_common::security_configuration::trusted_store::TrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClient as _;
@@ -75,8 +76,12 @@ where
     // - WebRTC signaling WSS is authenticated separately with platform roots.
     // - WebRTC DTLS protects the peer channel but does not replace the inner Gateway TLS.
     match client_config.transport() {
-        ClientTransport::Direct => make_direct_http_client(client_config).map(HttpClient::Direct),
+        ClientTransport::Direct => {
+            debug!("Making a Direct client connection");
+            make_direct_http_client(client_config).map(HttpClient::Direct)
+        }
         ClientTransport::WebRtc(config) => {
+            debug!("Making a WebRtc client connection: {config:#?}");
             let mut tls = client_config
                 .gateway_pki()
                 .to_tls_client(ChainOnlyServerCertificateVerifier)

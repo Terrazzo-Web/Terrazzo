@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::p2p::GOOGLE_STUN;
 use trz_gateway_common::p2p::peer_connection::IceServer;
 use trz_gateway_common::p2p::peer_connection::LocalIceEvent;
 use trz_gateway_common::p2p::peer_connection::PeerConnectionBuilder;
@@ -29,14 +30,10 @@ use crate::client::config::ClientTransport;
 use crate::client::config::P2pClientConfig;
 use crate::load_client_certificate::make_client_certificate;
 
-const GOOGLE_STUN: &str = "stun:stun.l.google.com:19302";
 const PHASE_TIMEOUT: Duration = Duration::from_secs(20);
 const OVERALL_TIMEOUT: Duration = Duration::from_secs(75);
 
-/// Network test: run explicitly with
-/// `cargo test -p trz-gateway-client p2p_certificate_via_google_stun -- --ignored`.
 #[tokio::test]
-#[ignore = "requires outbound DNS and UDP access to Google's public STUN service"]
 async fn p2p_certificate_via_google_stun() -> Result<(), Box<dyn Error>> {
     let _temp_dir = use_temp_dir();
     assert_google_stun_candidate().await?;

@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::p2p::GOOGLE_STUN;
 use trz_gateway_common::p2p::peer_connection::IceServer;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 
@@ -38,7 +39,7 @@ impl P2pRegistrationConfig {
             signaling_url: signaling_url.into(),
             server_name,
             ice_servers: vec![IceServer {
-                urls: vec!["stun:stun.l.google.com:19302".into()],
+                urls: vec![GOOGLE_STUN.into()],
                 ..IceServer::default()
             }],
             retry_strategy: RetryStrategy::default(),

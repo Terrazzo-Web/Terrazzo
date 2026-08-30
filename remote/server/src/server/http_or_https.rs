@@ -13,7 +13,8 @@ use tokio::io::ReadBuf;
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
-use tracing::debug;
+use tracing::trace;
+use tracing::warn;
 
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -106,7 +107,7 @@ where
                     timeout,
                     ..
                 } => {
-                    debug!(pos, ?buffer, "Polling stream header");
+                    trace!(pos, ?buffer, "Polling stream header");
 
                     match timeout.poll_unpin(cx) {
                         Poll::Ready(()) => {
@@ -131,7 +132,7 @@ where
                     ready!(Pin::new(stream).poll_read(cx, &mut buf))?;
                     *pos = buf.filled().len();
                     if *pos == old_pos {
-                        debug!("Failed to read a TLS header");
+                        warn!("Failed to read a TLS header");
                         return Err(std::io::Error::new(
                             ErrorKind::ConnectionAborted,
                             "Failed to read a TLS header",
@@ -139,10 +140,10 @@ where
                         .into();
                     }
                     if *pos < buffer.len() {
-                        debug!(pos, ?buffer, "Polling stream header: Continue");
+                        trace!(pos, ?buffer, "Polling stream header: Continue");
                         continue;
                     }
-                    debug!(pos, ?buffer, "Polling stream header: Buffer full");
+                    trace!(pos, ?buffer, "Polling stream header: Buffer full");
 
                     let is_tls = buffer[..3] == [0x16, 0x3, 0x1] // TLS 1.0 record header
                         && buffer[5] == 1 // Client hello
@@ -166,12 +167,12 @@ where
                         header: Cursor::new(buffer),
                     };
                     self.0 = if is_tls {
-                        debug!("Polling TLS stream");
+                        trace!("Polling TLS stream");
                         FuturePeekStreamImpl::AcceptTls {
                             future: Box::pin(accept.tls.accept(stream, service)),
                         }
                     } else {
-                        debug!("Polling Plaintext stream");
+                        trace!("Polling Plaintext stream");
                         FuturePeekStreamImpl::AcceptPlaintext {
                             future: Box::pin(accept.plaintext.accept(stream, service)),
                         }

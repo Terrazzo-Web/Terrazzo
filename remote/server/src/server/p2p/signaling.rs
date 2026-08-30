@@ -22,14 +22,16 @@ use tracing::warn;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
-use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
+use self::session::Session;
+
 use self::registration::Registration;
 
 mod registration;
+mod session;
 
 #[cfg(test)]
 mod tests;
@@ -68,13 +70,6 @@ struct State {
 struct Waiters {
     sender: watch::Sender<Option<Arc<Registration>>>,
     count: usize,
-}
-
-/// One client connection attempt attached to a specific registration.
-struct Session {
-    connection_id: P2pConnectionId,
-    registration: Arc<Registration>,
-    incoming: mpsc::Receiver<SignalMessage>,
 }
 
 impl Default for Waiters {

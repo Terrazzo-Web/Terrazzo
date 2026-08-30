@@ -1,4 +1,3 @@
-use std::mem;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -133,7 +132,7 @@ async fn flush_pending_store_files() {
     let pending = {
         let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
         state.scheduled = false;
-        mem::take(&mut state.pending)
+        std::mem::take(&mut state.pending)
     };
     for PendingStoreFile {
         remote,
@@ -239,7 +238,7 @@ async fn flush_pending_cursor_positions() {
             .lock()
             .expect("store_cursor_position_state");
         state.scheduled = false;
-        mem::take(&mut state.pending)
+        std::mem::take(&mut state.pending)
     };
     for PendingStoreCursorPosition {
         remote,

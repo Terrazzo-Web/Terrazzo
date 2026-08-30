@@ -1,7 +1,6 @@
 //! Wire types exchanged through the P2P signaling server.
 
 use std::collections::HashSet;
-use std::fmt;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -37,8 +36,8 @@ impl Default for P2pConnectionId {
     }
 }
 
-impl fmt::Display for P2pConnectionId {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for P2pConnectionId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(formatter)
     }
 }

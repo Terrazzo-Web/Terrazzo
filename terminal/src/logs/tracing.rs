@@ -1,6 +1,5 @@
 #![cfg(feature = "server")]
 
-use std::fmt;
 use std::panic::Location;
 
 use nameth::NamedEnumValues as _;
@@ -150,7 +149,7 @@ impl LogEventVisitor {
 struct SpanFields(Vec<String>);
 
 impl Visit for LogEventVisitor {
-    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         self.record_value(field, format!("{value:?}"));
     }
 

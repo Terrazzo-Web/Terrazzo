@@ -45,12 +45,11 @@ impl HttpClient {
     ) -> Result<HttpResponse, HttpRequestError> {
         match self {
             Self::Direct(client) => {
-                let response = client
+                let request = client
                     .get(url)
                     .header(CONTENT_TYPE, content_type)
-                    .body(body)
-                    .send()
-                    .await?;
+                    .body(body);
+                let response = request.send().await?;
                 Ok(HttpResponse {
                     status: response.status(),
                     body: response.text().await?,
@@ -67,6 +66,14 @@ pub(super) fn make_http_client<C>(
 where
     C: ClientConfig,
 {
+    // TLS trust by transport:
+    // - Both authenticate the target Gateway hostname, including any SNI override.
+    // - Both accept Gateway certificates issued by `gateway_pki`.
+    // - Direct uses reqwest's platform verifier with `gateway_pki` as extra roots, so it also
+    //   retains the operating system's roots.
+    // - WebRTC's inner TLS trusts only `gateway_pki`.
+    // - WebRTC signaling WSS is authenticated separately with platform roots.
+    // - WebRTC DTLS protects the peer channel but does not replace the inner Gateway TLS.
     match client_config.transport() {
         ClientTransport::Direct => make_direct_http_client(client_config).map(HttpClient::Direct),
         ClientTransport::WebRtc(config) => {

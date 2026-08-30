@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::MutexGuard;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -85,9 +86,7 @@ impl Registration {
     pub fn relay_to_client(&self, message: SignalMessage) -> Result<(), ()> {
         message.validate().map_err(|_| ())?;
         let connection_id = message.connection_id().ok_or(())?;
-        self.sessions
-            .lock()
-            .expect("registration sessions")
+        self.sessions_lock()
             .get(&connection_id)
             .ok_or(())?
             .try_send(message)
@@ -95,13 +94,7 @@ impl Registration {
     }
 
     pub fn remove_session(&self, connection_id: P2pConnectionId) {
-        if self
-            .sessions
-            .lock()
-            .expect("registration sessions")
-            .remove(&connection_id)
-            .is_some()
-        {
+        if self.sessions_lock().remove(&connection_id).is_some() {
             self.pending_sessions.fetch_sub(1, Ordering::AcqRel);
         }
     }
@@ -111,12 +104,7 @@ impl Registration {
             return;
         }
         self.close.send_replace(true);
-        let sessions = self
-            .sessions
-            .lock()
-            .expect("registration sessions")
-            .drain()
-            .collect::<Vec<_>>();
+        let sessions = self.sessions_lock().drain().collect::<Vec<_>>();
         self.pending_sessions
             .fetch_sub(sessions.len(), Ordering::AcqRel);
         for (connection_id, sender) in sessions {
@@ -126,5 +114,11 @@ impl Registration {
                 detail: detail.into(),
             });
         }
+    }
+
+    fn sessions_lock(
+        &self,
+    ) -> MutexGuard<'_, HashMap<P2pConnectionId, mpsc::Sender<SignalMessage>>> {
+        self.sessions.lock().expect("registration sessions")
     }
 }

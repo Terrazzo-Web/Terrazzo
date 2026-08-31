@@ -229,3 +229,8 @@ div.add-tile-tab {
         @include trz-bg-transition;
     }
 }
+
+.collapsed .app-collapsible-content {
+    display: none;
+    visibility: hidden;
+}

@@ -45,7 +45,7 @@ pub fn set_floating_position(
     x: i32,
     y: i32,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    set_floating_geometry(array_id, floating_id, Some((x, y)), None)
+    set_floating_geometry(array_id, floating_id, Some((x, y)), None, None)
 }
 
 pub fn set_floating_size(
@@ -54,7 +54,15 @@ pub fn set_floating_size(
     width: i32,
     height: i32,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    set_floating_geometry(array_id, floating_id, None, Some((width, height)))
+    set_floating_geometry(array_id, floating_id, None, Some((width, height)), None)
+}
+
+pub fn set_floating_collapsed(
+    array_id: TileId,
+    floating_id: TileId,
+    collapsed: bool,
+) -> Result<Arc<Tiles>, TilesStateError> {
+    set_floating_geometry(array_id, floating_id, None, None, Some(collapsed))
 }
 
 fn set_floating_geometry(
@@ -62,11 +70,20 @@ fn set_floating_geometry(
     floating_id: TileId,
     position: Option<(i32, i32)>,
     size: Option<(i32, i32)>,
+    collapsed: Option<bool>,
 ) -> Result<Arc<Tiles>, TilesStateError> {
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.take().unwrap_or_default();
     let mut updated = false;
-    let tree = set_floating_geometry_aux(tree, array_id, floating_id, position, size, &mut updated);
+    let tree = set_floating_geometry_aux(
+        tree,
+        array_id,
+        floating_id,
+        position,
+        size,
+        collapsed,
+        &mut updated,
+    );
     if !updated {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
@@ -309,12 +326,8 @@ fn raise_floating_aux(
             // FloatingTile::update only replaces the tile and preserves z_index, but raising a
             // floating tile specifically requires changing its z_index.
             floating_nodes[index] = Arc::new(FloatingTile {
-                x: floating_nodes[index].x,
-                y: floating_nodes[index].y,
-                width: floating_nodes[index].width,
-                height: floating_nodes[index].height,
                 z_index,
-                tile: floating_nodes[index].tile.clone(),
+                ..(*floating_nodes[index]).clone()
             });
             *raised = true;
             Arc::new(Tiles::Array {
@@ -364,6 +377,7 @@ fn set_floating_geometry_aux(
     floating_id: TileId,
     position: Option<(i32, i32)>,
     size: Option<(i32, i32)>,
+    collapsed: Option<bool>,
     updated: &mut bool,
 ) -> Arc<Tiles> {
     match &*tree {
@@ -393,6 +407,7 @@ fn set_floating_geometry_aux(
                 height,
                 z_index: floating.z_index,
                 tile: floating.tile.clone(),
+                collapsed: collapsed.unwrap_or(floating.collapsed),
             });
             *updated = true;
             Arc::new(Tiles::Array {
@@ -421,6 +436,7 @@ fn set_floating_geometry_aux(
                         floating_id,
                         position,
                         size,
+                        collapsed,
                         updated,
                     )
                 })
@@ -434,6 +450,7 @@ fn set_floating_geometry_aux(
                         floating_id,
                         position,
                         size,
+                        collapsed,
                         updated,
                     );
                     Arc::new(floating.update(|_| tile))
@@ -459,6 +476,7 @@ fn new_floating(tile: Arc<Tiles>, floating_nodes: &[Arc<FloatingTile>]) -> Arc<F
         height: 600,
         z_index: next_z_index(floating_nodes),
         tile,
+        collapsed: false,
     })
 }
 
@@ -484,12 +502,8 @@ pub(super) fn default_tile() -> Arc<Tiles> {
 impl FloatingTile {
     pub fn update(&self, f: impl FnOnce(&Self) -> Arc<Tiles>) -> Self {
         FloatingTile {
-            x: self.x,
-            y: self.y,
-            width: self.width,
-            height: self.height,
-            z_index: self.z_index,
             tile: f(self),
+            ..self.clone()
         }
     }
 }
@@ -600,6 +614,7 @@ mod tests {
                 height: 600,
                 z_index: 3,
                 tile: tile(2),
+                collapsed: false,
             })],
         });
         let mut updated = false;
@@ -609,6 +624,7 @@ mod tests {
             array_id,
             floating_id,
             Some((120, 140)),
+            None,
             None,
             &mut updated,
         );

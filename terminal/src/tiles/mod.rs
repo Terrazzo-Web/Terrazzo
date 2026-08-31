@@ -7,3 +7,6 @@ pub mod state;
 mod tabs;
 pub mod ui;
 mod visitor;
+
+#[cfg(feature = "client")]
+pub use self::tabs::APP_COLLAPSIBLE_CONTENT;

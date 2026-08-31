@@ -26,6 +26,7 @@ use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal::api::selected_tab;
 use crate::terminal::client as terminal_api;
 use crate::terminal_id::TerminalId;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -114,7 +115,13 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                     tabs_class: Some(get_class_name("tabs", style::TABS).into()),
                     titles_class: Some(get_class_name("titles", style::TITLES).into()),
                     title_class: Some(get_class_name("title", style::TITLE).into()),
-                    items_class: Some(get_class_name("items", style::ITEMS).into()),
+                    items_class: Some(
+                        get_class_name(
+                            "items",
+                            format!("{} {}", style::ITEMS, APP_COLLAPSIBLE_CONTENT),
+                        )
+                        .into(),
+                    ),
                     item_class: Some(get_class_name("item", style::ITEM).into()),
                     selected_class: Some(get_class_name("selected", style::SELECTED).into()),
                     ..TabsOptions::default()
@@ -188,7 +195,7 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
     )
 }
 
-fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString> {
+fn get_class_name(name: &'static str, class: impl std::fmt::Display) -> impl Into<XString> {
     #[cfg(feature = "client-prod")]
     {
         let _ = name;

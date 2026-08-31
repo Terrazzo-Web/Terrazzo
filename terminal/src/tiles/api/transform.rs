@@ -78,6 +78,7 @@ mod tests {
                 height: 600,
                 z_index: 1,
                 tile: floating_tile,
+                collapsed: false,
             })],
         });
 

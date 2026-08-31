@@ -110,6 +110,19 @@ pub async fn set_floating_size(
 }
 
 #[server]
+pub async fn set_floating_collapsed(
+    array_id: TileId,
+    floating_id: TileId,
+    collapsed: bool,
+) -> Result<Arc<Tiles>, ServerFnError> {
+    Ok(float::set_floating_collapsed(
+        array_id,
+        floating_id,
+        collapsed,
+    )?)
+}
+
+#[server]
 pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> {
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
@@ -203,7 +216,7 @@ pub struct Tile {
 }
 
 // Basic
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 // Serde
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct FloatingTile {
@@ -213,6 +226,7 @@ pub struct FloatingTile {
     pub height: i32,
     pub z_index: i32,
     pub tile: Arc<Tiles>,
+    pub collapsed: bool,
 }
 
 impl Default for Tiles {

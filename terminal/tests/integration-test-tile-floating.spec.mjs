@@ -11,6 +11,13 @@ test.describe('Floating terminal tile', () => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+
+        const password = page.locator('input[type="password"]');
+        if (await password.isVisible().catch(() => false)) {
+            await password.fill('123');
+            await password.dispatchEvent('change');
+        }
+
         await page.locator('.app-tile').first().waitFor({ timeout: 10 * SECOND });
     });
 
@@ -75,5 +82,20 @@ test.describe('Floating terminal tile', () => {
         await expect(floatingTile.getByText('Terminal 1', { exact: true })).toBeVisible();
         await expect(floatingTile.locator('.xterm')).toBeVisible();
         await expect(page.locator('.tabbed-tile')).toBeVisible();
+
+        const signpost = floatingTile.locator(
+            '.app-menu-trigger img[src*="signpost-split.svg"]',
+        ).first();
+        await signpost.dblclick();
+
+        await expect(floatingTile).toHaveCSS('height', '32px');
+        await expect(signpost).toBeVisible();
+        await expect(floatingTile.getByText('Terminal 1', { exact: true })).toBeVisible();
+        await expect(floatingTile.locator('[class*="app-collapsible-content-"]')).toBeHidden();
+        await expect(floatingTile.locator('.xterm')).toBeHidden();
+
+        await signpost.dblclick();
+        await expect(floatingTile).toHaveCSS('height', '600px');
+        await expect(floatingTile.locator('.xterm')).toBeVisible();
     });
 });

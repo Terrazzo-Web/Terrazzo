@@ -26,6 +26,7 @@ use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal::api::selected_tab;
 use crate::terminal::client as terminal_api;
 use crate::terminal_id::TerminalId;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
@@ -111,12 +112,17 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                 terminal_tabs.clone(),
                 state.clone(),
                 Ptr::new(TabsOptions {
-                    tabs_class: Some(get_class_name("tabs", style::TABS).into()),
-                    titles_class: Some(get_class_name("titles", style::TITLES).into()),
-                    title_class: Some(get_class_name("title", style::TITLE).into()),
-                    items_class: Some(get_class_name("items", style::ITEMS).into()),
-                    item_class: Some(get_class_name("item", style::ITEM).into()),
-                    selected_class: Some(get_class_name("selected", style::SELECTED).into()),
+                    tabs_class: Some(get_class_name("tabs", style::TABS)),
+                    titles_class: Some(get_class_name("titles", style::TITLES)),
+                    title_class: Some(get_class_name("title", style::TITLE)),
+                    items_class: Some(
+                        get_class_name(
+                            "items",
+                            format!("{} {}", style::ITEMS, APP_COLLAPSIBLE_CONTENT),
+                        ),
+                    ),
+                    item_class: Some(get_class_name("item", style::ITEM)),
+                    selected_class: Some(get_class_name("selected", style::SELECTED)),
                     ..TabsOptions::default()
                 }),
             ),
@@ -188,15 +194,15 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
     )
 }
 
-fn get_class_name(name: &'static str, class: &'static str) -> impl Into<XString> {
+fn get_class_name(name: &'static str, class: impl std::fmt::Display) -> XString {
     #[cfg(feature = "client-prod")]
     {
         let _ = name;
-        return class;
+        return class.to_string().into();
     }
 
     #[cfg(not(feature = "client-prod"))]
-    return format!("{name} {class}");
+    return format!("{name} {class}").into();
 }
 
 fn refresh_terminal_tabs(state: TerminalsState) {

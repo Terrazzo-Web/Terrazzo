@@ -46,6 +46,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
 
@@ -152,6 +153,7 @@ impl TextEditorManager {
 fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
     div(
         class = super::style::BODY,
+        class = APP_COLLAPSIBLE_CONTENT,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
         manager.show_side_view(),

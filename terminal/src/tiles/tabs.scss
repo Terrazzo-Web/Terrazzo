@@ -229,3 +229,22 @@ div.add-tile-tab {
         @include trz-bg-transition;
     }
 }
+
+div.floating-tile.collapsed {
+    // Floating dimensions are persisted as inline styles. While collapsed, let
+    // the visible header determine the height instead.
+    height: auto !important;
+
+    // The app layout uses height: 100% and flex-basis: 0 throughout the path to
+    // its body. Once that body is hidden, make those ancestors intrinsic too so
+    // the header still contributes to the floating tile's height.
+    :has(.app-collapsible-content) {
+        height: auto !important;
+        flex-basis: auto !important;
+    }
+
+    .app-collapsible-content {
+        display: none;
+        visibility: hidden;
+    }
+}

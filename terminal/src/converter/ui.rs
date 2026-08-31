@@ -25,6 +25,7 @@ use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(pub(super) style, "converter.scss");
@@ -65,6 +66,7 @@ fn converter_impl(
         ),
         div(
             class = style::BODY,
+            class = APP_COLLAPSIBLE_CONTENT,
             show_input(
                 tile.clone(),
                 tile.remote.clone(),

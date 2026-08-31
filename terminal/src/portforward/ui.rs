@@ -25,6 +25,7 @@ use crate::frontend::menu::menu;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::portforward::schema::PortForwardState;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "port_forward.scss");
@@ -68,6 +69,7 @@ fn show_port_forwards(
     let new_sync_state = XSignal::new("new sync-state", Default::default());
     tag(
         class = style::PORT_FORWARDS,
+        class = APP_COLLAPSIBLE_CONTENT,
         port_forward_tags..,
         div(
             show_add_port_forward(new_sync_state.clone()),

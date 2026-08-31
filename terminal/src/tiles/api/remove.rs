@@ -99,6 +99,7 @@ mod tests {
                 height: 600,
                 z_index: 1,
                 tile: tile(TileId::for_test(2)),
+                collapsed: false,
             })],
         });
 

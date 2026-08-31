@@ -52,6 +52,7 @@ pub struct FloatingTile {
     pub height: XSignal<i32>,
     pub z_index: XSignal<i32>,
     pub tile: Tiles,
+    pub collapsed: XSignal<bool>,
 }
 
 #[envelope]
@@ -176,6 +177,11 @@ fn transform_floating(signals: &mut TileSignals, floating: &FloatingTileDto) -> 
             old.as_ref().map(|old| &old.z_index),
         ),
         tile: transform(signals, &floating.tile),
+        collapsed: reuse_signal(
+            "floating-z-index",
+            floating.collapsed,
+            old.as_ref().map(|old| &old.collapsed),
+        ),
     }
 }
 

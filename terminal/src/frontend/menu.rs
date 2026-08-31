@@ -17,12 +17,13 @@ use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "menu.scss");
 
-pub type DragHandle = Rc<dyn Fn(MouseEvent)>;
+pub type MouseEventHandle = Rc<dyn Fn(MouseEvent)>;
 
 pub struct MenuState {
     pub show: XSignal<bool>,
     pub before: DropListPtr,
-    pub drag_handle: RefCell<Option<DragHandle>>,
+    pub drag_handle: RefCell<Option<MouseEventHandle>>,
+    pub dblclick_handle: RefCell<Option<MouseEventHandle>>,
 }
 
 impl Default for MenuState {
@@ -31,6 +32,7 @@ impl Default for MenuState {
             show: XSignal::new("show-menu", false),
             before: Default::default(),
             drag_handle: Default::default(),
+            dblclick_handle: Default::default(),
         }
     }
 }
@@ -41,6 +43,7 @@ impl Default for MenuState {
 pub fn menu(tile: TilePtr) -> XElement {
     let hide_menu = Duration::from_millis(500).cancellable();
     let drag_handle = tile.menu.drag_handle.borrow().clone();
+    let dblclick_handle = tile.menu.dblclick_handle.borrow().clone();
     div(
         class = style::MENU,
         div(
@@ -54,6 +57,12 @@ pub fn menu(tile: TilePtr) -> XElement {
                     if let Some(drag_handle) = &drag_handle {
                         ev.prevent_default();
                         drag_handle(ev);
+                    }
+                },
+                dblclick = move |ev: MouseEvent| {
+                    if let Some(dblclick_handle) = &dblclick_handle {
+                        ev.prevent_default();
+                        dblclick_handle(ev);
                     }
                 },
             ),

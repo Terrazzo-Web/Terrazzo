@@ -22,7 +22,7 @@ use super::app::App;
 use super::signals::TilePtr;
 use super::signals::Tiles;
 use super::signals::TilesCmp;
-use crate::frontend::menu::DragHandle;
+use crate::frontend::menu::MouseEventHandle;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::resize_bar::ResizeBarProperties;
@@ -111,6 +111,7 @@ fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
         RcSlice::new(Rc::default(), 0..0),
         None,
         tile_tab_dragging,
+        None,
     ))
 }
 
@@ -121,12 +122,14 @@ pub(crate) fn show_tiles_rec(
     parent_resize_manager: MousemoveManager,
     parent_direction: XSignal<Direction>,
     previous_resize_managers: RcSlice<MousemoveManager>,
-    drag_handle: Option<DragHandle>,
+    drag_handle: Option<MouseEventHandle>,
     tile_tab_dragging: XSignal<bool>,
+    dblclick_handle: Option<MouseEventHandle>,
 ) -> XElement {
     match tiles {
         Tiles::Tile(tile) => {
             *tile.menu.drag_handle.borrow_mut() = drag_handle;
+            *tile.menu.dblclick_handle.borrow_mut() = dblclick_handle;
             let tile_id = tile.id;
             let update_app = tile.app.add_subscriber(move |app| {
                 spawn_local(async move { RootTree::update(set_app(tile_id, app).await) })
@@ -172,6 +175,7 @@ pub(crate) fn show_tiles_rec(
             floating_nodes,
             drag_handle,
             tile_tab_dragging,
+            dblclick_handle,
         ),
         Tiles::Array {
             id: _,
@@ -195,6 +199,7 @@ pub(crate) fn show_tiles_rec(
                     RcSlice::new(resize_managers.clone(), 0..i),
                     drag_handle.clone(),
                     tile_tab_dragging.clone(),
+                    dblclick_handle.clone(),
                 );
                 if i == count - 1 {
                     return vec![node];

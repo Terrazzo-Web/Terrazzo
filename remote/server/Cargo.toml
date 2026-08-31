@@ -23,6 +23,7 @@ autoclone = { workspace = true }
 axum = { workspace = true, features = ["macros", "ws"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
 bytes = { workspace = true }
+chrono = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, features = [

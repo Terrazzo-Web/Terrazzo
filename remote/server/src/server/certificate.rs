@@ -63,10 +63,16 @@ impl Server {
         let mut validity = issuer_config.validity;
         validity.from = now;
         validity.to = SystemTime::min(validity.to, now + CERTIFICATE_VALIDITY);
-        debug!(
-            "Issuing client certificate for {} valid until {:?}",
-            request.name, validity.to
-        );
+
+        {
+            use chrono::DateTime;
+            use chrono::Local;
+
+            let validity_to: DateTime<Local> = validity.to.into();
+            let name = &request.name;
+            debug!("Issuing client certificate for {name} valid until {validity_to}");
+        }
+
         let signed_extension = self.make_signed_extension(&issuer_config, &request, validity)?;
         Ok(self.assemble_pem_cert(request, validity, signed_extension)?)
     }

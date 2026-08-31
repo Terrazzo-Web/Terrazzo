@@ -31,7 +31,10 @@ use crate::tiles::id::TileId;
 
 terrazzo_css::import_style!(style, "tabs.scss");
 
-pub use style::APP_COLLAPSIBLE_CONTENT;
+// This is consumed only by app features that provide collapsible content, so
+// feature combinations such as converter-only intentionally leave it unused.
+#[allow(dead_code)]
+pub const APP_COLLAPSIBLE_CONTENT: &str = style::APP_COLLAPSIBLE_CONTENT;
 
 #[derive(Clone)]
 pub struct TileTabs {
@@ -440,7 +443,7 @@ fn pixels(#[signal] value: i32) -> XAttributeValue {
 
 #[template(wrap = true)]
 fn collapsed_class(#[signal] collapsed: bool) -> XAttributeValue {
-    collapsed.then(|| style::COLLAPSED)
+    collapsed.then_some(style::COLLAPSED)
 }
 
 #[template(wrap = true)]

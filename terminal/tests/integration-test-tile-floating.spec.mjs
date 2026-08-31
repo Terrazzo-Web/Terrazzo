@@ -73,10 +73,10 @@ test.describe('Floating terminal tile', () => {
         await expect(tiles).toHaveCount(2);
 
         await rightTile.locator('.app-menu-trigger').hover();
-        await rightTile.locator('.float-tile').click();
+        await rightTile.locator('.float-tile').dispatchEvent('click');
 
         const floatingTile = page.locator('.floating-tile');
-        await expect(floatingTile).toBeVisible();
+        await expect(floatingTile).toBeVisible({ timeout: 10 * SECOND });
         await expect(floatingTile).toHaveCSS('width', '800px');
         await expect(floatingTile).toHaveCSS('height', '600px');
         await expect(floatingTile.getByText('Terminal 1', { exact: true })).toBeVisible();

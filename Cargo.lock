@@ -292,7 +292,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "autoclone"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clone-macro",
  "darling",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "autoclone",
 ]
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "crate_universe_deps"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -995,7 +995,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tower",
- "tower-http 0.7.0",
+ "tower-http 0.7.1",
  "tower-layer",
  "tracing",
  "tracing-futures",
@@ -1533,7 +1533,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feature-deps"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clap",
  "heck",
@@ -1775,14 +1775,14 @@ dependencies = [
 
 [[package]]
 name = "game"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "scopeguard",
  "terrazzo",
  "terrazzo-build",
  "terrazzo-css",
  "tokio",
- "tower-http 0.7.0",
+ "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
@@ -2147,9 +2147,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hermit-abi"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
+checksum = "e17592d60ebacc7d5e169f4663c5f84f9161cc90328abcfe8456f41e4dfcb284"
 
 [[package]]
 name = "hex"
@@ -3087,14 +3087,14 @@ checksum = "2195bf6aa996a481483b29d62a7663eed3fe39600c460e323f8ff41e90bdd89b"
 
 [[package]]
 name = "nameth"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -3104,7 +3104,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "nameth",
 ]
@@ -5471,7 +5471,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "autoclone",
  "axum",
@@ -5498,7 +5498,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "nameth",
  "thiserror 2.0.20",
@@ -5506,7 +5506,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "autoclone",
  "nameth",
@@ -5522,14 +5522,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "terrazzo-css-macro",
 ]
 
 [[package]]
 name = "terrazzo-css-cli"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clap",
  "nameth",
@@ -5541,7 +5541,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-macro"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "heck",
  "nameth",
@@ -5554,7 +5554,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-shared"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "nameth",
  "serde",
@@ -5566,7 +5566,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clap",
  "nameth",
@@ -5577,7 +5577,7 @@ dependencies = [
  "terrazzo-css",
  "thiserror 2.0.20",
  "tokio",
- "tower-http 0.7.0",
+ "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
@@ -5587,11 +5587,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.2.17"
+version = "0.2.18"
 
 [[package]]
 name = "terrazzo-integration-tests"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clap",
  "libc",
@@ -5604,7 +5604,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "darling",
  "prettyplease 0.3.0",
@@ -5616,7 +5616,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-pty"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "bytes",
  "futures",
@@ -5635,7 +5635,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "nameth",
  "runfiles",
@@ -5646,7 +5646,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-cli"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "clap",
  "nameth",
@@ -5657,14 +5657,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-sys"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "terrazzo-terminal"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -5720,7 +5720,7 @@ dependencies = [
  "tonic-prost",
  "tonic-prost-build",
  "tower",
- "tower-http 0.7.0",
+ "tower-http 0.7.1",
  "tracing",
  "tracing-futures",
  "tracing-subscriber",
@@ -6135,9 +6135,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b11f75e912b0c2be01b63d8cf8057b8c3f97cf34abb3d431a3a4c8675498e233"
+checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",
@@ -6264,7 +6264,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "bytes",
  "futures",
@@ -6302,7 +6302,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "async-trait",
  "axum",
@@ -6337,7 +6337,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.2.17"
+version = "0.2.18"
 dependencies = [
  "autoclone",
  "axum",

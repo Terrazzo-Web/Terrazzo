@@ -115,12 +115,10 @@ pub fn render_terminals(state: TerminalsState, #[signal] terminal_tabs: Terminal
                     tabs_class: Some(get_class_name("tabs", style::TABS)),
                     titles_class: Some(get_class_name("titles", style::TITLES)),
                     title_class: Some(get_class_name("title", style::TITLE)),
-                    items_class: Some(
-                        get_class_name(
-                            "items",
-                            format!("{} {}", style::ITEMS, APP_COLLAPSIBLE_CONTENT),
-                        ),
-                    ),
+                    items_class: Some(get_class_name(
+                        "items",
+                        format!("{} {}", style::ITEMS, APP_COLLAPSIBLE_CONTENT),
+                    )),
                     item_class: Some(get_class_name("item", style::ITEM)),
                     selected_class: Some(get_class_name("selected", style::SELECTED)),
                     ..TabsOptions::default()

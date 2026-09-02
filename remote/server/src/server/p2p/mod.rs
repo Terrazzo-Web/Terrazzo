@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use axum::extract::Path;
 use axum::extract::WebSocketUpgrade;
+use axum::response::IntoResponse as _;
 use axum::response::Response;
 use trz_gateway_common::id::ClientName;
 
@@ -30,5 +31,6 @@ impl Server {
             .clone()
             .connect(server_name, web_socket)
             .await
+            .unwrap_or_else(|status_code| status_code.into_response())
     }
 }

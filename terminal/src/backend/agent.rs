@@ -23,6 +23,12 @@ use crate::backend::Server;
 use crate::backend::client_service::ClientServiceImpl;
 use crate::backend::protos::terrazzo::shared::shared_service_server::SharedServiceServer;
 
+/// Complete configuration for running the agent tunnel.
+///
+/// This extends [`AgentClientConfig`] with the client certificate and runtime
+/// dependencies needed by [`TunnelConfig`]. The smaller client configuration is
+/// kept separate because it is needed to load the certificate before this
+/// complete configuration can be constructed.
 #[nameth]
 pub struct AgentTunnelConfig {
     client_config: AgentClientConfig,
@@ -33,6 +39,10 @@ pub struct AgentTunnelConfig {
 }
 
 #[nameth]
+/// Gateway connection settings that do not depend on a client certificate.
+///
+/// These settings implement [`ClientConfig`] and are sufficient to obtain or
+/// load the certificate used to construct [`AgentTunnelConfig`].
 pub struct AgentClientConfig {
     client_name: ClientName,
     gateway_url: String,

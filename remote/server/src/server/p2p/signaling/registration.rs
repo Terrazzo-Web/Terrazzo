@@ -61,7 +61,10 @@ impl Registration {
                 (count < MAX_PENDING_SESSIONS).then_some(count + 1)
             })
             .map(|count| debug!("Acquired a session: {count} <= {MAX_PENDING_SESSIONS}"))
-            .map_err(|count| warn!("Too many sessions: {count} >= {MAX_PENDING_SESSIONS}"))?;
+            .map_err(|count| {
+                warn!("Too many sessions: {count} >= {MAX_PENDING_SESSIONS}");
+                StatusCode::TOO_MANY_REQUESTS
+            })?;
         let connection_id = P2pConnectionId::new();
         let (sender, incoming) = mpsc::channel(SIGNAL_QUEUE_CAPACITY);
         let inserted = {

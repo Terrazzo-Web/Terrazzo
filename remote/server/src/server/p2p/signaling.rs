@@ -284,7 +284,7 @@ impl Signaling {
         let mut shutdown = self.shutdown.subscribe();
         let timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
         tokio::pin!(timeout);
-        let mut notify_server = true;
+        let notify_server: bool;
         loop {
             let action = tokio::select! {
                 message = session.incoming.recv() =>

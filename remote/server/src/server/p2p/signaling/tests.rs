@@ -151,7 +151,7 @@ async fn shutdown_cancels_sessions_and_waiters() {
     });
     tokio::task::yield_now().await;
     signaling.shutdown();
-    assert!(waiter.await.unwrap().is_none());
+    assert!(waiter.await.unwrap().is_err());
     assert!(matches!(
         session.incoming.recv().await,
         Some(SignalMessage::Failure {

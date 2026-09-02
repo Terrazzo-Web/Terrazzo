@@ -2,7 +2,7 @@ use axum_extra::extract::CookieJar;
 use terrazzo::autoclone;
 use terrazzo::axum::Json;
 use terrazzo::axum::Router;
-use terrazzo::axum::response::IntoResponse as _;
+use terrazzo::axum::response::IntoResponse;
 use terrazzo::axum::routing::post;
 use terrazzo::http::HeaderMap;
 use terrazzo::http::StatusCode;

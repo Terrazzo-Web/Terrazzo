@@ -6,7 +6,7 @@ use terrazzo::axum::Router;
 use terrazzo::axum::body::Body;
 use terrazzo::axum::extract::Query;
 use terrazzo::axum::extract::State;
-use terrazzo::axum::response::IntoResponse as _;
+use terrazzo::axum::response::IntoResponse;
 use terrazzo::axum::routing::get;
 use terrazzo::axum::routing::post;
 use terrazzo::http::StatusCode;

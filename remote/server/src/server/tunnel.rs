@@ -7,7 +7,7 @@ use axum::extract::Path;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws;
 use axum::http::Uri;
-use axum::response::IntoResponse as _;
+use axum::response::IntoResponse;
 use bytes::Bytes;
 use hyper_util::rt::TokioIo;
 use nameth::NamedEnumValues as _;

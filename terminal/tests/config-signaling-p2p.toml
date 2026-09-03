@@ -1,0 +1,16 @@
+[server]
+host = "localhost"
+ports = [3199]
+trash = "~/.terrazzo/trash"
+tantivy_cache = ".tantivy-cache"
+search_index_refresh = "1h"
+search_index_stale_after = "5m"
+pidfile = "~/.terrazzo/terminal-3199.pid"
+private_root_ca = "~/.terrazzo/p2p-signaling-root_ca"
+token_lifetime = "5m"
+token_refresh = "4m 50s"
+config_file_watcher = true
+certificate_renewal_threshold = "30days"
+
+[server.config_file_poll_strategy]
+fixed = "15s"

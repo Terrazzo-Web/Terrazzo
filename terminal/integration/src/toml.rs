@@ -124,7 +124,8 @@ fixed = "1h"
 
 [mesh]
 client_name = "test-client"
-# This authority is used for target TLS only. It contains no target TCP port.
+# Used as the gateway's TLS hostname. WebRTC provides the connection,
+# so this URL intentionally does not specify a directly reachable TCP port.
 gateway_url = "https://localhost"
 gateway_pki = "{gateway_pki}"
 client_certificate = "{client_cert}"

@@ -8,7 +8,8 @@ same configured target authority, SNI override, trusted root, certificate
 enrollment, WebSocket tunnel, and gRPC services must remain in use above the
 transport.
 
-Add an end-to-end process test that starts terminal nodes in this topology:
+Add an end-to-end Playwright test under `terminal/tests` whose launcher starts
+terminal nodes in this topology:
 
 ```text
                                             outbound registration
@@ -157,7 +158,7 @@ before a WebRTC mesh client can connect to it.
     expected `ClientTransport::WebRtc` for P2P configuration. Configuration tests
     cover parsing/defaulting; the process test below covers the real connector.
 
-## Terminal process integration test
+## Terminal Playwright integration test
 
 12. Refactor `terminal/integration/src/server.rs` just enough to support three
     explicit roles without duplicating process management:
@@ -173,6 +174,15 @@ before a WebRTC mesh client can connect to it.
     Split the TOML helpers accordingly. Continue placing configs, endpoint files,
     logs, root CAs, client certificates, and pidfiles under the harness temp
     directory.
+
+    Add a dedicated launcher binary,
+    `terrazzo-terminal-integration-test-p2p-server`, in
+    `terminal/integration/Cargo.toml` and `terminal/integration/BUILD.bazel`.
+    Give it the same launcher arguments expected by `bazel/playwright_test.sh`
+    (`--server-bin`, `--port`, and `--set-current-endpoint`) so the existing
+    `playwright_matrix_test` rule can run it without special shell logic. Keep
+    shared child-process and TOML code in the integration library; the current
+    `:exec` binary remains the direct-mesh launcher.
 
 13. Give the signaling node and target gateway separate private roots. Wait for
     both dynamic listener endpoints and root certificates. Configure the target
@@ -221,16 +231,56 @@ before a WebRTC mesh client can connect to it.
     child cleanup so client, target gateway, and signaling node are stopped on
     every error path, and close the standalone STUN peer explicitly.
 
-19. Put this in a dedicated network-enabled integration target instead of adding
-    Google STUN to every Playwright run. Reuse the `terminal/integration` library
-    and terminal server binary data dependency. Tag the Bazel target as requiring
-    network access (and keep it out of offline/hermetic wildcard groups if that
-    is the repository convention); for Cargo, mark the Google-STUN test ignored
-    and document the exact `--ignored` invocation. Do not treat a missing
-    server-reflexive candidate as a skip in the network target: it must be a
-    failure with a clear outbound DNS/UDP diagnostic.
+19. Add the actual Playwright spec at
+    `terminal/tests/integration-test-p2p.spec.mjs`. The P2P launcher writes the
+    target gateway's browser endpoint to the `--set-current-endpoint` file, so
+    `BASE_URL` points at the target gateway UI, not at the signaling node or mesh
+    client. The spec must:
 
-20. Preserve the current direct two-node integration path as a separate test or
+    - load the gateway UI and open the Converter;
+    - assert the remote selector contains `test-client`, proving the client
+      tunnel registered with the gateway;
+    - select `test-client`, submit a unique JSON value, and assert the converted
+      result, exercising a remote server-function request and response across
+      the WebRTC tunnel;
+    - switch to `Local`, set a different value, then switch back and assert the
+      client-side value is preserved, which guards against accidentally serving
+      the request locally.
+
+    Reuse or extract the converter helpers from
+    `terminal/tests/integration-test-converter.spec.mjs` rather than introducing
+    selectors for a test-only endpoint. The test must exercise the shipped UI and
+    remote API path.
+
+20. Register a concrete debug/release Playwright matrix in
+    `terminal/BUILD.bazel`, for example:
+
+    ```starlark
+    playwright_matrix_test(
+        overrides = {
+            "p2p-integration-test-debug": {
+                "target_server": ":converter-server-debug",
+            },
+            "p2p-integration-test-release": {
+                "target_server": ":converter-server",
+                "tags": ["opt_mode"],
+            },
+        },
+        server = "//terminal/integration:p2p-exec",
+        test = "tests/integration-test-p2p.spec.mjs",
+        tags = ["network"],
+    )
+    ```
+
+    Use `p2p-exec` as the Bazel name for the dedicated launcher unless the BUILD
+    convention requires a different spelling, and keep the Playwright target
+    names shown above so the documented commands are real. The `network` tag
+    records that Google STUN requires outbound DNS/UDP; update the merge workflow
+    test filters if network tests need a separate CI job. Do not add Google STUN
+    to every Playwright run. Do not treat a missing server-reflexive candidate as
+    a skip: the P2P target must fail with a clear outbound DNS/UDP diagnostic.
+
+21. Preserve the current direct two-node integration path as a separate test or
     harness mode. This provides regression coverage for backward compatibility
     and prevents the P2P test from replacing validation of direct mesh transport.
 
@@ -242,10 +292,11 @@ before a WebRTC mesh client can connect to it.
    tunnel users share it.
 3. Add terminal gateway registration configuration and the
    `GatewayConfig::p2p_registration()` override.
-4. Refactor the integration harness into signaling, P2P gateway, and P2P client
-   roles while retaining its direct mode.
-5. Add the Google-STUN process test, certificate/root assertions, tunnel-ready
-   assertion, Bazel target/tags, and documented Cargo command.
+4. Refactor the integration harness into signaling, P2P gateway, and P2P
+   client roles, add the dedicated Playwright-compatible launcher, and retain
+   the existing direct launcher.
+5. Add `terminal/tests/integration-test-p2p.spec.mjs`, the Google-STUN and
+   certificate/root preconditions, and the concrete debug/release Bazel matrix.
 
 ## Validation
 
@@ -261,11 +312,22 @@ bazel test --test_output=errors //terminal:terminal-test
 bazel test --test_output=errors //terminal/integration:integration-test
 ```
 
-Use the actual target names introduced by the BUILD changes if they differ from
-the placeholders above. Then run the dedicated network test explicitly in an
-environment with outbound DNS and UDP access, repeat it enough times to expose
-registration/cleanup races, and finally run the repository-level validation
-required by `terminal/AGENTS.md`:
+Run the dedicated end-to-end Playwright targets explicitly in an environment
+with outbound DNS and UDP access:
+
+```sh
+bazel test --test_output=errors --verbose_failures \
+  //terminal:p2p-integration-test-debug
+bazel test --test_output=errors --verbose_failures -c opt \
+  //terminal:p2p-integration-test-release
+bazel test --test_output=errors --verbose_failures --runs_per_test=10 \
+  //terminal:p2p-integration-test-debug
+```
+
+The first two generic Rust/Bazel targets above validate the supporting unit
+tests; the named `p2p-integration-test-*` targets are the required end-to-end
+tests. After they pass, run the repository-level validation required by
+`terminal/AGENTS.md`:
 
 ```sh
 RUSTFLAGS="-A unused-crate-dependencies" cargo test --workspace --all-features
@@ -286,6 +348,10 @@ bazel run //bazel:buildifier_check
 - The dedicated test proves Google STUN produced a server-reflexive candidate,
   the client was never given the target TCP endpoint, and the two terminal nodes
   completed certificate enrollment and tunnel setup through WebRTC.
+- `terminal/tests/integration-test-p2p.spec.mjs` drives the real browser UI,
+  selects the remote client, and completes a request/response through that
+  client's WebRTC tunnel; certificate-file existence alone is not considered an
+  end-to-end success.
 - The issued client certificate is tied to the target gateway's PKI and expected
   client name, not the signaling node.
 - P2P processes, peer connections, and temporary files are cleaned up on success,

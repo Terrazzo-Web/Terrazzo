@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::p2p::GOOGLE_STUN;
+use trz_gateway_common::p2p::credential::Credential;
 use trz_gateway_common::p2p::peer_connection::IceServer;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 
@@ -51,18 +52,10 @@ impl P2pRegistrationConfig {
 }
 
 /// Credential attached to an outbound signaling registration request.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum P2pRegistrationAuthorization {
     /// HTTP `Authorization: Bearer ...` credential.
-    BearerToken(String),
-}
-
-impl std::fmt::Debug for P2pRegistrationAuthorization {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::BearerToken(_) => formatter.write_str("BearerToken([REDACTED])"),
-        }
-    }
+    BearerToken(Credential),
 }
 
 #[cfg(test)]

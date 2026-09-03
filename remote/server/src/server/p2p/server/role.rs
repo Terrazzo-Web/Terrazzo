@@ -220,10 +220,10 @@ fn registration_request(
         .extend(["p2p", "register", config.server_name.as_ref()]);
     let mut request = url.as_str().into_client_request()?;
     if let Some(P2pRegistrationAuthorization::BearerToken(token)) = &config.authorization {
-        let value = tungstenite::http::HeaderValue::from_str(&format!("Bearer {token}"))?;
-        request
-            .headers_mut()
-            .insert(tungstenite::http::header::AUTHORIZATION, value);
+        request.headers_mut().insert(
+            tungstenite::http::header::AUTHORIZATION,
+            tungstenite::http::HeaderValue::from_str(&format!("Bearer {}", token.as_string()))?,
+        );
     }
     Ok(request)
 }

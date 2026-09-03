@@ -43,7 +43,7 @@ impl std::fmt::Display for P2pConnectionId {
 }
 
 /// A WebRTC session description sent through signaling.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(tag = "type", content = "sdp", rename_all = "snake_case")]
 pub enum SessionDescription {
     /// An SDP offer.
@@ -63,7 +63,7 @@ impl SessionDescription {
 }
 
 /// The JSON representation of a trickled ICE candidate.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct IceCandidate {
     /// Candidate attribute from the SDP.
     pub candidate: String,
@@ -82,7 +82,7 @@ pub struct IceCandidate {
 }
 
 /// Stable machine-readable signaling failure categories.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FailureCode {
     /// A message failed protocol validation.
@@ -105,7 +105,7 @@ pub enum FailureCode {
 }
 
 /// Messages relayed over the signaling WebSockets.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SignalMessage {
     /// Must be the first message sent by either registering peer.
@@ -266,7 +266,7 @@ fn validate_bounded(
 }
 
 /// A signaling message failed validation.
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ValidationError {
     /// The peer uses an unsupported wire-protocol version.
     #[error("Unsupported signaling protocol version {0}")]

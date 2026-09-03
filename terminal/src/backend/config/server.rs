@@ -5,12 +5,12 @@ use serde::Deserialize;
 use serde::Serialize;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
+use trz_gateway_common::p2p::credential::Credential;
 
 use super::types::ConfigTypes;
 use super::types::Password;
 use super::types::RuntimeTypes;
 use crate::backend::config::p2p::IceServerConfig;
-use crate::backend::config::p2p::RedactedString;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
@@ -75,7 +75,7 @@ pub struct P2pRegistrationConfig<T: ConfigTypes = RuntimeTypes> {
 
     pub retry_strategy: T::RetryStrategy,
     pub handshake_timeout: T::Duration,
-    pub authorization_bearer_token: Option<RedactedString>,
+    pub authorization_bearer_token: Option<Credential>,
     pub max_sessions: Option<usize>,
 }
 

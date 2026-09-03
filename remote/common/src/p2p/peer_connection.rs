@@ -20,6 +20,7 @@ use webrtc::peer_connection::RTCIceServer;
 use webrtc::peer_connection::RTCPeerConnectionIceEvent;
 use webrtc::peer_connection::RTCSessionDescription;
 
+use super::credential::Credential;
 use super::data_channel_io::DataChannelIo;
 use super::protocol::IceCandidate;
 use super::protocol::SessionDescription;
@@ -33,7 +34,7 @@ pub const DATA_CHANNEL_SEND_BUFFER_LIMIT: usize = 16 * 1024 * 1024;
 const INCOMING_DATA_CHANNEL_CAPACITY: usize = 1;
 
 /// STUN or TURN configuration for a peer connection.
-#[derive(Clone, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct IceServer {
     /// STUN or TURN URLs.
     pub urls: Vec<String>,
@@ -42,20 +43,7 @@ pub struct IceServer {
     pub username: String,
 
     /// TURN credential, when required.
-    pub credential: String,
-}
-
-impl std::fmt::Debug for IceServer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IceServer")
-            .field("urls", &self.urls)
-            .field("username", &self.username)
-            .field(
-                "credential",
-                &(!self.credential.is_empty()).then_some("[REDACTED]"),
-            )
-            .finish()
-    }
+    pub credential: Credential,
 }
 
 impl From<IceServer> for RTCIceServer {
@@ -63,13 +51,13 @@ impl From<IceServer> for RTCIceServer {
         Self {
             urls: ice_server.urls,
             username: ice_server.username,
-            credential: ice_server.credential,
+            credential: ice_server.credential.into_string(),
         }
     }
 }
 
 /// Local ICE events that callers relay through the signaling server.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LocalIceEvent {
     /// One locally gathered candidate.
     Candidate(IceCandidate),
@@ -401,7 +389,7 @@ mod tests {
         let server = IceServer {
             urls: vec!["turn:turn.example".to_owned()],
             username: "user".to_owned(),
-            credential: "secret".to_owned(),
+            credential: "secret".to_owned().into(),
         };
         let debug = format!("{server:?}");
         assert!(debug.contains("[REDACTED]"));

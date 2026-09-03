@@ -1,4 +1,5 @@
 use std::path::Path;
+
 use trz_gateway_common::p2p::GOOGLE_STUN;
 
 pub fn server_toml(pid_file: &Path, _port: u16, root_ca: &Path, trash: &Path) -> String {

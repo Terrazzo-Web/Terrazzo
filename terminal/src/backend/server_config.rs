@@ -124,7 +124,7 @@ impl GatewayConfig for TerminalBackendServer {
             p2p.authorization = config
                 .authorization_bearer_token
                 .as_ref()
-                .map(|token| P2pRegistrationAuthorization::BearerToken(token.0.clone()));
+                .map(|token| P2pRegistrationAuthorization::BearerToken(token.clone()));
             p2p.max_sessions = config.max_sessions.unwrap_or(64);
             Some(p2p)
         })

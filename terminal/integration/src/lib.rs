@@ -220,7 +220,8 @@ fn verify_client_certificate(
         return Err("client certificate is not signed by the target gateway root".into());
     }
     let signaling_root = X509::from_pem(&std::fs::read(signaling_root_certificate)?)?;
-    if certificate.verify(&signaling_root.public_key()?)? {
+    let signaling_root_public_key = signaling_root.public_key()?;
+    if certificate.verify(&signaling_root_public_key)? {
         return Err("client certificate was unexpectedly signed by the signaling root".into());
     }
     let common_name = certificate

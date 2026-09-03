@@ -14,13 +14,20 @@ publish = false
 name = "terrazzo-terminal-integration-test-server"
 path = "src/exec.rs"
 
+[[bin]]
+name = "terrazzo-terminal-integration-test-p2p-server"
+path = "src/p2p_exec.rs"
+
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 libc = { workspace = true }
 nameth = { workspace = true }
+openssl = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+trz-gateway-common = { workspace = true }
 typed-builder = { workspace = true }
 
 [features]

@@ -33,7 +33,7 @@ pub const DATA_CHANNEL_SEND_BUFFER_LIMIT: usize = 16 * 1024 * 1024;
 const INCOMING_DATA_CHANNEL_CAPACITY: usize = 1;
 
 /// STUN or TURN configuration for a peer connection.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default, Eq, PartialEq)]
 pub struct IceServer {
     /// STUN or TURN URLs.
     pub urls: Vec<String>,
@@ -43,6 +43,19 @@ pub struct IceServer {
 
     /// TURN credential, when required.
     pub credential: String,
+}
+
+impl std::fmt::Debug for IceServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IceServer")
+            .field("urls", &self.urls)
+            .field("username", &self.username)
+            .field(
+                "credential",
+                &(!self.credential.is_empty()).then_some("[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 impl From<IceServer> for RTCIceServer {
@@ -382,6 +395,18 @@ mod tests {
     use tokio::time::Duration;
 
     use super::*;
+
+    #[test]
+    fn ice_server_debug_redacts_credentials() {
+        let server = IceServer {
+            urls: vec!["turn:turn.example".to_owned()],
+            username: "user".to_owned(),
+            credential: "secret".to_owned(),
+        };
+        let debug = format!("{server:?}");
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!debug.contains("secret"));
+    }
 
     #[tokio::test]
     async fn opens_reliable_channel_with_candidates_arriving_before_sdp() {

@@ -9,6 +9,8 @@ use tracing::info_span;
 use tracing::warn;
 use trz_gateway_client::client::AuthCode;
 use trz_gateway_client::client::config::ClientConfig;
+use trz_gateway_client::client::config::ClientTransport;
+use trz_gateway_client::client::config::P2pClientConfig;
 use trz_gateway_client::client::service::ClientService;
 use trz_gateway_client::load_client_certificate::load_client_certificate;
 use trz_gateway_client::tunnel_config::TunnelConfig;
@@ -48,6 +50,7 @@ pub struct AgentClientConfig {
     gateway_url: String,
     sni_override: Option<String>,
     gateway_pki: CachedTrustedStoreConfig,
+    transport: ClientTransport,
 }
 
 impl AgentTunnelConfig {
@@ -75,6 +78,26 @@ impl AgentTunnelConfig {
                     .inspect_err(|error| warn!("Failed to load Gateway PKI: {error}"))
                     .ok()?,
                 client_name,
+                transport: mesh
+                    .web_rtc
+                    .as_ref()
+                    .map(|web_rtc| {
+                        let mut config = P2pClientConfig::new(
+                            web_rtc.signaling_url.clone(),
+                            web_rtc.server_name.clone().into(),
+                        );
+                        config.ice_servers = web_rtc
+                            .ice_servers
+                            .clone()
+                            .into_iter()
+                            .map(Into::into)
+                            .collect();
+                        config.signaling_timeout = web_rtc.signaling_timeout;
+                        config.handshake_timeout = web_rtc.handshake_timeout;
+                        config.connect_timeout = web_rtc.connect_timeout;
+                        ClientTransport::WebRtc(config)
+                    })
+                    .unwrap_or_default(),
             };
 
             let auth_code = current_auth_code.lock().unwrap().clone();
@@ -113,6 +136,10 @@ impl ClientConfig for AgentTunnelConfig {
 
     fn sni_override(&self) -> Option<&str> {
         self.client_config.sni_override()
+    }
+
+    fn transport(&self) -> ClientTransport {
+        self.client_config.transport()
     }
 }
 
@@ -192,6 +219,10 @@ impl ClientConfig for AgentClientConfig {
 
     fn sni_override(&self) -> Option<&str> {
         self.sni_override.as_deref()
+    }
+
+    fn transport(&self) -> ClientTransport {
+        self.transport.clone()
     }
 }
 

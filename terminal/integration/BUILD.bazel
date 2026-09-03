@@ -5,7 +5,10 @@ package(default_visibility = ["//visibility:public"])
 rust_rules(
     name = "integration",
     crate_name = "terrazzo_integration_tests",
-    deps = ["//utils/nameth/nameth"],
+    deps = [
+        "//remote/common",
+        "//utils/nameth/nameth",
+    ],
 )
 
 rust_rules(
@@ -13,6 +16,16 @@ rust_rules(
     all_crate_deps = False,
     crate_name = "terrazzo_terminal_test_server",
     crate_root = "src/exec.rs",
+    generate_tests = False,
+    rule = "binary",
+    deps = [":integration"],
+)
+
+rust_rules(
+    name = "p2p-exec",
+    all_crate_deps = False,
+    crate_name = "terrazzo_terminal_test_p2p_server",
+    crate_root = "src/p2p_exec.rs",
     generate_tests = False,
     rule = "binary",
     deps = [":integration"],

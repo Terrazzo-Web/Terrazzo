@@ -9,6 +9,8 @@ use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use super::types::ConfigTypes;
 use super::types::Password;
 use super::types::RuntimeTypes;
+use crate::backend::config::p2p::IceServerConfig;
+use crate::backend::config::p2p::RedactedString;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
@@ -58,6 +60,23 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
 
     /// Certificates renewal strategy
     pub certificate_renewal_threshold: T::Duration,
+
+    /// Optional outbound WebRTC registration for serving this gateway behind NAT.
+    pub p2p_registration: Option<P2pRegistrationConfig<T>>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct P2pRegistrationConfig<T: ConfigTypes = RuntimeTypes> {
+    pub signaling_url: T::String,
+    pub server_name: T::String,
+
+    #[serde(default)]
+    pub ice_servers: Vec<IceServerConfig>,
+
+    pub retry_strategy: T::RetryStrategy,
+    pub handshake_timeout: T::Duration,
+    pub authorization_bearer_token: Option<RedactedString>,
+    pub max_sessions: Option<usize>,
 }
 
 #[derive(Clone)]

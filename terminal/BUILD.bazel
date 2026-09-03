@@ -129,6 +129,22 @@ playwright_matrix_test(
 )
 
 playwright_matrix_test(
+    env = {"SERVER_STARTUP_TIMEOUT_SECONDS": "90"},
+    overrides = {
+        "p2p-integration-test-debug": {
+            "target_server": ":converter-server-debug",
+        },
+        "p2p-integration-test-release": {
+            "target_server": ":converter-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:p2p-exec",
+    tags = ["network"],
+    test = "tests/integration-test-p2p.spec.mjs",
+)
+
+playwright_matrix_test(
     overrides = {
         "terminal-integration-test-debug": {
             "target_server": ":terminal-server-debug",

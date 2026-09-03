@@ -9,16 +9,16 @@ use serde::Serialize;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 
 pub trait ConfigTypes: Clone {
-    type String: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type MaybeString: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type Path: Serialize + for<'t> Deserialize<'t> + Debug;
-    type MaybePath: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type MaybeBool: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type Port: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type Ports: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type Duration: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type RetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default;
-    type MaybeRetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default;
+    type String: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type MaybeString: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type Path: Serialize + for<'t> Deserialize<'t> + Debug + Clone;
+    type MaybePath: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type MaybeBool: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type Port: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type Ports: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type Duration: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type RetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
+    type MaybeRetryStrategy: Serialize + for<'t> Deserialize<'t> + Debug + Default + Clone;
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

@@ -1,0 +1,37 @@
+[server]
+host = "localhost"
+ports = [3200]
+terminal-shell = 'echo "Welcome to the P2P Test Environment"; exec /bin/bash -i'
+trash = "~/.terrazzo/trash"
+git_trash = ".trash"
+tantivy_cache = ".tantivy-cache"
+search_index_refresh = "1h"
+search_index_stale_after = "5m"
+pidfile = "~/.terrazzo/terminal-3200.pid"
+private_root_ca = "~/.terrazzo/p2p-server-root_ca"
+token_lifetime = "5m"
+token_refresh = "4m 50s"
+config_file_watcher = true
+certificate_renewal_threshold = "30days"
+
+[server.password]
+hash = "EmTj8N0K+IpeVVQjxCMh5ICqzoE"
+iterations = 60000
+salt = "0XLI0FAgSAeJ3uRiqjsQUQ"
+
+[server.config_file_poll_strategy]
+fixed = "5s"
+
+[server.p2p_registration]
+signaling_url = "http://localhost:3199"
+server_name = "terrazzo-terminal-p2p-test"
+handshake_timeout = "30s"
+max_sessions = 8
+
+[[server.p2p_registration.ice_servers]]
+urls = ["stun:stun.l.google.com:19302"]
+username = ""
+credential = ""
+
+[server.p2p_registration.retry_strategy]
+fixed = "1s"

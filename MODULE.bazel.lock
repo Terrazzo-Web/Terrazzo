@@ -522,8 +522,8 @@
           "REPO_MAPPING:rules_rust+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_rust+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
-          "FILE:@@//Cargo.lock 58c07b41ad18778f6a9ffc99b9960c6155168e65897e5ec42482c4b138e517de",
-          "FILE:@@//Cargo.toml 8cef26d5b3e8d5b28ece36397a02978246d904652a61c0001c3a615c9b119c02",
+          "FILE:@@//Cargo.lock 51d30befe25875d6463bcbabdcf0ef843af0a6276608628aa74a4df8c66dfe04",
+          "FILE:@@//Cargo.toml ae96486a8991f0de9a673d9a3874b9ab05f6d6fdfa4d689777dd1ce80ecff777",
           "FILE:@@//bazel/crate_universe_deps/Cargo.toml 41e9d7019f4194e188662e61442d09bdb5c1aae005c56dedb93f41789b1001a6",
           "FILE:@@//bazel/feature_deps/Cargo.toml 28f7ae00a8fdfac9a44091296c1c437426fd6cd9b79a230bc56af4cde68902a7",
           "FILE:@@//utils/nameth/nameth/Cargo.toml 901f39913de1ba25b26ff4551057daf312ea61903456d94706677370a56cf79e",
@@ -551,10 +551,10 @@
           "FILE:@@//utils/synctex/cli/Cargo.toml 51adf1c91020b36cd52296497f9e4274dd518a11a55116c7b1538c1d405ee061",
           "FILE:@@//utils/synctex/synctex/Cargo.toml 1b0d85044dd13b092e9e1b5c1c3fd436c60ca84d02e0d3730f7768aec1af3bb7",
           "FILE:@@//utils/synctex/sys/Cargo.toml 1d404ddbd2858c7d7dcbbb4dc98d0143597c47ab1f005b39e4b7aa3d6309cfd6",
-          "FILE:@@//bazel/client_server_modules/generated.crates_server_plain.lock 58c07b41ad18778f6a9ffc99b9960c6155168e65897e5ec42482c4b138e517de",
-          "FILE:@@//bazel/client_server_modules/generated.crates_client_plain.lock 58c07b41ad18778f6a9ffc99b9960c6155168e65897e5ec42482c4b138e517de",
-          "FILE:@@//bazel/client_server_modules/generated.crates_server_opt.lock 58c07b41ad18778f6a9ffc99b9960c6155168e65897e5ec42482c4b138e517de",
-          "FILE:@@//bazel/client_server_modules/generated.crates_client_opt.lock 58c07b41ad18778f6a9ffc99b9960c6155168e65897e5ec42482c4b138e517de"
+          "FILE:@@//bazel/client_server_modules/generated.crates_server_plain.lock 51d30befe25875d6463bcbabdcf0ef843af0a6276608628aa74a4df8c66dfe04",
+          "FILE:@@//bazel/client_server_modules/generated.crates_client_plain.lock 51d30befe25875d6463bcbabdcf0ef843af0a6276608628aa74a4df8c66dfe04",
+          "FILE:@@//bazel/client_server_modules/generated.crates_server_opt.lock 51d30befe25875d6463bcbabdcf0ef843af0a6276608628aa74a4df8c66dfe04",
+          "FILE:@@//bazel/client_server_modules/generated.crates_client_opt.lock 51d30befe25875d6463bcbabdcf0ef843af0a6276608628aa74a4df8c66dfe04"
         ],
         "generatedRepoSpecs": {
           "crates": {

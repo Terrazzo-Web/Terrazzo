@@ -29,7 +29,8 @@ pub fn init_tracing() -> Result<(), EnableTracingError> {
         .with_target(false);
 
     let subscriber = tracing_subscriber::registry().with(if cfg!(feature = "max-level-info") {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("info,rtc=warn,rtc_ice=warn"))
     } else {
         EnvFilter::try_from_default_env()
             .unwrap_or_else(|_| EnvFilter::new("debug,tower=info,h2=info,hyper_util=info"))

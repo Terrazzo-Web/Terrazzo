@@ -16,6 +16,8 @@ use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+use tracing::info;
+use tracing::warn;
 use trz_gateway_common::p2p::data_channel_io::DataChannelIo;
 use trz_gateway_common::p2p::peer_connection::LocalIceEvent;
 use trz_gateway_common::p2p::peer_connection::PeerConnection;
@@ -37,7 +39,14 @@ const MAX_SIGNAL_MESSAGE_SIZE: usize = MAX_SDP_LEN + 64 * 1024;
 pub(crate) async fn connect(config: &P2pClientConfig) -> Result<P2pStream, P2pConnectError> {
     tokio::time::timeout(config.connect_timeout, connect_inner(config))
         .await
-        .map_err(|_| P2pConnectError::Timeout("complete P2P connection"))?
+        .inspect(|result| match result {
+            Ok(_p2p_stream) => info!("Got P2P connection"),
+            Err(error) => warn!("Failed to create P2P connection: {error}"),
+        })
+        .map_err(|timeout: tokio::time::error::Elapsed| {
+            warn!("Timed out creating P2P connection: {timeout}");
+            P2pConnectError::Timeout("complete P2P connection")
+        })?
 }
 
 async fn connect_inner(config: &P2pClientConfig) -> Result<P2pStream, P2pConnectError> {
@@ -45,12 +54,14 @@ async fn connect_inner(config: &P2pClientConfig) -> Result<P2pStream, P2pConnect
     let websocket_config = tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(MAX_SIGNAL_MESSAGE_SIZE))
         .max_frame_size(Some(MAX_SIGNAL_MESSAGE_SIZE));
-    let (mut socket, _) = tokio::time::timeout(
+    let (socket, _) = tokio::time::timeout(
         config.signaling_timeout,
         connect_async_with_config(request, Some(websocket_config), false),
     )
     .await
     .map_err(|_| P2pConnectError::Timeout("signaling WebSocket"))??;
+    info!("Opened signaling websocket");
+    let mut socket = scopeguard::guard(socket, |_| info!("Closing signaling websocket"));
     send_signal(
         &mut socket,
         &SignalMessage::Hello {

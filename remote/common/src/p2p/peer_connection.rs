@@ -389,7 +389,7 @@ mod tests {
         let server = IceServer {
             urls: vec!["turn:turn.example".to_owned()],
             username: "user".to_owned(),
-            credential: "secret".to_owned().into(),
+            credential: "secret".into(),
         };
         let debug = format!("{server:?}");
         assert!(debug.contains("[REDACTED]"));

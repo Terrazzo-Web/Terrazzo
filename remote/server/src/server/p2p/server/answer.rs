@@ -16,7 +16,7 @@ use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
 use super::error::P2pServerError;
-use super::role::P2pServerStream;
+use super::role::stream::P2pServerStream;
 use crate::server::Server;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
 

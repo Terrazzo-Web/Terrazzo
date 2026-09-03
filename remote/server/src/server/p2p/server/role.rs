@@ -1,7 +1,4 @@
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::Context;
-use std::task::Poll;
 use std::time::Instant;
 
 use futures::FutureExt as _;
@@ -11,10 +8,6 @@ use hyper_util::rt::TokioIo;
 use hyper_util::rt::TokioTimer;
 use hyper_util::server::conn::auto;
 use hyper_util::service::TowerToHyperService;
-use tokio::io::AsyncRead;
-use tokio::io::AsyncWrite;
-use tokio::io::ReadBuf;
-use tokio::sync::OwnedSemaphorePermit;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite;
@@ -24,14 +17,13 @@ use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_common::p2p::data_channel_io::DataChannelIo;
-use trz_gateway_common::p2p::peer_connection::PeerConnection;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 use url::Url;
 
 use self::registration::Registration;
+use self::stream::P2pServerStream;
 use super::error::P2pServerError;
 use crate::server::HTTP_TIMEOUT;
 use crate::server::Server;
@@ -39,6 +31,7 @@ use crate::server::gateway_config::p2p::P2pRegistrationAuthorization;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
 
 mod registration;
+pub mod stream;
 
 const REGISTRATION_QUEUE_CAPACITY: usize = 128;
 const SESSION_QUEUE_CAPACITY: usize = 64;
@@ -104,76 +97,6 @@ impl Server {
             .serve_connection_with_upgrades(TokioIo::new(tls), service)
             .await
             .map_err(P2pServerError::ServeHttp)
-    }
-}
-
-/// Keeps the peer and session permit alive after Hyper transfers the IO to an
-/// upgraded WebSocket task. The HTTP future completes when the upgrade occurs,
-/// before the tunnel using the byte stream has finished.
-pub(super) struct P2pServerStream {
-    io: DataChannelIo,
-    peer: Option<PeerConnection>,
-    _permit: OwnedSemaphorePermit,
-}
-
-impl P2pServerStream {
-    pub(super) fn new(
-        io: DataChannelIo,
-        peer: PeerConnection,
-        permit: OwnedSemaphorePermit,
-    ) -> Self {
-        Self {
-            io,
-            peer: Some(peer),
-            _permit: permit,
-        }
-    }
-}
-
-impl Drop for P2pServerStream {
-    fn drop(&mut self) {
-        let Some(peer) = self.peer.take() else {
-            return;
-        };
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(async move {
-                let _ = peer.close().await;
-            });
-        }
-    }
-}
-
-impl AsyncRead for P2pServerStream {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.io).poll_read(context, buffer)
-    }
-}
-
-impl AsyncWrite for P2pServerStream {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.io).poll_write(context, buffer)
-    }
-
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.io).poll_flush(context)
-    }
-
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.io).poll_shutdown(context)
     }
 }
 

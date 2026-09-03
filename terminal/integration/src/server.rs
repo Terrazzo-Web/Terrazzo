@@ -17,7 +17,9 @@ use tracing::warn;
 use typed_builder::TypedBuilder;
 
 use crate::RunError;
+use crate::toml::client_p2p_toml;
 use crate::toml::client_toml;
+use crate::toml::server_p2p_toml;
 use crate::toml::server_toml;
 use crate::wait_until;
 
@@ -78,7 +80,18 @@ pub struct ServerProperties {
 
 pub enum Mode {
     Gateway,
-    Client { gateway_endpoint: String },
+    Client {
+        gateway_endpoint: String,
+    },
+    GatewayP2p {
+        signaling_endpoint: String,
+        server_name: String,
+    },
+    ClientP2p {
+        signaling_endpoint: String,
+        server_name: String,
+        gateway_pki: PathBuf,
+    },
 }
 
 impl Deref for ServerProperties {
@@ -139,6 +152,30 @@ impl Server {
                 &properties.root_ca.with_added_extension("cert"),
                 &client_cert_file,
                 gateway_endpoint,
+                &trash,
+            ),
+            Mode::GatewayP2p {
+                signaling_endpoint,
+                server_name,
+            } => server_p2p_toml(
+                &pid_file,
+                properties.port,
+                &properties.root_ca,
+                &trash,
+                signaling_endpoint,
+                server_name,
+            ),
+            Mode::ClientP2p {
+                signaling_endpoint,
+                server_name,
+                gateway_pki,
+            } => client_p2p_toml(
+                &pid_file,
+                &properties.root_ca,
+                gateway_pki,
+                &client_cert_file,
+                signaling_endpoint,
+                server_name,
                 &trash,
             ),
         };
@@ -239,6 +276,17 @@ impl Server {
                 true => Poll::Ready(Ok(())),
                 false => Poll::Pending,
             }
+        })
+    }
+
+    pub fn wait_for_log_line(&self, patterns: &[&str]) -> Result<(), RunError> {
+        wait_until(&format!("log line containing {patterns:?}"), || match self
+            .log_contents()
+            .lines()
+            .any(|line| patterns.iter().all(|pattern| line.contains(pattern)))
+        {
+            true => Poll::Ready(Ok(())),
+            false => Poll::Pending,
         })
     }
 

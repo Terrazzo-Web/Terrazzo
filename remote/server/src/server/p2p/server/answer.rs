@@ -16,6 +16,7 @@ use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 
 use super::error::P2pServerError;
+use super::role::stream::P2pServerStream;
 use crate::server::Server;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
 
@@ -175,8 +176,8 @@ impl AnswerSession {
         let connection = opened.map_err(P2pServerError::SessionTask)??;
         let server = self.server.clone();
         let shutdown = server.shutdown.clone();
-        let peer = peer.clone();
         let permit = self.permit.take().expect("session permit");
+        let connection = P2pServerStream::new(connection, peer.clone(), permit);
         tokio::spawn(
             async move {
                 tokio::select! {
@@ -187,8 +188,6 @@ impl AnswerSession {
                     }
                     () = shutdown => {}
                 }
-                let _ = peer.close().await;
-                drop(permit);
             }
             .in_current_span(),
         );

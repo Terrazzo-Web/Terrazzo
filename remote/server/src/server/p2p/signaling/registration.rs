@@ -6,8 +6,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
+use axum::http::StatusCode;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
+use tracing::debug;
+use tracing::warn;
 use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::SignalMessage;
@@ -48,19 +51,20 @@ impl Registration {
         }
     }
 
-    pub fn create_session(self: &Arc<Self>) -> Result<Session, ()> {
+    pub fn create_session(self: &Arc<Self>) -> Result<Session, StatusCode> {
         if !self.active.load(Ordering::Acquire) {
-            return Err(());
+            return Err(StatusCode::TOO_MANY_REQUESTS);
         }
-        if self
+        let () = self
             .pending_sessions
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |count| {
                 (count < MAX_PENDING_SESSIONS).then_some(count + 1)
             })
-            .is_err()
-        {
-            return Err(());
-        }
+            .map(|count| debug!("Acquired a session: {count} <= {MAX_PENDING_SESSIONS}"))
+            .map_err(|count| {
+                warn!("Too many sessions: {count} >= {MAX_PENDING_SESSIONS}");
+                StatusCode::TOO_MANY_REQUESTS
+            })?;
         let connection_id = P2pConnectionId::new();
         let (sender, incoming) = mpsc::channel(SIGNAL_QUEUE_CAPACITY);
         let inserted = {
@@ -74,7 +78,7 @@ impl Registration {
         };
         if !inserted {
             self.pending_sessions.fetch_sub(1, Ordering::AcqRel);
-            return Err(());
+            return Err(StatusCode::TOO_MANY_REQUESTS);
         }
         Ok(Session {
             connection_id,

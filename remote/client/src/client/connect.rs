@@ -35,6 +35,7 @@ use super::config::ClientTransport;
 use super::config::SniOverrideError;
 use super::config::set_sni_override;
 use super::connection::Connection;
+use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
 
 impl super::Client {
@@ -62,6 +63,7 @@ impl super::Client {
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
         let socket = connect_transport(&self.transport, &request, disable_nagle, timeout).await?;
+        let (socket, force_close) = ForceCloseIo::new(socket);
         let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             tls_request,
             socket,
@@ -129,10 +131,15 @@ impl super::Client {
         serving.take().map(|serving| serving.send(()));
 
         let shutdown = futures::future::select(shutdown, unhealthy_rx)
-            .map(|signal| match signal {
-                Either::Left(((), _)) => info!("Shutdown signal"),
-                Either::Right((Ok(()), _)) => info!("Unhealthy signal"),
-                Either::Right((Err(RecvError { .. }), _)) => warn!("Unhealthy signal dropped"),
+            .map(move |signal| {
+                match signal {
+                    Either::Left(((), _)) => info!("Shutdown signal"),
+                    Either::Right((Ok(()), _)) => info!("Unhealthy signal"),
+                    Either::Right((Err(RecvError { .. }), _)) => {
+                        warn!("Unhealthy signal dropped")
+                    }
+                }
+                force_close.close();
             })
             .in_current_span();
         let () = grpc_server

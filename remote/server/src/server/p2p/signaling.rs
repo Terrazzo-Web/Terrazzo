@@ -1,6 +1,7 @@
 //! In-memory signaling registry and WebSocket relays.
 
 use std::collections::HashMap;
+use std::pin::pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicU64;
@@ -11,7 +12,6 @@ use std::time::Duration;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws;
 use axum::http::StatusCode;
-use axum::response::IntoResponse as _;
 use axum::response::Response;
 use futures::SinkExt as _;
 use tokio::sync::mpsc;
@@ -22,6 +22,7 @@ use tracing::warn;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
+use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
@@ -99,22 +100,16 @@ impl Signaling {
         self: Arc<Self>,
         server_name: ClientName,
         web_socket: WebSocketUpgrade,
-    ) -> Response {
-        let registration = match tokio::time::timeout(
+    ) -> Result<Response, StatusCode> {
+        let registration = tokio::time::timeout(
             REGISTRATION_WAIT_TIMEOUT,
             self.wait_for_registration(server_name.clone()),
         )
         .await
-        {
-            Ok(Some(registration)) => registration,
-            Ok(None) => return StatusCode::SERVICE_UNAVAILABLE.into_response(),
-            Err(_) => return StatusCode::NOT_FOUND.into_response(),
-        };
-        let session = match registration.create_session() {
-            Ok(session) => session,
-            Err(()) => return StatusCode::TOO_MANY_REQUESTS.into_response(),
-        };
-        web_socket
+        .map_err(|tokio::time::error::Elapsed { .. }| StatusCode::NOT_FOUND)
+        .flatten()?;
+        let session = registration.create_session()?;
+        Ok(web_socket
             .max_message_size(MAX_SIGNAL_MESSAGE_SIZE)
             .on_upgrade(move |socket| {
                 let span = info_span!(
@@ -124,7 +119,7 @@ impl Signaling {
                     registration_generation = session.registration.generation,
                 );
                 self.serve_client(session, socket).instrument(span)
-            })
+            }))
     }
 
     fn install_registration(
@@ -181,11 +176,11 @@ impl Signaling {
     async fn wait_for_registration(
         self: &Arc<Self>,
         server_name: ClientName,
-    ) -> Option<Arc<Registration>> {
+    ) -> Result<Arc<Registration>, StatusCode> {
         let mut receiver = {
             let mut state = self.state.lock().expect("signaling state");
             if let Some(registration) = state.registrations.get(&server_name) {
-                return Some(registration.clone());
+                return Ok(registration.clone());
             }
             let waiters = state.waiters.entry(server_name.clone()).or_default();
             waiters.count += 1;
@@ -198,15 +193,27 @@ impl Signaling {
         let mut shutdown = self.shutdown.subscribe();
         loop {
             if let Some(registration) = receiver.borrow_and_update().clone() {
-                return Some(registration);
+                return Ok(registration);
             }
-            tokio::select! {
-                changed = receiver.changed() => changed.ok()?,
-                changed = shutdown.changed() => {
-                    if changed.is_err() || *shutdown.borrow() {
-                        return None;
+
+            use futures::future::Either;
+            use futures::future::select;
+
+            match select(pin!(receiver.changed()), pin!(shutdown.changed())).await {
+                Either::Left((receiver_changed, _shutdown_changed)) => {
+                    if receiver_changed.is_err() {
+                        return Err(StatusCode::SERVICE_UNAVAILABLE);
+                    }
+                    continue;
+                }
+                Either::Right((shutdown_changed, _receiver_changed)) => {
+                    if shutdown_changed.is_err() {
+                        return Err(StatusCode::SERVICE_UNAVAILABLE);
                     }
                 }
+            }
+            if *shutdown.borrow() {
+                return Err(StatusCode::SERVICE_UNAVAILABLE);
             }
         }
     }
@@ -277,59 +284,30 @@ impl Signaling {
         let mut shutdown = self.shutdown.subscribe();
         let timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
         tokio::pin!(timeout);
-        let mut notify_server = true;
+        let notify_server: bool;
         loop {
-            tokio::select! {
-                message = session.incoming.recv() => match message {
-                    Some(message) => {
-                        let done = matches!(
-                            message,
-                            SignalMessage::Cancel { .. } | SignalMessage::Failure { .. }
-                        );
-                        if send_json(&mut socket, &message).await.is_err() || done {
-                            notify_server = false;
-                            break;
-                        }
-                    }
-                    None => {
-                        notify_server = false;
-                        break;
-                    }
-                },
-                message = socket.recv() => match message {
-                    Some(Ok(message)) => match parse_session_message(message) {
-                        Ok(message)
-                            if valid_client_message(&message)
-                                && message.connection_id() == Some(connection_id) =>
-                        {
-                            let done = matches!(
-                                message,
-                                SignalMessage::Cancel { .. } | SignalMessage::Failure { .. }
-                            );
-                            if session.registration.outgoing.send(message).await.is_err() || done {
-                                notify_server = false;
-                                break;
-                            }
-                        }
-                        _ => break,
-                    },
-                    _ => break,
-                },
-                () = &mut timeout => {
-                    let failure = SignalMessage::Failure {
+            let action = tokio::select! {
+                message = session.incoming.recv() =>
+                    relay_server_message_to_client(message, &mut socket).await,
+                message = socket.recv() =>
+                    relay_client_message_to_server(
+                        message,
                         connection_id,
-                        code: FailureCode::NegotiationFailed,
-                        detail: "WebRTC handshake timed out; configure TURN when no direct ICE pair is viable".into(),
-                    };
-                    let _ = send_json(&mut socket, &failure).await;
-                    let _ = session.registration.outgoing.send(failure).await;
-                    notify_server = false;
+                        &session.registration,
+                    ).await,
+                () = &mut timeout =>
+                    handle_client_handshake_timeout(
+                        connection_id,
+                        &session.registration,
+                        &mut socket,
+                    ).await,
+                changed = shutdown.changed() => handle_client_shutdown(changed, &shutdown),
+            };
+            match action {
+                ClientLoopAction::Continue => {}
+                ClientLoopAction::Stop { notify } => {
+                    notify_server = notify;
                     break;
-                }
-                changed = shutdown.changed() => {
-                    if changed.is_err() || *shutdown.borrow() {
-                        break;
-                    }
                 }
             }
         }
@@ -357,6 +335,81 @@ impl Signaling {
         for registration in registrations {
             registration.cancel(FailureCode::PeerDisconnected, "Signaling server shut down");
         }
+    }
+}
+
+enum ClientLoopAction {
+    Continue,
+    Stop { notify: bool },
+}
+
+async fn relay_server_message_to_client(
+    message: Option<SignalMessage>,
+    socket: &mut ws::WebSocket,
+) -> ClientLoopAction {
+    let Some(message) = message else {
+        return ClientLoopAction::Stop { notify: false };
+    };
+    let done = matches!(
+        message,
+        SignalMessage::Cancel { .. } | SignalMessage::Failure { .. }
+    );
+    if send_json(socket, &message).await.is_err() || done {
+        ClientLoopAction::Stop { notify: false }
+    } else {
+        ClientLoopAction::Continue
+    }
+}
+
+async fn relay_client_message_to_server(
+    message: Option<Result<ws::Message, axum::Error>>,
+    connection_id: P2pConnectionId,
+    registration: &Registration,
+) -> ClientLoopAction {
+    let Some(Ok(message)) = message else {
+        return ClientLoopAction::Stop { notify: true };
+    };
+    let Ok(message) = parse_session_message(message) else {
+        return ClientLoopAction::Stop { notify: true };
+    };
+    if !valid_client_message(&message) || message.connection_id() != Some(connection_id) {
+        return ClientLoopAction::Stop { notify: true };
+    }
+    let done = matches!(
+        message,
+        SignalMessage::Cancel { .. } | SignalMessage::Failure { .. }
+    );
+    if registration.outgoing.send(message).await.is_err() || done {
+        ClientLoopAction::Stop { notify: false }
+    } else {
+        ClientLoopAction::Continue
+    }
+}
+
+async fn handle_client_handshake_timeout(
+    connection_id: P2pConnectionId,
+    registration: &Registration,
+    socket: &mut ws::WebSocket,
+) -> ClientLoopAction {
+    let failure = SignalMessage::Failure {
+        connection_id,
+        code: FailureCode::NegotiationFailed,
+        detail: "WebRTC handshake timed out; configure TURN when no direct ICE pair is viable"
+            .into(),
+    };
+    let _ = send_json(socket, &failure).await;
+    let _ = registration.outgoing.send(failure).await;
+    ClientLoopAction::Stop { notify: false }
+}
+
+fn handle_client_shutdown(
+    changed: Result<(), watch::error::RecvError>,
+    shutdown: &watch::Receiver<bool>,
+) -> ClientLoopAction {
+    if changed.is_err() || *shutdown.borrow() {
+        ClientLoopAction::Stop { notify: true }
+    } else {
+        ClientLoopAction::Continue
     }
 }
 

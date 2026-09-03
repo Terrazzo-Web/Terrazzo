@@ -97,7 +97,7 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
 }
 
 /// Network transport used to reach the Gateway.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ClientTransport {
     /// Connect directly to the host and port in [`ClientConfig::base_url`].
     #[default]
@@ -108,7 +108,7 @@ pub enum ClientTransport {
 }
 
 /// Client-side WebRTC signaling and ICE configuration.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct P2pClientConfig {
     /// Public signaling server base URL.
     pub signaling_url: String,

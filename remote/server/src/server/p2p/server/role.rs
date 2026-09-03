@@ -17,13 +17,13 @@ use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_common::p2p::data_channel_io::DataChannelIo;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SignalMessage;
 use url::Url;
 
 use self::registration::Registration;
+use self::stream::P2pServerStream;
 use super::error::P2pServerError;
 use crate::server::HTTP_TIMEOUT;
 use crate::server::Server;
@@ -31,6 +31,7 @@ use crate::server::gateway_config::p2p::P2pRegistrationAuthorization;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
 
 mod registration;
+pub mod stream;
 
 const REGISTRATION_QUEUE_CAPACITY: usize = 128;
 const SESSION_QUEUE_CAPACITY: usize = 64;
@@ -79,7 +80,7 @@ impl Server {
     /// Serves the gateway's existing TLS and Axum stack on one reliable channel.
     pub(super) async fn serve_p2p_connection(
         self: Arc<Self>,
-        connection: DataChannelIo,
+        connection: P2pServerStream,
     ) -> Result<(), P2pServerError> {
         let tls = self.p2p_tls_server.accept(connection).await?;
         let service = TowerToHyperService::new(self.make_app());
@@ -93,7 +94,7 @@ impl Server {
             .timer(TokioTimer::new())
             .keep_alive_timeout(HTTP_TIMEOUT);
         builder
-            .serve_connection(TokioIo::new(tls), service)
+            .serve_connection_with_upgrades(TokioIo::new(tls), service)
             .await
             .map_err(P2pServerError::ServeHttp)
     }
@@ -142,10 +143,10 @@ fn registration_request(
         .extend(["p2p", "register", config.server_name.as_ref()]);
     let mut request = url.as_str().into_client_request()?;
     if let Some(P2pRegistrationAuthorization::BearerToken(token)) = &config.authorization {
-        let value = tungstenite::http::HeaderValue::from_str(&format!("Bearer {token}"))?;
-        request
-            .headers_mut()
-            .insert(tungstenite::http::header::AUTHORIZATION, value);
+        request.headers_mut().insert(
+            tungstenite::http::header::AUTHORIZATION,
+            tungstenite::http::HeaderValue::from_str(&format!("Bearer {}", token.as_string()))?,
+        );
     }
     Ok(request)
 }

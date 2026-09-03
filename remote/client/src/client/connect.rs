@@ -12,6 +12,7 @@ use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use reqwest::Url;
+use scopeguard::defer;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
 use tokio::net::TcpStream;
@@ -23,6 +24,7 @@ use tonic::transport::Server;
 use tracing::Span;
 use tracing::debug;
 use tracing::info;
+use tracing::info_span;
 use tracing::warn;
 use tracing_futures::Instrument as _;
 use trz_gateway_common::id::CLIENT_ID_HEADER;
@@ -62,7 +64,9 @@ impl super::Client {
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout).await?;
+        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout)
+            .instrument(info_span!("Connect Transport"))
+            .await?;
         let (socket, force_close) = ForceCloseIo::new(socket);
         let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             tls_request,
@@ -246,6 +250,9 @@ async fn connect_transport(
     disable_nagle: bool,
     timeout: Duration,
 ) -> Result<Box<dyn TransportIo>, ConnectError> {
+    let start = Instant::now();
+    info!("Start");
+    defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
     match transport {
         ClientTransport::Direct => Ok(Box::new(
             connect_tcp(request, disable_nagle)

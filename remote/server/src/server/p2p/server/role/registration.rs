@@ -10,6 +10,7 @@ use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::Instrument as _;
+use tracing::info;
 use tracing::info_span;
 use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::MAX_FAILURE_DETAIL_LEN;
@@ -62,6 +63,7 @@ impl Registration {
                     let Some(outgoing) = outgoing else {
                         return Ok(());
                     };
+                    info!("Sending {outgoing:?}");
                     send_signal(&mut socket, &outgoing).await?;
                 }
                 incoming = socket.next() => {
@@ -81,9 +83,11 @@ impl Registration {
                             ));
                         }
                     };
+                    info!("Received {message:?}");
                     self.handle_message(message).await?;
                 }
                 done = self.done_rx.recv() => {
+                    info!("Done");
                     if let Some(done) = done {
                         self.sessions.remove(&done);
                     }

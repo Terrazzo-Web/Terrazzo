@@ -85,7 +85,7 @@ axum-server = { version = "0.8.0" }
 base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.1" }
 bytes = { version = "1.12.1" }
-cc = { version = "1.4.4" }
+cc = { version = "1.4.5" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.6", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -154,7 +154,7 @@ tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.20" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.53.1" }
-tokio-rustls = { version = "0.26.4" }
+tokio-rustls = { version = "0.26.5" }
 tokio-stream = { version = "0.1.19", features = ["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
 tokio-util = { version = "0.7.19" }
@@ -180,7 +180,7 @@ wasm-bindgen-futures = { version = "0.4.77" }
 wasm-bindgen-test = { version = "0.3.77" }
 wasm-streams = { version = "0.5.0" }
 web-sys = { version = "0.3.104" }
-webrtc = { version = "0.20.4", default-features = false, features = [
+webrtc = { version = "0.20.5", default-features = false, features = [
   "runtime-tokio",
 ] }
 winnow = { version = "1.0.4" }

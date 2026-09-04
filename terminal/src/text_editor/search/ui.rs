@@ -10,6 +10,7 @@ use std::time::Duration;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::channel::oneshot;
+use futures::channel::oneshot::Canceled;
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
@@ -157,15 +158,40 @@ fn do_search(
     input: ElementCapture<HtmlInputElement>,
 ) -> impl Fn() {
     let cancel_last = Mutex::new(oneshot::channel().0);
-    let callback =
-        move |cancel_rx| do_search_impl(manager.clone(), base.clone(), input.clone(), cancel_rx);
+    let callback = move |cancel_rx| {
+        #[derive(Debug)]
+        enum CancelStatus {
+            Timeout,
+            TimeoutError,
+            Canceled,
+            Dropped,
+        }
+        let search = Box::pin(do_search_impl(manager.clone(), base.clone(), input.clone()));
+        let cancel_rx = Box::pin(async move {
+            match futures::future::select(cancel_rx, Box::pin(sleep(Duration::from_secs(10)))).await
+            {
+                futures::future::Either::Left((Ok(()), _sleep)) => CancelStatus::Canceled,
+                futures::future::Either::Left((Err(Canceled), _sleep)) => CancelStatus::Dropped,
+                futures::future::Either::Right((Ok(()), _)) => CancelStatus::Timeout,
+                futures::future::Either::Right((Err(_sleep), _)) => CancelStatus::TimeoutError,
+            }
+        });
+        async move {
+            match futures::future::select(search, cancel_rx).await {
+                futures::future::Either::Left(((), _cancel_rx)) => {}
+                futures::future::Either::Right((cancel, _search)) => {
+                    warn!("Search canceled: {cancel:?}")
+                }
+            }
+        }
+    };
     move || {
         let cancel_rx = {
             let mut lock = cancel_last.lock().unwrap();
-            let cancel_new = oneshot::channel();
-            let cancel_last = std::mem::replace(&mut *lock, cancel_new.0);
+            let (cancel_new_tx, cancel_new_rx) = oneshot::channel();
+            let cancel_last = std::mem::replace(&mut *lock, cancel_new_tx);
             let _ = cancel_last.send(());
-            cancel_new.1
+            cancel_new_rx
         };
         spawn_local(callback(cancel_rx))
     }
@@ -175,7 +201,6 @@ async fn do_search_impl(
     manager: Ptr<TextEditorManager>,
     base: Arc<Path>,
     input: ElementCapture<HtmlInputElement>,
-    mut cancel_rx: oneshot::Receiver<()>,
 ) {
     let Ok(()) = sleep(Duration::from_millis(250))
         .await
@@ -183,15 +208,9 @@ async fn do_search_impl(
     else {
         return;
     };
-    match cancel_rx.try_recv() {
-        Ok(None) => (),
-        Ok(Some(())) | Err(oneshot::Canceled) => return,
-    };
     let input = input.with(|input| input.value());
     manager.search.query.force(input.clone());
-    let mut results = run_query(manager.remote.clone(), base.clone(), input)
-        .await
-        .take_until(cancel_rx);
+    let mut results = run_query(manager.remote.clone(), base.clone(), input).await;
     while let Some(results) = results.next().await {
         let side_view = search_side_view(&manager, &base, &results);
         let batch = Batch::use_batch("update-search-results");

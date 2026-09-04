@@ -55,6 +55,15 @@ impl TabsDescriptor for TerminalTabs {
             #[cfg(not(feature = "client-prod"))]
             class = "add-tab-icon",
             div(
+                class %= add_tab::active(remotes_state.remotes.clone()),
+                img(src = icons::add_tab()),
+                click = move |_| {
+                    autoclone!(state);
+                    add_tab::create_terminal(state.clone(), ClientAddress::default())
+                },
+                mouseenter = remotes_state.mouseenter(),
+            ),
+            div(
                 click = move |_| selected_tab.force(selected_tab.get_value_untracked()),
                 img(
                     key = "refresh-tab-icon",
@@ -64,15 +73,6 @@ impl TabsDescriptor for TerminalTabs {
                     src = icons::refresh(),
                     title = "Refresh terminal",
                 ),
-            ),
-            div(
-                class %= add_tab::active(remotes_state.remotes.clone()),
-                img(src = icons::add_tab()),
-                click = move |_| {
-                    autoclone!(state);
-                    add_tab::create_terminal(state.clone(), ClientAddress::default())
-                },
-                mouseenter = remotes_state.mouseenter(),
             ),
             mouseleave = remotes_state.mouseleave(),
             remotes_state.show_remotes_dropdown(

@@ -5,6 +5,7 @@ use tokio::sync::OwnedSemaphorePermit;
 use tokio::sync::mpsc;
 use tokio::task::JoinError;
 use tracing::Instrument as _;
+use tracing::info;
 use tracing::warn;
 use trz_gateway_common::p2p::data_channel_io::DataChannelIo;
 use trz_gateway_common::p2p::peer_connection::LocalIceEvent;
@@ -92,6 +93,7 @@ impl AnswerSession {
         &self,
         local_ice: Option<LocalIceEvent>,
     ) -> Result<(), P2pServerError> {
+        info!("Received {local_ice:?}");
         let Some(local_ice) = local_ice else {
             return Err(P2pServerError::Protocol("Local ICE stream closed".into()));
         };
@@ -121,6 +123,7 @@ impl AnswerSession {
         let Some(incoming) = incoming else {
             return Err(P2pServerError::RegistrationClosed);
         };
+        info!("Received {incoming:?}");
         incoming.validate()?;
         match incoming {
             SignalMessage::Description {
@@ -173,6 +176,7 @@ impl AnswerSession {
         opened: Result<Result<DataChannelIo, PeerConnectionError>, JoinError>,
         peer: &PeerConnection,
     ) -> Result<(), P2pServerError> {
+        info!("Data channel opened");
         let connection = opened.map_err(P2pServerError::SessionTask)??;
         let server = self.server.clone();
         let shutdown = server.shutdown.clone();

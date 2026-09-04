@@ -35,6 +35,7 @@ use crate::text_editor::side::SideViewNode;
 use crate::text_editor::side::SvnItem;
 use crate::text_editor::side::SvnProperties;
 use crate::text_editor::side::SvnStatus;
+use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::text_editor::style;
 
 impl TextEditorManager {
@@ -269,10 +270,7 @@ fn search_side_view(
     Arc::new(search_tree_node(root, notify))
 }
 
-fn search_tree_node(
-    node: SearchTreeNode,
-    notify: crate::text_editor::side::opaque::OpaqueNotifyRegistration,
-) -> SideViewNode {
+fn search_tree_node(node: SearchTreeNode, notify: OpaqueNotifyRegistration) -> SideViewNode {
     if let Some(metadata) = node.metadata
         && node.children.is_empty()
     {

@@ -19,7 +19,7 @@ pub async fn get_highlight_ranges(
     remote: ClientAddress,
     path: FilePath<Arc<Path>>,
     input: String,
-) -> Result<Vec<CursorPosition>, ServerFnError> {
+) -> Result<Option<CursorPosition>, ServerFnError> {
     Ok(GET_HIGHLIGHT_RANGES_FN.call(remote, (path, input)).await?)
 }
 
@@ -27,7 +27,7 @@ remote_fn_service::unary::declare_remote_fn!(
     GET_HIGHLIGHT_RANGES_FN,
     "texteditor.search.get_highlight_ranges",
     (FilePath<Arc<Path>>, String),
-    Vec<CursorPosition>,
+    Option<CursorPosition>,
     |server, (path, input)| {
         let settings = server.config().server.with(|server| IndexSettings {
             cache_dir: server.tantivy_cache.clone(),
@@ -46,7 +46,7 @@ async fn get_highlight_ranges_impl(
     path: FilePath<Arc<Path>>,
     input: String,
     settings: IndexSettings,
-) -> Result<Vec<CursorPosition>, SearchError> {
+) -> Result<Option<CursorPosition>, SearchError> {
     let full_path = path.full_path();
     let repo_root =
         git_repo_root(&full_path).ok_or_else(|| SearchError::NotGit(path.base.clone()))?;
@@ -64,7 +64,7 @@ fn highlight_ranges(
     repository: &super::tantivy::RepositoryIndex,
     input: &str,
     text: &str,
-) -> Result<Vec<CursorPosition>, super::tantivy::SearchIndexError> {
+) -> Result<Option<CursorPosition>, super::tantivy::SearchIndexError> {
     highlight_ranges_in_index(
         &repository.index,
         &repository.reader,
@@ -80,9 +80,9 @@ fn highlight_ranges_in_index(
     body: tantivy::schema::Field,
     input: &str,
     text: &str,
-) -> Result<Vec<CursorPosition>, super::tantivy::SearchIndexError> {
+) -> Result<Option<CursorPosition>, super::tantivy::SearchIndexError> {
     if input.is_empty() || text.is_empty() {
-        return Ok(vec![]);
+        return Ok(None);
     }
 
     let searcher = reader.searcher();
@@ -98,11 +98,16 @@ fn highlight_ranges_in_index(
     // large cannot split, so its first (and only) fragment starts at the start of `text`.
     generator.set_max_num_chars(text.len());
     let snippet = generator.snippet(text);
-    Ok(snippet
-        .highlighted()
+    let mut highlighted = snippet.highlighted().to_vec();
+    highlighted.sort_by_key(|range| range.end - range.start);
+    for range in highlighted.iter().rev() {
+        tracing::error!("Found range: {range:?}");
+    }
+    Ok(highlighted
         .iter()
+        .rev()
         .filter_map(|range| byte_range_to_cursor_position(text, range.clone()))
-        .collect())
+        .next())
 }
 
 fn byte_range_to_cursor_position(

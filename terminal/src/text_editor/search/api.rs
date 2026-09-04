@@ -17,7 +17,7 @@ pub async fn get_highlight_ranges(
     remote: ClientAddress,
     path: FilePath<Arc<Path>>,
     input: String,
-) -> Result<Vec<CursorPosition>, ServerFnError> {
+) -> Result<Option<CursorPosition>, ServerFnError> {
     super::service::get_highlight_ranges(remote, path, input).await
 }
 

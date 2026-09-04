@@ -84,7 +84,7 @@ pub fn folder(
             class = "folder-row",
             click = move |_| {
                 autoclone!(manager, file_path);
-                manager.path.file.set(file_path.file.clone())
+                manager.path.file.force(file_path.file.clone())
             },
             td(
                 draggable = (name.as_ref() != "..").then_some("true"),

@@ -111,7 +111,10 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         {
             event.prevent_default();
             manager.search.is_active.set(true);
-            let () = search_input.with(|i| i.focus()).or_throw("focus");
+            search_input.with(|input| {
+                let () = input.focus().or_throw("focus");
+                input.select();
+            });
         }
     };
 

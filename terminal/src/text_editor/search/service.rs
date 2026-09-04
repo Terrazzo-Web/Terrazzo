@@ -31,7 +31,7 @@ use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;
 
-static MAX_RESULTS: usize = 1000;
+static MAX_RESULTS: usize = 100;
 static MAX_QUERY_TIME: Duration = Duration::from_secs(10);
 
 mod filenames;

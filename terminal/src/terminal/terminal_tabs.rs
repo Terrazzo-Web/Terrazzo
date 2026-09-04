@@ -47,12 +47,24 @@ impl TabsDescriptor for TerminalTabs {
     #[autoclone]
     #[html]
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
+        let selected_tab = state.selected_tab.clone();
         let remotes_state = RemotesState::new();
         [div(
             key = "add-tab-icon",
             class = style::ADD_TAB_ICON,
             #[cfg(not(feature = "client-prod"))]
             class = "add-tab-icon",
+            div(
+                click = move |_| selected_tab.force(selected_tab.get_value_untracked()),
+                img(
+                    key = "refresh-tab-icon",
+                    class = style::REFRESH_TAB,
+                    #[cfg(not(feature = "client-prod"))]
+                    class = "refresh-tab",
+                    src = icons::refresh(),
+                    title = "Refresh terminal",
+                ),
+            ),
             div(
                 class %= add_tab::active(remotes_state.remotes.clone()),
                 img(src = icons::add_tab()),

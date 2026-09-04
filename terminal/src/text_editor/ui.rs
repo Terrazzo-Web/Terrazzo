@@ -442,7 +442,6 @@ impl TextEditorManager {
                                 this.search.query.get_value_untracked().to_string(),
                             )
                             .await
-                            .map(|ranges| ranges.into_iter().next())
                             .unwrap_or_else(|error| {
                                 warn!("Failed to load search highlights: {error}");
                                 None

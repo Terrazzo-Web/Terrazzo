@@ -41,9 +41,8 @@ use crate::text_editor::style;
 impl TextEditorManager {
     #[autoclone]
     #[html]
-    pub fn search_selector(self: &Ptr<Self>) -> XElement {
+    pub fn search_selector(self: &Ptr<Self>, input: ElementCapture<HtmlInputElement>) -> XElement {
         let is_active = self.search.is_active.clone();
-        let input: ElementCapture<HtmlInputElement> = ElementCapture::default();
         let manager = self.clone();
 
         return div(

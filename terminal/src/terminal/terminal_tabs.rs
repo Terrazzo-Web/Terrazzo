@@ -64,15 +64,8 @@ impl TabsDescriptor for TerminalTabs {
                 mouseenter = remotes_state.mouseenter(),
             ),
             div(
+                img(src = icons::refresh()),
                 click = move |_| selected_tab.force(selected_tab.get_value_untracked()),
-                img(
-                    key = "refresh-tab-icon",
-                    class = style::REFRESH_TAB,
-                    #[cfg(not(feature = "client-prod"))]
-                    class = "refresh-tab",
-                    src = icons::refresh(),
-                    title = "Refresh terminal",
-                ),
             ),
             mouseleave = remotes_state.mouseleave(),
             remotes_state.show_remotes_dropdown(

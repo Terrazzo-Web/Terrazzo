@@ -108,13 +108,21 @@ async fn start_p2p_registration_impl(config: P2pRegistrationConfig, server: Arc<
         if server.shutdown.clone().now_or_never().is_some() {
             return;
         }
-        match result {
-            Ok(()) => info!("P2P signaling registration closed"),
-            Err(error) => warn!(%error, "P2P signaling registration failed"),
-        }
         if started.elapsed() >= config.retry_strategy.max_delay() {
             retry = config.retry_strategy.clone();
         }
+        match result {
+            Ok(()) => info!(
+                retry = humantime::format_duration(retry.peek()).to_string(),
+                "P2P signaling registration closed"
+            ),
+            Err(error) => warn!(
+                retry = humantime::format_duration(retry.peek()).to_string(),
+                %error,
+                "P2P signaling registration failed"
+            ),
+        }
+
         let delay = retry.wait();
         tokio::select! {
             () = delay => {}

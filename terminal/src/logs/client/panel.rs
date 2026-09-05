@@ -19,6 +19,7 @@ use crate::assets::icons;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
 use crate::frontend::remotes::Remote;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::signals::TilePtr;
 
 terrazzo_css::import_style!(style, "panel.scss");
@@ -28,6 +29,7 @@ terrazzo_css::import_style!(style, "panel.scss");
 pub fn panel(tile: TilePtr) -> XElement {
     let show_logs_panel = XSignal::new("show-logs-panel", false);
     tag(
+        class = APP_COLLAPSIBLE_CONTENT,
         resize_bar(show_logs_panel.clone()),
         logs_panel(show_logs_panel.clone(), tile.remote.clone()),
     )

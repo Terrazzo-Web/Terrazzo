@@ -33,5 +33,9 @@ urls = ["stun:stun.l.google.com:19302"]
 username = ""
 credential = ""
 
-[server.p2p_registration.retry_strategy]
+[server.p2p_registration.retry_strategy.exponential-backoff]
+exponent = 2.0
+max_delay = "1m"
+
+[server.p2p_registration.retry_strategy.exponential-backoff.base]
 fixed = "1s"

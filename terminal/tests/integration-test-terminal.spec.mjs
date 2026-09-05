@@ -14,7 +14,7 @@ async function expectStaticAssetLoads(request, path, contentTypePattern) {
 }
 
 function getAddTabButton(page) {
-    return page.locator('div.add-tab-icon img');
+    return page.locator('div.add-tab-icon img[src$="/icons/plus-square.svg"]');
 }
 
 function getTabs(page) {

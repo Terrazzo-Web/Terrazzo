@@ -31,7 +31,7 @@ use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;
 
-static MAX_RESULTS: usize = 1000;
+static MAX_RESULTS: usize = 100;
 static MAX_QUERY_TIME: Duration = Duration::from_secs(10);
 
 mod filenames;
@@ -125,36 +125,43 @@ async fn search_impl(
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
     let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
 
-    let filename_search = futures::stream::once(filename_search(
+    let mut tantivy_search = futures::stream::once(tantivy_search(
         base.clone(),
         input.clone(),
+        settings,
         repo_root.clone(),
     ))
-    .map(|filename_search| match filename_search {
-        Ok(filename_search) => filename_search.boxed(),
+    .map(|tantivy_search| match tantivy_search {
+        Ok(tantivy_search) => tantivy_search.boxed(),
         Err(error) => {
-            warn!("Failed to run Filename search: {error}");
+            warn!("Failed to run Tantivy search: {error}");
             futures::stream::empty().boxed()
         }
     })
     .flatten()
-    .boxed();
+    .boxed()
+    .peekable();
+    let has_tantivy_search = std::pin::Pin::new(&mut tantivy_search)
+        .peek()
+        .await
+        .is_some();
 
-    let tantivy_search = futures::stream::once(tantivy_search(base, input, settings, repo_root))
-        .map(|tantivy_search| match tantivy_search {
-            Ok(tantivy_search) => tantivy_search.boxed(),
-            Err(error) => {
-                warn!("Failed to run Tantivy search: {error}");
-                futures::stream::empty().boxed()
-            }
-        })
-        .flatten()
-        .boxed();
-
-    Ok(futures::stream::iter([filename_search, tantivy_search])
-        .flatten_unordered(None)
-        .take(MAX_RESULTS)
-        .take_until(tokio::time::sleep(MAX_QUERY_TIME)))
+    Ok(if has_tantivy_search {
+        tantivy_search.left_stream()
+    } else {
+        futures::stream::once(filename_search(base, input, repo_root))
+            .map(|filename_search| match filename_search {
+                Ok(filename_search) => filename_search.boxed(),
+                Err(error) => {
+                    warn!("Failed to run Filename search: {error}");
+                    futures::stream::empty().boxed()
+                }
+            })
+            .flatten()
+            .right_stream()
+    }
+    .take(MAX_RESULTS)
+    .take_until(tokio::time::sleep(MAX_QUERY_TIME)))
 }
 
 #[autoclone]
@@ -183,15 +190,32 @@ async fn tantivy_search(
     let index = tantivy::repository_index(repo_root.clone(), settings)
         .await
         .map_err(SearchError::SearchIndex)?;
-    let content_paths = index
-        .search(&input, MAX_RESULTS)
-        .map_err(|error| SearchError::SearchIndex(Arc::new(error)))?;
+    let content_paths = match index
+        .search(&escape(&input), MAX_RESULTS)
+        .map_err(|error| SearchError::SearchIndex(Arc::new(error)))
+    {
+        Ok(content_paths) if !content_paths.is_empty() => content_paths,
+        _ => index
+            .search(&input, MAX_RESULTS)
+            .map_err(|error| SearchError::SearchIndex(Arc::new(error)))?,
+    };
     index.refresh_if_stale();
     let content_matches =
         futures::stream::iter(content_paths.into_iter().map(Ok)).filter_map(move |path| {
             process_index_path(repo_root.clone(), base.clone(), path).map(|maybe| maybe.transpose())
         });
     Ok(content_matches)
+}
+
+fn escape(input: &str) -> String {
+    format!(r#""{}""#, input.replace('\\', r"\\").replace('"', r#"\\""#))
+}
+
+#[cfg(test)]
+#[test]
+fn test_escape() {
+    assert_eq!(r#""abc""#, escape("abc"));
+    assert_eq!(r#""abc\\\\"""#, escape(r#"abc\""#));
 }
 
 async fn process_index_path(

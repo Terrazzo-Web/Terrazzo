@@ -67,6 +67,10 @@ div.text_editor {
                     width: 100%;
                     @include trz-font;
                     @include trz-no-outline;
+
+                    &::selection {
+                        background-color: color-mix(in srgb, var(--link-color) 50%, var(--selected-background-color));
+                    }
                 }
 
                 span.path-selector-field {

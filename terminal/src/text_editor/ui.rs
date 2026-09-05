@@ -11,7 +11,10 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::HtmlInputElement;
+use web_sys::KeyboardEvent;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
@@ -74,6 +77,7 @@ pub fn text_editor(tile: TilePtr) -> XElement {
     )
 }
 
+#[autoclone]
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
@@ -97,10 +101,27 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
 
     let consumers = Arc::default();
     manager.restore_paths(&consumers);
+    let search_input: ElementCapture<HtmlInputElement> = ElementCapture::default();
+    let search_shortcut = move |event: KeyboardEvent| {
+        autoclone!(manager);
+        autoclone!(search_input);
+        if (event.ctrl_key() || event.meta_key())
+            && event.shift_key()
+            && event.key().eq_ignore_ascii_case("f")
+        {
+            event.prevent_default();
+            manager.search.is_active.set(true);
+            search_input.with(|input| {
+                let () = input.focus().or_throw("focus");
+                input.select();
+            });
+        }
+    };
 
     div(
         key = "text-editor",
         class = style::TEXT_EDITOR,
+        keydown = search_shortcut,
         #[cfg(not(feature = "client-prod"))]
         class = "text-editor-app",
         class %= is_focusable(
@@ -112,7 +133,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             menu(manager.tile.clone()),
             manager.base_path_selector(),
             manager.file_path_selector(),
-            manager.search_selector(),
+            manager.search_selector(search_input),
             fsio::ux::create_entry_controls(manager.clone(), manager.editor_state.clone()),
             toggle_html_preview(
                 manager.editor_state.clone(),
@@ -442,7 +463,6 @@ impl TextEditorManager {
                                 this.search.query.get_value_untracked().to_string(),
                             )
                             .await
-                            .map(|ranges| ranges.into_iter().next())
                             .unwrap_or_else(|error| {
                                 warn!("Failed to load search highlights: {error}");
                                 None

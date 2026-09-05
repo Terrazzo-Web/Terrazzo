@@ -6,6 +6,7 @@ use terrazzo::prelude::*;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsState;
 
+use self::diagnostics::info;
 use super::terminal_tab::TerminalTab;
 use super::ui::TerminalsState;
 use crate::api::client_address::ClientAddress;
@@ -47,6 +48,7 @@ impl TabsDescriptor for TerminalTabs {
     #[autoclone]
     #[html]
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
+        let selected_tab = state.selected_tab.clone();
         let remotes_state = RemotesState::new();
         [div(
             key = "add-tab-icon",
@@ -61,6 +63,19 @@ impl TabsDescriptor for TerminalTabs {
                     add_tab::create_terminal(state.clone(), ClientAddress::default())
                 },
                 mouseenter = remotes_state.mouseenter(),
+            ),
+            div(
+                img(src = icons::refresh()),
+                class = style::REFRESH_TAB,
+                click = move |_| {
+                    autoclone!(state);
+                    let selected_tab = selected_tab.get_value_untracked();
+                    info!("Refresh tab {selected_tab:?}");
+                    let terminal_tabs = state.terminal_tabs.get_value_untracked();
+                    if let Some(tab) = terminal_tabs.lookup_tab(&selected_tab) {
+                        tab.generation.update(|generation| Some(generation + 1));
+                    }
+                },
             ),
             mouseleave = remotes_state.mouseleave(),
             remotes_state.show_remotes_dropdown(

@@ -47,8 +47,8 @@ impl<T> ForceCloseIo<T> {
     }
 }
 
-impl ForceCloseHandle {
-    pub(super) fn close(&self) {
+impl Drop for ForceCloseHandle {
+    fn drop(&mut self) {
         self.0.closed.store(true, Ordering::Release);
         self.0.waker.wake();
     }
@@ -217,7 +217,7 @@ mod tests {
         });
         tokio::task::yield_now().await;
 
-        close.close();
+        drop(close);
 
         assert_eq!(
             0,
@@ -230,7 +230,7 @@ mod tests {
 
         let (io, _remote) = tokio::io::duplex(64);
         let (mut io, close) = ForceCloseIo::new(io);
-        close.close();
+        drop(close);
         assert_eq!(
             ErrorKind::ConnectionAborted,
             io.write_all(b"data").await.unwrap_err().kind()

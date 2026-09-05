@@ -33,7 +33,9 @@ test.describe('Floating terminal tile', () => {
         await rightTile.locator('.app-menu-trigger').hover();
         await rightTile.locator('li').filter({ hasText: /^Terminal$/ }).click();
 
-        const addTerminalButton = rightTile.locator('.add-tab-icon img');
+        const addTerminalButton = rightTile.locator(
+            '.add-tab-icon img[src$="/icons/plus-square.svg"]',
+        );
         await expect(addTerminalButton).toBeVisible();
         await addTerminalButton.click();
         await expect(rightTile.getByText('Terminal 1', { exact: true })).toBeVisible();
@@ -41,7 +43,9 @@ test.describe('Floating terminal tile', () => {
 
         await initialTile.locator('.app-menu-trigger').hover();
         await initialTile.locator('li').filter({ hasText: /^Terminal$/ }).click();
-        const leftAddTerminalButton = initialTile.locator('.add-tab-icon img');
+        const leftAddTerminalButton = initialTile.locator(
+            '.add-tab-icon img[src$="/icons/plus-square.svg"]',
+        );
         await expect(leftAddTerminalButton).toBeVisible();
         await leftAddTerminalButton.click();
         await expect(initialTile.locator('.xterm')).toBeVisible({ timeout: 10 * SECOND });

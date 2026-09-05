@@ -8,15 +8,18 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use std::time::Instant;
 
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws;
 use axum::http::StatusCode;
 use axum::response::Response;
 use futures::SinkExt as _;
+use scopeguard::defer;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
 use tracing::Instrument as _;
+use tracing::info;
 use tracing::info_span;
 use tracing::warn;
 use trz_gateway_common::id::ClientName;
@@ -223,6 +226,9 @@ impl Signaling {
         server_name: ClientName,
         mut socket: ws::WebSocket,
     ) {
+        let start = Instant::now();
+        info!("Start");
+        defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
         if receive_hello(&mut socket).await.is_err() {
             return;
         }
@@ -234,12 +240,18 @@ impl Signaling {
         loop {
             tokio::select! {
                 message = outgoing_rx.recv() => match message {
-                    Some(message) if send_json(&mut socket, &message).await.is_ok() => {}
-                    _ => break,
+                    Some(message) => {
+                        info!("Sending {message:?}");
+                        if send_json(&mut socket, &message).await.is_err() {
+                            break
+                        }
+                    }
+                    None => break,
                 },
                 message = socket.recv() => match message {
                     Some(Ok(message)) => match parse_session_message(message) {
                         Ok(message) if valid_server_message(&message) => {
+                            info!("Received {message:?}");
                             if registration.relay_to_client(message).is_err() {
                                 warn!("Ignoring signaling message for a session that already ended");
                             }
@@ -442,11 +454,11 @@ fn parse_message(message: ws::Message) -> Result<SignalMessage, ()> {
 }
 
 async fn send_json(socket: &mut ws::WebSocket, message: &SignalMessage) -> Result<(), ()> {
-    let json = serde_json::to_string(message).map_err(|_| ())?;
+    let json = serde_json::to_string(message).map_err(|error| warn!(%error, "Invalid JSON"))?;
     socket
         .send(ws::Message::Text(json.into()))
         .await
-        .map_err(|_| ())
+        .map_err(|error| warn!(%error, "Failed to send message"))
 }
 
 /// Returns whether a registered server may send this message toward a client.

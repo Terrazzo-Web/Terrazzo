@@ -164,8 +164,7 @@ async fn run_impl(
         if is_shutdown.load(SeqCst) {
             return;
         }
-        let uptime = Instant::now() - start;
-        if uptime < retry_strategy0.max_delay() {
+        if start.elapsed() < retry_strategy0.max_delay() {
             match result {
                 Ok(()) => {
                     info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }

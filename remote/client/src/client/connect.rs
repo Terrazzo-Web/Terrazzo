@@ -143,7 +143,7 @@ impl super::Client {
                         warn!("Unhealthy signal dropped")
                     }
                 }
-                force_close.close();
+                drop(force_close);
             })
             .in_current_span();
         let () = grpc_server

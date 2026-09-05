@@ -6,6 +6,7 @@ use terrazzo::prelude::*;
 use terrazzo::widgets::tabs::TabsDescriptor;
 use terrazzo::widgets::tabs::TabsState;
 
+use self::diagnostics::info;
 use super::terminal_tab::TerminalTab;
 use super::ui::TerminalsState;
 use crate::api::client_address::ClientAddress;
@@ -66,7 +67,10 @@ impl TabsDescriptor for TerminalTabs {
             div(
                 img(src = icons::refresh()),
                 class = style::REFRESH_TAB,
-                click = move |_| selected_tab.force(selected_tab.get_value_untracked()),
+                click = move |_| {
+                    info!("Refresh tab {:?}", selected_tab.get_value_untracked());
+                    selected_tab.force(selected_tab.get_value_untracked())
+                },
             ),
             mouseleave = remotes_state.mouseleave(),
             remotes_state.show_remotes_dropdown(

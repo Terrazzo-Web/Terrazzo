@@ -14,6 +14,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::debounce::DoDebounce;
 use terrazzo::widgets::editable::editable;
+use terrazzo::widgets::sleep::sleep;
 use terrazzo::widgets::tabs::TabDescriptor;
 use wasm_bindgen_futures::spawn_local;
 
@@ -191,6 +192,7 @@ impl TabDescriptor for TerminalTab {
                 if let Err(error) = terminal_api::write(&terminal, data).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }
+                let _ = sleep(Duration::from_millis(50)).await;
                 if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
                     warn!("Failed to write input overlay text to the terminal: {error}");
                 }

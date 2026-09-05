@@ -24,9 +24,9 @@ axum = { workspace = true, features = ["macros", "ws"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
 bytes = { workspace = true }
 chrono = { workspace = true }
-humantime = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
+humantime = { workspace = true }
 hyper-util = { workspace = true, features = [
   "http1",
   "http2",

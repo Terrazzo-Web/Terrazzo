@@ -68,8 +68,13 @@ impl TabsDescriptor for TerminalTabs {
                 img(src = icons::refresh()),
                 class = style::REFRESH_TAB,
                 click = move |_| {
-                    info!("Refresh tab {:?}", selected_tab.get_value_untracked());
-                    selected_tab.force(selected_tab.get_value_untracked())
+                    autoclone!(state);
+                    let selected_tab = selected_tab.get_value_untracked();
+                    info!("Refresh tab {selected_tab:?}");
+                    let terminal_tabs = state.terminal_tabs.get_value_untracked();
+                    if let Some(tab) = terminal_tabs.lookup_tab(&selected_tab) {
+                        tab.generation.update(|generation| Some(generation + 1));
+                    }
                 },
             ),
             mouseleave = remotes_state.mouseleave(),

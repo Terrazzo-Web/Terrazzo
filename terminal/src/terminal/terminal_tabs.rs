@@ -65,6 +65,7 @@ impl TabsDescriptor for TerminalTabs {
             ),
             div(
                 img(src = icons::refresh()),
+                class = style::REFRESH_TAB,
                 click = move |_| selected_tab.force(selected_tab.get_value_untracked()),
             ),
             mouseleave = remotes_state.mouseleave(),

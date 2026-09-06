@@ -16,12 +16,19 @@ use crate::api::client_address::ClientAddress;
 
 #[cfg(feature = "server")]
 pub mod api;
+#[cfg(feature = "client")]
 pub mod client;
+#[cfg(feature = "server")]
 mod cursor_positions;
+#[cfg(feature = "server")]
 mod fsmetadata;
-mod git;
+#[cfg(feature = "server")]
+pub(super) mod git;
+#[cfg(feature = "server")]
 mod remote;
+#[cfg(feature = "server")]
 mod service;
+#[cfg(feature = "client")]
 pub mod ux;
 
 pub static ROOT_BASE_PATH: LazyLock<Arc<Path>> = LazyLock::new(|| Path::new("/").into());
@@ -53,7 +60,7 @@ pub enum File {
     Error(String),
 }
 
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct FileMetadata {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]
     pub name: Arc<str>,

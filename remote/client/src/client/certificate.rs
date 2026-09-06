@@ -1,12 +1,10 @@
 //! Client certificates from the Terrazzo Gateway.
 
-use http::header::CONTENT_TYPE;
 use mime::APPLICATION_JSON;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
-use reqwest::Client;
 use reqwest::StatusCode;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::x509::PemAsStringError;
@@ -17,28 +15,29 @@ use super::config::ClientConfig;
 use super::config::SniOverrideError;
 use super::config::set_sni_override;
 use super::config::url;
+use crate::http_client::HttpClient;
+use crate::http_client::HttpRequestError;
 
 /// API to obtain client certificates from the Terrazzo Gateway.
-pub async fn get_certifiate(
+pub(crate) async fn get_certifiate(
     client_config: &impl ClientConfig,
-    http_client: Client,
+    http_client: HttpClient,
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
     let mut url = url(client_config, "/remote/certificate")?;
     set_sni_override(&mut url, client_config.sni_override())?;
-    let request = http_client
-        .get(url)
-        .header(CONTENT_TYPE, APPLICATION_JSON.as_ref())
-        .body(serde_json::to_string(&GetCertificateRequest {
-            auth_code,
-            public_key,
-            name: client_config.client_name(),
-        })?);
-    let response = request.send().await?;
-    let status = response.status();
-    let body = response.text().await?;
+    let body = serde_json::to_string(&GetCertificateRequest {
+        auth_code,
+        public_key,
+        name: client_config.client_name(),
+    })?;
+    let response = http_client
+        .get(url, APPLICATION_JSON.as_ref(), body)
+        .await?;
+    let status = response.status;
+    let body = response.body;
     if !status.is_success() {
         return Err(GetCertificateError::HttpStatus { status, body });
     }
@@ -59,7 +58,7 @@ pub enum GetCertificateError {
     RequestSerialization(#[from] serde_json::Error),
 
     #[error("[{n}] {0}", n = self.name())]
-    HttpRequest(#[from] reqwest::Error),
+    HttpRequest(#[from] HttpRequestError),
 
     #[error("[{n}] Gateway returned {status}: {body}", n = self.name())]
     HttpStatus { status: StatusCode, body: String },

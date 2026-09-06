@@ -54,7 +54,7 @@ pub fn attach(
                 .or_throw("xtermjs.lock()")
                 .clone()
         {
-            debug!("Focus and fit size");
+            info!("Focus and fit size");
             xtermjs.focus();
             xtermjs.fit();
         }

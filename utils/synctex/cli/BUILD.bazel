@@ -8,7 +8,10 @@ rust_rules(
     crate_name = "terrazzo_synctex_cli",
     crate_root = "src/lib.rs",
     data_dev = [":fixtures"],
-    deps = ["//utils/synctex/synctex"],
+    deps = [
+        "//utils/nameth/nameth",
+        "//utils/synctex/synctex",
+    ],
 )
 
 rust_rules(

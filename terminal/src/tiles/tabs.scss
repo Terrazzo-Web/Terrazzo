@@ -18,6 +18,11 @@ div.floating-tile {
     border: 1px solid var(--color);
     background: var(--background-color);
     box-shadow: 0 4px 16px color-mix(in srgb, black 35%, transparent);
+    opacity: 30%;
+
+    &:hover {
+        opacity: 100%;
+    }
 }
 
 img.resize-handle {
@@ -227,5 +232,24 @@ div.add-tile-tab {
         }
 
         @include trz-bg-transition;
+    }
+}
+
+div.floating-tile.collapsed {
+    // Floating dimensions are persisted as inline styles. While collapsed, let
+    // the visible header determine the height instead.
+    height: auto !important;
+
+    // The app layout uses height: 100% and flex-basis: 0 throughout the path to
+    // its body. Once that body is hidden, make those ancestors intrinsic too so
+    // the header still contributes to the floating tile's height.
+    :has(.app-collapsible-content) {
+        height: auto !important;
+        flex-basis: auto !important;
+    }
+
+    .app-collapsible-content {
+        display: none;
+        visibility: hidden;
     }
 }

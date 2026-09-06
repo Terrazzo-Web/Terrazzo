@@ -116,13 +116,13 @@ class CodeMirrorJsImpl {
     }
 
     destroy() {
-        this.editorView.destroy();
+        this.rootView.destroy();
         console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
     }
 
     set_content(content) {
         const current = this.editorView.state.doc;
-        if (current == content) return;
+        if (current.toString() === content) return;
         this.reloadFromDisk = true;
         try {
             const changes = {

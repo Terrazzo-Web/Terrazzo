@@ -42,6 +42,10 @@ pub struct Cli {
     #[arg(long)]
     pub git_trash: Option<PathBuf>,
 
+    /// The folder, relative to a Git repository root, where Tantivy indexes are stored.
+    #[arg(long)]
+    pub tantivy_cache: Option<PathBuf>,
+
     /// A temp file to write the port allocated dynamically.
     #[arg(long)]
     pub set_current_endpoint: Option<PathBuf>,

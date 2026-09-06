@@ -12,6 +12,9 @@ use super::Config;
 use super::ConfigFile;
 use super::ConfigImpl;
 use super::mesh::MeshConfig;
+use super::mesh::MeshWebRtcConfig;
+use super::p2p::IceServerConfig;
+use super::server::P2pRegistrationConfig;
 use super::server::ServerConfig;
 use super::types::ConfigFileTypes;
 use super::types::RuntimeTypes;
@@ -47,6 +50,13 @@ impl Config {
                 terminal_shell: server.terminal_shell.clone(),
                 trash: Some(collapse_tilde(&server.trash)),
                 git_trash: server.git_trash.as_ref().map(collapse_tilde),
+                tantivy_cache: Some(server.tantivy_cache.clone()),
+                search_index_refresh: Some(
+                    humantime::format_duration(server.search_index_refresh).to_string(),
+                ),
+                search_index_stale_after: Some(
+                    humantime::format_duration(server.search_index_stale_after).to_string(),
+                ),
                 set_current_endpoint: server.set_current_endpoint.clone(),
                 pidfile: Some(collapse_tilde(&server.pidfile)),
                 private_root_ca: Some(collapse_tilde(&server.private_root_ca)),
@@ -58,6 +68,19 @@ impl Config {
                 certificate_renewal_threshold: Some(
                     humantime::format_duration(server.certificate_renewal_threshold).to_string(),
                 ),
+                p2p_registration: server.p2p_registration.as_ref().map(|p2p| {
+                    P2pRegistrationConfig {
+                        signaling_url: Some(p2p.signaling_url.clone()),
+                        server_name: Some(p2p.server_name.clone()),
+                        ice_servers: p2p.ice_servers.clone(),
+                        retry_strategy: Some(p2p.retry_strategy.clone()),
+                        handshake_timeout: Some(
+                            humantime::format_duration(p2p.handshake_timeout).to_string(),
+                        ),
+                        authorization_bearer_token: p2p.authorization_bearer_token.clone(),
+                        max_sessions: p2p.max_sessions,
+                    }
+                }),
             }),
             mesh: DiffOption::from(mesh.as_ref().map(|mesh| {
                 DiffArc::from(MeshConfig {
@@ -70,6 +93,20 @@ impl Config {
                     client_certificate_renewal: Some(
                         humantime::format_duration(mesh.client_certificate_renewal).to_string(),
                     ),
+                    web_rtc: mesh.web_rtc.as_ref().map(|web_rtc| MeshWebRtcConfig {
+                        signaling_url: Some(web_rtc.signaling_url.clone()),
+                        server_name: Some(web_rtc.server_name.clone()),
+                        ice_servers: web_rtc.ice_servers.clone(),
+                        signaling_timeout: Some(
+                            humantime::format_duration(web_rtc.signaling_timeout).to_string(),
+                        ),
+                        handshake_timeout: Some(
+                            humantime::format_duration(web_rtc.handshake_timeout).to_string(),
+                        ),
+                        connect_timeout: Some(
+                            humantime::format_duration(web_rtc.connect_timeout).to_string(),
+                        ),
+                    }),
                 })
             })),
             letsencrypt: letsencrypt.clone(),
@@ -111,6 +148,16 @@ fn merge_server_config(
             git_trash.or(server.git_trash.as_deref()).map(expand_tilde)
         }
         .map(Arc::from),
+        tantivy_cache: cli
+            .tantivy_cache
+            .as_deref()
+            .map(Arc::from)
+            .or_else(|| server.tantivy_cache.clone())
+            .unwrap_or_else(|| Path::new(".tantivy-cache").into()),
+        search_index_refresh: parse_duration(server.search_index_refresh.as_deref())
+            .unwrap_or(Duration::from_secs(60 * 60)),
+        search_index_stale_after: parse_duration(server.search_index_stale_after.as_deref())
+            .unwrap_or(Duration::from_secs(5 * 60)),
         set_current_endpoint: cli.set_current_endpoint.as_deref().map(Arc::from),
         pidfile: {
             let pidfile = cli.pidfile.as_deref();
@@ -137,7 +184,24 @@ fn merge_server_config(
             server.certificate_renewal_threshold.as_deref(),
         )
         .unwrap_or(Duration::from_secs(1) * 3600 * 24 * 30),
+        p2p_registration: merge_p2p_registration(server.p2p_registration.as_ref()),
     }
+}
+
+fn merge_p2p_registration(
+    p2p: Option<&P2pRegistrationConfig<ConfigFileTypes>>,
+) -> Option<P2pRegistrationConfig<RuntimeTypes>> {
+    let p2p = p2p?;
+    Some(P2pRegistrationConfig {
+        signaling_url: p2p.signaling_url.clone()?,
+        server_name: p2p.server_name.clone()?,
+        ice_servers: default_ice_servers(&p2p.ice_servers),
+        retry_strategy: p2p.retry_strategy.clone().unwrap_or_default(),
+        handshake_timeout: parse_duration(p2p.handshake_timeout.as_deref())
+            .unwrap_or(Duration::from_secs(30)),
+        authorization_bearer_token: p2p.authorization_bearer_token.clone(),
+        max_sessions: Some(p2p.max_sessions.unwrap_or(64)),
+    })
 }
 
 fn parse_duration(duration: Option<&str>) -> Option<Duration> {
@@ -176,7 +240,32 @@ fn merge_mesh_config(
         client_certificate_renewal: mesh
             .and_then(|mesh| parse_duration(mesh.client_certificate_renewal.as_deref()))
             .unwrap_or(Duration::from_secs(3600 * 24 * 30)),
+        web_rtc: merge_mesh_web_rtc(mesh.and_then(|mesh| mesh.web_rtc.as_ref())),
     }))
+}
+
+fn merge_mesh_web_rtc(
+    web_rtc: Option<&MeshWebRtcConfig<ConfigFileTypes>>,
+) -> Option<MeshWebRtcConfig<RuntimeTypes>> {
+    let web_rtc = web_rtc?;
+    Some(MeshWebRtcConfig {
+        signaling_url: web_rtc.signaling_url.clone()?,
+        server_name: web_rtc.server_name.clone()?,
+        ice_servers: default_ice_servers(&web_rtc.ice_servers),
+        signaling_timeout: parse_duration(web_rtc.signaling_timeout.as_deref())
+            .unwrap_or(Duration::from_secs(10)),
+        handshake_timeout: parse_duration(web_rtc.handshake_timeout.as_deref())
+            .unwrap_or(Duration::from_secs(30)),
+        connect_timeout: parse_duration(web_rtc.connect_timeout.as_deref())
+            .unwrap_or(Duration::from_secs(45)),
+    })
+}
+
+fn default_ice_servers(ice_servers: &[IceServerConfig]) -> Vec<IceServerConfig> {
+    match ice_servers.is_empty() {
+        true => vec![IceServerConfig::google_stun()],
+        false => ice_servers.to_vec(),
+    }
 }
 
 fn expand_tilde(path: impl AsRef<Path>) -> PathBuf {
@@ -201,6 +290,7 @@ mod tests {
     use std::time::Duration;
 
     use trz_gateway_common::dynamic_config::has_diff::DiffArc;
+    use trz_gateway_common::p2p::GOOGLE_STUN;
     use trz_gateway_common::retry_strategy::RetryStrategy;
 
     use super::Config;
@@ -262,6 +352,9 @@ mod tests {
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),
                 trash: terrazzo_home().join("trash").into(),
                 git_trash: Some(Path::new(".trash").into()),
+                tantivy_cache: Path::new(".search-cache").into(),
+                search_index_refresh: Duration::from_secs(7200),
+                search_index_stale_after: Duration::from_secs(600),
                 set_current_endpoint: None,
                 pidfile: terrazzo_home().join("test.pid").into(),
                 private_root_ca: terrazzo_home().join("root_ca").into(),
@@ -271,6 +364,7 @@ mod tests {
                 config_file_watcher: false,
                 config_file_poll_strategy: Some(RetryStrategy::fixed(Duration::from_secs(60))),
                 certificate_renewal_threshold: parse_duration(Some("30days")).unwrap(),
+                p2p_registration: None,
             }),
             mesh: Default::default(),
             letsencrypt: Default::default(),
@@ -287,10 +381,76 @@ mod tests {
             round_trip.server.git_trash.as_deref(),
             Some(Path::new(".trash"))
         );
+        assert_eq!(
+            &*round_trip.server.tantivy_cache,
+            Path::new(".search-cache")
+        );
+        assert_eq!(
+            round_trip.server.search_index_refresh,
+            Duration::from_secs(7200)
+        );
+        assert_eq!(
+            round_trip.server.search_index_stale_after,
+            Duration::from_secs(600)
+        );
         assert!(!round_trip.server.config_file_watcher);
         assert_eq!(
             round_trip.server.config_file_poll_strategy,
             Some(RetryStrategy::fixed(Duration::from_secs(60)))
+        );
+    }
+
+    #[test]
+    fn p2p_config_defaults_and_round_trips() {
+        let config_file: ConfigFile = toml::from_str(
+            r#"
+[server]
+ports = []
+
+[server.p2p_registration]
+signaling_url = "http://signal.example:3000"
+server_name = "gateway-node"
+authorization_bearer_token = "secret"
+
+[mesh]
+client_name = "client-node"
+gateway_url = "https://gateway.internal"
+
+[mesh.web_rtc]
+signaling_url = "http://signal.example:3000"
+server_name = "gateway-node"
+"#,
+        )
+        .unwrap();
+
+        let config = config_file.merge(&Default::default());
+        let web_rtc = config.mesh.as_ref().unwrap().web_rtc.as_ref().unwrap();
+        assert_eq!(web_rtc.signaling_url, "http://signal.example:3000");
+        assert_eq!(web_rtc.server_name, "gateway-node");
+        assert_eq!(web_rtc.ice_servers[0].urls, vec![GOOGLE_STUN]);
+        assert_eq!(web_rtc.signaling_timeout, Duration::from_secs(10));
+        assert_eq!(web_rtc.handshake_timeout, Duration::from_secs(30));
+        assert_eq!(web_rtc.connect_timeout, Duration::from_secs(45));
+
+        let registration = config.server.p2p_registration.as_ref().unwrap();
+        assert_eq!(registration.server_name, "gateway-node");
+        assert_eq!(registration.ice_servers[0].urls, vec![GOOGLE_STUN]);
+        assert_eq!(registration.max_sessions, Some(64));
+        assert!(!format!("{registration:?}").contains("secret"));
+
+        let round_trip = config.to_config_file().merge(&Default::default());
+        let round_trip_web_rtc = round_trip.mesh.as_ref().unwrap().web_rtc.as_ref().unwrap();
+        assert_eq!(round_trip_web_rtc.signaling_url, web_rtc.signaling_url);
+        assert_eq!(round_trip_web_rtc.server_name, web_rtc.server_name);
+        assert_eq!(round_trip_web_rtc.ice_servers, web_rtc.ice_servers);
+        assert_eq!(
+            round_trip
+                .server
+                .p2p_registration
+                .as_ref()
+                .unwrap()
+                .server_name,
+            registration.server_name
         );
     }
 }

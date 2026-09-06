@@ -24,6 +24,7 @@ pub(in crate::backend) mod io;
 pub(in crate::backend) mod kill;
 mod merge;
 pub mod mesh;
+pub mod p2p;
 pub(in crate::backend) mod password;
 pub(in crate::backend) mod pidfile;
 pub mod server;

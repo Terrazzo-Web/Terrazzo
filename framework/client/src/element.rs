@@ -246,7 +246,14 @@ impl XElement {
                     merge_children::merge(template, new_children, old_children, &element.html);
                 }
                 XElementValue::Dynamic { .. } | XElementValue::Generated { .. } => {
-                    // The reactive callback may still active!
+                    if let XElementValue::Generated {
+                        template,
+                        consumers,
+                    } = &mut old.value
+                    {
+                        drop(std::mem::take(consumers));
+                        template.clear();
+                    }
                     old.value = XElementValue::Static {
                         attributes: vec![],
                         events: vec![],

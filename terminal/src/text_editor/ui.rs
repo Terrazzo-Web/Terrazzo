@@ -11,7 +11,10 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::HtmlInputElement;
+use web_sys::KeyboardEvent;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
@@ -26,6 +29,7 @@ use super::fsio::ROOT_BASE_PATH;
 use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
+use super::manager::PreviewMode;
 use super::manager::TextEditorManager;
 use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
@@ -45,7 +49,7 @@ use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
 use crate::frontend::remotes_ui::show_remote;
 use crate::frontend::resize_bar::resize_bar_horz;
-use crate::tiles::app::App;
+use crate::tiles::APP_COLLAPSIBLE_CONTENT;
 use crate::tiles::id::TileId;
 use crate::tiles::signals::TilePtr;
 
@@ -54,6 +58,7 @@ pub mod drag;
 mod editor;
 mod folder;
 mod html_viewer;
+mod milkdown;
 mod pdf_viewer;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
@@ -72,6 +77,7 @@ pub fn text_editor(tile: TilePtr) -> XElement {
     )
 }
 
+#[autoclone]
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
@@ -85,7 +91,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         show_editor_diff: XSignal::new("show-editor-diff", false),
-        show_html_preview: XSignal::new("show-html-preview", true),
+        show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
         notify_service: Ptr::new(NotifyService::new(remote)),
@@ -95,10 +101,27 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
 
     let consumers = Arc::default();
     manager.restore_paths(&consumers);
+    let search_input: ElementCapture<HtmlInputElement> = ElementCapture::default();
+    let search_shortcut = move |event: KeyboardEvent| {
+        autoclone!(manager);
+        autoclone!(search_input);
+        if (event.ctrl_key() || event.meta_key())
+            && event.shift_key()
+            && event.key().eq_ignore_ascii_case("f")
+        {
+            event.prevent_default();
+            manager.search.is_active.set(true);
+            search_input.with(|input| {
+                let () = input.focus().or_throw("focus");
+                input.select();
+            });
+        }
+    };
 
     div(
         key = "text-editor",
         class = style::TEXT_EDITOR,
+        keydown = search_shortcut,
         #[cfg(not(feature = "client-prod"))]
         class = "text-editor-app",
         class %= is_focusable(
@@ -110,7 +133,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
             menu(manager.tile.clone()),
             manager.base_path_selector(),
             manager.file_path_selector(),
-            manager.search_selector(),
+            manager.search_selector(search_input),
             fsio::ux::create_entry_controls(manager.clone(), manager.editor_state.clone()),
             toggle_html_preview(
                 manager.editor_state.clone(),
@@ -135,14 +158,14 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
 impl TextEditorManager {
     #[html]
     fn refresh_editor(&self) -> XElement {
-        let tile = self.tile.clone();
+        let file_path = self.path.file.clone();
         img(
             class = style::REFRESH_EDITOR,
             #[cfg(not(feature = "client-prod"))]
             class = "refresh-editor",
             src = icons::refresh(),
             title = "Refresh editor",
-            click = move |_| tile.app.force(App::TextEditor),
+            click = move |_| file_path.force(file_path.get_value_untracked()),
         )
     }
 }
@@ -151,6 +174,7 @@ impl TextEditorManager {
 fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
     div(
         class = super::style::BODY,
+        class = APP_COLLAPSIBLE_CONTENT,
         #[cfg(not(feature = "client-prod"))]
         class = "editor-body",
         manager.show_side_view(),
@@ -168,29 +192,23 @@ fn editor_body(manager: Ptr<TextEditorManager>) -> XElement {
 #[template(tag = span)]
 fn toggle_html_preview(
     #[signal] editor_state: EditorState,
-    show_html_preview: XSignal<bool>,
+    show_html_preview: XSignal<PreviewMode>,
 ) -> XElement {
-    let is_html = match editor_state {
-        EditorState::Data(editor_state) => {
-            editor_state.path.file.extension() == Some("html".as_ref())
-        }
-        _ => false,
-    };
-    if !is_html {
+    if !editor_state.supports_preview() {
         return tag(style::display = "none", style::visibility = "hidden");
     }
 
     #[template(wrap = true)]
-    fn make_class(#[signal] show_html_preview: bool) -> XAttributeValue {
-        show_html_preview.then_some(style::ACTIVE)
+    fn make_class(#[signal] show_html_preview: PreviewMode) -> XAttributeValue {
+        (show_html_preview != PreviewMode::Editor).then_some(style::ACTIVE)
     }
 
     #[template(wrap = true)]
-    fn make_title(#[signal] show_html_preview: bool) -> XAttributeValue {
-        if show_html_preview {
-            "Show HTML source"
-        } else {
-            "Preview HTML"
+    fn make_title(#[signal] show_html_preview: PreviewMode) -> XAttributeValue {
+        match show_html_preview {
+            PreviewMode::Preview => "Show editor",
+            PreviewMode::Editor => "Show preview and editor",
+            PreviewMode::SideBySide => "Show preview",
         }
     }
 
@@ -201,7 +219,7 @@ fn toggle_html_preview(
         class = "toggle-html-preview",
         src = icons::text_editor(),
         title %= make_title(show_html_preview.clone()),
-        click = move |_| show_html_preview.update(|show| Some(!show)),
+        click = move |_| show_html_preview.update(|show| Some(show.next())),
     )
 }
 
@@ -210,11 +228,11 @@ fn toggle_html_preview(
 fn toggle_editor_diff(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
     let has_diff = match editor_state {
-        EditorState::Data(editor_state)
-            if editor_state.path.file.extension() == Some("html".as_ref()) && show_html_preview =>
+        EditorState::Data(_)
+            if editor_state.supports_preview() && !show_html_preview.shows_editor() =>
         {
             false
         }
@@ -263,7 +281,7 @@ fn editor_container(
     manager: Ptr<TextEditorManager>,
     #[signal] editor_state: EditorState,
     #[signal] show_editor_diff: bool,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data {
@@ -438,12 +456,25 @@ impl TextEditorManager {
                     .map(Arc::new);
                 let cursor_position = match data.as_deref() {
                     Some(fsio::File::TextFile { .. }) => {
-                        fsio::client::load_cursor_position(this.remote.clone(), path.clone())
+                        if this.search.is_active.get_value_untracked() {
+                            super::search::api::get_highlight_ranges(
+                                this.remote.clone(),
+                                path.clone(),
+                                this.search.query.get_value_untracked().to_string(),
+                            )
                             .await
                             .unwrap_or_else(|error| {
-                                warn!("Failed to load cursor position: {error}");
+                                warn!("Failed to load search highlights: {error}");
                                 None
                             })
+                        } else {
+                            fsio::client::load_cursor_position(this.remote.clone(), path.clone())
+                                .await
+                                .unwrap_or_else(|error| {
+                                    warn!("Failed to load cursor position: {error}");
+                                    None
+                                })
+                        }
                     }
                     _ => None,
                 };
@@ -486,10 +517,14 @@ impl TextEditorManager {
     }
 
     #[autoclone]
-    fn save_side_view_on_change(&self) -> Consumers {
+    fn save_side_view_on_change(self: &Ptr<Self>) -> Consumers {
         let tile_id = self.tile.id;
         let remote = self.remote.clone();
+        let this = self.clone();
         self.side_view.add_subscriber(move |side_view| {
+            if this.search.is_active.get_value_untracked() {
+                return;
+            }
             spawn_local(async move {
                 autoclone!(remote);
                 let side_view = Self::stored_side_view(side_view);
@@ -533,14 +568,14 @@ pub enum RemoveBehavior {
 #[template(wrap = true)]
 fn is_focusable(
     #[signal] state: EditorState,
-    #[signal] show_html_preview: bool,
+    #[signal] show_html_preview: PreviewMode,
 ) -> XAttributeValue {
-    if !show_html_preview
-        && let EditorState::Data(EditorDataState { data, .. }) = &state
-        && let fsio::File::TextFile { .. } = **data
-    {
-        Some(style::IS_FOCUSABLE)
-    } else {
-        None
-    }
+    let EditorState::Data(EditorDataState { data, .. }) = &state else {
+        return None;
+    };
+    let fsio::File::TextFile { .. } = **data else {
+        return None;
+    };
+    let is_html_preview = state.is_html() && show_html_preview == PreviewMode::Preview;
+    (!is_html_preview).then_some(style::IS_FOCUSABLE)
 }

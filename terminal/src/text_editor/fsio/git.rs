@@ -1,5 +1,3 @@
-#![cfg(feature = "server")]
-
 use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;
@@ -68,6 +66,7 @@ impl GitRepoFs for StdFs {
     }
 }
 
+// TODO: add an expiration timeout
 struct GitReposCache<F> {
     fs: F,
     cache: Mutex<LruCache<PathBuf, Option<Arc<Path>>>>,

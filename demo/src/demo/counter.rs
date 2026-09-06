@@ -38,5 +38,28 @@ pub fn counter_demo(counter: XSignal<i32>) -> XElement {
         show_counter(counter.clone()),
         before_render = |_: &Element| info!("Before render"),
         after_render = |_: &Element| info!("After render"),
+        arity(counter.clone()),
     )
+}
+
+#[template(tag = div)]
+#[html]
+fn arity(#[signal] counter: i32) -> XElement {
+    if counter % 2 == 0 {
+        div(div(even()))
+    } else {
+        div(odd())
+    }
+}
+
+#[template(tag = div, key = "even")]
+#[html]
+fn even() -> XElement {
+    tag("Even!", style::font_style = "italic")
+}
+
+#[template(tag = div)]
+#[html]
+fn odd() -> XElement {
+    tag(div("Odd?", key = "odd", style::font_weight = "bold"))
 }

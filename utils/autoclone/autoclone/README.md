@@ -192,10 +192,11 @@ the attribute conditionally or during a refactor.
 
 ## Notes
 
-- Values are cloned with `.to_owned()`.
-- `autoclone!(...)` markers are only read when they appear at the beginning of a
+* Values are cloned with `.to_owned()`.
+* `autoclone!(...)` markers are only read when they appear at the beginning of a
   closure or block.
-- The marker list accepts identifiers, for example
+* The marker list accepts identifiers, for example
   `autoclone!(state, callback, sender);`.
-- The crate also exposes `#[envelope]`, a separate helper for wrapping a type in
+* The crate also exposes `#[envelope]`, a separate helper for wrapping a type in
   a shared pointer.
+

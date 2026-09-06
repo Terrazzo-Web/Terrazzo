@@ -1,3 +1,5 @@
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo_pty::OpenProcessError;
 use terrazzo_pty::ProcessIO;
 use terrazzo_pty::lease::LeaseProcessOutputError;
@@ -45,11 +47,12 @@ where
     }
 }
 
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum GetOrCreateProcessError {
-    #[error("OpenProcessError: {0}")]
+    #[error("[{n}] Failed to open the terminal process: {0}", n = self.name())]
     OpenProcessError(#[from] OpenProcessError),
 
-    #[error("LeaseProcessOutputError: {0}")]
+    #[error("[{n}] Failed to lease the terminal process output: {0}", n = self.name())]
     LeaseProcessOutputError(#[from] LeaseProcessOutputError),
 }

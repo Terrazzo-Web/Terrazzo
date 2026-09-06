@@ -31,7 +31,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.14"
+version = "0.2.19"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
@@ -58,55 +58,56 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.14", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.14", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.14", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.14", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.14", path = "framework/build" }
-terrazzo-client = { version = "0.2.14", path = "framework/client" }
-terrazzo-css = { version = "0.2.14", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.14", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.14", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.14", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.14", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.14", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.14", path = "pty" }
-terrazzo-synctex = { version = "0.2.14", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.14", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.14", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.14", path = "remote/client" }
-trz-gateway-common = { version = "0.2.14", path = "remote/common" }
-trz-gateway-server = { version = "0.2.14", path = "remote/server" }
+autoclone = { version = "0.2.19", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.19", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.19", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.19", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.19", path = "framework/build" }
+terrazzo-client = { version = "0.2.19", path = "framework/client" }
+terrazzo-css = { version = "0.2.19", path = "utils/css/css" }
+terrazzo-css-cli = { version = "0.2.19", path = "utils/css/cli" }
+terrazzo-css-macro = { version = "0.2.19", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.19", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.19", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.19", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.19", path = "pty" }
+terrazzo-synctex = { version = "0.2.19", path = "utils/synctex/synctex" }
+terrazzo-synctex-cli = { version = "0.2.19", path = "utils/synctex/cli" }
+terrazzo-synctex-sys = { version = "0.2.19", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.19", path = "remote/client" }
+trz-gateway-common = { version = "0.2.19", path = "remote/common" }
+trz-gateway-server = { version = "0.2.19", path = "remote/server" }
 
+async-trait = { version = "0.1.92" }
 axum = { version = "0.8.9" }
 axum-extra = { version = "0.12.6" }
 axum-server = { version = "0.8.0" }
 base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.1" }
 bytes = { version = "1.12.1" }
-cc = { version = "1.4.1" }
+cc = { version = "1.4.5" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.6", features = ["derive"] }
 cms = { version = "0.2.3" }
 const_format = { version = "0.2.36" }
-darling = { version = "0.24.0" }
+darling = { version = "0.24.1" }
 dashmap = { version = "6.2.1" }
 fluent-asserter = { version = "0.1.9" }
-futures = { version = "0.3.33" }
+futures = { version = "0.3.34" }
 heck = { version = "0.5.0" }
 hickory-client = { version = "0.25.2", features = ["serde"] }
 hostname = { version = "0.4.2" }
 http = { version = "1.5.0" }
-http-body-util = { version = "0.1.4" }
+http-body-util = { version = "0.1.5" }
 humantime = { version = "2.4.0" }
-hyper = { version = "1.11.0" }
+hyper = { version = "1.11.1" }
 hyper-util = { version = "0.1.20" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.24" }
 jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.189" }
-lru = { version = "0.18.2" }
+lru = { version = "0.18.4" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
@@ -121,8 +122,9 @@ prettyplease = { version = "0.3.0" }
 proc-macro2 = { version = "1.0.107" }
 prost = { version = "0.14.4" }
 prost-types = { version = "0.14.4" }
+quick_cache = { version = "0.7.0" }
 quote = { version = "1.0.47" }
-rcgen = { version = "0.14.8" }
+rcgen = { version = "0.14.10" }
 regex = { version = "1.13.1" }
 reqwest = { version = "0.13.4" }
 reqwest-wasm = { version = "0.11.16" }
@@ -136,7 +138,7 @@ rustls = { version = "0.23.43" }
 rustls-native-certs = { version = "0.8.4" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.229", features = ["derive", "rc"] }
-serde-saphyr = { version = "1.0.1" }
+serde-saphyr = { version = "1.2.0" }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.151" }
 serde_urlencoded = { version = "0.7.1" }
@@ -146,22 +148,22 @@ sha2 = { version = "0.11.0" }
 simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
-syn = { version = "3.0.3" }
+syn = { version = "3.0.5" }
 tantivy = { version = "0.26.1" }
 tempfile = { version = "3.27.0" }
-thiserror = { version = "2.0.19" }
+thiserror = { version = "2.0.20" }
 tls-parser = { version = "0.12.2" }
-tokio = { version = "1.52.3" }
-tokio-rustls = { version = "0.26.4" }
-tokio-stream = { version = "0.1.18" }
+tokio = { version = "1.53.1" }
+tokio-rustls = { version = "0.26.5" }
+tokio-stream = { version = "0.1.19", features = ["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
-tokio-util = { version = "0.7.18" }
-toml = { version = "1.1.4" }
+tokio-util = { version = "0.7.19" }
+toml = { version = "1.1.5" }
 tonic = { version = "0.14.6" }
 tonic-prost = { version = "0.14.6" }
 tonic-prost-build = { version = "0.14.6" }
 tower = { version = "0.5.3" }
-tower-http = { version = "0.7.0" }
+tower-http = { version = "0.7.1" }
 tower-layer = { version = "0.3.3" }
 tracing = { version = "0.1.44" }
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
@@ -170,14 +172,17 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
-uuid = { version = "1.24.0", features = ["fast-rng", "v4"] }
+uuid = { version = "1.26.0", features = ["fast-rng", "serde", "v4"] }
 walkdir = { version = "2.5.0" }
-wasm-bindgen = { version = "0.2.126" }
-wasm-bindgen-cli = { version = "0.2.126" }
-wasm-bindgen-futures = { version = "0.4.76" }
-wasm-bindgen-test = { version = "0.3.76" }
+wasm-bindgen = { version = "0.2.128" }
+wasm-bindgen-cli = { version = "0.2.128" }
+wasm-bindgen-futures = { version = "0.4.78" }
+wasm-bindgen-test = { version = "0.3.78" }
 wasm-streams = { version = "0.5.0" }
-web-sys = { version = "0.3.103" }
+web-sys = { version = "0.3.105" }
+webrtc = { version = "0.20.5", default-features = false, features = [
+  "runtime-tokio",
+] }
 winnow = { version = "1.0.4" }
 x509-parser = { version = "0.18.1" }
 

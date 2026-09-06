@@ -6,6 +6,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::Element;
 use web_sys::js_sys::Uint8Array;
 
+use super::editor::EditorBody;
+
 terrazzo_css::import_style!(pub(super) style, "pdf_viewer.scss");
 
 pub struct PdfJs(PdfJsImpl);
@@ -31,6 +33,12 @@ impl PdfJs {
 
     pub fn set_content(&self, base64: String) {
         self.0.set_content(decode_pdf(&base64));
+    }
+}
+
+impl EditorBody for PdfJs {
+    fn set_content(&self, content: String) {
+        self.set_content(content);
     }
 }
 

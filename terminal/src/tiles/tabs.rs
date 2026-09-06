@@ -22,13 +22,19 @@ use super::signals::Tiles;
 use super::ui::RcSlice;
 use super::ui::RootTree;
 use crate::assets::icons;
-use crate::frontend::menu::DragHandle;
+use crate::frontend::menu::MouseEventHandle;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::mousemove::Position;
+use crate::tiles::api::set_floating_collapsed;
 use crate::tiles::api::set_tab_title;
 use crate::tiles::id::TileId;
 
 terrazzo_css::import_style!(style, "tabs.scss");
+
+// This is consumed only by app features that provide collapsible content, so
+// feature combinations such as converter-only intentionally leave it unused.
+#[allow(dead_code)]
+pub const APP_COLLAPSIBLE_CONTENT: &str = style::APP_COLLAPSIBLE_CONTENT;
 
 #[derive(Clone)]
 pub struct TileTabs {
@@ -39,11 +45,21 @@ impl TileTabs {
     pub fn new(
         nodes: &[Rc<Tiles>],
         selected: &XSignal<Option<TileId>>,
-        drag_handle: Option<DragHandle>,
+        drag_handle: Option<MouseEventHandle>,
+        dragging: XSignal<bool>,
+        dblclick_handle: Option<MouseEventHandle>,
     ) -> Self {
         let tabs = nodes
             .iter()
-            .map(|node| TileTab::new(node.clone(), selected, drag_handle.clone()))
+            .map(|node| {
+                TileTab::new(
+                    node.clone(),
+                    selected,
+                    drag_handle.clone(),
+                    dragging.clone(),
+                    dblclick_handle.clone(),
+                )
+            })
             .collect();
         Self {
             tabs: Rc::new(tabs),
@@ -92,12 +108,18 @@ impl TabsDescriptor for TileTabs {
 pub struct TileTabsState {
     array_id: TileId,
     selected: XSignal<Option<TileId>>,
+    dragging: XSignal<bool>,
     #[expect(dead_code)]
     registrations: Rc<Consumers>,
 }
 
 impl TileTabsState {
-    pub fn new(array_id: TileId, selected: XSignal<Option<TileId>>, nodes: &[Rc<Tiles>]) -> Self {
+    pub fn new(
+        array_id: TileId,
+        selected: XSignal<Option<TileId>>,
+        nodes: &[Rc<Tiles>],
+        dragging: XSignal<bool>,
+    ) -> Self {
         if selected.get_value_untracked().is_none() {
             selected.set(nodes.first().map(|node| node.id()));
         }
@@ -126,6 +148,7 @@ impl TileTabsState {
         Self {
             array_id,
             selected,
+            dragging,
             registrations: Rc::new(sync_selection),
         }
     }
@@ -136,7 +159,6 @@ impl TabsState for TileTabsState {
 
     fn move_tab(&self, after_tab: Option<TileTab>, moved_tab_key: String) {
         let array_id = self.array_id;
-        let selected = self.selected.clone();
         spawn_local(async move {
             let moved_child = match moved_tab_key
                 .parse::<i64>()
@@ -150,13 +172,16 @@ impl TabsState for TileTabsState {
                 }
             };
             let after_child = after_tab.map(|tab| tab.id);
-            selected.set(Some(moved_child));
             RootTree::update(super::api::move_child(array_id, after_child, moved_child).await);
         });
     }
 
     fn drag_key() -> &'static str {
         "tile_tab_id"
+    }
+
+    fn dragging(&self) -> Option<XSignal<bool>> {
+        Some(self.dragging.clone())
     }
 
     fn zone_id(&self) -> Option<String> {
@@ -169,25 +194,31 @@ pub struct TileTab {
     id: TileId,
     node: Rc<Tiles>,
     selected: XSignal<bool>,
-    drag_handle: Option<DragHandle>,
+    drag_handle: Option<MouseEventHandle>,
+    dragging: XSignal<bool>,
+    dblclick_handle: Option<MouseEventHandle>,
 }
 
 impl TileTab {
     fn new(
         node: Rc<Tiles>,
         selected: &XSignal<Option<TileId>>,
-        drag_handle: Option<DragHandle>,
+        drag_handle: Option<MouseEventHandle>,
+        dragging: XSignal<bool>,
+        dblclick_handle: Option<MouseEventHandle>,
     ) -> Self {
         let id = node.id();
         Self {
             id,
             node,
             drag_handle,
+            dragging,
             selected: selected.derive(
                 "selected-tile-tab",
                 move |selected| *selected == Some(id),
                 if_change(move |_, selected: &bool| selected.then_some(Some(id))),
             ),
+            dblclick_handle,
         }
     }
 }
@@ -220,6 +251,8 @@ impl TabDescriptor for TileTab {
             XSignal::new("tile-tab-parent-direction", Direction::Horizontal),
             RcSlice::new(Rc::default(), 0..0),
             self.drag_handle.clone(),
+            self.dragging.clone(),
+            self.dblclick_handle.clone(),
         )
     }
 
@@ -234,10 +267,18 @@ pub fn show_tabbed_tiles(
     selected: XSignal<Option<TileId>>,
     nodes: &[Rc<Tiles>],
     floating_nodes: &[Rc<FloatingTile>],
-    drag_handle: Option<DragHandle>,
+    drag_handle: Option<MouseEventHandle>,
+    dragging: XSignal<bool>,
+    dblclick_handle: Option<MouseEventHandle>,
 ) -> XElement {
-    let descriptor = TileTabs::new(nodes, &selected, drag_handle);
-    let state = TileTabsState::new(array_id, selected, nodes);
+    let descriptor = TileTabs::new(
+        nodes,
+        &selected,
+        drag_handle,
+        dragging.clone(),
+        dblclick_handle,
+    );
+    let state = TileTabsState::new(array_id, selected, nodes, dragging.clone());
     div(
         class = style::TABBED_TILE,
         #[cfg(not(feature = "client-prod"))]
@@ -255,12 +296,16 @@ pub fn show_tabbed_tiles(
                 ..TabsOptions::default()
             }),
         ),
-        show_floating_tiles(array_id, floating_nodes),
+        show_floating_tiles(array_id, floating_nodes, dragging),
     )
 }
 
 #[html]
-fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) -> XElement {
+fn show_floating_tiles(
+    array_id: TileId,
+    floating_nodes: &[Rc<FloatingTile>],
+    dragging: XSignal<bool>,
+) -> XElement {
     let z_indices: Rc<[XSignal<i32>]> = floating_nodes
         .iter()
         .map(|floating| floating.z_index.clone())
@@ -268,6 +313,7 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
     div(floating_nodes
         .iter()
         .map(|floating| {
+            let dragging = dragging.clone();
             let floating = floating.clone();
             let floating_id = floating.tile.id();
             let z_indices = z_indices.clone();
@@ -297,7 +343,19 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                     y.set(0.max(initial_y + delta_y));
                 }
             });
-            let drag_handle: DragHandle = Rc::new(drag_manager.mousedown());
+            let drag_handle: MouseEventHandle = Rc::new(drag_manager.mousedown());
+            let collapsed = floating.collapsed.clone();
+            let dblclick_handle: MouseEventHandle = Rc::new(move |_| {
+                let new_collapsed = !collapsed.get_value_untracked();
+                let task = set_floating_collapsed(array_id, floating_id, new_collapsed);
+                spawn_local(async move {
+                    let new_tree = task.await;
+                    RootTree::update(new_tree);
+                    if !new_collapsed {
+                        ResizeEvent::signal().force(());
+                    }
+                });
+            });
             let width = floating.width.clone();
             let height = floating.height.clone();
             let persist_width = width.clone();
@@ -339,6 +397,7 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                 style::top %= pixels(floating.y.clone()),
                 style::width %= pixels(floating.width.clone()),
                 style::height %= pixels(floating.height.clone()),
+                class %= collapsed_class(floating.collapsed.clone()),
                 style::z_index %= integer(floating.z_index.clone()),
                 mousedown = move |_| {
                     let next = z_indices
@@ -359,6 +418,8 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
                     XSignal::new("floating-tile-parent-direction", Direction::Horizontal),
                     RcSlice::new(Rc::default(), 0..0),
                     Some(drag_handle),
+                    dragging,
+                    Some(dblclick_handle),
                 ),
                 img(
                     class = style::RESIZE_HANDLE,
@@ -378,6 +439,11 @@ fn show_floating_tiles(array_id: TileId, floating_nodes: &[Rc<FloatingTile>]) ->
 #[template(wrap = true)]
 fn pixels(#[signal] value: i32) -> XAttributeValue {
     format!("{value}px")
+}
+
+#[template(wrap = true)]
+fn collapsed_class(#[signal] collapsed: bool) -> XAttributeValue {
+    collapsed.then_some(style::COLLAPSED)
 }
 
 #[template(wrap = true)]

@@ -26,6 +26,8 @@ use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
 use trz_gateway_server::server::gateway_config::Ports;
 use trz_gateway_server::server::gateway_config::app_config::AppConfig;
+use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationAuthorization;
+use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationConfig;
 
 use super::Server;
 use super::auth::AuthConfig;
@@ -101,6 +103,30 @@ impl GatewayConfig for TerminalBackendServer {
                 .set_current_endpoint
                 .as_ref()
                 .map(|path| path.to_path_buf())
+        })
+    }
+
+    fn p2p_registration(&self) -> Option<P2pRegistrationConfig> {
+        self.config.server.with(|server| {
+            let config = server.p2p_registration.as_ref()?;
+            let mut p2p = P2pRegistrationConfig::new(
+                config.signaling_url.clone(),
+                config.server_name.clone().into(),
+            );
+            p2p.ice_servers = config
+                .ice_servers
+                .clone()
+                .into_iter()
+                .map(Into::into)
+                .collect();
+            p2p.retry_strategy = config.retry_strategy.clone();
+            p2p.handshake_timeout = config.handshake_timeout;
+            p2p.authorization = config
+                .authorization_bearer_token
+                .as_ref()
+                .map(|token| P2pRegistrationAuthorization::BearerToken(token.clone()));
+            p2p.max_sessions = config.max_sessions.unwrap_or(64);
+            Some(p2p)
         })
     }
 

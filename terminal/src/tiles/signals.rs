@@ -52,6 +52,7 @@ pub struct FloatingTile {
     pub height: XSignal<i32>,
     pub z_index: XSignal<i32>,
     pub tile: Tiles,
+    pub collapsed: XSignal<bool>,
 }
 
 #[envelope]
@@ -61,6 +62,8 @@ pub struct Tile {
     pub remote: XSignal<Remote>,
     pub title: XSignal<XString>,
     pub menu: MenuState,
+    #[cfg(feature = "terminal")]
+    pub terminal_ui: crate::terminal::ui::TerminalUiState,
 }
 
 impl Tiles {
@@ -98,6 +101,8 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
                     remote: XSignal::new("remote", remote.clone()),
                     title: XSignal::new("title", title.clone().into()),
                     menu: MenuState::default(),
+                    #[cfg(feature = "terminal")]
+                    terminal_ui: Default::default(),
                 }
                 .into()
             };
@@ -172,6 +177,11 @@ fn transform_floating(signals: &mut TileSignals, floating: &FloatingTileDto) -> 
             old.as_ref().map(|old| &old.z_index),
         ),
         tile: transform(signals, &floating.tile),
+        collapsed: reuse_signal(
+            "floating-z-index",
+            floating.collapsed,
+            old.as_ref().map(|old| &old.collapsed),
+        ),
     }
 }
 
@@ -197,6 +207,8 @@ impl Default for Tiles {
             remote: XSignal::new("remote", Remote::default()),
             title: XSignal::new("title", format!("New tile {id}").into()),
             menu: MenuState::default(),
+            #[cfg(feature = "terminal")]
+            terminal_ui: Default::default(),
         }
         .into()
     }

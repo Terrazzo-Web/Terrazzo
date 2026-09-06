@@ -39,6 +39,22 @@ impl Server {
                         .tunnel(client_id, client_name, web_socket)
                         .instrument(span)
                 }),
+            )
+            .route(
+                "/p2p/register/{server_name}",
+                get(move |server_name, web_socket| {
+                    autoclone!(server, span);
+                    server
+                        .p2p_register(server_name, web_socket)
+                        .instrument(span)
+                }),
+            )
+            .route(
+                "/p2p/connect/{server_name}",
+                get(move |server_name, web_socket| {
+                    autoclone!(server, span);
+                    server.p2p_connect(server_name, web_socket).instrument(span)
+                }),
             );
         self.app_config.configure_app(self.clone(), router)
     }

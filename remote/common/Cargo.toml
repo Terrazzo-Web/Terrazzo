@@ -13,6 +13,7 @@ keywords = ["terrazzo", "gateway", "proxy", "agent"]
 [lib]
 
 [dependencies]
+async-trait = { workspace = true }
 axum = { workspace = true }
 bytes = { workspace = true }
 cms = { workspace = true }
@@ -28,17 +29,20 @@ rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "rt", "sync"] }
 tokio-util = { workspace = true }
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
+webrtc = { workspace = true }
 x509-parser = { workspace = true }
 
 [dev-dependencies]
 scopeguard = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
 toml = { workspace = true }
 
 [build-dependencies]

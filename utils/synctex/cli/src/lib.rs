@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use terrazzo_synctex::Node;
 use terrazzo_synctex::Scanner;
 use terrazzo_synctex::VisibleBox;
@@ -79,15 +81,16 @@ struct Sheet {
     content: bool,
 }
 
+#[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("{0}")]
+    #[error("[{n}] Failed to parse command-line arguments: {0}", n = self.name())]
     Clap(#[from] clap::Error),
 
-    #[error("{0}")]
+    #[error("[{n}] I/O operation failed: {0}", n = self.name())]
     Io(#[from] std::io::Error),
 
-    #[error("{0}")]
+    #[error("[{n}] SyncTeX operation failed: {0}", n = self.name())]
     Synctex(#[from] terrazzo_synctex::Error),
 }
 

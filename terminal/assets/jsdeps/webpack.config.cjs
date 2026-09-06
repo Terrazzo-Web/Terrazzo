@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
     mode: 'production',
@@ -11,5 +12,17 @@ module.exports = {
     },
     resolve: {
         extensions: ['.js']
-    }
+    },
+    module: {
+        rules: [
+            {
+                test: /\.css$/i,
+                sideEffects: true,
+                use: ['style-loader', 'css-loader'],
+            },
+        ],
+    },
+    plugins: [
+        new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+    ],
 };

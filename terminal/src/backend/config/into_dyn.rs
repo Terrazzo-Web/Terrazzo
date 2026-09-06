@@ -328,6 +328,21 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
             let result = get_or_init(old, &mut result);
             result.git_trash = new.git_trash.clone();
         }
+        if new.tantivy_cache != old.tantivy_cache {
+            info!("Changed: tantivy_cache");
+            let result = get_or_init(old, &mut result);
+            result.tantivy_cache = new.tantivy_cache.clone();
+        }
+        if new.search_index_refresh != old.search_index_refresh {
+            info!("Changed: search_index_refresh");
+            let result = get_or_init(old, &mut result);
+            result.search_index_refresh = new.search_index_refresh;
+        }
+        if new.search_index_stale_after != old.search_index_stale_after {
+            info!("Changed: search_index_stale_after");
+            let result = get_or_init(old, &mut result);
+            result.search_index_stale_after = new.search_index_stale_after;
+        }
 
         return result.map(DiffArc::from);
     });

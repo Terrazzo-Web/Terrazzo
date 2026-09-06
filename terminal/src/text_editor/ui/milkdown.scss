@@ -1,0 +1,88 @@
+div.milkdown-editor {
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+
+    > div.milkdown-wysiwyg-pane,
+    > div.milkdown-source-pane {
+        box-sizing: border-box;
+        min-width: 0;
+        height: 100%;
+        overflow: auto;
+    }
+
+    > div.milkdown-wysiwyg-pane {
+        border-right: 1px solid var(--color);
+        background-color: color-mix(in srgb,
+                var(--background-color) 90%,
+                black 10%);
+
+        :global(.milkdown),
+        :global(.ProseMirror) {
+            box-sizing: border-box;
+            min-height: 100%;
+        }
+
+        :global(.milkdown) {
+            --crepe-color-background: var(--background-color);
+            --crepe-color-on-background: var(--color);
+            --crepe-color-surface: color-mix(in srgb,
+                    var(--background-color) 85%,
+                    black 15%);
+            --crepe-color-on-surface: var(--color);
+            --crepe-color-primary: var(--link-color);
+        }
+    }
+
+    > div.milkdown-source-pane {
+        :global(.cm-editor),
+        :global(.cm-mergeView) {
+            height: 100%;
+            min-width: 0;
+        }
+    }
+
+    &.preview-mode {
+        > div.milkdown-wysiwyg-pane {
+            width: 100%;
+        }
+
+        > div.milkdown-source-pane {
+            display: none;
+        }
+    }
+
+    &.editor-mode {
+        > div.milkdown-wysiwyg-pane {
+            display: none;
+        }
+
+        > div.milkdown-source-pane {
+            width: 100%;
+        }
+    }
+
+    &.side-by-side-mode {
+        > div.milkdown-wysiwyg-pane,
+        > div.milkdown-source-pane {
+            width: 50%;
+        }
+    }
+
+    @media (max-width: 720px) {
+        &.side-by-side-mode {
+            flex-direction: column;
+
+            > div.milkdown-wysiwyg-pane,
+            > div.milkdown-source-pane {
+                width: 100%;
+                height: 50%;
+            }
+
+            > div.milkdown-wysiwyg-pane {
+                border-right: 0;
+                border-bottom: 1px solid var(--color);
+            }
+        }
+    }
+}

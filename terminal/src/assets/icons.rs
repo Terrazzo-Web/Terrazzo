@@ -59,7 +59,7 @@ declare_icon!(paragraph, "/icons/paragraph.svg"; any(feature = "terminal", featu
 declare_icon!(port_forward_loading,"/icons/port-forward-loading.svg"; feature = "port-forward");
 declare_icon!(port_forward_pending,"/icons/port-forward-pending.svg"; feature = "port-forward");
 declare_icon!(port_forward_synchronized,"/icons/port-forward-synchronized.svg"; feature = "port-forward");
-declare_icon!(refresh, "/icons/arrow-counterclockwise.svg"; feature = "text-editor");
+declare_icon!(refresh, "/icons/arrow-counterclockwise.svg"; any(feature = "terminal", feature = "text-editor"));
 declare_icon!(search, "/icons/search.svg"; feature = "text-editor");
 declare_icon!(send_fill, "/icons/send-fill.svg"; any(feature = "terminal", feature = "text-editor"));
 declare_icon!(slash, "/icons/slash.svg"; feature = "text-editor");

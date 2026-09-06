@@ -1,14 +1,20 @@
 use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
 use futures::FutureExt as _;
 use futures::StreamExt as _;
+use futures::future::BoxFuture;
 use futures::future::Either;
+use futures::future::Shared;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use reqwest::Url;
+use scopeguard::defer;
+use tokio::io::AsyncRead;
+use tokio::io::AsyncWrite;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
@@ -18,6 +24,7 @@ use tonic::transport::Server;
 use tracing::Span;
 use tracing::debug;
 use tracing::info;
+use tracing::info_span;
 use tracing::warn;
 use tracing_futures::Instrument as _;
 use trz_gateway_common::id::CLIENT_ID_HEADER;
@@ -26,9 +33,11 @@ use trz_gateway_common::protos::terrazzo::remote::health::health_service_server:
 use trz_gateway_common::to_async_io::WebSocketIo;
 
 use self::tungstenite::client::IntoClientRequest as _;
+use super::config::ClientTransport;
 use super::config::SniOverrideError;
 use super::config::set_sni_override;
 use super::connection::Connection;
+use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
 
 impl super::Client {
@@ -36,11 +45,12 @@ impl super::Client {
     pub(super) async fn connect(
         &self,
         client_id: ClientId,
-        shutdown: impl Future<Output = ()> + Unpin,
+        shutdown: Shared<BoxFuture<'static, ()>>,
         timeout: Duration,
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
-        info!(uri = self.uri, sni = ?self.sni_override, "Connecting WebSocket");
+        let start = Instant::now();
+        info!(uri = self.uri, sni = ?self.sni_override, transport = ?self.transport, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
@@ -54,10 +64,10 @@ impl super::Client {
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_tcp(&request, disable_nagle)
-            .timeout(timeout)
-            .await
-            .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??;
+        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout)
+            .instrument(info_span!("Connect Transport"))
+            .await?;
+        let (socket, force_close) = ForceCloseIo::new(socket);
         let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             tls_request,
             socket,
@@ -82,15 +92,23 @@ impl super::Client {
             .map_err(ConnectError::Accept)?;
 
         let connection = Connection::new(tls_stream);
-        let eos2 = eos.clone();
+        let (unhealthy_tx, unhealthy_rx) = oneshot::channel();
+        let unhealthy_rx = unhealthy_rx.shared();
+        let eos2 = futures::future::select(eos.clone(), unhealthy_rx.clone());
         let incoming = futures::stream::once(ready(Ok(connection)))
             .chain(futures::stream::once(async move {
-                let () = eos2.await.map_err(ConnectError::Stream)?;
+                match eos2.await {
+                    Either::Left((eos, unhealthy_rx)) => {
+                        handle_close_timeout("EOS", eos, "Unhealthy", unhealthy_rx)
+                    }
+                    Either::Right((unhealthy_rx, eos)) => {
+                        handle_close_timeout("Unhealthy", unhealthy_rx, "EOS", eos)
+                    }
+                }
                 Err(ConnectError::Disconnected)
             }))
             .in_current_span();
 
-        let (unhealthy_tx, unhealthy_rx) = oneshot::channel();
         let current_span = Span::current();
         let grpc_server = self
             .client_service
@@ -105,29 +123,78 @@ impl super::Client {
             .add_service(HealthServiceServer::new(HealthServiceImpl::new(
                 self.current_auth_code.clone(),
                 unhealthy_tx,
+                shutdown.clone(),
             )));
 
-        info!("Serving");
+        info!(
+            elapsed = humantime::format_duration(start.elapsed()).to_string(),
+            "Serving"
+        );
 
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
 
         let shutdown = futures::future::select(shutdown, unhealthy_rx)
-            .map(|signal| match signal {
-                Either::Left(((), _)) => info!("Shutdown signal"),
-                Either::Right((Ok(()), _)) => info!("Unhealthy signal"),
-                Either::Right((Err(RecvError { .. }), _)) => warn!("Unhealthy signal dropped"),
+            .map(move |signal| {
+                match signal {
+                    Either::Left(((), _)) => info!("Shutdown signal"),
+                    Either::Right((Ok(()), _)) => info!("Unhealthy signal"),
+                    Either::Right((Err(RecvError { .. }), _)) => {
+                        warn!("Unhealthy signal dropped")
+                    }
+                }
+                drop(force_close);
             })
             .in_current_span();
         let () = grpc_server
             .serve_with_incoming_shutdown(incoming, shutdown)
             .await?;
+        debug!("Waiting for EOS");
         if let Some(eos) = eos.peek().cloned() {
             let () = eos.map_err(ConnectError::Stream)?;
         }
-        info!("Done");
+        info!(
+            elapsed = humantime::format_duration(start.elapsed()).to_string(),
+            "Done"
+        );
         Ok(())
     }
+}
+
+fn handle_close_timeout<E1: std::error::Error, E2: std::error::Error>(
+    result_is: &'static str,
+    result: Result<(), E1>,
+    pending_is: &'static str,
+    pending: impl Future<Output = Result<(), E2>> + Send + Clone + 'static,
+) {
+    match result {
+        Ok(()) => warn!("Stream closed with {result_is}:OK"),
+        Err(error) => warn!("Stream closed with {result_is}:{error}"),
+    }
+    let close_latency = {
+        let start = Instant::now();
+        move || humantime::format_duration(start.elapsed())
+    };
+    tokio::spawn(
+        async move {
+            const MINUTE: Duration = Duration::from_secs(60 * 5);
+            match tokio::time::timeout(MINUTE, pending).await {
+                Ok(Ok(())) => {
+                    info!("{pending_is} triggered after {}", close_latency())
+                }
+                Ok(Err(error)) => {
+                    warn!(
+                        "{pending_is} triggered after {} with {error}",
+                        close_latency()
+                    )
+                }
+                Err(tokio::time::error::Elapsed { .. }) => {
+                    warn!("{pending_is} never triggered until {}", close_latency())
+                }
+            }
+        }
+        .in_current_span(),
+    );
 }
 
 trait HasTimeout: Future + Sized {
@@ -173,6 +240,30 @@ async fn connect_tcp(
     Ok(socket)
 }
 
+trait TransportIo: AsyncRead + AsyncWrite + Unpin + Send {}
+
+impl<T> TransportIo for T where T: AsyncRead + AsyncWrite + Unpin + Send {}
+
+async fn connect_transport(
+    transport: &ClientTransport,
+    request: &tungstenite::handshake::client::Request,
+    disable_nagle: bool,
+    timeout: Duration,
+) -> Result<Box<dyn TransportIo>, ConnectError> {
+    let start = Instant::now();
+    info!("Start");
+    defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
+    match transport {
+        ClientTransport::Direct => Ok(Box::new(
+            connect_tcp(request, disable_nagle)
+                .timeout(timeout)
+                .await
+                .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
+        )),
+        ClientTransport::WebRtc(config) => Ok(Box::new(crate::p2p::connect(config).await?)),
+    }
+}
+
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -194,6 +285,9 @@ pub enum ConnectError {
 
     #[error("[{n}] {0}", n = self.name())]
     TcpConnect(std::io::Error),
+
+    #[error("[{n}] {0}", n = self.name())]
+    P2p(#[from] crate::p2p::P2pConnectError),
 
     #[error("[{n}] {0}", n = self.name())]
     Accept(std::io::Error),

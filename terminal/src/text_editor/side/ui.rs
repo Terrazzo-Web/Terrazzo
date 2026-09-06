@@ -153,7 +153,7 @@ fn show_side_view_folder(
                 class %= get_dragover_class(dragover_class.clone()),
                 click = move |_| {
                     autoclone!(manager, path);
-                    manager.path.file.set(path.file.clone())
+                    manager.path.file.force(path.file.clone())
                 },
                 dblclick = expand_folder(manager, path),
                 span("{name_display}", class = name_display_class(properties)),

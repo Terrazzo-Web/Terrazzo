@@ -6,7 +6,7 @@ use std::time::SystemTime;
 use jsonwebtoken::Header;
 use terrazzo::axum::body::Body;
 use terrazzo::axum::body::to_bytes;
-use terrazzo::axum::response::IntoResponse;
+use terrazzo::axum::response::IntoResponse as _;
 use terrazzo::http;
 use terrazzo::http::Request;
 use terrazzo::http::Response;

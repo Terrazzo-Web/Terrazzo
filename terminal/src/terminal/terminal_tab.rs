@@ -14,6 +14,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::debounce::DoDebounce;
 use terrazzo::widgets::editable::editable;
+use terrazzo::widgets::sleep::sleep;
 use terrazzo::widgets::tabs::TabDescriptor;
 use wasm_bindgen_futures::spawn_local;
 
@@ -43,6 +44,7 @@ pub struct TerminalTab(Rc<TerminalTabInner>);
 pub struct TerminalTabInner {
     def: LiveTerminalDef,
     pub selected: XSignal<bool>,
+    pub generation: XSignal<usize>,
     pub xtermjs: Mutex<Option<WithGenerationId<TerminalJsRc>>>,
     pub attachment_cancel: Mutex<Option<oneshot::Sender<()>>>,
     #[expect(unused)]
@@ -116,6 +118,7 @@ impl TerminalTab {
                 tile,
             },
             selected,
+            generation: XSignal::new("terminal-generation", 0),
             xtermjs: Mutex::new(None),
             attachment_cancel: Mutex::new(None),
             registrations,
@@ -179,70 +182,86 @@ impl TabDescriptor for TerminalTab {
         div([title_link, close_button]..)
     }
 
-    #[autoclone]
     #[html]
     fn item(&self, state: &TerminalsState) -> impl Into<XNode> {
-        let this = self.clone();
-        let state = state.clone();
-        let send_to_terminal: Ptr<dyn Fn(String)> = Ptr::new(move |data| {
-            autoclone!(this);
-            let terminal = this.address.clone();
-            spawn_local(async move {
-                if let Err(error) = terminal_api::write(&terminal, data).await {
-                    warn!("Failed to write input overlay text to the terminal: {error}");
-                }
-                if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
-                    warn!("Failed to write input overlay text to the terminal: {error}");
-                }
-            });
-        });
-        let focus_terminal: Ptr<dyn Fn()> = Ptr::new(move || {
-            autoclone!(this);
-            if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
-                xtermjs.focus();
-            }
-        });
-        let InputOverlay {
-            is_open: is_input_overlay_open,
-            html: input_overlay_html,
-            textarea: input_overlay_textarea,
-        } = InputOverlay::new(send_to_terminal, focus_terminal);
-        let notify_mouse = watch::WatchTx::new();
-        let notify_mouse_rx = notify_mouse.subscribe();
-        div(
-            mouseenter = move |_| {
-                autoclone!(this);
-                match notify_mouse.notify(()) {
-                    Ok(()) => (),
-                    Err(()) => warn!("Stream loop is gone!"),
-                }
-                if is_input_overlay_open.get_value_untracked() {
-                    input_overlay_textarea.try_with(|textarea| {
-                        let () = textarea.focus().unwrap_or_else(|error| {
-                            warn!("Failed to focus: {error:?}");
-                        });
-                    });
-                } else if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
-                    xtermjs.focus();
-                }
-            },
-            class = style::TERMINAL,
-            div(move |template| {
-                autoclone!(this);
-                attach(
-                    template,
-                    state.clone(),
-                    this.clone(),
-                    notify_mouse_rx.clone(),
-                )
-            }),
-            input_overlay_html,
-        )
+        terminal_item(self.clone(), state.clone(), self.generation.clone())
     }
 
     fn selected(&self, _state: &TerminalsState) -> XSignal<bool> {
         self.selected.clone()
     }
+}
+
+#[html]
+#[template(tag = div)]
+fn terminal_item(
+    this: TerminalTab,
+    state: TerminalsState,
+    #[signal] generation: usize,
+) -> XElement {
+    tag(terminal_item2(this, state, generation))
+}
+
+#[autoclone]
+#[html]
+#[template(tag = div, key = generation.to_string())]
+fn terminal_item2(this: TerminalTab, state: TerminalsState, generation: usize) -> XElement {
+    let _ = generation;
+    let send_to_terminal: Ptr<dyn Fn(String)> = Ptr::new(move |data| {
+        autoclone!(this);
+        let terminal = this.address.clone();
+        spawn_local(async move {
+            if let Err(error) = terminal_api::write(&terminal, data).await {
+                warn!("Failed to write input overlay text to the terminal: {error}");
+            }
+            let _ = sleep(Duration::from_millis(50)).await;
+            if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
+                warn!("Failed to write input overlay text to the terminal: {error}");
+            }
+        });
+    });
+    let focus_terminal: Ptr<dyn Fn()> = Ptr::new(move || {
+        autoclone!(this);
+        if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
+            xtermjs.focus();
+        }
+    });
+    let InputOverlay {
+        is_open: is_input_overlay_open,
+        html: input_overlay_html,
+        textarea: input_overlay_textarea,
+    } = InputOverlay::new(send_to_terminal, focus_terminal);
+    let notify_mouse = watch::WatchTx::new();
+    let notify_mouse_rx = notify_mouse.subscribe();
+    tag(
+        class = style::TERMINAL,
+        mouseenter = move |_| {
+            autoclone!(this);
+            match notify_mouse.notify(()) {
+                Ok(()) => (),
+                Err(()) => warn!("Stream loop is gone!"),
+            }
+            if is_input_overlay_open.get_value_untracked() {
+                input_overlay_textarea.try_with(|textarea| {
+                    let () = textarea.focus().unwrap_or_else(|error| {
+                        warn!("Failed to focus: {error:?}");
+                    });
+                });
+            } else if let Some(xtermjs) = &*this.xtermjs.lock().or_throw("xtermjs") {
+                xtermjs.focus();
+            }
+        },
+        div(move |template| {
+            autoclone!(this);
+            attach(
+                template,
+                state.clone(),
+                this.clone(),
+                notify_mouse_rx.clone(),
+            )
+        }),
+        input_overlay_html,
+    )
 }
 
 impl Deref for TerminalTab {

@@ -11,7 +11,7 @@ const SERVER_BIN = process.env.TERRAZZO_SERVER_BIN;
 const CONFIG_FILE = process.env.TERRAZZO_CONFIG_FILE;
 
 function getAddTabButton(page) {
-    return page.locator('div.add-tab-icon img');
+    return page.locator('div.add-tab-icon img[src$="/icons/plus-square.svg"]');
 }
 
 function getPasswordInput(page) {

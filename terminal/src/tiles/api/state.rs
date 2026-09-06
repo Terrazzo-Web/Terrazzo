@@ -26,4 +26,10 @@ pub enum TilesStateError {
 
     #[error("[{n}] The tile {0:?} was found twice", n = self.name())]
     DuplicateTileId(TileId),
+
+    #[error(
+        "[{n}] Cannot move tile {moved:?} into its descendant array {destination:?}",
+        n = self.name()
+    )]
+    MoveIntoDescendant { moved: TileId, destination: TileId },
 }

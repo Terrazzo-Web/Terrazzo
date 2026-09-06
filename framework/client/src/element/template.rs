@@ -87,6 +87,20 @@ impl XTemplate {
     pub(crate) fn key_attribute(&self) -> &str {
         &self.key_attribute
     }
+
+    pub(crate) fn clear(&self) {
+        self.clone().apply(|| XElement {
+            key: XKey::default(),
+            tag_name: None,
+            value: XElementValue::Static {
+                attributes: vec![],
+                events: vec![],
+                children: vec![],
+            },
+            before_render: None,
+            after_render: None,
+        })
+    }
 }
 
 impl IsTemplate for XTemplate {

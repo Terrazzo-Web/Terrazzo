@@ -55,6 +55,7 @@ mod certificate;
 pub mod gateway_config;
 mod http_or_https;
 mod issuer_config;
+mod p2p;
 pub mod root_ca_configuration;
 mod tunnel;
 
@@ -72,8 +73,10 @@ pub struct Server {
     shutdown: Shared<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     root_ca: Arc<X509CertificateInfo>,
     tls_server: RustlsConfig,
+    p2p_tls_server: tokio_rustls::TlsAcceptor,
     tls_client: Arc<DynamicConfig<Result<TlsConnector, Arc<dyn IsGlobalError>>, RO>>,
     connections: Arc<Connections>,
+    p2p_signaling: Arc<p2p::signaling::Signaling>,
     issuer_config: Arc<DynamicConfig<Result<Arc<IssuerConfig>, Arc<dyn IsGlobalError>>, RO>>,
     app_config: Box<dyn AppConfig>,
     set_current_endpoint: Option<PathBuf>,
@@ -126,10 +129,12 @@ impl Server {
                     )
                 });
 
+        let p2p_signaling = Arc::new(p2p::signaling::Signaling::default());
         let server = Arc::new(Self {
             shutdown: shutdown_rx.shared(),
             root_ca,
-            tls_server: RustlsConfig::from_config(tls_server),
+            tls_server: RustlsConfig::from_config(tls_server.clone()),
+            p2p_tls_server: tokio_rustls::TlsAcceptor::from(tls_server.clone()),
             tls_client: dynamic_client_config_view.view(|tls_client| {
                 (*(tls_client.as_ref()))
                     .as_ref()
@@ -137,6 +142,7 @@ impl Server {
                     .map_err(|x| x.clone() as Arc<dyn IsGlobalError>)
             }),
             connections: Arc::new(Connections::default()),
+            p2p_signaling: p2p_signaling.clone(),
             issuer_config: dynamic_client_config_view.view(|tls_client| {
                 (*(tls_client.as_ref()))
                     .as_ref()
@@ -147,6 +153,15 @@ impl Server {
             set_current_endpoint: config.set_current_endpoint(),
         });
 
+        tokio::spawn({
+            let shutdown = server.shutdown.clone();
+            async move {
+                shutdown.await;
+                p2p_signaling.shutdown();
+            }
+        });
+
+        let p2p_registration = config.p2p_registration();
         let (host, ports) = (config.host(), config.ports());
         let socket_addrs = (host.as_str(), *ports.first().unwrap())
             .to_socket_addrs()
@@ -157,6 +172,10 @@ impl Server {
                     .map(move |port| SocketAddr::new(socket_addr.ip(), *port))
             });
         drop(config);
+
+        if let Some(p2p_registration) = p2p_registration {
+            server.start_p2p_registration(p2p_registration);
+        }
 
         let mut terminated = vec![];
         let mut handles = vec![];

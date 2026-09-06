@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use connect::ConnectError;
 use futures::FutureExt as _;
+use futures::future::BoxFuture;
 use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -30,6 +31,7 @@ use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTls
 use trz_gateway_common::security_configuration::trusted_store::tls_client::ToTlsClientError;
 use uuid::Uuid;
 
+use self::config::ClientTransport;
 use self::config::SniOverrideError;
 use self::config::url;
 use self::service::ClientService;
@@ -56,6 +58,9 @@ pub struct Client {
 
     /// The TLS server name to validate when it differs from [Self::uri].
     sni_override: Option<String>,
+
+    /// How the Gateway is reached before applying its TLS protocol.
+    transport: ClientTransport,
 
     /// The TLS client is used to create the secure WebSocket tunnel.
     ///
@@ -94,6 +99,7 @@ impl Client {
             client_name,
             uri: url(&config, &tunnel_path)?.to_string(),
             sni_override: config.sni_override().map(ToOwned::to_owned),
+            transport: config.transport(),
             tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
             tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
             client_service: Arc::new(config.client_service()),
@@ -138,12 +144,13 @@ async fn run_impl(
     scopeguard::defer! { let _ = terminated_tx.send(()); };
     let retry_strategy0 = this.retry_strategy.clone();
     let mut retry_strategy = retry_strategy0.clone();
+    let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
     let is_shutdown = is_shutdown(shutdown_rx.clone());
 
     let mut serving_tx: Option<oneshot::Sender<()>> = Some(serving_tx);
-    loop {
+    for attempt in 0usize.. {
         let start = Instant::now();
         let result = this
             .connect(
@@ -152,12 +159,12 @@ async fn run_impl(
                 retry_strategy.peek() / 2,
                 &mut serving_tx,
             )
+            .instrument(info_span!("Connect", attempt))
             .await;
         if is_shutdown.load(SeqCst) {
             return;
         }
-        let uptime = Instant::now() - start;
-        if uptime < retry_strategy0.max_delay() {
+        if start.elapsed() < retry_strategy0.max_delay() {
             match result {
                 Ok(()) => {
                     info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }

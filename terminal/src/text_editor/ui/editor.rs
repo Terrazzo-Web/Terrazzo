@@ -11,6 +11,7 @@ use terrazzo::prelude::*;
 use terrazzo::template;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::Element;
 
 use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
@@ -19,11 +20,13 @@ use self::diagnostics::warn;
 use super::code_mirror::CodeMirrorJs;
 use super::fsio;
 use super::fsio::client::store_file;
+use super::milkdown::MilkdownJs;
 use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
+use crate::text_editor::manager::PreviewMode;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
@@ -41,7 +44,7 @@ pub(super) enum EditorDocument {
     Pdf(Arc<str>),
 }
 
-trait EditorBody {
+pub(super) trait EditorBody {
     fn set_content(&self, content: String);
 
     fn insert_text(&self, _text: String) {}
@@ -51,27 +54,27 @@ trait EditorBody {
     fn cargo_check(&self, _diagnostics: JsValue) {}
 }
 
-impl EditorBody for CodeMirrorJs {
+struct HtmlEditorBody {
+    source: CodeMirrorJs,
+    preview: Element,
+}
+
+impl EditorBody for HtmlEditorBody {
     fn set_content(&self, content: String) {
-        self.set_content(content);
+        self.source.set_content(content.clone());
+        let _ = self.preview.set_attribute("srcdoc", &content);
     }
 
     fn insert_text(&self, text: String) {
-        self.insert_text(text);
+        self.source.insert_text(text);
     }
 
     fn focus(&self) {
-        self.focus();
+        self.source.focus();
     }
 
     fn cargo_check(&self, diagnostics: JsValue) {
-        self.cargo_check(diagnostics);
-    }
-}
-
-impl EditorBody for PdfJs {
-    fn set_content(&self, content: String) {
-        self.set_content(content);
+        self.source.cargo_check(diagnostics);
     }
 }
 
@@ -88,19 +91,46 @@ pub fn editor(
     editor_state: EditorDataState,
     document: EditorDocument,
     show_editor_diff: bool,
-    show_html_preview: bool,
+    show_html_preview: PreviewMode,
 ) -> XElement {
+    let is_html = editor_state.is_html();
+    let is_markdown = editor_state.is_markdown();
     let EditorDataState {
         path,
         cursor_position,
         ..
     } = editor_state;
-    let is_pdf = matches!(document, EditorDocument::Pdf(_));
-    let is_html_preview = path.file.extension() == Some("html".as_ref()) && show_html_preview;
-    let html_preview = match &document {
-        EditorDocument::Text { content, .. } if is_html_preview => {
+    let editor_type = if matches!(document, EditorDocument::Pdf(_)) {
+        EditorType::Pdf
+    } else if is_markdown {
+        EditorType::Markdown
+    } else if is_html {
+        EditorType::Html
+    } else {
+        EditorType::Text
+    };
+    let preview_pane = match (&document, editor_type) {
+        (EditorDocument::Text { content, .. }, EditorType::Html) => {
             Some(super::html_viewer::html_viewer(content.clone()))
         }
+        (_, EditorType::Markdown) => Some(div(
+            class = super::milkdown::style::MILKDOWN_WYSIWYG_PANE,
+            #[cfg(not(feature = "client-prod"))]
+            class = "milkdown-wysiwyg-pane",
+        )),
+        _ => None,
+    };
+    let source_pane = match editor_type {
+        EditorType::Html => Some(div(
+            class = super::html_viewer::style::HTML_SOURCE_PANE,
+            #[cfg(not(feature = "client-prod"))]
+            class = "html-source-pane",
+        )),
+        EditorType::Markdown => Some(div(
+            class = super::milkdown::style::MILKDOWN_SOURCE_PANE,
+            #[cfg(not(feature = "client-prod"))]
+            class = "milkdown-source-pane",
+        )),
         _ => None,
     };
 
@@ -115,7 +145,7 @@ pub fn editor(
             editor_body.focus();
         }
     });
-    let (input_overlay_html, input_overlay) = if !is_pdf && !is_html_preview {
+    let (input_overlay_html, input_overlay) = if editor_type.use_overlay(show_html_preview) {
         let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
             autoclone!(editor_body);
             if let Some(editor_body) = &*editor_body.lock().unwrap() {
@@ -151,15 +181,18 @@ pub fn editor(
 
     tag(
         class = style::EDITOR,
-        class = is_pdf.then_some(super::pdf_viewer::style::PDF_VIEWER),
-        class = is_html_preview.then_some(super::html_viewer::style::HTML_VIEWER),
+        class = editor_type.class(),
+        class = editor_type.preview_mode_class(show_html_preview),
         #[cfg(not(feature = "client-prod"))]
-        class = is_pdf.then_some("pdf-viewer"),
+        class = (editor_type == EditorType::Pdf).then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = is_html_preview.then_some("html-viewer"),
+        class = (editor_type == EditorType::Html).then_some("html-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = (!is_pdf && !is_html_preview).then_some("code-mirror-editor"),
-        html_preview..,
+        class = (editor_type == EditorType::Markdown).then_some("milkdown-editor"),
+        #[cfg(not(feature = "client-prod"))]
+        class = (editor_type == EditorType::Text).then_some("code-mirror-editor"),
+        preview_pane..,
+        source_pane..,
         input_overlay_html..,
         mouseenter = move |_| {
             if let Some((is_input_overlay_open, input_overlay_textarea)) = &input_overlay
@@ -170,7 +203,7 @@ pub fn editor(
                         warn!("Failed to focus: {error:?}");
                     })
                 });
-            } else {
+            } else if editor_type != EditorType::Markdown {
                 focus_editor()
             }
         },
@@ -179,8 +212,12 @@ pub fn editor(
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Option<Box<dyn EditorBody>> = match &document {
-                EditorDocument::Text { .. } if is_html_preview => None,
-                EditorDocument::Text { original, content } => {
+                EditorDocument::Text { original, content }
+                    if matches!(
+                        editor_type,
+                        EditorType::Text | EditorType::Markdown | EditorType::Html
+                    ) =>
+                {
                     let original = if show_editor_diff {
                         original
                             .as_deref()
@@ -189,26 +226,126 @@ pub fn editor(
                     } else {
                         JsValue::null()
                     };
-                    Some(Box::new(CodeMirrorJs::new(
-                        element.clone(),
-                        original,
-                        content.as_ref().into(),
-                        make_on_change(&manager, &path, &writing),
-                        make_on_cursor_position_change(&manager, &path),
-                        cursor_position
-                            .and_then(|cursor_position| {
-                                serde_wasm_bindgen::to_value(&cursor_position).ok()
-                            })
-                            .unwrap_or(JsValue::null()),
-                        path.base.as_ref().to_owned_string(),
-                        path.as_deref().full_path().to_owned_string(),
-                    )))
+                    let cursor_position = cursor_position
+                        .and_then(|cursor_position| {
+                            serde_wasm_bindgen::to_value(&cursor_position).ok()
+                        })
+                        .unwrap_or(JsValue::null());
+                    let base_path = path.base.as_ref().to_owned_string();
+                    let full_path = path.as_deref().full_path().to_owned_string();
+                    if editor_type == EditorType::Markdown {
+                        let wysiwyg_pane = element
+                            .query_selector(&format!(
+                                ".{}",
+                                super::milkdown::style::MILKDOWN_WYSIWYG_PANE
+                            ))
+                            .expect("Invalid Milkdown preview pane selector")
+                            .expect("Missing Milkdown preview pane");
+                        let source_pane = element
+                            .query_selector(&format!(
+                                ".{}",
+                                super::milkdown::style::MILKDOWN_SOURCE_PANE
+                            ))
+                            .expect("Invalid Milkdown source pane selector")
+                            .expect("Missing Milkdown source pane");
+                        Some(Box::new(MilkdownJs::new(
+                            wysiwyg_pane,
+                            source_pane,
+                            original,
+                            content.as_ref().into(),
+                            make_on_change(&manager, &path, &writing, None),
+                            make_on_cursor_position_change(&manager, &path),
+                            cursor_position,
+                            base_path,
+                            full_path,
+                            show_html_preview == PreviewMode::Editor,
+                        )))
+                    } else {
+                        let (source_element, preview) = if editor_type == EditorType::Html {
+                            let source = element
+                                .query_selector(&format!(
+                                    ".{}",
+                                    super::html_viewer::style::HTML_SOURCE_PANE
+                                ))
+                                .expect("Invalid HTML source pane selector")
+                                .expect("Missing HTML source pane");
+                            let preview = element
+                                .query_selector(&format!(
+                                    ".{}",
+                                    super::html_viewer::style::HTML_PREVIEW_PANE
+                                ))
+                                .expect("Invalid HTML preview pane selector")
+                                .expect("Missing HTML preview pane");
+                            (source, Some(preview))
+                        } else {
+                            (element.clone(), None)
+                        };
+                        let source = CodeMirrorJs::new(
+                            source_element,
+                            original,
+                            content.as_ref().into(),
+                            make_on_change(&manager, &path, &writing, preview.clone()),
+                            make_on_cursor_position_change(&manager, &path),
+                            cursor_position,
+                            base_path,
+                            full_path,
+                        );
+                        if let Some(preview) = preview {
+                            Some(Box::new(HtmlEditorBody { source, preview }))
+                        } else {
+                            Some(Box::new(source))
+                        }
+                    }
                 }
                 EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
+                EditorDocument::Text { .. } => None,
             };
             *editor_body.lock().unwrap() = body;
         },
     )
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EditorType {
+    Html,
+    Pdf,
+    Text,
+    Markdown,
+}
+
+impl EditorType {
+    fn use_overlay(self, preview_mode: PreviewMode) -> bool {
+        match self {
+            EditorType::Html => preview_mode.shows_editor(),
+            EditorType::Pdf => false,
+            EditorType::Text | EditorType::Markdown => true,
+        }
+    }
+
+    fn class(self) -> Option<&'static str> {
+        Some(match self {
+            EditorType::Html => super::html_viewer::style::HTML_VIEWER,
+            EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
+            EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
+            EditorType::Text => return None,
+        })
+    }
+
+    fn preview_mode_class(self, preview_mode: PreviewMode) -> Option<&'static str> {
+        match self {
+            EditorType::Html => Some(match preview_mode {
+                PreviewMode::Preview => super::html_viewer::style::PREVIEW_MODE,
+                PreviewMode::Editor => super::html_viewer::style::EDITOR_MODE,
+                PreviewMode::SideBySide => super::html_viewer::style::SIDE_BY_SIDE_MODE,
+            }),
+            EditorType::Markdown => Some(match preview_mode {
+                PreviewMode::Preview => super::milkdown::style::PREVIEW_MODE,
+                PreviewMode::Editor => super::milkdown::style::EDITOR_MODE,
+                PreviewMode::SideBySide => super::milkdown::style::SIDE_BY_SIDE_MODE,
+            }),
+            EditorType::Pdf | EditorType::Text => None,
+        }
+    }
 }
 
 #[autoclone]
@@ -216,6 +353,7 @@ fn make_on_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
+    html_preview: Option<Element>,
 ) -> Closure<dyn FnMut(JsValue)> {
     Closure::new(move |content: JsValue| {
         autoclone!(manager, path, writing);
@@ -223,6 +361,9 @@ fn make_on_change(
             debug!("Changed content is not a string");
             return;
         };
+        if let Some(html_preview) = &html_preview {
+            let _ = html_preview.set_attribute("srcdoc", &content);
+        }
         writing.fetch_add(1, SeqCst);
         let writing_done = guard((), move |()| {
             autoclone!(writing);

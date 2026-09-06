@@ -8,9 +8,11 @@ use trz_gateway_common::security_configuration::HasSecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 
 use self::app_config::AppConfig;
+use self::p2p::P2pRegistrationConfig;
 
 pub mod app_config;
 mod arc;
+pub mod p2p;
 
 pub trait Ports: std::ops::Deref<Target = [u16]> + Clone + std::fmt::Debug {}
 impl<T: std::ops::Deref<Target = [u16]> + Clone + std::fmt::Debug> Ports for T {}
@@ -33,6 +35,11 @@ pub trait GatewayConfig: IsGlobal + std::fmt::Debug {
     }
 
     fn set_current_endpoint(&self) -> Option<PathBuf> {
+        None
+    }
+
+    /// Optional outbound WebRTC registration for serving this gateway behind NAT.
+    fn p2p_registration(&self) -> Option<P2pRegistrationConfig> {
         None
     }
 

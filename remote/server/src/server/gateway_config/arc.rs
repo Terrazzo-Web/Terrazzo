@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::GatewayConfig;
 use super::Ports;
 use super::app_config::AppConfig;
+use super::p2p::P2pRegistrationConfig;
 
 impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     fn enable_tracing(&self) -> bool {
@@ -17,6 +18,9 @@ impl<T: GatewayConfig> GatewayConfig for Arc<T> {
     }
     fn set_current_endpoint(&self) -> Option<PathBuf> {
         self.as_ref().set_current_endpoint()
+    }
+    fn p2p_registration(&self) -> Option<P2pRegistrationConfig> {
+        self.as_ref().p2p_registration()
     }
 
     type RootCaConfig = T::RootCaConfig;

@@ -7,7 +7,7 @@ pub struct VisibleBox {
     pub depth: f32,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TexBox {
     pub h: i32,
     pub v: i32,

@@ -1,6 +1,5 @@
 #![cfg(feature = "server")]
 
-use std::fmt;
 use std::panic::Location;
 
 use nameth::NamedEnumValues as _;
@@ -30,7 +29,8 @@ pub fn init_tracing() -> Result<(), EnableTracingError> {
         .with_target(false);
 
     let subscriber = tracing_subscriber::registry().with(if cfg!(feature = "max-level-info") {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("info,rtc=warn,rtc_ice=warn"))
     } else {
         EnvFilter::try_from_default_env()
             .unwrap_or_else(|_| EnvFilter::new("debug,tower=info,h2=info,hyper_util=info"))
@@ -150,7 +150,7 @@ impl LogEventVisitor {
 struct SpanFields(Vec<String>);
 
 impl Visit for LogEventVisitor {
-    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         self.record_value(field, format!("{value:?}"));
     }
 

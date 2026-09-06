@@ -41,9 +41,10 @@ fn install_icons() {
 
     #[cfg(any(feature = "terminal", feature = "text-editor"))]
     {
-        install_icon(super::icons::paragraph());
         install_icon(super::icons::mic_fill());
         install_icon(super::icons::mic_mute_fill());
+        install_icon(super::icons::paragraph());
+        install_icon(super::icons::refresh());
         install_icon(super::icons::send_fill());
     }
 
@@ -58,7 +59,6 @@ fn install_icons() {
         install_icon(super::icons::loading());
         install_icon(super::icons::new_file());
         install_icon(super::icons::new_folder());
-        install_icon(super::icons::refresh());
         install_icon(super::icons::search());
         install_icon(super::icons::slash());
         install_icon(super::icons::text_editor());

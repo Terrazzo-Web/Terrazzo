@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true }
+nameth = { workspace = true }
 terrazzo-synctex = { workspace = true }
 thiserror = { workspace = true }
 

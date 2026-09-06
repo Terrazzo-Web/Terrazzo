@@ -1,3 +1,5 @@
+/*! @license DOMPurify 3.4.13 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.13/LICENSE */
+
 /**
  * Copyright (c) 2014-2024 The xterm.js authors. All rights reserved.
  * @license MIT
@@ -10,3 +12,15 @@
  *   http://bellard.org/jslinux/
  *   Copyright (c) 2011 Fabrice Bellard
  */
+
+/**
+* @vue/runtime-dom v3.5.41
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/shared v3.5.41
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/

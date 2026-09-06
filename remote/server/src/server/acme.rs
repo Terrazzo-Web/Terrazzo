@@ -3,6 +3,8 @@
 //! Configuration for integration with [Let's Encrypt](https://letsencrypt.org).
 
 use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 pub use instant_acme;
@@ -14,7 +16,6 @@ use instant_acme::OrderStatus;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::error::ErrorStack;
-use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
@@ -29,7 +30,7 @@ mod tests;
 /// ACME configuration to generate certificates with [Let's Encrypt](https://letsencrypt.org).
 #[nameth]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct AcmeConfig {
+pub struct AcmeConfig<P = PathBuf> {
     /// Use [Production](LetsEncrypt::Production) or [Staging](LetsEncrypt::Staging)
     #[serde(with = "environment_serde")]
     pub environment: LetsEncrypt,
@@ -43,6 +44,7 @@ pub struct AcmeConfig {
     ///
     /// The dynamic configuration is updated with the account credentials when
     /// the certificate generation logic runs.
+    #[serde(default)]
     pub credentials: Arc<Option<AccountCredentials>>,
 
     /// Contact info used to register an account.
@@ -58,8 +60,11 @@ pub struct AcmeConfig {
     #[serde(alias = "domain", with = "domains_serde")]
     pub domains: Vec<String>,
 
-    /// The generated certificate.
-    pub certificate: Option<CertificateInfo<String>>,
+    /// The generated certificate chain.
+    pub certificate: Option<String>,
+
+    /// The file where the generated private key is stored.
+    pub private_key: P,
 }
 
 #[nameth]
@@ -113,6 +118,18 @@ pub enum AcmeError {
     #[error("[{n}] The certificate chain was not valid", n = self.name())]
     OpenSSL(#[from] ErrorStack),
 
+    #[error("[{n}] Failed to read private key {path:?}: {source}", n = self.name())]
+    ReadPrivateKey {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[error("[{n}] Failed to write private key {path:?}: {source}", n = self.name())]
+    WritePrivateKey {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
     #[error("[{n}] The certificate is being provisioned", n = self.name())]
     Pending,
 
@@ -126,7 +143,7 @@ pub enum AcmeError {
     SetReady(instant_acme::Error),
 }
 
-impl PartialEq for AcmeConfig {
+impl<P: PartialEq> PartialEq for AcmeConfig<P> {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self.environment, other.environment),
@@ -136,10 +153,11 @@ impl PartialEq for AcmeConfig {
             && self.contact == other.contact
             && self.domains == other.domains
             && self.certificate == other.certificate
+            && self.private_key == other.private_key
     }
 }
 
-impl Eq for AcmeConfig {}
+impl<P: Eq> Eq for AcmeConfig<P> {}
 
 fn credentials_eq(a: &Option<AccountCredentials>, b: &Option<AccountCredentials>) -> bool {
     match (a, b) {
@@ -155,14 +173,21 @@ fn credentials_eq(a: &Option<AccountCredentials>, b: &Option<AccountCredentials>
     }
 }
 
-impl std::fmt::Debug for AcmeConfig {
+impl<P: std::fmt::Debug> std::fmt::Debug for AcmeConfig<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(ACME_CONFIG)
             .field("environment", &self.environment)
             .field("credentials", &self.credentials.is_some())
             .field("contact", &self.contact)
             .field("domains", &self.domains)
+            .field("private_key", &self.private_key)
             .finish()
+    }
+}
+
+impl<P: AsRef<Path>> AcmeConfig<P> {
+    fn private_key_path(&self) -> &Path {
+        self.private_key.as_ref()
     }
 }
 
@@ -172,18 +197,18 @@ fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredent
 }
 
 #[derive(Clone)]
-pub struct DynamicAcmeConfig(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>);
+pub struct DynamicAcmeConfig<P = PathBuf>(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>);
 
-impl Deref for DynamicAcmeConfig {
-    type Target = Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>;
+impl<P> Deref for DynamicAcmeConfig<P> {
+    type Target = Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>> for DynamicAcmeConfig {
-    fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig>>>>) -> Self {
+impl<P> From<Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>> for DynamicAcmeConfig<P> {
+    fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>) -> Self {
         Self(value)
     }
 }

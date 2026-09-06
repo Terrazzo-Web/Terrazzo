@@ -230,13 +230,23 @@ az network vnet create \
   --address-prefixes 10.0.0.0/16 \
   --subnet-name "$subnet_name" \
   --subnet-prefixes 10.0.0.0/24 \
+  --no-wait \
   --output none
+az network vnet wait \
+  --resource-group "$resource_group" \
+  --name "$vnet_name" \
+  --created
 
 az network nsg create \
   --resource-group "$resource_group" \
   --name "$nsg_name" \
   --location "$location" \
+  --no-wait \
   --output none
+az network nsg wait \
+  --resource-group "$resource_group" \
+  --name "$nsg_name" \
+  --created
 
 echo "Creating inbound network security rules..."
 az network nsg rule create \
@@ -251,7 +261,12 @@ az network nsg rule create \
   --source-port-ranges '*' \
   --destination-address-prefixes '*' \
   --destination-port-ranges 22 \
+  --no-wait \
   --output none
+az network nsg wait \
+  --resource-group "$resource_group" \
+  --name "$nsg_name" \
+  --updated
 
 az network nsg rule create \
   --resource-group "$resource_group" \
@@ -265,7 +280,12 @@ az network nsg rule create \
   --source-port-ranges '*' \
   --destination-address-prefixes '*' \
   --destination-port-ranges 80 443 \
+  --no-wait \
   --output none
+az network nsg wait \
+  --resource-group "$resource_group" \
+  --name "$nsg_name" \
+  --updated
 
 echo "Creating Standard public load balancer..."
 az network public-ip create \
@@ -275,6 +295,10 @@ az network public-ip create \
   --sku Standard \
   --allocation-method Static \
   --output none
+az network public-ip wait \
+  --resource-group "$resource_group" \
+  --name "$public_ip_name" \
+  --created
 
 az network lb create \
   --resource-group "$resource_group" \
@@ -284,7 +308,12 @@ az network lb create \
   --public-ip-address "$public_ip_name" \
   --frontend-ip-name "$frontend_ip_name" \
   --backend-pool-name "$backend_pool_name" \
+  --no-wait \
   --output none
+az network lb wait \
+  --resource-group "$resource_group" \
+  --name "$load_balancer_name" \
+  --created
 
 az network lb probe create \
   --resource-group "$resource_group" \
@@ -292,7 +321,12 @@ az network lb probe create \
   --name "$health_probe_name" \
   --protocol Tcp \
   --port 22 \
+  --no-wait \
   --output none
+az network lb wait \
+  --resource-group "$resource_group" \
+  --name "$load_balancer_name" \
+  --updated
 
 for port in 22 80 443; do
   az network lb rule create \
@@ -308,7 +342,12 @@ for port in 22 80 443; do
     --disable-outbound-snat true \
     --enable-tcp-reset true \
     --idle-timeout 15 \
+    --no-wait \
     --output none
+  az network lb wait \
+    --resource-group "$resource_group" \
+    --name "$load_balancer_name" \
+    --updated
 done
 
 # A VM behind a Standard Load Balancer has no implicit outbound connectivity.
@@ -323,7 +362,12 @@ az network lb outbound-rule create \
   --address-pool "$backend_pool_name" \
   --allocated-outbound-ports 10000 \
   --idle-timeout 15 \
+  --no-wait \
   --output none
+az network lb wait \
+  --resource-group "$resource_group" \
+  --name "$load_balancer_name" \
+  --updated
 
 echo "Creating load balancer backend network interface..."
 az network nic create \
@@ -335,7 +379,12 @@ az network nic create \
   --network-security-group "$nsg_name" \
   --lb-name "$load_balancer_name" \
   --lb-address-pools "$backend_pool_name" \
+  --no-wait \
   --output none
+az network nic wait \
+  --resource-group "$resource_group" \
+  --name "$nic_name" \
+  --created
 
 echo "Creating Trusted Launch ARM64 VM $vm behind $load_balancer_name..."
 az vm create \
@@ -358,7 +407,12 @@ az vm create \
   --os-disk-delete-option Delete \
   --nics "$nic_name" \
   --nic-delete-option Delete \
+  --no-wait \
   --output none
+az vm wait \
+  --resource-group "$resource_group" \
+  --name "$vm" \
+  --created
 
 public_ip="$(
   az network public-ip show \

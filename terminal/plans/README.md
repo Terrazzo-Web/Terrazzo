@@ -24,4 +24,4 @@ Example: `018-2026-09-05-example-plan.md`.
 
 AI agents that create a plan must follow these steps and keep the marker current.
 
-<!-- NEXT ID: 018 -->
+<!-- NEXT ID: 019 -->

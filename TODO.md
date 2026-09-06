@@ -6,3 +6,5 @@
 - Let's Encrypt certificate in separate text file
 - File synchronization tool
 - Client should not give up connecting when it fails first time on startup
+- Reconnect on wakeup
+- Reconnect when signaling server detected peer connected

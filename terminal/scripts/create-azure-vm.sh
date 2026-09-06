@@ -128,14 +128,6 @@ write_files:
     permissions: '0440'
     content: |
       richard ALL=(ALL:ALL) NOPASSWD: ALL
-  - path: /etc/ssh/sshd_config.d/99-terrazzo.conf
-    owner: root:root
-    permissions: '0644'
-    content: |
-      PasswordAuthentication no
-      KbdInteractiveAuthentication no
-      PermitRootLogin no
-      PubkeyAuthentication yes
   - path: /usr/local/sbin/provision-terrazzo
     owner: root:root
     permissions: '0700'
@@ -171,6 +163,13 @@ write_files:
       usermod --append --groups wheel richard
       passwd --lock richard
       visudo --check --file=/etc/sudoers.d/richard
+
+      sed -i -E \
+        -e 's/^[#[:space:]]*PasswordAuthentication[[:space:]].*/PasswordAuthentication no/' \
+        -e 's/^[#[:space:]]*KbdInteractiveAuthentication[[:space:]].*/KbdInteractiveAuthentication no/' \
+        -e 's/^[#[:space:]]*PermitRootLogin[[:space:]].*/PermitRootLogin no/' \
+        -e 's/^[#[:space:]]*PubkeyAuthentication[[:space:]].*/PubkeyAuthentication yes/' \
+        /etc/ssh/sshd_config
       sshd -t
       systemctl restart sshd
 

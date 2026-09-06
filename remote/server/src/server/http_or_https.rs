@@ -1,10 +1,13 @@
 use std::io::Cursor;
 use std::io::ErrorKind;
 use std::pin::Pin;
+use std::task::Context;
 use std::task::Poll;
 use std::task::ready;
 use std::time::Duration;
 
+use axum::http::Request;
+use axum::http::uri::Scheme;
 use axum_server::accept::Accept;
 use futures::FutureExt as _;
 use pin_project::pin_project;
@@ -13,10 +16,44 @@ use tokio::io::ReadBuf;
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
+use tower::Service;
 use tracing::trace;
 use tracing::warn;
 
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Transport facts captured from the accepted connection, before HTTP headers are parsed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HttpConnectionInfo {
+    pub scheme: Scheme,
+    pub is_localhost: bool,
+}
+
+#[derive(Clone)]
+pub struct AddHttpConnectionInfo<S> {
+    service: S,
+    connection_info: HttpConnectionInfo,
+}
+
+impl<S, B> Service<Request<B>> for AddHttpConnectionInfo<S>
+where
+    S: Service<Request<B>>,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, context: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(context)
+    }
+
+    fn call(&mut self, mut request: Request<B>) -> Self::Future {
+        request
+            .extensions_mut()
+            .insert(self.connection_info.clone());
+        self.service.call(request)
+    }
+}
 
 #[derive(Clone)]
 pub struct HttpOrHttps<TLS, PLAIN> {
@@ -30,7 +67,7 @@ where
     P: Accept<PeekStream, S, Service = S> + Clone + Unpin,
     S: Unpin,
 {
-    type Service = S;
+    type Service = AddHttpConnectionInfo<S>;
     type Stream = TlsOrPlaintextStream<
         <T as Accept<PeekStream, S>>::Stream,
         <P as Accept<PeekStream, S>>::Stream,
@@ -71,10 +108,12 @@ where
 
     AcceptTls {
         future: Pin<Box<T::Future>>,
+        is_localhost: bool,
     },
 
     AcceptPlaintext {
         future: Pin<Box<P::Future>>,
+        is_localhost: bool,
     },
 
     #[default]
@@ -94,7 +133,7 @@ where
             <T as Accept<PeekStream, S>>::Stream,
             <P as Accept<PeekStream, S>>::Stream,
         >,
-        S,
+        AddHttpConnectionInfo<S>,
     )>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -159,6 +198,7 @@ where
                     else {
                         unreachable!()
                     };
+                    let is_localhost = stream.peer_addr()?.ip().is_loopback();
                     stream.set_nodelay(true)?;
                     let (read, write) = stream.into_split();
                     let stream = PeekStream {
@@ -170,20 +210,42 @@ where
                         trace!("Polling TLS stream");
                         FuturePeekStreamImpl::AcceptTls {
                             future: Box::pin(accept.tls.accept(stream, service)),
+                            is_localhost,
                         }
                     } else {
                         trace!("Polling Plaintext stream");
                         FuturePeekStreamImpl::AcceptPlaintext {
                             future: Box::pin(accept.plaintext.accept(stream, service)),
+                            is_localhost,
                         }
                     }
                 }
-                FuturePeekStreamImpl::AcceptTls { future } => {
+                FuturePeekStreamImpl::AcceptTls {
+                    future,
+                    is_localhost,
+                } => {
                     let (stream, service) = ready!(future.poll_unpin(cx))?;
+                    let service = AddHttpConnectionInfo {
+                        service,
+                        connection_info: HttpConnectionInfo {
+                            scheme: Scheme::HTTPS,
+                            is_localhost: *is_localhost,
+                        },
+                    };
                     return Poll::Ready(Ok((TlsOrPlaintextStream::Tls(stream), service)));
                 }
-                FuturePeekStreamImpl::AcceptPlaintext { future } => {
+                FuturePeekStreamImpl::AcceptPlaintext {
+                    future,
+                    is_localhost,
+                } => {
                     let (stream, service) = ready!(future.poll_unpin(cx))?;
+                    let service = AddHttpConnectionInfo {
+                        service,
+                        connection_info: HttpConnectionInfo {
+                            scheme: Scheme::HTTP,
+                            is_localhost: *is_localhost,
+                        },
+                    };
                     return Poll::Ready(Ok((TlsOrPlaintextStream::Plaintext(stream), service)));
                 }
                 FuturePeekStreamImpl::Undefined => unreachable!(),

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::ops::Deref;
+use std::path::Path;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -46,7 +47,7 @@ pub struct DynConfig {
     config: Arc<DynamicConfig<DiffArc<Config>>>,
     pub server: DynamicServerConfig,
     pub mesh: DynamicMeshConfig,
-    pub letsencrypt: DynamicAcmeConfig,
+    pub letsencrypt: DynamicAcmeConfig<Arc<Path>>,
 
     #[expect(unused)]
     dyn_config_file: Arc<DynamicConfig<(), RO>>,
@@ -82,7 +83,7 @@ impl From<ConfigImpl<RuntimeTypes>> for Config {
 pub struct ConfigImpl<T: ConfigTypes> {
     pub server: DiffArc<ServerConfig<T>>,
     pub mesh: DiffOption<DiffArc<MeshConfig<T>>>,
-    pub letsencrypt: DiffOption<DiffArc<AcmeConfig>>,
+    pub letsencrypt: DiffOption<DiffArc<AcmeConfig<T::Path>>>,
 }
 
 impl Default for ConfigImpl<ConfigFileTypes> {

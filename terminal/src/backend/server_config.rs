@@ -1,4 +1,5 @@
 use std::iter::once;
+use std::path::Path as FsPath;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -74,7 +75,7 @@ pub struct TerminalBackendServer {
 
 type TlsConfig = EitherConfig<
     SecurityConfig<PrivateRootCa, CachedCertificate>,
-    SecurityConfig<NativeTrustedStoreConfig, AcmeCertificateConfig>,
+    SecurityConfig<NativeTrustedStoreConfig, AcmeCertificateConfig<Arc<FsPath>>>,
 >;
 
 impl GatewayConfig for TerminalBackendServer {

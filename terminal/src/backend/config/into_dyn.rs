@@ -352,11 +352,14 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
     }
 }
 
-fn apply_letsencrypt_config(config: &DiffArc<DynConfig>, new: &DiffOption<DiffArc<AcmeConfig>>) {
+fn apply_letsencrypt_config(
+    config: &DiffArc<DynConfig>,
+    new: &DiffOption<DiffArc<AcmeConfig<Arc<Path>>>>,
+) {
     let is_letsencrypt_changed =
         config
             .letsencrypt
-            .try_set(|old: &DiffOption<DiffArc<AcmeConfig>>| {
+            .try_set(|old: &DiffOption<DiffArc<AcmeConfig<Arc<Path>>>>| {
                 match (old.as_deref(), new.as_deref()) {
                     (None, None) => false,
                     (None, Some(_)) | (Some(_), None) => true,

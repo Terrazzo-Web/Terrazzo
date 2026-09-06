@@ -11,12 +11,13 @@ use crate::server::acme::active_challenges::ActiveChallenges;
 async fn get_certificate() {
     enable_tracing_for_tests();
     crypto_provider();
-    let result = super::AcmeConfig {
+    let result = super::AcmeConfig::<std::path::PathBuf> {
         environment: LetsEncrypt::Staging,
         credentials: None.into(),
         contact: "mailto:info@pavy.one".into(),
         domains: vec!["pavy.one".into()],
         certificate: None,
+        private_key: "letsencrypt.key".into(),
     }
     .get_certificate(&ActiveChallenges::default())
     .await
@@ -76,7 +77,8 @@ fn domains_serialize_deserialize() {
             "credentials": null,
             "contact": "mailto:info@pavy.one",
             "domain": "pavy.one",
-            "certificate": null
+            "certificate": null,
+            "private_key": "letsencrypt.key"
         }"#,
     )
     .unwrap();
@@ -88,7 +90,8 @@ fn domains_serialize_deserialize() {
             "credentials": null,
             "contact": "mailto:info@pavy.one",
             "domains": ["pavy.one", "www.pavy.one"],
-            "certificate": null
+            "certificate": null,
+            "private_key": "letsencrypt.key"
         }"#,
     )
     .unwrap();

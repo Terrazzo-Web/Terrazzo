@@ -7,6 +7,7 @@ use std::time::Duration;
 use tracing::warn;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
+use trz_gateway_server::server::acme::AcmeConfig;
 
 use super::Config;
 use super::ConfigFile;
@@ -31,7 +32,7 @@ impl ConfigFile {
         Config(ConfigImpl {
             server: merge_server_config(&self.server, cli).into(),
             mesh: merge_mesh_config(self.mesh.as_deref(), cli).into(),
-            letsencrypt: self.letsencrypt.clone(),
+            letsencrypt: merge_letsencrypt_config(self.letsencrypt.as_deref()),
         })
     }
 }
@@ -109,10 +110,41 @@ impl Config {
                     }),
                 })
             })),
-            letsencrypt: letsencrypt.clone(),
+            letsencrypt: DiffOption::from(letsencrypt.as_deref().map(|letsencrypt| {
+                DiffArc::from(AcmeConfig {
+                    environment: letsencrypt.environment,
+                    credentials: letsencrypt.credentials.clone(),
+                    contact: letsencrypt.contact.clone(),
+                    domains: letsencrypt.domains.clone(),
+                    certificate: letsencrypt.certificate.clone(),
+                    private_key: Some(collapse_tilde(&letsencrypt.private_key)),
+                })
+            })),
         })
     }
 }
+
+fn merge_letsencrypt_config(
+    letsencrypt: Option<&AcmeConfig<ConfigFileTypesPath>>,
+) -> DiffOption<DiffArc<AcmeConfig<Arc<Path>>>> {
+    DiffOption::from(letsencrypt.map(|letsencrypt| {
+        DiffArc::from(AcmeConfig {
+            environment: letsencrypt.environment,
+            credentials: letsencrypt.credentials.clone(),
+            contact: letsencrypt.contact.clone(),
+            domains: letsencrypt.domains.clone(),
+            certificate: letsencrypt.certificate.clone(),
+            private_key: letsencrypt
+                .private_key
+                .as_deref()
+                .map(expand_tilde)
+                .unwrap_or_else(|| terrazzo_home().join("letsencrypt.key"))
+                .into(),
+        })
+    }))
+}
+
+type ConfigFileTypesPath = <ConfigFileTypes as super::types::ConfigTypes>::Path;
 
 fn merge_server_config(
     server: &ServerConfig<ConfigFileTypes>,
@@ -341,6 +373,32 @@ mod tests {
 
         assert!(config.server.config_file_watcher);
         assert_eq!(config.server.config_file_poll_strategy, None);
+    }
+
+    #[test]
+    fn letsencrypt_private_key_defaults_and_round_trips_as_a_path() {
+        let config_file: ConfigFile = toml::from_str(
+            r#"
+[letsencrypt]
+environment = "Staging"
+contact = "mailto:test@example.com"
+domains = ["example.com"]
+certificate = "PUBLIC CERTIFICATE"
+"#,
+        )
+        .unwrap();
+
+        let config = config_file.merge(&Default::default());
+        let letsencrypt = config.letsencrypt.as_ref().unwrap();
+        assert_eq!(
+            letsencrypt.private_key.as_ref(),
+            terrazzo_home().join("letsencrypt.key")
+        );
+
+        let serialized = toml::to_string(&config.to_config_file()).unwrap();
+        assert!(serialized.contains("private_key = \"~/.terrazzo/letsencrypt.key\""));
+        assert!(serialized.contains("certificate = \"PUBLIC CERTIFICATE\""));
+        assert!(!serialized.contains("PRIVATE KEY"));
     }
 
     #[test]

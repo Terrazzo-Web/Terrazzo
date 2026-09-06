@@ -1,5 +1,9 @@
 //! [CertificateConfig] based on Let's encrypt certificates.
 
+use std::fs::OpenOptions;
+use std::io::Write as _;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -31,24 +35,27 @@ use crate::server::acme::get_certificate::GetAcmeCertificateResult;
 /// A [CertificateConfig] generated with Let's Encrypt.
 #[nameth]
 #[derive(Clone)]
-pub struct AcmeCertificateConfig {
-    acme_config_dyn: DynamicAcmeConfig,
-    acme_config: DiffArc<AcmeConfig>,
+pub struct AcmeCertificateConfig<P = PathBuf> {
+    acme_config_dyn: DynamicAcmeConfig<P>,
+    acme_config: DiffArc<AcmeConfig<P>>,
     state: Arc<std::sync::Mutex<AcmeCertificateState>>,
     active_challenges: ActiveChallenges,
     certificate_renewal_threshold: Duration,
 }
 
-impl AcmeCertificateConfig {
+impl<P> AcmeCertificateConfig<P>
+where
+    P: AsRef<Path> + Clone,
+{
     pub fn new(
-        acme_config_dyn: DynamicAcmeConfig,
-        acme_config: DiffArc<AcmeConfig>,
+        acme_config_dyn: DynamicAcmeConfig<P>,
+        acme_config: DiffArc<AcmeConfig<P>>,
         active_challenges: ActiveChallenges,
         certificate_renewal_threshold: Duration,
     ) -> Self {
-        let state = if let Some(pem) = &acme_config.certificate {
+        let state = if let Some(certificate) = &acme_config.certificate {
             Arc::new(Mutex::new(
-                parse_acme_certificate(pem)
+                load_acme_certificate(certificate, acme_config.private_key_path())
                     .map(AcmeCertificateState::Done)
                     .unwrap_or_else(|error| AcmeCertificateState::Failed(error.into())),
             ))
@@ -65,7 +72,10 @@ impl AcmeCertificateConfig {
     }
 }
 
-impl CertificateConfig for AcmeCertificateConfig {
+impl<P> CertificateConfig for AcmeCertificateConfig<P>
+where
+    P: AsRef<Path> + Clone + Send + Sync + 'static,
+{
     type Error = AcmeError;
 
     // TODO get intermediates+certificate should be atomic.
@@ -94,7 +104,10 @@ struct AcmeCertificate {
     certificate: Arc<X509CertificateInfo>,
 }
 
-impl AcmeCertificateConfig {
+impl<P> AcmeCertificateConfig<P>
+where
+    P: AsRef<Path> + Clone + Send + Sync + 'static,
+{
     fn get_or_initialize<R: Clone>(
         &self,
         f: impl FnOnce(&AcmeCertificate) -> &R,
@@ -141,34 +154,63 @@ impl AcmeCertificateConfig {
         let acme_certificate: Result<AcmeCertificate, AcmeError> = async move {
             info!("Start");
             defer!(info!("Done"));
-            let result = if let (CertificateInitStrategy::GetOrInit, Some(certificate)) =
+            let cached = if let (CertificateInitStrategy::GetOrInit, Some(certificate)) =
                 (strategy, &self.acme_config.certificate)
             {
-                debug!("Using a cached certificate from configuration");
-                GetAcmeCertificateResult {
-                    certificate: certificate.clone(),
-                    credentials: None,
+                match read_private_key(self.acme_config.private_key_path()) {
+                    Ok(private_key) => {
+                        debug!("Using a cached certificate from configuration");
+                        Some(GetAcmeCertificateResult {
+                            certificate: CertificateInfo {
+                                certificate: certificate.clone(),
+                                private_key,
+                            },
+                            credentials: None,
+                        })
+                    }
+                    Err(error) => {
+                        warn!("The cached certificate's private key could not be loaded: {error}");
+                        None
+                    }
                 }
             } else {
+                None
+            };
+            let (result, is_cached) = if let Some(cached) = cached {
+                (cached, true)
+            } else {
                 debug!("Obtain a brand new certificate");
-                self.acme_config
-                    .get_certificate(&self.active_challenges)
-                    .await?
+                (
+                    self.acme_config
+                        .get_certificate(&self.active_challenges)
+                        .await?,
+                    false,
+                )
             };
 
-            let acme_certificate =
-                parse_acme_certificate(&result.certificate).inspect_err(|error| {
-                    self.acme_config_dyn.set(|old| {
-                        warn!("The cached certificate was invalid: {error}");
-                        let Some(old) = &**old else {
-                            return DiffOption::default();
-                        };
-                        DiffOption::from(DiffArc::from(AcmeConfig {
-                            certificate: None,
-                            ..AcmeConfig::clone(old)
-                        }))
-                    });
-                })?;
+            if !is_cached {
+                write_private_key(
+                    self.acme_config.private_key_path(),
+                    result.certificate.private_key.as_bytes(),
+                )?;
+            }
+
+            let acme_certificate = parse_acme_certificate(
+                &result.certificate.certificate,
+                result.certificate.private_key.as_bytes(),
+            )
+            .inspect_err(|error| {
+                self.acme_config_dyn.set(|old| {
+                    warn!("The cached certificate was invalid: {error}");
+                    let Some(old) = &**old else {
+                        return DiffOption::default();
+                    };
+                    DiffOption::from(DiffArc::from(AcmeConfig {
+                        certificate: None,
+                        ..AcmeConfig::clone(old)
+                    }))
+                });
+            })?;
 
             if let Some(new_credentials) = result.credentials {
                 self.acme_config_dyn.set(|old| {
@@ -178,18 +220,19 @@ impl AcmeCertificateConfig {
                     info!("Update Let's Encrypt account");
                     DiffOption::from(DiffArc::from(AcmeConfig {
                         credentials: Some(new_credentials).into(),
-                        certificate: Some(result.certificate.clone()),
+                        certificate: Some(result.certificate.certificate.clone()),
                         ..AcmeConfig::clone(old)
                     }))
                 });
-            } else if Some(&result.certificate) != self.acme_config.certificate.as_ref() {
+            } else if Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
+            {
                 self.acme_config_dyn.set(|old| {
                     let Some(old) = &**old else {
                         return DiffOption::default();
                     };
                     info!("Update Let's Encrypt certificate");
                     DiffOption::from(DiffArc::from(AcmeConfig {
-                        certificate: Some(result.certificate.clone()),
+                        certificate: Some(result.certificate.certificate.clone()),
                         ..AcmeConfig::clone(old)
                     }))
                 });
@@ -213,8 +256,19 @@ impl AcmeCertificateConfig {
     }
 }
 
-fn parse_acme_certificate(pem: &CertificateInfo<String>) -> Result<AcmeCertificate, AcmeError> {
-    let mut chain = parse_pem_certificates(&pem.certificate);
+fn load_acme_certificate(
+    certificate: &str,
+    private_key_path: &Path,
+) -> Result<AcmeCertificate, AcmeError> {
+    let private_key = read_private_key(private_key_path)?;
+    parse_acme_certificate(certificate, private_key.as_bytes())
+}
+
+fn parse_acme_certificate(
+    certificate: &str,
+    private_key: &[u8],
+) -> Result<AcmeCertificate, AcmeError> {
+    let mut chain = parse_pem_certificates(certificate);
     let certificate = chain.next().ok_or(AcmeError::CertificateChain)??;
     let mut intermediates = vec![];
     for intermediate in chain {
@@ -224,12 +278,49 @@ fn parse_acme_certificate(pem: &CertificateInfo<String>) -> Result<AcmeCertifica
         intermediates: Arc::new(intermediates),
         certificate: Arc::new(CertificateInfo {
             certificate,
-            private_key: PKey::private_key_from_pem(pem.private_key.as_bytes())?,
+            private_key: PKey::private_key_from_pem(private_key)?,
         }),
     })
 }
 
-impl std::fmt::Debug for AcmeCertificateConfig {
+fn read_private_key(path: &Path) -> Result<String, AcmeError> {
+    std::fs::read_to_string(path).map_err(|source| AcmeError::ReadPrivateKey {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+fn write_private_key(path: &Path, private_key: &[u8]) -> Result<(), AcmeError> {
+    let result = (|| -> std::io::Result<()> {
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut options = OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let mut file = options.open(path)?;
+        file.write_all(private_key)?;
+        #[cfg(unix)]
+        file.set_permissions({
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::Permissions::from_mode(0o600)
+        })?;
+        Ok(())
+    })();
+    result.map_err(|source| AcmeError::WritePrivateKey {
+        path: path.to_owned(),
+        source,
+    })
+}
+
+impl<P: std::fmt::Debug> std::fmt::Debug for AcmeCertificateConfig<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(ACME_CERTIFICATE_CONFIG)
             .field("environment", &self.acme_config.environment)
@@ -237,7 +328,31 @@ impl std::fmt::Debug for AcmeCertificateConfig {
     }
 }
 
+#[derive(Clone, Copy)]
 enum CertificateInitStrategy {
     Force,
     GetOrInit,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_private_key;
+
+    #[test]
+    fn private_key_is_written_to_a_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("nested/letsencrypt.key");
+
+        write_private_key(&path, b"private key").unwrap();
+
+        assert_eq!(std::fs::read(&path).unwrap(), b"private key");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            assert_eq!(
+                std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
 }

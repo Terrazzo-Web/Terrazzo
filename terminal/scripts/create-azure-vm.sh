@@ -34,7 +34,12 @@ readonly resource_group="${vm}-rg"
 readonly vnet_name="${vm}-vnet"
 readonly subnet_name="${vm}-subnet"
 readonly nsg_name="${vm}-nsg"
+readonly nic_name="${vm}-nic"
 readonly public_ip_name="${vm}-ip"
+readonly load_balancer_name="${vm}-lb"
+readonly frontend_ip_name="${vm}-frontend"
+readonly backend_pool_name="${vm}-backend"
+readonly health_probe_name="${vm}-ssh-probe"
 
 for command_name in az mktemp rm ssh; do
   command -v "$command_name" >/dev/null 2>&1 || fail "required command not found: $command_name"
@@ -217,39 +222,23 @@ az group create \
   --location "$location" \
   --output none
 
-echo "Creating Trusted Launch ARM64 VM $vm..."
-public_ip="$(
-  az vm create \
-    --resource-group "$resource_group" \
-    --name "$vm" \
-    --location "$location" \
-    --image "$image_urn" \
-    --size "$vm_size" \
-    --admin-username "$admin_username" \
-    --authentication-type ssh \
-    --ssh-key-values "$ssh_public_key" \
-    --custom-data "$cloud_init_file" \
-    --enable-agent false \
-    --enable-auto-update false \
-    --security-type TrustedLaunch \
-    --enable-secure-boot true \
-    --enable-vtpm true \
-    --os-disk-size-gb 32 \
-    --storage-sku Standard_LRS \
-    --os-disk-delete-option Delete \
-    --vnet-name "$vnet_name" \
-    --subnet "$subnet_name" \
-    --nsg "$nsg_name" \
-    --nsg-rule NONE \
-    --nic-delete-option Delete \
-    --public-ip-address "$public_ip_name" \
-    --public-ip-address-allocation static \
-    --public-ip-sku Standard \
-    --query publicIpAddress \
-    --output tsv
-)"
+echo "Creating virtual network and network security group..."
+az network vnet create \
+  --resource-group "$resource_group" \
+  --name "$vnet_name" \
+  --location "$location" \
+  --address-prefixes 10.0.0.0/16 \
+  --subnet-name "$subnet_name" \
+  --subnet-prefixes 10.0.0.0/24 \
+  --output none
 
-echo "Creating inbound network rules..."
+az network nsg create \
+  --resource-group "$resource_group" \
+  --name "$nsg_name" \
+  --location "$location" \
+  --output none
+
+echo "Creating inbound network security rules..."
 az network nsg rule create \
   --resource-group "$resource_group" \
   --nsg-name "$nsg_name" \
@@ -278,19 +267,111 @@ az network nsg rule create \
   --destination-port-ranges 80 443 \
   --output none
 
-if [[ -z "$public_ip" ]]; then
-  public_ip="$(
-    az network public-ip show \
-      --resource-group "$resource_group" \
-      --name "$public_ip_name" \
-      --query ipAddress \
-      --output tsv
-  )"
-fi
+echo "Creating Standard public load balancer..."
+az network public-ip create \
+  --resource-group "$resource_group" \
+  --name "$public_ip_name" \
+  --location "$location" \
+  --sku Standard \
+  --allocation-method Static \
+  --output none
+
+az network lb create \
+  --resource-group "$resource_group" \
+  --name "$load_balancer_name" \
+  --location "$location" \
+  --sku Standard \
+  --public-ip-address "$public_ip_name" \
+  --frontend-ip-name "$frontend_ip_name" \
+  --backend-pool-name "$backend_pool_name" \
+  --output none
+
+az network lb probe create \
+  --resource-group "$resource_group" \
+  --lb-name "$load_balancer_name" \
+  --name "$health_probe_name" \
+  --protocol Tcp \
+  --port 22 \
+  --output none
+
+for port in 22 80 443; do
+  az network lb rule create \
+    --resource-group "$resource_group" \
+    --lb-name "$load_balancer_name" \
+    --name "Tcp${port}" \
+    --protocol Tcp \
+    --frontend-ip-name "$frontend_ip_name" \
+    --frontend-port "$port" \
+    --backend-pool-name "$backend_pool_name" \
+    --backend-port "$port" \
+    --probe-name "$health_probe_name" \
+    --disable-outbound-snat true \
+    --enable-tcp-reset true \
+    --idle-timeout 15 \
+    --output none
+done
+
+# A VM behind a Standard Load Balancer has no implicit outbound connectivity.
+# Use the load balancer frontend for both TCP and UDP SNAT. Inbound rules have
+# outbound SNAT disabled so this explicit rule owns the frontend's SNAT ports.
+az network lb outbound-rule create \
+  --resource-group "$resource_group" \
+  --lb-name "$load_balancer_name" \
+  --name InternetOutbound \
+  --protocol All \
+  --frontend-ip-configs "$frontend_ip_name" \
+  --address-pool "$backend_pool_name" \
+  --allocated-outbound-ports 10000 \
+  --idle-timeout 15 \
+  --output none
+
+echo "Creating load balancer backend network interface..."
+az network nic create \
+  --resource-group "$resource_group" \
+  --name "$nic_name" \
+  --location "$location" \
+  --vnet-name "$vnet_name" \
+  --subnet "$subnet_name" \
+  --network-security-group "$nsg_name" \
+  --lb-name "$load_balancer_name" \
+  --lb-address-pools "$backend_pool_name" \
+  --output none
+
+echo "Creating Trusted Launch ARM64 VM $vm behind $load_balancer_name..."
+az vm create \
+  --resource-group "$resource_group" \
+  --name "$vm" \
+  --location "$location" \
+  --image "$image_urn" \
+  --size "$vm_size" \
+  --admin-username "$admin_username" \
+  --authentication-type ssh \
+  --ssh-key-values "$ssh_public_key" \
+  --custom-data "$cloud_init_file" \
+  --enable-agent false \
+  --enable-auto-update false \
+  --security-type TrustedLaunch \
+  --enable-secure-boot true \
+  --enable-vtpm true \
+  --os-disk-size-gb 32 \
+  --storage-sku Standard_LRS \
+  --os-disk-delete-option Delete \
+  --nics "$nic_name" \
+  --nic-delete-option Delete \
+  --output none
+
+public_ip="$(
+  az network public-ip show \
+    --resource-group "$resource_group" \
+    --name "$public_ip_name" \
+    --query ipAddress \
+    --output tsv
+)"
 
 echo
 echo "VM deployment completed. First-boot provisioning may still be running."
 echo "Resource group: $resource_group"
+echo "Load balancer: $load_balancer_name"
 echo "Public IP:     $public_ip"
 echo "SSH:           ssh ${admin_username}@${public_ip}"
 echo

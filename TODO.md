@@ -8,3 +8,4 @@
 - Client should not give up connecting when it fails first time on startup
 - Reconnect on wakeup
 - Reconnect when signaling server detected peer connected
+- Static assets should be served compressed and compressed at compilation time

@@ -8,6 +8,7 @@ pub mod http_error;
 pub mod id;
 pub mod is_global;
 pub mod p2p;
+pub mod ping;
 pub mod protos;
 pub mod retry_strategy;
 pub mod security_configuration;

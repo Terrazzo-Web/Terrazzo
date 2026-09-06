@@ -6,8 +6,15 @@ use std::sync::Arc;
 use nameth::nameth;
 use terrazzo::axum::Router;
 use terrazzo::axum::extract::Path;
+use terrazzo::axum::extract::Request;
+use terrazzo::axum::middleware;
+use terrazzo::axum::middleware::Next;
+use terrazzo::axum::response::IntoResponse;
+use terrazzo::axum::response::Response;
 use terrazzo::axum::routing::get;
+use terrazzo::http::StatusCode;
 use terrazzo::http::header::AUTHORIZATION;
+use terrazzo::http::uri::Scheme;
 use terrazzo::static_assets;
 use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
@@ -21,6 +28,7 @@ use trz_gateway_common::security_configuration::certificate::cache::CachedCertif
 use trz_gateway_common::security_configuration::certificate::dynamic::DynamicCertificate;
 use trz_gateway_common::security_configuration::either::EitherConfig;
 use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
+use trz_gateway_server::server::HttpConnectionInfo;
 use trz_gateway_server::server::Server as GatewayServer;
 use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
 use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
@@ -137,8 +145,7 @@ impl GatewayConfig for TerminalBackendServer {
         let active_challenges = self.active_challenges.clone();
         move |server: Arc<GatewayServer>, router: Router| {
             let server = Arc::new(Server::new(server, config.clone()));
-            let router = router
-                .route("/", get(|| static_assets::get("index.html")))
+            let protected_routes = Router::new()
                 .route(
                     "/static/{*file}",
                     get(|Path(path): Path<String>| static_assets::get(&path)),
@@ -147,7 +154,6 @@ impl GatewayConfig for TerminalBackendServer {
                     "/api",
                     api::server::api_routes(&config, &auth_config, &server),
                 )
-                .merge(active_challenges.route())
                 .merge(
                     Router::new()
                         .route(
@@ -160,7 +166,12 @@ impl GatewayConfig for TerminalBackendServer {
                         .route_layer(AuthLayer {
                             auth_config: auth_config.clone(),
                         }),
-                );
+                )
+                .route_layer(middleware::from_fn(require_secure_connection));
+            let router = router
+                .route("/", get(|| static_assets::get("index.html")))
+                .merge(protected_routes)
+                .merge(active_challenges.route());
             let router = router.layer(SetSensitiveRequestHeadersLayer::new(once(AUTHORIZATION)));
             let router = if enabled!(Level::TRACE) {
                 router.layer(TraceLayer::new_for_http())
@@ -169,6 +180,109 @@ impl GatewayConfig for TerminalBackendServer {
             };
             return router;
         }
+    }
+}
+
+async fn require_secure_connection(request: Request, next: Next) -> Response {
+    let allowed = request
+        .extensions()
+        .get::<HttpConnectionInfo>()
+        .is_some_and(|connection_info| {
+            connection_info.scheme == Scheme::HTTPS || connection_info.is_localhost
+        });
+    if !allowed {
+        return (
+            StatusCode::FORBIDDEN,
+            "This route is only available over HTTPS or from localhost",
+        )
+            .into_response();
+    }
+    next.run(request).await
+}
+
+#[cfg(test)]
+mod tests {
+    use terrazzo::axum::Extension;
+    use terrazzo::axum::body::Body;
+    use terrazzo::http::Request;
+    use tower::ServiceExt as _;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn https_is_allowed_from_non_localhost() {
+        assert_eq!(
+            StatusCode::OK,
+            protected_status(Some(HttpConnectionInfo {
+                scheme: Scheme::HTTPS,
+                is_localhost: false,
+            }))
+            .await,
+        );
+    }
+
+    #[tokio::test]
+    async fn http_is_allowed_from_localhost() {
+        assert_eq!(
+            StatusCode::OK,
+            protected_status(Some(HttpConnectionInfo {
+                scheme: Scheme::HTTP,
+                is_localhost: true,
+            }))
+            .await,
+        );
+    }
+
+    #[tokio::test]
+    async fn http_is_rejected_from_non_localhost() {
+        assert_eq!(
+            StatusCode::FORBIDDEN,
+            protected_status(Some(HttpConnectionInfo {
+                scheme: Scheme::HTTP,
+                is_localhost: false,
+            }))
+            .await,
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_connection_info_is_rejected() {
+        assert_eq!(StatusCode::FORBIDDEN, protected_status(None).await);
+    }
+
+    #[tokio::test]
+    async fn routes_outside_the_layer_allow_http_from_non_localhost() {
+        let router = test_router(Some(HttpConnectionInfo {
+            scheme: Scheme::HTTP,
+            is_localhost: false,
+        }));
+        assert_eq!(StatusCode::OK, status(router, "/unprotected").await);
+    }
+
+    async fn protected_status(connection_info: Option<HttpConnectionInfo>) -> StatusCode {
+        status(test_router(connection_info), "/protected").await
+    }
+
+    fn test_router(connection_info: Option<HttpConnectionInfo>) -> Router {
+        let protected = Router::new()
+            .route("/protected", get(|| async {}))
+            .route_layer(middleware::from_fn(require_secure_connection));
+        let router = Router::new()
+            .route("/unprotected", get(|| async {}))
+            .merge(protected);
+        if let Some(connection_info) = connection_info {
+            router.layer(Extension(connection_info))
+        } else {
+            router
+        }
+    }
+
+    async fn status(router: Router, path: &str) -> StatusCode {
+        router
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+            .status()
     }
 }
 

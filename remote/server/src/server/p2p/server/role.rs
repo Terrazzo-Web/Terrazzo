@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use axum::Extension;
+use axum::http::uri::Scheme;
 use futures::FutureExt as _;
 use futures::SinkExt as _;
 use hyper_util::rt::TokioExecutor;
@@ -26,6 +28,7 @@ use self::registration::Registration;
 use self::stream::P2pServerStream;
 use super::error::P2pServerError;
 use crate::server::HTTP_TIMEOUT;
+use crate::server::HttpConnectionInfo;
 use crate::server::Server;
 use crate::server::gateway_config::p2p::P2pRegistrationAuthorization;
 use crate::server::gateway_config::p2p::P2pRegistrationConfig;
@@ -83,7 +86,11 @@ impl Server {
         connection: P2pServerStream,
     ) -> Result<(), P2pServerError> {
         let tls = self.p2p_tls_server.accept(connection).await?;
-        let service = TowerToHyperService::new(self.make_app());
+        let service =
+            TowerToHyperService::new(self.make_app().layer(Extension(HttpConnectionInfo {
+                scheme: Scheme::HTTPS,
+                is_localhost: false,
+            })));
         let mut builder = auto::Builder::new(TokioExecutor::new());
         builder
             .http1()

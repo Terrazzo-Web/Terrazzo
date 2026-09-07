@@ -26,9 +26,20 @@ pub(super) struct TextEditorManager {
     pub show_html_preview: XSignal<PreviewMode>,
     pub synchronized_state: XSignal<SynchronizedState>,
     pub side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub side_view_mode: XSignal<SideViewMode>,
+    pub files_side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub git_side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub is_git_repo: XSignal<bool>,
     pub notify_service: Ptr<NotifyService>,
     pub search: Ptr<SearchState>,
     pub side_view_resize_manager: MousemoveManager,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) enum SideViewMode {
+    #[default]
+    Files,
+    Git,
 }
 
 #[derive(Clone, Debug, Default)]

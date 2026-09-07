@@ -19,3 +19,5 @@ pub async fn git_status(
 
 #[cfg(feature = "server")]
 mod service;
+#[cfg(feature = "client")]
+pub(super) mod ui;

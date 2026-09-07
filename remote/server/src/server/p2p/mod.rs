@@ -25,7 +25,8 @@ pub(super) mod signaling;
 /// For that connection ID, the client sends an SDP offer and the registered
 /// server returns an SDP answer using [`SignalMessage::Description`]. Both
 /// sides may exchange [`SignalMessage::IceCandidate`] messages followed by
-/// [`SignalMessage::EndOfCandidates`]. [`SignalMessage::Cancel`] and
+/// [`SignalMessage::EndOfCandidates`]. Long-lived registration peers exchange
+/// [`SignalMessage::Ping`] and [`SignalMessage::Pong`] heartbeats. [`SignalMessage::Cancel`] and
 /// [`SignalMessage::Failure`] terminate unsuccessful negotiations. Once WebRTC
 /// is established, application traffic travels peer-to-peer rather than over
 /// these signaling WebSockets.
@@ -35,6 +36,8 @@ pub(super) mod signaling;
 /// [`SignalMessage::Description`]: trz_gateway_common::p2p::protocol::SignalMessage::Description
 /// [`SignalMessage::IceCandidate`]: trz_gateway_common::p2p::protocol::SignalMessage::IceCandidate
 /// [`SignalMessage::EndOfCandidates`]: trz_gateway_common::p2p::protocol::SignalMessage::EndOfCandidates
+/// [`SignalMessage::Ping`]: trz_gateway_common::p2p::protocol::SignalMessage::Ping
+/// [`SignalMessage::Pong`]: trz_gateway_common::p2p::protocol::SignalMessage::Pong
 /// [`SignalMessage::Cancel`]: trz_gateway_common::p2p::protocol::SignalMessage::Cancel
 /// [`SignalMessage::Failure`]: trz_gateway_common::p2p::protocol::SignalMessage::Failure
 impl Server {

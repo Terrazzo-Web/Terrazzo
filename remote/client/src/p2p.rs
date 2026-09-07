@@ -124,6 +124,9 @@ where
             {
                 Message::Text(text) => match parse_signal(&text)? {
                     SignalMessage::Start { connection_id } => return Ok(connection_id),
+                    SignalMessage::Ping => {
+                        send_signal(socket, &SignalMessage::Pong).await?;
+                    }
                     _ => return Err(P2pConnectError::Protocol("Expected session start".into())),
                 },
                 Message::Ping(_) | Message::Pong(_) => socket.flush().await?,
@@ -190,6 +193,10 @@ where
                         ));
                     }
                 };
+                if message == SignalMessage::Ping {
+                    send_signal(socket, &SignalMessage::Pong).await?;
+                    continue;
+                }
                 if message.connection_id() != Some(connection_id) {
                     return Err(P2pConnectError::Protocol("Unexpected connection identifier".into()));
                 }

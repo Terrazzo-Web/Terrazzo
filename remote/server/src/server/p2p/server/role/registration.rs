@@ -16,6 +16,9 @@ use trz_gateway_common::p2p::protocol::FailureCode;
 use trz_gateway_common::p2p::protocol::MAX_FAILURE_DETAIL_LEN;
 use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::SignalMessage;
+use trz_gateway_common::ping::Ping;
+use trz_gateway_common::ping::PingConfig;
+use trz_gateway_common::ping::Pong;
 
 use super::SESSION_QUEUE_CAPACITY;
 use super::send_signal;
@@ -57,8 +60,21 @@ impl Registration {
         mut self,
         mut socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
     ) -> Result<(), P2pServerError> {
+        let mut ping = Box::pin(Ping::new(PingConfig::default()));
+        let mut pong: Option<Pong> = None;
         loop {
             tokio::select! {
+                next = &mut ping => {
+                    let (next_ping, next_pong) = next.map_err(|()| {
+                        P2pServerError::Protocol("Signaling ping timed out".into())
+                    })?;
+                    ping.set(next_ping);
+                    if let Some(next_pong) = next_pong {
+                        pong = Some(next_pong);
+                        info!("Sending Ping");
+                        send_signal(&mut socket, &SignalMessage::Ping).await?;
+                    }
+                }
                 outgoing = self.outgoing_rx.recv() => {
                     let Some(outgoing) = outgoing else {
                         return Ok(());
@@ -84,7 +100,16 @@ impl Registration {
                         }
                     };
                     info!("Received {message:?}");
-                    self.handle_message(message).await?;
+                    match message {
+                        SignalMessage::Ping => {
+                            info!("Sending Pong");
+                            send_signal(&mut socket, &SignalMessage::Pong).await?;
+                        }
+                        SignalMessage::Pong => pong.take().ok_or_else(|| {
+                            P2pServerError::Protocol("Unexpected signaling pong".into())
+                        })?.ok(),
+                        message => self.handle_message(message).await?,
+                    }
                 }
                 done = self.done_rx.recv() => {
                     info!("Done");

@@ -90,6 +90,11 @@ ol.logs-list {
         display: flex;
         flex-direction: row;
 
+        .log-timestamp {
+            min-width: 7.5rem;
+            font-variant-numeric: tabular-nums;
+        }
+
         .log-level {
             display: inline-block;
             min-width: 4rem;

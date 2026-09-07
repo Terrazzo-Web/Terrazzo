@@ -70,15 +70,29 @@ fn logs_list(
         after_render =
             move |_| after_logs_render(&first_render, logs.is_empty(), logs_panel.clone()),
         logs.iter().map(|log| {
+            let timestamp = format_timestamp(log.timestamp_ms);
             let level = &log.level;
             let message = &log.message;
             li(
                 key = log.id.to_string(),
                 class = style::LOG_ITEM,
+                div(class = style::LOG_TIMESTAMP, "{timestamp}"),
                 div(class = style::LOG_LEVEL, "{level}"),
                 div(class = style::LOG_MESSAGE, "{message}"),
             )
         })..,
+    )
+}
+
+fn format_timestamp(timestamp_ms: u64) -> String {
+    let timestamp = web_sys::js_sys::Date::new_0();
+    timestamp.set_time(timestamp_ms as f64);
+    format!(
+        "{:02}:{:02}:{:02}.{:03}",
+        timestamp.get_hours(),
+        timestamp.get_minutes(),
+        timestamp.get_seconds(),
+        timestamp.get_milliseconds(),
     )
 }
 

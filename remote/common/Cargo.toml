@@ -20,6 +20,7 @@ cms = { workspace = true }
 futures = { workspace = true }
 humantime = { workspace = true }
 nameth = { workspace = true }
+pin-project = { workspace = true }
 oid-registry = { workspace = true }
 openssl = { workspace = true }
 prost = { workspace = true }

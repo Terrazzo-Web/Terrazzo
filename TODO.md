@@ -1,11 +1,13 @@
 # TODO
-- Authentication
-- Disable most APIs on cleartext http unless localhost
-- Upload and download work across remotes
-- Config in YAML
-- Let's Encrypt certificate in separate text file
-- File synchronization tool
+- Reconnect when signaling server detected peer connected
 - Client should not give up connecting when it fails first time on startup
 - Reconnect on wakeup
-- Reconnect when signaling server detected peer connected
+- Config in YAML
 - Static assets should be served compressed and compressed at compilation time
+- Authentication
+- Upload and download work across remotes
+- File synchronization tool
+
+DONE:
+- Disable most APIs on cleartext http unless localhost
+- Let's Encrypt certificate in separate text file

@@ -59,6 +59,8 @@ mod p2p;
 pub mod root_ca_configuration;
 mod tunnel;
 
+pub use http_or_https::HttpConnectionInfo;
+
 #[cfg(test)]
 mod tests;
 

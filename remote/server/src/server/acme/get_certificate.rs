@@ -28,7 +28,7 @@ pub struct GetAcmeCertificateResult {
     pub credentials: Option<AccountCredentials>,
 }
 
-impl AcmeConfig {
+impl<P> AcmeConfig<P> {
     pub(super) async fn get_certificate(
         &self,
         active_challenges: &ActiveChallenges,

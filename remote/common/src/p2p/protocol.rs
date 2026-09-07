@@ -7,7 +7,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 /// Current signaling protocol version.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 
 /// Maximum accepted SDP length in bytes.
 pub const MAX_SDP_LEN: usize = 1024 * 1024;
@@ -114,6 +114,12 @@ pub enum SignalMessage {
         protocol_version: u16,
     },
 
+    /// Checks that a signaling peer is still reachable.
+    Ping,
+
+    /// Acknowledges a [`SignalMessage::Ping`].
+    Pong,
+
     /// Introduces a newly allocated connection to the registered server.
     Start {
         /// The connection being introduced.
@@ -167,7 +173,7 @@ impl SignalMessage {
     /// Returns the connection identifier carried by a session message.
     pub fn connection_id(&self) -> Option<P2pConnectionId> {
         match self {
-            Self::Hello { .. } => None,
+            Self::Hello { .. } | Self::Ping | Self::Pong => None,
             Self::Start { connection_id }
             | Self::Description { connection_id, .. }
             | Self::IceCandidate { connection_id, .. }
@@ -191,6 +197,8 @@ impl SignalMessage {
                 validate_bounded("failure detail", detail, MAX_FAILURE_DETAIL_LEN)
             }
             Self::Hello { .. }
+            | Self::Ping
+            | Self::Pong
             | Self::Start { .. }
             | Self::EndOfCandidates { .. }
             | Self::Cancel { .. } => Ok(()),
@@ -304,17 +312,27 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
         };
         let json = serde_json::to_string(&message).unwrap();
-        assert_eq!(r#"{"type":"hello","protocol_version":1}"#, json);
+        assert_eq!(r#"{"type":"hello","protocol_version":2}"#, json);
         assert_eq!(message, serde_json::from_str(&json).unwrap());
         assert_eq!(Ok(()), message.validate());
+
+        for (message, json) in [
+            (SignalMessage::Ping, r#"{"type":"ping"}"#),
+            (SignalMessage::Pong, r#"{"type":"pong"}"#),
+        ] {
+            assert_eq!(json, serde_json::to_string(&message).unwrap());
+            assert_eq!(message, serde_json::from_str(json).unwrap());
+            assert_eq!(None, message.connection_id());
+            assert_eq!(Ok(()), message.validate());
+        }
     }
 
     #[test]
     fn rejects_unsupported_version_and_oversized_fields() {
         assert_eq!(
-            Err(ValidationError::UnsupportedProtocolVersion(2)),
+            Err(ValidationError::UnsupportedProtocolVersion(3)),
             SignalMessage::Hello {
-                protocol_version: 2,
+                protocol_version: 3,
             }
             .validate()
         );

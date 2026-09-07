@@ -29,6 +29,9 @@ use trz_gateway_common::p2p::protocol::P2pConnectionId;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SessionDescription;
 use trz_gateway_common::p2p::protocol::SignalMessage;
+use trz_gateway_common::ping::Ping;
+use trz_gateway_common::ping::PingConfig;
+use trz_gateway_common::ping::Pong;
 
 use self::registration::Registration;
 use self::session::Session;
@@ -236,9 +239,27 @@ impl Signaling {
         let registration = self.install_registration(server_name.clone(), outgoing);
         let mut close = registration.close.subscribe();
         let mut shutdown = self.shutdown.subscribe();
+        let mut ping = Box::pin(Ping::new(PingConfig::default()));
+        let mut pong: Option<Pong> = None;
 
         loop {
             tokio::select! {
+                next = &mut ping => match next {
+                    Ok((next_ping, next_pong)) => {
+                        ping.set(next_ping);
+                        if let Some(next_pong) = next_pong {
+                            pong = Some(next_pong);
+                            info!("Sending Ping");
+                            if send_json(&mut socket, &SignalMessage::Ping).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(()) => {
+                        warn!("Signaling ping timed out");
+                        break;
+                    }
+                },
                 message = outgoing_rx.recv() => match message {
                     Some(message) => {
                         info!("Sending {message:?}");
@@ -249,7 +270,17 @@ impl Signaling {
                     None => break,
                 },
                 message = socket.recv() => match message {
-                    Some(Ok(message)) => match parse_session_message(message) {
+                    Some(Ok(message)) => match parse_registration_message(message) {
+                        Ok(SignalMessage::Ping) => {
+                            info!("Received Ping");
+                            if send_json(&mut socket, &SignalMessage::Pong).await.is_err() {
+                                break;
+                            }
+                        }
+                        Ok(SignalMessage::Pong) => match pong.take() {
+                            Some(pong) => pong.ok(),
+                            None => break,
+                        },
                         Ok(message) if valid_server_message(&message) => {
                             info!("Received {message:?}");
                             if registration.relay_to_client(message).is_err() {
@@ -306,6 +337,7 @@ impl Signaling {
                         message,
                         connection_id,
                         &session.registration,
+                        &mut socket,
                     ).await,
                 () = &mut timeout =>
                     handle_client_handshake_timeout(
@@ -377,13 +409,24 @@ async fn relay_client_message_to_server(
     message: Option<Result<ws::Message, axum::Error>>,
     connection_id: P2pConnectionId,
     registration: &Registration,
+    socket: &mut ws::WebSocket,
 ) -> ClientLoopAction {
     let Some(Ok(message)) = message else {
         return ClientLoopAction::Stop { notify: true };
     };
-    let Ok(message) = parse_session_message(message) else {
+    let Ok(message) = parse_message(message) else {
         return ClientLoopAction::Stop { notify: true };
     };
+    if message.validate().is_err() {
+        return ClientLoopAction::Stop { notify: true };
+    }
+    if message == SignalMessage::Ping {
+        return if send_json(socket, &SignalMessage::Pong).await.is_ok() {
+            ClientLoopAction::Continue
+        } else {
+            ClientLoopAction::Stop { notify: true }
+        };
+    }
     if !valid_client_message(&message) || message.connection_id() != Some(connection_id) {
         return ClientLoopAction::Stop { notify: true };
     }
@@ -437,10 +480,9 @@ async fn receive_hello(socket: &mut ws::WebSocket) -> Result<(), ()> {
     }
 }
 
-fn parse_session_message(message: ws::Message) -> Result<SignalMessage, ()> {
+fn parse_registration_message(message: ws::Message) -> Result<SignalMessage, ()> {
     let message = parse_message(message)?;
     message.validate().map_err(|_| ())?;
-    message.connection_id().ok_or(())?;
     Ok(message)
 }
 

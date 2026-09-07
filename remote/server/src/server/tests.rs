@@ -23,6 +23,8 @@ use tracing::debug;
 use tracing::info;
 use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::certificate_info::CertificateInfo;
+use trz_gateway_common::consts::HEALTH_CHECK_PERIOD;
+use trz_gateway_common::consts::HEALTH_CHECK_TIMEOUT;
 use trz_gateway_common::dynamic_config::DynamicConfig;
 use trz_gateway_common::p2p::peer_connection::LocalIceEvent;
 use trz_gateway_common::p2p::peer_connection::PeerConnectionBuilder;
@@ -192,6 +194,11 @@ async fn p2p_signaling_routes_offer_and_answer() -> Result<(), Box<dyn Error>> {
         },
     )
     .await?;
+    send_signal(&mut registered_server, SignalMessage::Ping).await?;
+    assert_eq!(
+        SignalMessage::Pong,
+        receive_signal(&mut registered_server).await?
+    );
     let (mut connecting_client, _) = connect_async(endpoint("connect")).await?;
     send_signal(
         &mut connecting_client,
@@ -231,10 +238,16 @@ async fn p2p_signaling_routes_offer_and_answer() -> Result<(), Box<dyn Error>> {
 
     tokio::time::pause();
     tokio::time::advance(Duration::from_secs(31)).await;
-    for failure in [
-        receive_signal(&mut connecting_client).await?,
-        receive_signal(&mut registered_server).await?,
-    ] {
+    let client_failure = receive_signal(&mut connecting_client).await?;
+    let server_failure = loop {
+        match receive_signal(&mut registered_server).await? {
+            SignalMessage::Ping => {
+                send_signal(&mut registered_server, SignalMessage::Pong).await?;
+            }
+            message => break message,
+        }
+    };
+    for failure in [client_failure, server_failure] {
         assert!(matches!(
             failure,
             SignalMessage::Failure {
@@ -247,6 +260,45 @@ async fn p2p_signaling_routes_offer_and_answer() -> Result<(), Box<dyn Error>> {
 
     let _ = connecting_client.close(None).await;
     let _ = registered_server.close(None).await;
+    let () = handle.stop("End of test").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn p2p_signaling_closes_registration_without_pong() -> Result<(), Box<dyn Error>> {
+    use tokio_tungstenite::connect_async;
+    use tokio_tungstenite::tungstenite::Message;
+
+    let _use_temp_dir = use_temp_dir();
+    let config = TestConfig::new();
+    let (_server, handle, _crash) = Server::run(config.clone()).await?;
+    let url = format!(
+        "ws://{}:{}/p2p/register/unresponsive-server",
+        config.host(),
+        config.port,
+    );
+    let (mut registered_server, _) = connect_async(url).await?;
+    send_signal(
+        &mut registered_server,
+        SignalMessage::Hello {
+            protocol_version: PROTOCOL_VERSION,
+        },
+    )
+    .await?;
+
+    tokio::time::pause();
+    tokio::time::advance(HEALTH_CHECK_PERIOD).await;
+    assert_eq!(
+        SignalMessage::Ping,
+        receive_signal(&mut registered_server).await?
+    );
+    tokio::time::advance(HEALTH_CHECK_TIMEOUT).await;
+    tokio::task::yield_now().await;
+    assert!(matches!(
+        registered_server.next().await,
+        None | Some(Ok(Message::Close(_)))
+    ));
+
     let () = handle.stop("End of test").await?;
     Ok(())
 }

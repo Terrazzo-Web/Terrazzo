@@ -1,5 +1,8 @@
 use std::future::ready;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Context;
+use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -15,6 +18,7 @@ use reqwest::Url;
 use scopeguard::defer;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
+use tokio::io::ReadBuf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
@@ -54,25 +58,20 @@ impl super::Client {
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         let start = Instant::now();
+        defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "Done"));
         let tunnel = self
             .gateway_client
             .create_tunnel(client_id, timeout)
             .await?;
-
         self.client_api_server
             .serve(tunnel, shutdown, timeout, start, serving)
             .await?;
-        info!(
-            elapsed = humantime::format_duration(start.elapsed()).to_string(),
-            "Done"
-        );
         Ok(())
     }
 }
 
-struct Tunnel {
-    // TODO: don't box dyn, use trait generic parameter
-    stream: Box<dyn TransportIo>,
+struct Tunnel<T: TransportIo> {
+    stream: T,
     eos: Shared<BoxFuture<'static, Result<(), Arc<std::io::Error>>>>,
     force_close: ForceCloseHandle,
 }
@@ -82,7 +81,7 @@ impl GatewayClient {
         &self,
         client_id: ClientId,
         timeout: Duration,
-    ) -> Result<Tunnel, ConnectError> {
+    ) -> Result<Tunnel<impl TransportIo + use<>>, ConnectError> {
         let GatewayClient {
             gateway_uri,
             gateway_sni_override,
@@ -122,7 +121,7 @@ impl GatewayClient {
 
         let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
         Ok(Tunnel {
-            stream: Box::new(stream),
+            stream,
             eos: eos.map(|r| r.map_err(Arc::new)).boxed().shared(),
             force_close,
         })
@@ -130,9 +129,9 @@ impl GatewayClient {
 }
 
 impl ClientApiServer {
-    async fn serve(
+    async fn serve<T: TransportIo + 'static>(
         &self,
-        tunnel: Tunnel,
+        tunnel: Tunnel<T>,
         shutdown: Shared<BoxFuture<'static, ()>>,
         timeout: Duration,
         start: Instant,
@@ -186,10 +185,7 @@ impl ClientApiServer {
                 shutdown.clone(),
             )));
 
-        info!(
-            elapsed = humantime::format_duration(start.elapsed()).to_string(),
-            "Serving"
-        );
+        info!(elapsed = %humantime::format_duration(start.elapsed()), "Serving");
 
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
@@ -233,8 +229,8 @@ fn handle_close_timeout<E1: std::error::Error, E2: std::error::Error>(
     };
     tokio::spawn(
         async move {
-            const MINUTE: Duration = Duration::from_secs(60 * 5);
-            match tokio::time::timeout(MINUTE, pending).await {
+            const MINUTE: Duration = Duration::from_secs(60);
+            match tokio::time::timeout(MINUTE * 5, pending).await {
                 Ok(Ok(())) => {
                     info!("{pending_is} triggered after {}", close_latency())
                 }
@@ -300,23 +296,71 @@ trait TransportIo: AsyncRead + AsyncWrite + Unpin + Send {}
 
 impl<T> TransportIo for T where T: AsyncRead + AsyncWrite + Unpin + Send {}
 
+// TODO: move to remote/client/src/client/transport_stream.rs
+enum TransportStream {
+    Direct(TcpStream),
+    WebRtc(crate::p2p::P2pStream),
+}
+
+impl AsyncRead for TransportStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Direct(stream) => Pin::new(stream).poll_read(context, buffer),
+            Self::WebRtc(stream) => Pin::new(stream).poll_read(context, buffer),
+        }
+    }
+}
+
+impl AsyncWrite for TransportStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        match self.get_mut() {
+            Self::Direct(stream) => Pin::new(stream).poll_write(context, buffer),
+            Self::WebRtc(stream) => Pin::new(stream).poll_write(context, buffer),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Direct(stream) => Pin::new(stream).poll_flush(context),
+            Self::WebRtc(stream) => Pin::new(stream).poll_flush(context),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Direct(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::WebRtc(stream) => Pin::new(stream).poll_shutdown(context),
+        }
+    }
+}
+
 async fn connect_transport(
     transport: &ClientTransport,
     request: &tungstenite::handshake::client::Request,
     disable_nagle: bool,
     timeout: Duration,
-) -> Result<Box<dyn TransportIo>, ConnectError> {
+) -> Result<TransportStream, ConnectError> {
     let start = Instant::now();
     info!("Start");
     defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
     match transport {
-        ClientTransport::Direct => Ok(Box::new(
+        ClientTransport::Direct => Ok(TransportStream::Direct(
             connect_tcp(request, disable_nagle)
                 .timeout(timeout)
                 .await
                 .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
         )),
-        ClientTransport::WebRtc(config) => Ok(Box::new(crate::p2p::connect(config).await?)),
+        ClientTransport::WebRtc(config) => {
+            Ok(TransportStream::WebRtc(crate::p2p::connect(config).await?))
+        }
     }
 }
 

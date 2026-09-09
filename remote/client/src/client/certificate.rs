@@ -27,7 +27,7 @@ pub(crate) async fn get_certifiate(
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
     let mut url = url(client_config, "/remote/certificate")?;
-    set_sni_override(&mut url, client_config.sni_override())?;
+    set_sni_override(&mut url, client_config.gateway_sni_override())?;
     let body = serde_json::to_string(&GetCertificateRequest {
         auth_code,
         public_key,

@@ -63,7 +63,7 @@ pub trait ClientConfig: IsGlobal {
     ///
     /// This is useful when connecting to an IP address while validating the
     /// certificate against a DNS name.
-    fn sni_override(&self) -> Option<&str> {
+    fn gateway_sni_override(&self) -> Option<&str> {
         None
     }
 
@@ -87,8 +87,8 @@ impl<T: ClientConfig> ClientConfig for Arc<T> {
         self.as_ref().gateway_pki()
     }
 
-    fn sni_override(&self) -> Option<&str> {
-        self.as_ref().sni_override()
+    fn gateway_sni_override(&self) -> Option<&str> {
+        self.as_ref().gateway_sni_override()
     }
 
     fn transport(&self) -> ClientTransport {
@@ -164,7 +164,7 @@ pub(crate) fn set_sni_override(
 pub(crate) fn sni_override_resolution<C: ClientConfig>(
     client_config: &C,
 ) -> Result<Option<(String, SocketAddr)>, SniOverrideError> {
-    let Some(sni_override) = client_config.sni_override() else {
+    let Some(sni_override) = client_config.gateway_sni_override() else {
         return Ok(None);
     };
     let url = Url::parse(&client_config.base_url().to_string())?;

@@ -32,6 +32,8 @@ use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 use trz_gateway_common::to_async_io::WebSocketIo;
 
+use crate::client::GatewayClient;
+
 use self::tungstenite::client::IntoClientRequest as _;
 use super::config::ClientTransport;
 use super::config::SniOverrideError;
@@ -50,21 +52,27 @@ impl super::Client {
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         let start = Instant::now();
-        info!(uri = self.uri, sni = ?self.sni_override, transport = ?self.transport, "Connecting WebSocket");
+        let GatewayClient {
+            gateway_uri,
+            gateway_sni_override,
+            transport,
+            gateway_tls_connector,
+        } = &self.gateway_client;
+        info!(gateway_uri, sni = ?gateway_sni_override, ?transport, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let request = format!("ws{}", &self.uri["http".len()..])
+        let request = format!("ws{}", &gateway_uri["http".len()..])
             .into_client_request()
             .map_err(Box::from)?;
-        let mut tls_request = websocket_url(&self.uri, self.sni_override.as_deref())?
+        let mut tls_request = websocket_url(&gateway_uri, gateway_sni_override.as_deref())?
             .as_str()
             .into_client_request()
             .map_err(Box::from)?;
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout)
+        let socket = connect_transport(&transport, &request, disable_nagle, timeout)
             .instrument(info_span!("Connect Transport"))
             .await?;
         let (socket, force_close) = ForceCloseIo::new(socket);
@@ -72,7 +80,7 @@ impl super::Client {
             tls_request,
             socket,
             web_socket_config,
-            Some(self.tls_client.clone()),
+            Some(gateway_tls_connector.clone()),
         )
         .timeout(timeout)
         .await
@@ -84,7 +92,8 @@ impl super::Client {
         let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
         let eos = eos.map(|r| r.map_err(Arc::new)).shared();
         let tls_stream = self
-            .tls_server
+            .client_api_server
+            .client_api_acceptor
             .accept(stream)
             .timeout(timeout)
             .await
@@ -111,6 +120,7 @@ impl super::Client {
 
         let current_span = Span::current();
         let grpc_server = self
+            .client_api_server
             .client_service
             .configure_service(
                 Server::builder()
@@ -121,7 +131,7 @@ impl super::Client {
                     .trace_fn(move |_| current_span.clone()),
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl::new(
-                self.current_auth_code.clone(),
+                self.client_api_server.current_auth_code.clone(),
                 unhealthy_tx,
                 shutdown.clone(),
             )));

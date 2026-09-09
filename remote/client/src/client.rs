@@ -53,11 +53,17 @@ pub struct Client {
     /// The client name for troubleshooting purposes
     pub client_name: ClientName,
 
+    gateway_client: GatewayClient,
+    client_api_server: ClientApiServer,
+}
+
+/// Configuration for how to create tunnels to the Terrazzo Gateway
+struct GatewayClient {
     /// The URL used to open the TCP connection.
-    uri: String,
+    gateway_uri: String,
 
     /// The TLS server name to validate when it differs from [Self::uri].
-    sni_override: Option<String>,
+    gateway_sni_override: Option<String>,
 
     /// How the Gateway is reached before applying its TLS protocol.
     transport: ClientTransport,
@@ -65,12 +71,15 @@ pub struct Client {
     /// The TLS client is used to create the secure WebSocket tunnel.
     ///
     /// (without client certificate auth)
-    tls_client: tokio_tungstenite::Connector,
+    gateway_tls_connector: tokio_tungstenite::Connector,
+}
 
+/// Configuration for the server running through tunnels to the Terrazzo Gateway.
+struct ClientApiServer {
     /// The TLS server is used to accept gRPC connections through the tunnel.
     ///
     /// The client uses its certiticate to authenticate the server side of the connection.
-    tls_server: tokio_rustls::TlsAcceptor,
+    client_api_acceptor: tokio_rustls::TlsAcceptor,
 
     /// A callback to configure the [tonic gRPC server](tonic::transport::Server).
     client_service: Arc<dyn ClientService>,
@@ -97,14 +106,18 @@ impl Client {
         let tunnel_path = format!("/remote/tunnel/{client_name}");
         Ok(Arc::new(Client {
             client_name,
-            uri: url(&config, &tunnel_path)?.to_string(),
-            sni_override: config.sni_override().map(ToOwned::to_owned),
-            transport: config.transport(),
-            tls_client: tokio_tungstenite::Connector::Rustls(tls_client.into()),
-            tls_server: tokio_rustls::TlsAcceptor::from(tls_server),
-            client_service: Arc::new(config.client_service()),
-            retry_strategy: config.retry_strategy(),
-            current_auth_code: config.current_auth_code(),
+            gateway_client: GatewayClient {
+                gateway_uri: url(&config, &tunnel_path)?.to_string(),
+                gateway_sni_override: config.gateway_sni_override().map(ToOwned::to_owned),
+                transport: config.transport(),
+                gateway_tls_connector: tokio_tungstenite::Connector::Rustls(tls_client.into()),
+            },
+            client_api_server: ClientApiServer {
+                client_api_acceptor: tokio_rustls::TlsAcceptor::from(tls_server),
+                client_service: Arc::new(config.client_service()),
+                retry_strategy: config.retry_strategy(),
+                current_auth_code: config.current_auth_code(),
+            },
         }))
     }
 
@@ -142,7 +155,7 @@ async fn run_impl(
     terminated_tx: oneshot::Sender<()>,
 ) {
     scopeguard::defer! { let _ = terminated_tx.send(()); };
-    let retry_strategy0 = this.retry_strategy.clone();
+    let retry_strategy0 = this.client_api_server.retry_strategy.clone();
     let mut retry_strategy = retry_strategy0.clone();
     let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();

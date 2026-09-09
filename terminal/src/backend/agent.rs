@@ -134,8 +134,8 @@ impl ClientConfig for AgentTunnelConfig {
         self.client_config.client_name()
     }
 
-    fn sni_override(&self) -> Option<&str> {
-        self.client_config.sni_override()
+    fn gateway_sni_override(&self) -> Option<&str> {
+        self.client_config.gateway_sni_override()
     }
 
     fn transport(&self) -> ClientTransport {
@@ -217,7 +217,7 @@ impl ClientConfig for AgentClientConfig {
         self.client_name.clone()
     }
 
-    fn sni_override(&self) -> Option<&str> {
+    fn gateway_sni_override(&self) -> Option<&str> {
         self.sni_override.as_deref()
     }
 

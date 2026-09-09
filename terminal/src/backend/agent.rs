@@ -110,7 +110,7 @@ impl AgentTunnelConfig {
             Some(Self {
                 client_config,
                 client_certificate,
-                retry_strategy: RetryStrategy::default(),
+                retry_strategy: mesh.retry_strategy.clone(),
                 server: server.clone(),
                 current_auth_code,
             })

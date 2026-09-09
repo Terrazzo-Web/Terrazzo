@@ -354,10 +354,30 @@ async fn run_client_async(
             let abort_client_rx = abort_client_rx.shared();
             let client_task = async move {
                 autoclone!(server, terminated_all_tx, dynamic_mesh_config);
-                let Some(agent_config) = AgentTunnelConfig::new(auth_code, &mesh, &server).await
-                else {
-                    info!("Gateway client disabled");
-                    return Err(RunClientError::ClientNotEnabled);
+                let mut retry_strategy = mesh.retry_strategy.clone();
+                let agent_config = loop {
+                    let agent_config = tokio::select! {
+                        result = AgentTunnelConfig::new(auth_code.clone(), &mesh, &server) => result,
+                        _ = abort_client_rx.clone() => {
+                            info!("Gateway client initialization canceled");
+                            return Ok::<(), RunClientError>(());
+                        }
+                    };
+                    if let Some(agent_config) = agent_config {
+                        break agent_config;
+                    }
+
+                    info!(
+                        retry = humantime::format_duration(retry_strategy.peek()).to_string(),
+                        "Gateway client initialization failed; retrying"
+                    );
+                    tokio::select! {
+                        () = retry_strategy.wait() => {}
+                        _ = abort_client_rx.clone() => {
+                            info!("Gateway client initialization canceled");
+                            return Ok::<(), RunClientError>(());
+                        }
+                    }
                 };
                 let agent_config = Arc::new(agent_config);
                 info!(?agent_config, "Gateway client enabled");

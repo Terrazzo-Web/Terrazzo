@@ -35,10 +35,12 @@ use trz_gateway_common::to_async_io::WebSocketIo;
 use crate::client::GatewayClient;
 
 use self::tungstenite::client::IntoClientRequest as _;
+use super::ClientApiServer;
 use super::config::ClientTransport;
 use super::config::SniOverrideError;
 use super::config::set_sni_override;
 use super::connection::Connection;
+use super::connection::ForceCloseHandle;
 use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
 
@@ -52,12 +54,41 @@ impl super::Client {
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         let start = Instant::now();
+        let tunnel = self
+            .gateway_client
+            .create_tunnel(client_id, timeout)
+            .await?;
+
+        self.client_api_server
+            .serve(tunnel, shutdown, timeout, start, serving)
+            .await?;
+        info!(
+            elapsed = humantime::format_duration(start.elapsed()).to_string(),
+            "Done"
+        );
+        Ok(())
+    }
+}
+
+struct Tunnel {
+    // TODO: don't box dyn, use trait generic parameter
+    stream: Box<dyn TransportIo>,
+    eos: Shared<BoxFuture<'static, Result<(), Arc<std::io::Error>>>>,
+    force_close: ForceCloseHandle,
+}
+
+impl GatewayClient {
+    async fn create_tunnel(
+        &self,
+        client_id: ClientId,
+        timeout: Duration,
+    ) -> Result<Tunnel, ConnectError> {
         let GatewayClient {
             gateway_uri,
             gateway_sni_override,
             transport,
             gateway_tls_connector,
-        } = &self.gateway_client;
+        } = self;
         info!(gateway_uri, sni = ?gateway_sni_override, ?transport, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
@@ -90,9 +121,29 @@ impl super::Client {
         debug!("WebSocket response: {response:?}");
 
         let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
-        let eos = eos.map(|r| r.map_err(Arc::new)).shared();
+        Ok(Tunnel {
+            stream: Box::new(stream),
+            eos: eos.map(|r| r.map_err(Arc::new)).boxed().shared(),
+            force_close,
+        })
+    }
+}
+
+impl ClientApiServer {
+    async fn serve(
+        &self,
+        tunnel: Tunnel,
+        shutdown: Shared<BoxFuture<'static, ()>>,
+        timeout: Duration,
+        start: Instant,
+        serving: &mut Option<oneshot::Sender<()>>,
+    ) -> Result<(), ConnectError> {
+        let Tunnel {
+            stream,
+            eos,
+            force_close,
+        } = tunnel;
         let tls_stream = self
-            .client_api_server
             .client_api_acceptor
             .accept(stream)
             .timeout(timeout)
@@ -120,7 +171,6 @@ impl super::Client {
 
         let current_span = Span::current();
         let grpc_server = self
-            .client_api_server
             .client_service
             .configure_service(
                 Server::builder()
@@ -131,7 +181,7 @@ impl super::Client {
                     .trace_fn(move |_| current_span.clone()),
             )
             .add_service(HealthServiceServer::new(HealthServiceImpl::new(
-                self.client_api_server.current_auth_code.clone(),
+                self.current_auth_code.clone(),
                 unhealthy_tx,
                 shutdown.clone(),
             )));
@@ -163,10 +213,6 @@ impl super::Client {
         if let Some(eos) = eos.peek().cloned() {
             let () = eos.map_err(ConnectError::Stream)?;
         }
-        info!(
-            elapsed = humantime::format_duration(start.elapsed()).to_string(),
-            "Done"
-        );
         Ok(())
     }
 }

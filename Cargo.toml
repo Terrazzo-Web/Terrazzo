@@ -126,7 +126,7 @@ quick_cache = { version = "0.7.0" }
 quote = { version = "1.0.47" }
 rcgen = { version = "0.14.10" }
 regex = { version = "1.13.1" }
-reqwest = { version = "0.13.4" }
+reqwest = { version = "0.13.5" }
 reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rpassword = { version = "7.5.4" }
@@ -149,7 +149,7 @@ simple_asn1 = { version = "0.6.4" }
 siphasher = { version = "1.0.3" }
 static_assertions = { version = "1.1.0" }
 syn = { version = "3.0.5" }
-tantivy = { version = "0.26.1" }
+tantivy = { version = "0.26.2" }
 tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.20" }
 tls-parser = { version = "0.12.2" }

@@ -32,8 +32,6 @@ use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 use trz_gateway_common::to_async_io::WebSocketIo;
 
-use crate::client::GatewayClient;
-
 use self::tungstenite::client::IntoClientRequest as _;
 use super::ClientApiServer;
 use super::config::ClientTransport;
@@ -44,6 +42,7 @@ use super::connection::ForceCloseHandle;
 use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
 use super::transport_stream::TransportStream;
+use crate::client::GatewayClient;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.

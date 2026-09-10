@@ -43,6 +43,7 @@ pub mod connect;
 mod connection;
 mod health;
 pub mod service;
+mod transport_stream;
 
 /// The [Client].
 ///

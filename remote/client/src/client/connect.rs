@@ -1,8 +1,5 @@
 use std::future::ready;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::Context;
-use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -18,7 +15,6 @@ use reqwest::Url;
 use scopeguard::defer;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio::io::ReadBuf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
@@ -47,6 +43,7 @@ use super::connection::Connection;
 use super::connection::ForceCloseHandle;
 use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
+use super::transport_stream::TransportStream;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
@@ -95,14 +92,14 @@ impl GatewayClient {
         let request = format!("ws{}", &gateway_uri["http".len()..])
             .into_client_request()
             .map_err(Box::from)?;
-        let mut tls_request = websocket_url(&gateway_uri, gateway_sni_override.as_deref())?
+        let mut tls_request = websocket_url(gateway_uri, gateway_sni_override.as_deref())?
             .as_str()
             .into_client_request()
             .map_err(Box::from)?;
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_transport(&transport, &request, disable_nagle, timeout)
+        let socket = connect_transport(transport, &request, disable_nagle, timeout)
             .instrument(info_span!("Connect Transport"))
             .await?;
         let (socket, force_close) = ForceCloseIo::new(socket);
@@ -295,52 +292,6 @@ async fn connect_tcp(
 trait TransportIo: AsyncRead + AsyncWrite + Unpin + Send {}
 
 impl<T> TransportIo for T where T: AsyncRead + AsyncWrite + Unpin + Send {}
-
-// TODO: move to remote/client/src/client/transport_stream.rs
-enum TransportStream {
-    Direct(TcpStream),
-    WebRtc(crate::p2p::P2pStream),
-}
-
-impl AsyncRead for TransportStream {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        match self.get_mut() {
-            Self::Direct(stream) => Pin::new(stream).poll_read(context, buffer),
-            Self::WebRtc(stream) => Pin::new(stream).poll_read(context, buffer),
-        }
-    }
-}
-
-impl AsyncWrite for TransportStream {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        match self.get_mut() {
-            Self::Direct(stream) => Pin::new(stream).poll_write(context, buffer),
-            Self::WebRtc(stream) => Pin::new(stream).poll_write(context, buffer),
-        }
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        match self.get_mut() {
-            Self::Direct(stream) => Pin::new(stream).poll_flush(context),
-            Self::WebRtc(stream) => Pin::new(stream).poll_flush(context),
-        }
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        match self.get_mut() {
-            Self::Direct(stream) => Pin::new(stream).poll_shutdown(context),
-            Self::WebRtc(stream) => Pin::new(stream).poll_shutdown(context),
-        }
-    }
-}
 
 async fn connect_transport(
     transport: &ClientTransport,

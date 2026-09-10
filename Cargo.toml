@@ -172,7 +172,7 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
-uuid = { version = "1.26.0", features = ["fast-rng", "serde", "v4"] }
+uuid = { version = "1.26.1", features = ["fast-rng", "serde", "v4"] }
 walkdir = { version = "2.5.0" }
 wasm-bindgen = { version = "0.2.128" }
 wasm-bindgen-cli = { version = "0.2.128" }

@@ -150,21 +150,21 @@ pub(crate) fn url<C: ClientConfig>(client_config: &C, path: &str) -> Result<Url,
     Ok(Url::parse(&format!("{}{path}", client_config.base_url()))?)
 }
 
-pub(crate) fn set_sni_override(
+pub(crate) fn set_gateway_sni_override(
     url: &mut Url,
-    sni_override: Option<&str>,
+    gateway_sni_override: Option<&str>,
 ) -> Result<(), SniOverrideError> {
-    if let Some(sni_override) = sni_override {
-        url.set_host(Some(sni_override))
-            .map_err(|_| SniOverrideError::InvalidSniOverride(sni_override.to_owned()))?;
+    if let Some(gateway_sni_override) = gateway_sni_override {
+        url.set_host(Some(gateway_sni_override))
+            .map_err(|_| SniOverrideError::InvalidSniOverride(gateway_sni_override.to_owned()))?;
     }
     Ok(())
 }
 
-pub(crate) fn sni_override_resolution<C: ClientConfig>(
+pub(crate) fn gateway_sni_override_resolution<C: ClientConfig>(
     client_config: &C,
 ) -> Result<Option<(String, SocketAddr)>, SniOverrideError> {
-    let Some(sni_override) = client_config.gateway_sni_override() else {
+    let Some(gateway_sni_override) = client_config.gateway_sni_override() else {
         return Ok(None);
     };
     let url = Url::parse(&client_config.base_url().to_string())?;
@@ -177,7 +177,10 @@ pub(crate) fn sni_override_resolution<C: ClientConfig>(
     let port = url
         .port_or_known_default()
         .ok_or(SniOverrideError::MissingBaseUrlPort)?;
-    Ok(Some((sni_override.to_owned(), SocketAddr::new(ip, port))))
+    Ok(Some((
+        gateway_sni_override.to_owned(),
+        SocketAddr::new(ip, port),
+    )))
 }
 
 #[nameth]

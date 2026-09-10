@@ -38,7 +38,7 @@ use self::tungstenite::client::IntoClientRequest as _;
 use super::ClientApiServer;
 use super::config::ClientTransport;
 use super::config::SniOverrideError;
-use super::config::set_sni_override;
+use super::config::set_gateway_sni_override;
 use super::connection::Connection;
 use super::connection::ForceCloseHandle;
 use super::connection::ForceCloseIo;
@@ -257,9 +257,9 @@ trait HasTimeout: Future + Sized {
 
 impl<T: Future + Sized> HasTimeout for T {}
 
-fn websocket_url(uri: &str, sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
+fn websocket_url(uri: &str, gateway_sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
     let mut url = Url::parse(&format!("ws{}", &uri["http".len()..]))?;
-    set_sni_override(&mut url, sni_override)?;
+    set_gateway_sni_override(&mut url, gateway_sni_override)?;
     Ok(url)
 }
 

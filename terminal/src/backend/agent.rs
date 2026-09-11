@@ -19,6 +19,7 @@ use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStore;
+use url::Url;
 
 use super::config::mesh::MeshConfig;
 use crate::backend::Server;
@@ -47,7 +48,7 @@ pub struct AgentTunnelConfig {
 /// load the certificate used to construct [`AgentTunnelConfig`].
 pub struct AgentClientConfig {
     client_name: ClientName,
-    gateway_url: String,
+    gateway_url: Url,
     gateway_sni_override: Option<String>,
     gateway_pki: CachedTrustedStoreConfig,
     transport: ClientTransport,
@@ -61,7 +62,9 @@ impl AgentTunnelConfig {
     ) -> Option<Self> {
         async move {
             let client_name = mesh.client_name.as_str().into();
-            let gateway_url = mesh.gateway_url.clone();
+            let gateway_url = Url::parse(&mesh.gateway_url)
+                .inspect_err(|error| warn!("Failed to parse gateway URL: {error}"))
+                .ok()?;
             let gateway_sni_override = mesh.gateway_sni_override.clone();
 
             let gateway_pki = mesh
@@ -126,7 +129,7 @@ impl ClientConfig for AgentTunnelConfig {
         self.client_config.gateway_pki()
     }
 
-    fn base_url(&self) -> impl std::fmt::Display {
+    fn base_url(&self) -> Result<Url, url::ParseError> {
         self.client_config.base_url()
     }
 
@@ -209,8 +212,8 @@ impl ClientConfig for AgentClientConfig {
         self.gateway_pki.clone()
     }
 
-    fn base_url(&self) -> impl std::fmt::Display {
-        &self.gateway_url
+    fn base_url(&self) -> Result<Url, url::ParseError> {
+        Ok(self.gateway_url.clone())
     }
 
     fn client_name(&self) -> ClientName {

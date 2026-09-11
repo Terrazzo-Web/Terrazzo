@@ -93,6 +93,7 @@ SERVER_DEPS = [
     "@crates//:tower",
     "@crates//:tower-http",
     "@crates//:tracing",
+    "@crates//:url",
     "@crates//:uuid",
 ]
 SERVER_FEATURES = ["server"]
@@ -109,7 +110,6 @@ CONVERTER_SERVER_DEPS = CONVERTER_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TI
     "@crates//:tls-parser",
     "@crates//:tokio-rustls",
     "@crates//:unescaper",
-    "@crates//:url",
     "@crates//:x509-parser",
 ]
 CONVERTER_SERVER_FEATURES = CONVERTER_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TILES_STATE_SERVER_FEATURES + ["converter-server"]

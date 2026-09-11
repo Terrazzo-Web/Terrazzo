@@ -11,6 +11,7 @@ use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use reqwest::Url;
 use tracing::debug;
+use tracing::warn;
 use trz_gateway_common::id::ClientName;
 use trz_gateway_common::is_global::IsGlobal;
 use trz_gateway_common::p2p::GOOGLE_STUN;
@@ -31,9 +32,12 @@ use uuid::Uuid;
 /// [TunnelConfig]: crate::tunnel_config::TunnelConfig
 pub trait ClientConfig: IsGlobal {
     /// The URL where the Terrazzo Gateway is listening.
-    fn base_url(&self) -> impl std::fmt::Display {
+    fn base_url(&self) -> Result<Url, url::ParseError> {
         let port = if cfg!(debug_assertions) { 3000 } else { 3001 };
-        format!("https://localhost:{port}")
+        let mut url = Url::parse("https://localhost")?;
+        url.set_port(Some(port))
+            .unwrap_or_else(|()| warn!("Failed ot set port on {url:?}"));
+        Ok(url)
     }
 
     /// A unique name for the client.
@@ -71,10 +75,15 @@ pub trait ClientConfig: IsGlobal {
     fn transport(&self) -> ClientTransport {
         ClientTransport::Direct
     }
+
+    /// Builds a Gateway URL for the given path.
+    fn url(&self, path: &str) -> Result<Url, SniOverrideError> {
+        Ok(self.base_url()?.join(path)?)
+    }
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
-    fn base_url(&self) -> impl std::fmt::Display {
+    fn base_url(&self) -> Result<Url, url::ParseError> {
         self.as_ref().base_url()
     }
 
@@ -146,10 +155,6 @@ impl P2pClientConfig {
     }
 }
 
-pub(crate) fn url<C: ClientConfig>(client_config: &C, path: &str) -> Result<Url, SniOverrideError> {
-    Ok(Url::parse(&format!("{}{path}", client_config.base_url()))?)
-}
-
 pub(crate) fn set_gateway_sni_override(
     url: &mut Url,
     gateway_sni_override: Option<&str>,
@@ -167,7 +172,7 @@ pub(crate) fn gateway_sni_override_resolution<C: ClientConfig>(
     let Some(gateway_sni_override) = client_config.gateway_sni_override() else {
         return Ok(None);
     };
-    let url = Url::parse(&client_config.base_url().to_string())?;
+    let url = client_config.base_url()?;
     let Some(host) = url.host_str() else {
         return Err(SniOverrideError::MissingBaseUrlHost);
     };

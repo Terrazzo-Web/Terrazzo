@@ -78,10 +78,7 @@ pub trait ClientConfig: IsGlobal {
 
     /// Builds a Gateway URL for the given path.
     fn url(&self, path: &str) -> Result<Url, SniOverrideError> {
-        Ok(Url::parse(&format!(
-            "{base_url}{path}",
-            base_url = self.base_url()?
-        ))?)
+        Ok(self.base_url()?.join(path)?)
     }
 }
 

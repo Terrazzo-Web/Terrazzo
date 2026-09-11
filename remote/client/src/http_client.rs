@@ -25,7 +25,7 @@ use crate::client::config::ClientConfig;
 use crate::client::config::ClientTransport;
 use crate::client::config::P2pClientConfig;
 use crate::client::config::SniOverrideError;
-use crate::client::config::sni_override_resolution;
+use crate::client::config::gateway_sni_override_resolution;
 
 pub(super) enum HttpClient {
     Direct(reqwest::Client),
@@ -112,10 +112,10 @@ where
             Certificate::from_der(&root_der).map_err(MakeHttpClientError::DerToCertificate)?;
         builder = builder.add_root_certificate(root_certificate);
     }
-    if let Some((sni_override, socket_addr)) =
-        sni_override_resolution(client_config).map_err(MakeHttpClientError::SniOverride)?
+    if let Some((gateway_sni_override, socket_addr)) =
+        gateway_sni_override_resolution(client_config).map_err(MakeHttpClientError::SniOverride)?
     {
-        builder = builder.resolve(&sni_override, socket_addr);
+        builder = builder.resolve(&gateway_sni_override, socket_addr);
     }
     builder.build().map_err(MakeHttpClientError::Build)
 }

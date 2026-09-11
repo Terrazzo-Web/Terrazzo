@@ -33,12 +33,16 @@ use trz_gateway_common::protos::terrazzo::remote::health::health_service_server:
 use trz_gateway_common::to_async_io::WebSocketIo;
 
 use self::tungstenite::client::IntoClientRequest as _;
+use super::ClientApiServer;
 use super::config::ClientTransport;
 use super::config::SniOverrideError;
-use super::config::set_sni_override;
+use super::config::set_gateway_sni_override;
 use super::connection::Connection;
+use super::connection::ForceCloseHandle;
 use super::connection::ForceCloseIo;
 use super::health::HealthServiceImpl;
+use super::transport_stream::TransportStream;
+use crate::client::GatewayClient;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
@@ -50,21 +54,51 @@ impl super::Client {
         serving: &mut Option<oneshot::Sender<()>>,
     ) -> Result<(), ConnectError> {
         let start = Instant::now();
-        info!(uri = self.uri, sni = ?self.sni_override, transport = ?self.transport, "Connecting WebSocket");
+        defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "Done"));
+        let tunnel = self
+            .gateway_client
+            .create_tunnel(client_id, timeout)
+            .await?;
+        self.client_api_server
+            .serve(tunnel, shutdown, timeout, start, serving)
+            .await?;
+        Ok(())
+    }
+}
+
+struct Tunnel<T: TransportIo> {
+    stream: T,
+    eos: Shared<BoxFuture<'static, Result<(), Arc<std::io::Error>>>>,
+    force_close: ForceCloseHandle,
+}
+
+impl GatewayClient {
+    async fn create_tunnel(
+        &self,
+        client_id: ClientId,
+        timeout: Duration,
+    ) -> Result<Tunnel<impl TransportIo + use<>>, ConnectError> {
+        let GatewayClient {
+            gateway_uri,
+            gateway_sni_override,
+            transport,
+            gateway_tls_connector,
+        } = self;
+        info!(gateway_uri, sni = ?gateway_sni_override, ?transport, "Connecting WebSocket");
         let web_socket_config = None;
         let disable_nagle = true;
 
-        let request = format!("ws{}", &self.uri["http".len()..])
+        let request = format!("ws{}", &gateway_uri["http".len()..])
             .into_client_request()
             .map_err(Box::from)?;
-        let mut tls_request = websocket_url(&self.uri, self.sni_override.as_deref())?
+        let mut tls_request = websocket_url(gateway_uri, gateway_sni_override.as_deref())?
             .as_str()
             .into_client_request()
             .map_err(Box::from)?;
         tls_request
             .headers_mut()
             .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_transport(&self.transport, &request, disable_nagle, timeout)
+        let socket = connect_transport(transport, &request, disable_nagle, timeout)
             .instrument(info_span!("Connect Transport"))
             .await?;
         let (socket, force_close) = ForceCloseIo::new(socket);
@@ -72,7 +106,7 @@ impl super::Client {
             tls_request,
             socket,
             web_socket_config,
-            Some(self.tls_client.clone()),
+            Some(gateway_tls_connector.clone()),
         )
         .timeout(timeout)
         .await
@@ -82,9 +116,30 @@ impl super::Client {
         debug!("WebSocket response: {response:?}");
 
         let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
-        let eos = eos.map(|r| r.map_err(Arc::new)).shared();
+        Ok(Tunnel {
+            stream,
+            eos: eos.map(|r| r.map_err(Arc::new)).boxed().shared(),
+            force_close,
+        })
+    }
+}
+
+impl ClientApiServer {
+    async fn serve<T: TransportIo + 'static>(
+        &self,
+        tunnel: Tunnel<T>,
+        shutdown: Shared<BoxFuture<'static, ()>>,
+        timeout: Duration,
+        start: Instant,
+        serving: &mut Option<oneshot::Sender<()>>,
+    ) -> Result<(), ConnectError> {
+        let Tunnel {
+            stream,
+            eos,
+            force_close,
+        } = tunnel;
         let tls_stream = self
-            .tls_server
+            .client_api_acceptor
             .accept(stream)
             .timeout(timeout)
             .await
@@ -126,10 +181,7 @@ impl super::Client {
                 shutdown.clone(),
             )));
 
-        info!(
-            elapsed = humantime::format_duration(start.elapsed()).to_string(),
-            "Serving"
-        );
+        info!(elapsed = %humantime::format_duration(start.elapsed()), "Serving");
 
         // Signal first time client is ready to serve.
         serving.take().map(|serving| serving.send(()));
@@ -153,10 +205,6 @@ impl super::Client {
         if let Some(eos) = eos.peek().cloned() {
             let () = eos.map_err(ConnectError::Stream)?;
         }
-        info!(
-            elapsed = humantime::format_duration(start.elapsed()).to_string(),
-            "Done"
-        );
         Ok(())
     }
 }
@@ -177,8 +225,8 @@ fn handle_close_timeout<E1: std::error::Error, E2: std::error::Error>(
     };
     tokio::spawn(
         async move {
-            const MINUTE: Duration = Duration::from_secs(60 * 5);
-            match tokio::time::timeout(MINUTE, pending).await {
+            const MINUTE: Duration = Duration::from_secs(60);
+            match tokio::time::timeout(MINUTE * 5, pending).await {
                 Ok(Ok(())) => {
                     info!("{pending_is} triggered after {}", close_latency())
                 }
@@ -208,9 +256,9 @@ trait HasTimeout: Future + Sized {
 
 impl<T: Future + Sized> HasTimeout for T {}
 
-fn websocket_url(uri: &str, sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
+fn websocket_url(uri: &str, gateway_sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
     let mut url = Url::parse(&format!("ws{}", &uri["http".len()..]))?;
-    set_sni_override(&mut url, sni_override)?;
+    set_gateway_sni_override(&mut url, gateway_sni_override)?;
     Ok(url)
 }
 
@@ -249,18 +297,20 @@ async fn connect_transport(
     request: &tungstenite::handshake::client::Request,
     disable_nagle: bool,
     timeout: Duration,
-) -> Result<Box<dyn TransportIo>, ConnectError> {
+) -> Result<TransportStream, ConnectError> {
     let start = Instant::now();
     info!("Start");
     defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
     match transport {
-        ClientTransport::Direct => Ok(Box::new(
+        ClientTransport::Direct => Ok(TransportStream::Direct(
             connect_tcp(request, disable_nagle)
                 .timeout(timeout)
                 .await
                 .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
         )),
-        ClientTransport::WebRtc(config) => Ok(Box::new(crate::p2p::connect(config).await?)),
+        ClientTransport::WebRtc(config) => {
+            Ok(TransportStream::WebRtc(crate::p2p::connect(config).await?))
+        }
     }
 }
 

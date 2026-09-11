@@ -33,7 +33,6 @@ use uuid::Uuid;
 
 use self::config::ClientTransport;
 use self::config::SniOverrideError;
-use self::config::url;
 use self::service::ClientService;
 use crate::tunnel_config::TunnelConfig;
 
@@ -108,7 +107,7 @@ impl Client {
         Ok(Arc::new(Client {
             client_name,
             gateway_client: GatewayClient {
-                gateway_uri: url(&config, &tunnel_path)?.to_string(),
+                gateway_uri: config.url(&tunnel_path)?.to_string(),
                 gateway_sni_override: config.gateway_sni_override().map(ToOwned::to_owned),
                 transport: config.transport(),
                 gateway_tls_connector: tokio_tungstenite::Connector::Rustls(tls_client.into()),

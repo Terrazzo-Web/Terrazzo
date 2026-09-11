@@ -71,6 +71,14 @@ pub trait ClientConfig: IsGlobal {
     fn transport(&self) -> ClientTransport {
         ClientTransport::Direct
     }
+
+    /// Builds a Gateway URL for the given path.
+    fn url(&self, path: &str) -> Result<Url, SniOverrideError> {
+        Ok(Url::parse(&format!(
+            "{base_url}{path}",
+            base_url = self.base_url()
+        ))?)
+    }
 }
 
 impl<T: ClientConfig> ClientConfig for Arc<T> {
@@ -144,10 +152,6 @@ impl P2pClientConfig {
             connect_timeout: Duration::from_secs(45),
         }
     }
-}
-
-pub(crate) fn url<C: ClientConfig>(client_config: &C, path: &str) -> Result<Url, SniOverrideError> {
-    Ok(Url::parse(&format!("{}{path}", client_config.base_url()))?)
 }
 
 pub(crate) fn set_gateway_sni_override(

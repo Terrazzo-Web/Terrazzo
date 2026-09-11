@@ -14,7 +14,6 @@ use super::AuthCode;
 use super::config::ClientConfig;
 use super::config::SniOverrideError;
 use super::config::set_gateway_sni_override;
-use super::config::url;
 use crate::http_client::HttpClient;
 use crate::http_client::HttpRequestError;
 
@@ -26,7 +25,7 @@ pub(crate) async fn get_certifiate(
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
     let public_key = key.public_key_to_pem().pem_string()?;
-    let mut url = url(client_config, "/remote/certificate")?;
+    let mut url = client_config.url("/remote/certificate")?;
     set_gateway_sni_override(&mut url, client_config.gateway_sni_override())?;
     let body = serde_json::to_string(&GetCertificateRequest {
         auth_code,

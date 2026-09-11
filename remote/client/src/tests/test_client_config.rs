@@ -1,5 +1,6 @@
 use trz_gateway_common::id::ClientName;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
+use url::Url;
 
 use crate::client::config::ClientConfig;
 
@@ -19,11 +20,11 @@ impl<G> TestClientConfig<G> {
 }
 
 impl<G: GatewayConfig> ClientConfig for TestClientConfig<G> {
-    fn base_url(&self) -> impl std::fmt::Display {
-        std::format!(
+    fn base_url(&self) -> Result<Url, url::ParseError> {
+        Url::parse(&std::format!(
             "https://localhost:{}",
             self.gateway_config.ports().first().unwrap()
-        )
+        ))
     }
 
     fn client_name(&self) -> ClientName {

@@ -48,7 +48,7 @@ pub struct AgentTunnelConfig {
 pub struct AgentClientConfig {
     client_name: ClientName,
     gateway_url: String,
-    sni_override: Option<String>,
+    gateway_sni_override: Option<String>,
     gateway_pki: CachedTrustedStoreConfig,
     transport: ClientTransport,
 }
@@ -62,7 +62,7 @@ impl AgentTunnelConfig {
         async move {
             let client_name = mesh.client_name.as_str().into();
             let gateway_url = mesh.gateway_url.clone();
-            let sni_override = mesh.sni_override.clone();
+            let gateway_sni_override = mesh.gateway_sni_override.clone();
 
             let gateway_pki = mesh
                 .gateway_pki
@@ -72,7 +72,7 @@ impl AgentTunnelConfig {
 
             let client_config = AgentClientConfig {
                 gateway_url,
-                sni_override,
+                gateway_sni_override,
                 gateway_pki: gateway_pki
                     .load()
                     .inspect_err(|error| warn!("Failed to load Gateway PKI: {error}"))
@@ -134,8 +134,8 @@ impl ClientConfig for AgentTunnelConfig {
         self.client_config.client_name()
     }
 
-    fn sni_override(&self) -> Option<&str> {
-        self.client_config.sni_override()
+    fn gateway_sni_override(&self) -> Option<&str> {
+        self.client_config.gateway_sni_override()
     }
 
     fn transport(&self) -> ClientTransport {
@@ -217,8 +217,8 @@ impl ClientConfig for AgentClientConfig {
         self.client_name.clone()
     }
 
-    fn sni_override(&self) -> Option<&str> {
-        self.sni_override.as_deref()
+    fn gateway_sni_override(&self) -> Option<&str> {
+        self.gateway_sni_override.as_deref()
     }
 
     fn transport(&self) -> ClientTransport {
@@ -238,7 +238,7 @@ mod debug {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct(AgentClientConfig::type_name())
                 .field("gateway_url", &self.gateway_url)
-                .field("sni_override", &self.sni_override)
+                .field("gateway_sni_override", &self.gateway_sni_override)
                 .field("client_name", &self.client_name)
                 .finish()
         }
@@ -248,7 +248,7 @@ mod debug {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct(AgentTunnelConfig::type_name())
                 .field("gateway_url", &self.gateway_url)
-                .field("sni_override", &self.sni_override)
+                .field("gateway_sni_override", &self.gateway_sni_override)
                 .field("client_name", &self.client_name)
                 .field("client_certificate", &self.client_certificate)
                 .field("retry_strategy", &self.retry_strategy)

@@ -365,6 +365,7 @@ impl RetryStrategy {
         self.process2(callback, NoopHooks::default()).await
     }
 
+    // TODO: add tests for process2. Implement a testonly Hooks type to simulate should_reset and assert that on_reset and on_error and on_start are called as appropiate. Test scenarios should include at least a case where the callback ran for a long time (>max_delay) and the retry strategy is reset, and a case where the callback fails quickly and the retry delay keeps increasing, and a case where the callback returns an exit code. Use a default retry strategy.
     pub async fn process2<Callback, F, Error, Exit, Hooks>(
         self,
         callback: Callback,
@@ -392,12 +393,12 @@ impl RetryStrategy {
                     "Failed afer {elapsed} with {error}",
                     elapsed = format_duration(elapsed)
                 );
-                if elapsed > max_delay {
+                if hooks.should_reset(elapsed, max_delay) {
                     current = strategy.clone();
                     hooks.on_reset(elapsed, error);
                 } else {
                     hooks.on_error(elapsed, current.peek(), error);
-                    current.wait().await
+                    hooks.wait(&mut current).await
                 }
             }
         };
@@ -407,9 +408,18 @@ impl RetryStrategy {
 
 pub trait ProcessRetryStrategyHooks {
     type Error: std::error::Error;
+
     fn on_start(&mut self, now: Instant);
     fn on_reset(&mut self, elapsed: Duration, error: Self::Error);
     fn on_error(&mut self, elapsed: Duration, waiting: Duration, error: Self::Error);
+
+    fn should_reset(&mut self, elapsed: Duration, max_delay: Duration) -> bool {
+        elapsed > max_delay
+    }
+
+    fn wait(&mut self, current_retry_strategy: &mut RetryStrategy) -> impl Future<Output = ()> {
+        current_retry_strategy.wait()
+    }
 }
 
 pub struct NoopHooks<E>(PhantomData<E>);

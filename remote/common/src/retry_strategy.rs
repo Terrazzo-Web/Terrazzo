@@ -3,8 +3,15 @@
 use std::hash::DefaultHasher;
 use std::hash::Hasher;
 use std::ops::Add;
+use std::ops::ControlFlow;
 use std::ops::Mul;
 use std::time::Duration;
+use std::time::Instant;
+
+use humantime::format_duration;
+use tracing::Instrument;
+use tracing::info_span;
+use tracing::warn;
 
 /// Retry strategy with exponential backoff.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -343,6 +350,97 @@ impl Iterator for RetryStrategy {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.delay())
+    }
+}
+
+impl RetryStrategy {
+    pub async fn process<Callback, F, Error, Exit>(self, callback: Callback) -> Exit
+    where
+        Callback: Fn() -> F,
+        F: Future<Output = ControlFlow<Exit, Error>>,
+        Error: std::error::Error,
+    {
+        let strategy = self.clone();
+        let max_delay = strategy.max_delay();
+        let task = async {
+            let mut current = strategy.clone();
+            loop {
+                let start = Instant::now();
+                let error = match callback().await {
+                    ControlFlow::Continue(error) => error,
+                    ControlFlow::Break(exit) => return exit,
+                };
+                let elapsed = start.elapsed();
+                warn!(
+                    "Failed afer {elapsed} with {error}",
+                    elapsed = format_duration(elapsed)
+                );
+                if elapsed > max_delay {
+                    current = strategy.clone();
+                } else {
+                    current.wait().await
+                }
+            }
+        };
+        task.instrument(info_span!("Retry", %strategy)).await
+    }
+}
+
+impl std::fmt::Display for RetryStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        struct MaybeAddParenthesis<'t>(&'t RetryStrategy);
+
+        impl std::fmt::Display for MaybeAddParenthesis<'_> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let inner = &self.0;
+                match inner {
+                    RetryStrategy::Fixed { .. } => write!(f, "{inner}"),
+                    RetryStrategy::ExponentialBackoff { .. }
+                    | RetryStrategy::Random { .. }
+                    | RetryStrategy::Mult { .. }
+                    | RetryStrategy::Plus { .. }
+                    | RetryStrategy::Sequence { .. } => write!(f, "({inner})"),
+                }
+            }
+        }
+
+        match self {
+            RetryStrategy::Fixed(duration) => {
+                write!(f, "fixed({})", format_duration(*duration))
+            }
+            RetryStrategy::ExponentialBackoff(ExponentialBackoff {
+                base,
+                exponent,
+                max_delay,
+            }) => write!(
+                f,
+                "{base}^{exponent} | {max_delay}",
+                base = MaybeAddParenthesis(base),
+                max_delay = format_duration(*max_delay)
+            ),
+            RetryStrategy::Random(Random {
+                base,
+                factor,
+                random: _,
+            }) => write!(f, "{base} ± {factor}", base = MaybeAddParenthesis(base)),
+            RetryStrategy::Mult(Mult { base, factor }) => {
+                write!(f, "{base} * {factor}", base = MaybeAddParenthesis(base))
+            }
+            RetryStrategy::Plus(Plus { left, right }) => write!(
+                f,
+                "{left} + {right}",
+                left = MaybeAddParenthesis(left),
+                right = MaybeAddParenthesis(right)
+            ),
+            RetryStrategy::Sequence(Sequence { first, times, then }) => {
+                write!(
+                    f,
+                    "{first} [{times}x] then {then}",
+                    first = MaybeAddParenthesis(first),
+                    then = MaybeAddParenthesis(then)
+                )
+            }
+        }
     }
 }
 

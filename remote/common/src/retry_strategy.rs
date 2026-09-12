@@ -365,7 +365,6 @@ impl RetryStrategy {
         self.process2(callback, NoopHooks::default()).await
     }
 
-    // TODO: add tests for process2. Implement a testonly Hooks type to simulate should_reset and assert that on_reset and on_error and on_start are called as appropiate. Test scenarios should include at least a case where the callback ran for a long time (>max_delay) and the retry strategy is reset, and a case where the callback fails quickly and the retry delay keeps increasing, and a case where the callback returns an exit code. Use a default retry strategy.
     pub async fn process2<Callback, F, Error, Exit, Hooks>(
         self,
         callback: Callback,
@@ -457,6 +456,7 @@ impl std::fmt::Display for RetryStrategy {
 
         impl std::fmt::Display for MaybeAddParenthesis<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let inner = &self.0;
                 match self.0 {
                     RetryStrategy::Fixed { .. } => write!(f, "{inner}"),
                     RetryStrategy::ExponentialBackoff { .. }
@@ -510,10 +510,195 @@ impl std::fmt::Display for RetryStrategy {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::cell::RefCell;
+    use std::collections::VecDeque;
+    use std::fmt::Display;
+    use std::future::ready;
+    use std::ops::ControlFlow;
+    use std::rc::Rc;
     use std::time::Duration;
+    use std::time::Instant;
 
     use super::Plus;
+    use super::ProcessRetryStrategyHooks;
     use super::RetryStrategy;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct TestError(&'static str);
+
+    impl Display for TestError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
+        }
+    }
+
+    impl std::error::Error for TestError {}
+
+    #[derive(Default)]
+    struct HookCalls {
+        starts: Vec<Instant>,
+        resets: Vec<(Duration, TestError)>,
+        errors: Vec<(Duration, Duration, TestError)>,
+        waits: Vec<Duration>,
+    }
+
+    struct TestHooks {
+        calls: Rc<RefCell<HookCalls>>,
+        should_reset: VecDeque<bool>,
+    }
+
+    impl TestHooks {
+        fn new(should_reset: impl IntoIterator<Item = bool>) -> (Self, Rc<RefCell<HookCalls>>) {
+            let calls = Rc::new(RefCell::new(HookCalls::default()));
+            (
+                Self {
+                    calls: Rc::clone(&calls),
+                    should_reset: should_reset.into_iter().collect(),
+                },
+                calls,
+            )
+        }
+    }
+
+    impl ProcessRetryStrategyHooks for TestHooks {
+        type Error = TestError;
+
+        fn on_start(&mut self, now: Instant) {
+            self.calls.borrow_mut().starts.push(now);
+        }
+
+        fn on_reset(&mut self, elapsed: Duration, error: Self::Error) {
+            self.calls.borrow_mut().resets.push((elapsed, error));
+        }
+
+        fn on_error(&mut self, elapsed: Duration, waiting: Duration, error: Self::Error) {
+            self.calls
+                .borrow_mut()
+                .errors
+                .push((elapsed, waiting, error));
+        }
+
+        fn should_reset(&mut self, _elapsed: Duration, max_delay: Duration) -> bool {
+            assert_eq!(Duration::from_secs(60), max_delay);
+            self.should_reset.pop_front().unwrap_or(false)
+        }
+
+        fn wait(&mut self, current_retry_strategy: &mut RetryStrategy) -> impl Future<Output = ()> {
+            self.calls
+                .borrow_mut()
+                .waits
+                .push(current_retry_strategy.delay());
+            ready(())
+        }
+    }
+
+    #[tokio::test]
+    async fn process2_resets_after_a_long_running_callback() {
+        let attempt = Cell::new(0);
+        let (hooks, calls) = TestHooks::new([false, false, true, false]);
+
+        let exit = RetryStrategy::default()
+            .process2(
+                || {
+                    let current = attempt.get();
+                    attempt.set(current + 1);
+                    async move {
+                        if current == 4 {
+                            ControlFlow::Break(23)
+                        } else {
+                            ControlFlow::Continue(TestError("failed"))
+                        }
+                    }
+                },
+                hooks,
+            )
+            .await;
+
+        assert_eq!(23, exit);
+        let calls = calls.borrow();
+        assert_eq!(5, calls.starts.len());
+        assert_eq!(
+            vec![TestError("failed")],
+            calls.resets.iter().map(|v| v.1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            vec![
+                Duration::from_secs(1),
+                Duration::from_secs(2),
+                Duration::from_secs(1)
+            ],
+            calls.errors.iter().map(|v| v.1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            vec![
+                Duration::from_secs(1),
+                Duration::from_secs(2),
+                Duration::from_secs(1)
+            ],
+            calls.waits
+        );
+    }
+
+    #[tokio::test]
+    async fn process2_increases_delay_after_quick_failures() {
+        let attempt = Cell::new(0);
+        let (hooks, calls) = TestHooks::new([false, false, false]);
+
+        let exit = RetryStrategy::default()
+            .process2(
+                || {
+                    let current = attempt.get();
+                    attempt.set(current + 1);
+                    async move {
+                        if current == 3 {
+                            ControlFlow::Break(42)
+                        } else {
+                            ControlFlow::Continue(TestError("quick failure"))
+                        }
+                    }
+                },
+                hooks,
+            )
+            .await;
+
+        assert_eq!(42, exit);
+        let calls = calls.borrow();
+        assert_eq!(4, calls.starts.len());
+        assert!(calls.resets.is_empty());
+        assert_eq!(
+            vec![
+                Duration::from_secs(1),
+                Duration::from_secs(2),
+                Duration::from_secs(4)
+            ],
+            calls.errors.iter().map(|v| v.1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            vec![
+                Duration::from_secs(1),
+                Duration::from_secs(2),
+                Duration::from_secs(4)
+            ],
+            calls.waits
+        );
+    }
+
+    #[tokio::test]
+    async fn process2_returns_exit_code_without_retrying() {
+        let (hooks, calls) = TestHooks::new([]);
+
+        let exit = RetryStrategy::default()
+            .process2(|| async { ControlFlow::<i32, TestError>::Break(7) }, hooks)
+            .await;
+
+        assert_eq!(7, exit);
+        let calls = calls.borrow();
+        assert_eq!(1, calls.starts.len());
+        assert!(calls.resets.is_empty());
+        assert!(calls.errors.is_empty());
+        assert!(calls.waits.is_empty());
+    }
 
     #[test]
     fn fixed() {

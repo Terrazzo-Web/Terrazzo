@@ -457,8 +457,7 @@ impl std::fmt::Display for RetryStrategy {
 
         impl std::fmt::Display for MaybeAddParenthesis<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let inner = &self.0;
-                match inner {
+                match self.0 {
                     RetryStrategy::Fixed { .. } => write!(f, "{inner}"),
                     RetryStrategy::ExponentialBackoff { .. }
                     | RetryStrategy::Random { .. }

@@ -2,6 +2,7 @@
 
 use std::hash::DefaultHasher;
 use std::hash::Hasher;
+use std::marker::PhantomData;
 use std::ops::Add;
 use std::ops::ControlFlow;
 use std::ops::Mul;
@@ -10,6 +11,7 @@ use std::time::Instant;
 
 use humantime::format_duration;
 use tracing::Instrument;
+use tracing::debug;
 use tracing::info_span;
 use tracing::warn;
 
@@ -360,12 +362,27 @@ impl RetryStrategy {
         F: Future<Output = ControlFlow<Exit, Error>>,
         Error: std::error::Error,
     {
+        self.process2(callback, NoopHooks::default()).await
+    }
+
+    pub async fn process2<Callback, F, Error, Exit, Hooks>(
+        self,
+        callback: Callback,
+        mut hooks: Hooks,
+    ) -> Exit
+    where
+        Callback: Fn() -> F,
+        F: Future<Output = ControlFlow<Exit, Error>>,
+        Error: std::error::Error,
+        Hooks: ProcessRetryStrategyHooks<Error = Error>,
+    {
         let strategy = self.clone();
         let max_delay = strategy.max_delay();
         let task = async {
             let mut current = strategy.clone();
             loop {
                 let start = Instant::now();
+                hooks.on_start(start);
                 let error = match callback().await {
                     ControlFlow::Continue(error) => error,
                     ControlFlow::Break(exit) => return exit,
@@ -377,12 +394,50 @@ impl RetryStrategy {
                 );
                 if elapsed > max_delay {
                     current = strategy.clone();
+                    hooks.on_reset(elapsed, error);
                 } else {
+                    hooks.on_error(elapsed, current.peek(), error);
                     current.wait().await
                 }
             }
         };
         task.instrument(info_span!("Retry", %strategy)).await
+    }
+}
+
+pub trait ProcessRetryStrategyHooks {
+    type Error: std::error::Error;
+    fn on_start(&mut self, now: Instant);
+    fn on_reset(&mut self, elapsed: Duration, error: Self::Error);
+    fn on_error(&mut self, elapsed: Duration, waiting: Duration, error: Self::Error);
+}
+
+pub struct NoopHooks<E>(PhantomData<E>);
+
+impl<E> Default for NoopHooks<E> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<E: std::error::Error> ProcessRetryStrategyHooks for NoopHooks<E> {
+    type Error = E;
+
+    fn on_start(&mut self, _now: Instant) {
+        debug!("on_start")
+    }
+
+    fn on_reset(&mut self, elapsed: Duration, error: Self::Error) {
+        debug!(elapsed = %format_duration(elapsed), %error, "on_reset")
+    }
+
+    fn on_error(&mut self, elapsed: Duration, waiting: Duration, error: Self::Error) {
+        debug!(
+            elapsed = %format_duration(elapsed),
+            waiting = %format_duration(waiting),
+            %error,
+            "on_error"
+        )
     }
 }
 

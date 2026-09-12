@@ -358,7 +358,7 @@ impl Iterator for RetryStrategy {
 impl RetryStrategy {
     pub async fn process<Callback, F, Error, Exit>(self, callback: Callback) -> Exit
     where
-        Callback: Fn() -> F,
+        Callback: FnMut() -> F,
         F: Future<Output = ControlFlow<Exit, Error>>,
         Error: std::error::Error,
     {
@@ -367,11 +367,11 @@ impl RetryStrategy {
 
     pub async fn process2<Callback, F, Error, Exit, Hooks>(
         self,
-        callback: Callback,
+        mut callback: Callback,
         mut hooks: Hooks,
     ) -> Exit
     where
-        Callback: Fn() -> F,
+        Callback: FnMut() -> F,
         F: Future<Output = ControlFlow<Exit, Error>>,
         Error: std::error::Error,
         Hooks: ProcessRetryStrategyHooks<Error = Error>,

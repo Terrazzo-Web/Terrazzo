@@ -163,7 +163,7 @@ async fn run_impl(
     let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
-    // TODO: needs review
+    // TODO: Use retry_strategy.process instead of process2, ConnectRetryHooks is not required, instead move the shutdown logic outside of retry_strategy.process, use futures::future::select instead of tokio's select! macro, use autoclone instead of manually cloning references into the process callback. validate with bazel test //...
     let is_shutdown = is_shutdown(shutdown_rx.clone());
     let serving_tx = Arc::new(tokio::sync::Mutex::new(Some(serving_tx)));
     let attempt = Arc::new(AtomicUsize::new(0));

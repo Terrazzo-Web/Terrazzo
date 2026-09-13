@@ -1,5 +1,8 @@
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::task::Context;
+use std::task::Poll;
 
 use futures::FutureExt;
 use futures::future::Shared;
@@ -23,10 +26,10 @@ pub fn channel<T: Clone>() -> (Sender<T>, Receiver<T>) {
 
 impl<T: Clone> Sender<T> {
     pub fn send(&self, value: T) -> Result<(), T> {
-        if let Ok(mut lock) = self.0.lock() {
-            if let Some(tx) = lock.take() {
-                return tx.send(value);
-            }
+        if let Ok(mut lock) = self.0.lock()
+            && let Some(tx) = lock.take()
+        {
+            return tx.send(value);
         }
         return Err(value);
     }
@@ -35,19 +38,13 @@ impl<T: Clone> Sender<T> {
 impl<T: Clone> Future for Receiver<T> {
     type Output = Result<T, tokio::sync::oneshot::error::RecvError>;
 
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.project().0.poll(cx)
     }
 }
 
 impl<T: Clone + Default> Receiver<T> {
     pub async fn or_default(self) -> T {
-        match self.await {
-            Ok(value) => value,
-            Err(_error) => T::default(),
-        }
+        self.await.unwrap_or_default()
     }
 }

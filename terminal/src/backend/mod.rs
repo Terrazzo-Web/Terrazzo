@@ -14,7 +14,6 @@ use std::time::SystemTime;
 use clap::Parser as _;
 use futures::FutureExt as _;
 use futures::future::Either;
-use futures::future::Shared;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
@@ -39,6 +38,7 @@ use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::handle::ServerStopError;
+use trz_gateway_common::notify_once;
 use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::either::EitherConfig;
@@ -351,36 +351,33 @@ async fn run_client_async(
         if let Some(mesh) = (**mesh).clone() {
             let auth_code = Arc::new(Mutex::new(auth_code.clone()));
 
-            let (abort_client_tx, abort_client_rx) = oneshot::channel();
-            let abort_client_rx = abort_client_rx.shared();
-    // TODO: needs review
+            let (abort_client_tx, abort_client_rx) = notify_once::channel();
             let client_task = async move {
-                autoclone!(server, terminated_all_tx, dynamic_mesh_config);
-                let agent_config = tokio::select! {
-                    agent_config = mesh
-                        .retry_strategy
-                        .clone()
-                        .process(
-                            || {
-                                let auth_code = auth_code.clone();
-                                let mesh = mesh.clone();
-                                let server = server.clone();
-                                async move {
-                                    match AgentTunnelConfig::new(auth_code, &mesh, &server).await {
-                                        Some(config) => ControlFlow::Break(config),
-                                        None => ControlFlow::Continue(GatewayClientInitializationError),
-                                    }
-                                }
-                            },
-                        ) => Some(agent_config),
-                    _ = abort_client_rx.clone() => {
-                        info!("Gateway client initialization canceled");
-                        None
+                autoclone!(server);
+                autoclone!(terminated_all_tx);
+                autoclone!(dynamic_mesh_config);
+                autoclone!(abort_client_tx);
+                let agent_config = mesh.retry_strategy.clone().process(|| async move {
+                    autoclone!(auth_code, mesh, server, abort_client_tx);
+                    match AgentTunnelConfig::new(auth_code, &mesh, &server).await {
+                        Ok(config) => ControlFlow::Break(config),
+                        Err(error) => {
+                            if !error.is_retryable() {
+                                let _ = abort_client_tx.send(());
+                            }
+                            ControlFlow::Continue(error)
+                        }
                     }
-                };
-                let Some(agent_config) = agent_config else {
-                    return Ok::<(), RunClientError>(());
-                };
+                });
+                let agent_config = std::pin::pin!(agent_config);
+                let agent_config =
+                    match futures::future::select(agent_config, abort_client_rx.clone()).await {
+                        Either::Left((agent_config, _abort)) => agent_config,
+                        Either::Right((_abort, _agent_config)) => {
+                            info!("Gateway client initialization canceled");
+                            return Ok::<(), RunClientError>(());
+                        }
+                    };
                 let agent_config = Arc::new(agent_config);
                 info!(?agent_config, "Gateway client enabled");
 
@@ -400,7 +397,7 @@ async fn run_client_async(
                 let client = Client::new(agent_config)?;
                 let client_handle = client.run().await?;
                 let client_handle_task = async move {
-                    let _ = abort_client_rx.await;
+                    let () = abort_client_rx.or_default().await;
                     match client_handle.stop("Updated mesh config").await {
                         Ok(()) => debug!("The client was successfully stopped"),
                         Err(error) => warn!("Failed to stop client: {error}"),
@@ -428,12 +425,8 @@ async fn run_client_async(
     return Ok(handle);
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("Gateway client initialization failed")]
-struct GatewayClientInitializationError;
-
 async fn schedule_client_certificate_renewal(
-    abort_client_rx: Shared<oneshot::Receiver<()>>,
+    abort_client_rx: notify_once::Receiver<()>,
     dynamic_mesh_config: DynamicMeshConfig,
     client_certificate_renewal: Duration,
     client_config: impl TunnelConfig,

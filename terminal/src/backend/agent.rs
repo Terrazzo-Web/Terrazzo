@@ -69,6 +69,15 @@ pub enum AgentTunnelConfigError {
     LoadClientCertificate(#[from] LoadClientCertificateError<AgentClientConfig>),
 }
 
+impl AgentTunnelConfigError {
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::ParseGatewayUrl { .. } | Self::LoadGatewayPki { .. } => false,
+            Self::LoadClientCertificate { .. } => true,
+        }
+    }
+}
+
 impl AgentTunnelConfig {
     pub async fn new(
         current_auth_code: Arc<Mutex<AuthCode>>,

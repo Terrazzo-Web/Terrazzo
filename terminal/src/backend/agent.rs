@@ -2,16 +2,17 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_client::client::AuthCode;
 use trz_gateway_client::client::config::ClientConfig;
 use trz_gateway_client::client::config::ClientTransport;
 use trz_gateway_client::client::config::P2pClientConfig;
 use trz_gateway_client::client::service::ClientService;
+use trz_gateway_client::load_client_certificate::LoadClientCertificateError;
 use trz_gateway_client::load_client_certificate::load_client_certificate;
 use trz_gateway_client::tunnel_config::TunnelConfig;
 use trz_gateway_common::id::ClientName;
@@ -19,6 +20,7 @@ use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_common::security_configuration::trusted_store::cache::CachedTrustedStoreConfig;
 use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStore;
+use trz_gateway_common::security_configuration::trusted_store::load::LoadTrustedStoreError;
 use url::Url;
 
 use super::config::mesh::MeshConfig;
@@ -54,17 +56,28 @@ pub struct AgentClientConfig {
     transport: ClientTransport,
 }
 
+#[nameth]
+#[derive(thiserror::Error, Debug)]
+pub enum AgentTunnelConfigError {
+    #[error("[{n}] Failed to parse gateway URL: {0}", n = self.name())]
+    ParseGatewayUrl(#[from] url::ParseError),
+
+    #[error("[{n}] Failed to load Gateway PKI: {0}", n = self.name())]
+    LoadGatewayPki(#[from] LoadTrustedStoreError),
+
+    #[error("[{n}] Failed to load Client Certificate: {0}", n = self.name())]
+    LoadClientCertificate(#[from] LoadClientCertificateError<AgentClientConfig>),
+}
+
 impl AgentTunnelConfig {
     pub async fn new(
         current_auth_code: Arc<Mutex<AuthCode>>,
         mesh: &MeshConfig,
         server: &Arc<Server>,
-    ) -> Option<Self> {
+    ) -> Result<Self, AgentTunnelConfigError> {
         async move {
             let client_name = mesh.client_name.as_str().into();
-            let gateway_url = Url::parse(&mesh.gateway_url)
-                .inspect_err(|error| warn!("Failed to parse gateway URL: {error}"))
-                .ok()?;
+            let gateway_url = Url::parse(&mesh.gateway_url)?;
             let gateway_sni_override = mesh.gateway_sni_override.clone();
 
             let gateway_pki = mesh
@@ -76,10 +89,7 @@ impl AgentTunnelConfig {
             let client_config = AgentClientConfig {
                 gateway_url,
                 gateway_sni_override,
-                gateway_pki: gateway_pki
-                    .load()
-                    .inspect_err(|error| warn!("Failed to load Gateway PKI: {error}"))
-                    .ok()?,
+                gateway_pki: gateway_pki.load()?,
                 client_name,
                 transport: mesh
                     .web_rtc
@@ -106,11 +116,9 @@ impl AgentTunnelConfig {
             let auth_code = current_auth_code.lock().unwrap().clone();
             let client_certificate =
                 load_client_certificate(&client_config, auth_code, mesh.client_certificate_paths())
-                    .await
-                    .inspect_err(|error| warn!("Failed to load Client Certificate: {error}"))
-                    .ok()?;
+                    .await?;
 
-            Some(Self {
+            Ok(Self {
                 client_config,
                 client_certificate,
                 retry_strategy: mesh.retry_strategy.clone(),

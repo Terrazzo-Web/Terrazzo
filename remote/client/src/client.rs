@@ -1,9 +1,12 @@
 //! The Terrazzo Gateway [Client].
 
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::time::Duration;
 use std::time::Instant;
 
 use connect::ConnectError;
@@ -21,6 +24,7 @@ use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
+use trz_gateway_common::retry_strategy::ProcessRetryStrategyHooks;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
@@ -155,44 +159,103 @@ async fn run_impl(
     terminated_tx: oneshot::Sender<()>,
 ) {
     scopeguard::defer! { let _ = terminated_tx.send(()); };
-    let retry_strategy0 = this.client_api_server.retry_strategy.clone();
-    let mut retry_strategy = retry_strategy0.clone();
+    let retry_strategy = this.client_api_server.retry_strategy.clone();
     let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
+    // TODO: needs review
     let is_shutdown = is_shutdown(shutdown_rx.clone());
+    let serving_tx = Arc::new(tokio::sync::Mutex::new(Some(serving_tx)));
+    let attempt = Arc::new(AtomicUsize::new(0));
+    let connect_retry_delay = Arc::new(Mutex::new(retry_strategy.peek() / 2));
+    let reset_retry_delay = retry_strategy.peek() / 2;
+    retry_strategy
+        .process2(
+            || {
+                let this = this.clone();
+                let client_id = client_id.clone();
+                let shutdown_rx = shutdown_rx.clone();
+                let is_shutdown = is_shutdown.clone();
+                let serving_tx = serving_tx.clone();
+                let connect_retry_delay = connect_retry_delay.clone();
+                let attempt = attempt.fetch_add(1, SeqCst);
+                async move {
+                    if is_shutdown.load(SeqCst) || shutdown_rx.clone().now_or_never().is_some() {
+                        return ControlFlow::Break(());
+                    }
+                    let retry_delay = *connect_retry_delay.lock().unwrap();
+                    let mut serving_tx = serving_tx.lock().await;
+                    let result = this
+                        .connect(client_id, shutdown_rx.clone(), retry_delay, &mut serving_tx)
+                        .instrument(info_span!("Connect", attempt))
+                        .await;
+                    if is_shutdown.load(SeqCst) || shutdown_rx.now_or_never().is_some() {
+                        return ControlFlow::Break(());
+                    }
+                    ControlFlow::Continue(match result {
+                        Ok(()) => ConnectRetryError::Closed,
+                        Err(error) => ConnectRetryError::Failed(error),
+                    })
+                }
+            },
+            ConnectRetryHooks {
+                shutdown_rx: shutdown_rx.clone(),
+                connect_retry_delay: connect_retry_delay.clone(),
+                reset_retry_delay,
+            },
+        )
+        .await;
+}
 
-    let mut serving_tx: Option<oneshot::Sender<()>> = Some(serving_tx);
-    for attempt in 0usize.. {
-        let start = Instant::now();
-        let result = this
-            .connect(
-                client_id.clone(),
-                shutdown_rx.clone(),
-                retry_strategy.peek() / 2,
-                &mut serving_tx,
-            )
-            .instrument(info_span!("Connect", attempt))
-            .await;
-        if is_shutdown.load(SeqCst) {
-            return;
+#[derive(Debug, thiserror::Error)]
+enum ConnectRetryError {
+    #[error("Connection closed")]
+    Closed,
+    #[error("Connection failed: {0}")]
+    Failed(ConnectError),
+}
+
+struct ConnectRetryHooks {
+    shutdown_rx: Shared<BoxFuture<'static, ()>>,
+    connect_retry_delay: Arc<Mutex<Duration>>,
+    reset_retry_delay: Duration,
+}
+
+impl ProcessRetryStrategyHooks for ConnectRetryHooks {
+    type Error = ConnectRetryError;
+
+    fn on_start(&mut self, _now: Instant) {}
+
+    fn on_reset(&mut self, _elapsed: Duration, error: Self::Error) {
+        *self.connect_retry_delay.lock().unwrap() = self.reset_retry_delay;
+        match error {
+            ConnectRetryError::Closed => info!("Connection closed; retry strategy reset"),
+            ConnectRetryError::Failed(error) => {
+                warn!(%error, "Connection failed; retry strategy reset")
+            }
         }
-        if start.elapsed() < retry_strategy0.max_delay() {
-            match result {
-                Ok(()) => {
-                    info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
-                }
-                Err(error) => {
-                    warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
-                }
+    }
+
+    fn on_error(&mut self, _elapsed: Duration, waiting: Duration, error: Self::Error) {
+        match error {
+            ConnectRetryError::Closed => {
+                info!(retry = %humantime::format_duration(waiting), "Connection closed; retrying")
             }
-            if let futures::future::Either::Right(((), _retry_strategy_wait)) =
-                futures::future::select(Box::pin(retry_strategy.wait()), shutdown_rx.clone()).await
-            {
-                return;
+            ConnectRetryError::Failed(error) => {
+                warn!(retry = %humantime::format_duration(waiting), %error, "Connection failed; retrying")
             }
-        } else {
-            retry_strategy = retry_strategy0.clone();
+        }
+    }
+
+    fn wait(&mut self, current: &mut RetryStrategy) -> impl Future<Output = ()> {
+        let delay = current.wait();
+        *self.connect_retry_delay.lock().unwrap() = current.peek() / 2;
+        let shutdown_rx = self.shutdown_rx.clone();
+        async move {
+            tokio::select! {
+                () = delay => {}
+                () = shutdown_rx => {}
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 #![cfg(feature = "server")]
 
 use std::future::ready;
+use std::ops::ControlFlow;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -352,32 +353,33 @@ async fn run_client_async(
 
             let (abort_client_tx, abort_client_rx) = oneshot::channel();
             let abort_client_rx = abort_client_rx.shared();
+    // TODO: needs review
             let client_task = async move {
                 autoclone!(server, terminated_all_tx, dynamic_mesh_config);
-                let mut retry_strategy = mesh.retry_strategy.clone();
-                let agent_config = loop {
-                    let agent_config = tokio::select! {
-                        result = AgentTunnelConfig::new(auth_code.clone(), &mesh, &server) => result,
-                        _ = abort_client_rx.clone() => {
-                            info!("Gateway client initialization canceled");
-                            return Ok::<(), RunClientError>(());
-                        }
-                    };
-                    if let Some(agent_config) = agent_config {
-                        break agent_config;
+                let agent_config = tokio::select! {
+                    agent_config = mesh
+                        .retry_strategy
+                        .clone()
+                        .process(
+                            || {
+                                let auth_code = auth_code.clone();
+                                let mesh = mesh.clone();
+                                let server = server.clone();
+                                async move {
+                                    match AgentTunnelConfig::new(auth_code, &mesh, &server).await {
+                                        Some(config) => ControlFlow::Break(config),
+                                        None => ControlFlow::Continue(GatewayClientInitializationError),
+                                    }
+                                }
+                            },
+                        ) => Some(agent_config),
+                    _ = abort_client_rx.clone() => {
+                        info!("Gateway client initialization canceled");
+                        None
                     }
-
-                    info!(
-                        retry = humantime::format_duration(retry_strategy.peek()).to_string(),
-                        "Gateway client initialization failed; retrying"
-                    );
-                    tokio::select! {
-                        () = retry_strategy.wait() => {}
-                        _ = abort_client_rx.clone() => {
-                            info!("Gateway client initialization canceled");
-                            return Ok::<(), RunClientError>(());
-                        }
-                    }
+                };
+                let Some(agent_config) = agent_config else {
+                    return Ok::<(), RunClientError>(());
                 };
                 let agent_config = Arc::new(agent_config);
                 info!(?agent_config, "Gateway client enabled");
@@ -425,6 +427,10 @@ async fn run_client_async(
 
     return Ok(handle);
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("Gateway client initialization failed")]
+struct GatewayClientInitializationError;
 
 async fn schedule_client_certificate_renewal(
     abort_client_rx: Shared<oneshot::Receiver<()>>,

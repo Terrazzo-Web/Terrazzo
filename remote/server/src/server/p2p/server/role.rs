@@ -1,11 +1,9 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::Duration;
-use std::time::Instant;
 
+use autoclone::autoclone;
 use axum::Extension;
 use axum::http::uri::Scheme;
-use futures::FutureExt as _;
 use futures::SinkExt as _;
 use hyper_util::rt::TokioExecutor;
 use hyper_util::rt::TokioIo;
@@ -20,12 +18,9 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SignalMessage;
-use trz_gateway_common::retry_strategy::ProcessRetryStrategyHooks;
-use trz_gateway_common::retry_strategy::RetryStrategy;
 use url::Url;
 
 use self::registration::Registration;
@@ -111,77 +106,16 @@ impl Server {
     }
 }
 
+#[autoclone]
 async fn start_p2p_registration_impl(config: P2pRegistrationConfig, server: Arc<Server>) {
-    // TODO: needs review
-    config
-        .retry_strategy
-        .clone()
-        .process2(
-            || {
-                let config = config.clone();
-                let server = server.clone();
-                async move {
-                    if server.shutdown.clone().now_or_never().is_some() {
-                        return ControlFlow::Break(());
-                    }
-                    let result = server.clone().run_p2p_registration(config).await;
-                    if server.shutdown.clone().now_or_never().is_some() {
-                        return ControlFlow::Break(());
-                    }
-                    ControlFlow::Continue(
-                        result.err().unwrap_or(P2pServerError::RegistrationClosed),
-                    )
-                }
-            },
-            P2pRegistrationRetryHooks {
-                server: server.clone(),
-            },
-        )
-        .await
-}
-
-struct P2pRegistrationRetryHooks {
-    server: Arc<Server>,
-}
-
-impl ProcessRetryStrategyHooks for P2pRegistrationRetryHooks {
-    type Error = P2pServerError;
-
-    fn on_start(&mut self, _now: Instant) {}
-
-    fn on_reset(&mut self, _elapsed: Duration, error: Self::Error) {
-        match error {
-            P2pServerError::RegistrationClosed => {
-                info!("P2P signaling registration closed; retry strategy reset")
-            }
-            error => warn!(%error, "P2P signaling registration failed; retry strategy reset"),
-        }
-    }
-
-    fn on_error(&mut self, _elapsed: Duration, waiting: Duration, error: Self::Error) {
-        match error {
-            P2pServerError::RegistrationClosed => info!(
-                retry = %humantime::format_duration(waiting),
-                "P2P signaling registration closed"
-            ),
-            error => warn!(
-                retry = %humantime::format_duration(waiting),
-                %error,
-                "P2P signaling registration failed"
-            ),
-        }
-    }
-
-    fn wait(&mut self, current: &mut RetryStrategy) -> impl Future<Output = ()> {
-        let delay = current.wait();
-        let shutdown = self.server.shutdown.clone();
-        async move {
-            tokio::select! {
-                () = delay => {}
-                () = shutdown => {}
-            }
-        }
-    }
+    let shutdown = server.shutdown.clone();
+    let registration_task = config.retry_strategy.clone().process(|| async move {
+        autoclone!(config, server);
+        let result = server.run_p2p_registration(config).await;
+        ControlFlow::<(), _>::Continue(result.err().unwrap_or(P2pServerError::RegistrationClosed))
+    });
+    let registration_task = std::pin::pin!(registration_task);
+    let _result = futures::future::select(registration_task, shutdown).await;
 }
 
 fn registration_request(

@@ -3,28 +3,22 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
-use std::time::Duration;
-use std::time::Instant;
 
+use autoclone::autoclone;
 use connect::ConnectError;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
-use futures::future::Shared;
+use futures::future::Either;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::id::ClientName;
-use trz_gateway_common::retry_strategy::ProcessRetryStrategyHooks;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::certificate::tls_server::ToTlsServer as _;
@@ -145,6 +139,7 @@ impl Client {
     }
 }
 
+#[autoclone]
 async fn run_impl(
     this: Arc<Client>,
     client_id: ClientId,
@@ -163,48 +158,30 @@ async fn run_impl(
     let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
-    // TODO: Use retry_strategy.process instead of process2, ConnectRetryHooks is not required, instead move the shutdown logic outside of retry_strategy.process, use futures::future::select instead of tokio's select! macro, use autoclone instead of manually cloning references into the process callback. validate with bazel test //...
-    let is_shutdown = is_shutdown(shutdown_rx.clone());
     let serving_tx = Arc::new(tokio::sync::Mutex::new(Some(serving_tx)));
-    let attempt = Arc::new(AtomicUsize::new(0));
-    let connect_retry_delay = Arc::new(Mutex::new(retry_strategy.peek() / 2));
-    let reset_retry_delay = retry_strategy.peek() / 2;
-    retry_strategy
-        .process2(
-            || {
-                let this = this.clone();
-                let client_id = client_id.clone();
-                let shutdown_rx = shutdown_rx.clone();
-                let is_shutdown = is_shutdown.clone();
-                let serving_tx = serving_tx.clone();
-                let connect_retry_delay = connect_retry_delay.clone();
-                let attempt = attempt.fetch_add(1, SeqCst);
-                async move {
-                    if is_shutdown.load(SeqCst) || shutdown_rx.clone().now_or_never().is_some() {
-                        return ControlFlow::Break(());
-                    }
-                    let retry_delay = *connect_retry_delay.lock().unwrap();
-                    let mut serving_tx = serving_tx.lock().await;
-                    let result = this
-                        .connect(client_id, shutdown_rx.clone(), retry_delay, &mut serving_tx)
-                        .instrument(info_span!("Connect", attempt))
-                        .await;
-                    if is_shutdown.load(SeqCst) || shutdown_rx.now_or_never().is_some() {
-                        return ControlFlow::Break(());
-                    }
-                    ControlFlow::Continue(match result {
-                        Ok(()) => ConnectRetryError::Closed,
-                        Err(error) => ConnectRetryError::Failed(error),
-                    })
-                }
-            },
-            ConnectRetryHooks {
-                shutdown_rx: shutdown_rx.clone(),
-                connect_retry_delay: connect_retry_delay.clone(),
-                reset_retry_delay,
-            },
-        )
-        .await;
+    let connect_retry_delay = retry_strategy.peek() / 2;
+    let mut attempt = 0usize;
+    let connect_task = retry_strategy.process(|| {
+        let current_attempt = attempt;
+        attempt += 1;
+        async move {
+            autoclone!(this, client_id, shutdown_rx, serving_tx);
+            let mut serving_tx = serving_tx.lock().await;
+            let result = this
+                .connect(client_id, shutdown_rx, connect_retry_delay, &mut serving_tx)
+                .instrument(info_span!("Connect", current_attempt))
+                .await;
+            ControlFlow::<(), _>::Continue(match result {
+                Ok(()) => ConnectRetryError::Closed,
+                Err(error) => ConnectRetryError::Failed(error),
+            })
+        }
+    });
+    let connect_task = std::pin::pin!(connect_task);
+    match futures::future::select(connect_task, shutdown_rx.clone()).await {
+        Either::Left(((), _shutdown_rx)) => {}
+        Either::Right(((), _connect_task)) => {}
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -213,63 +190,6 @@ enum ConnectRetryError {
     Closed,
     #[error("Connection failed: {0}")]
     Failed(ConnectError),
-}
-
-struct ConnectRetryHooks {
-    shutdown_rx: Shared<BoxFuture<'static, ()>>,
-    connect_retry_delay: Arc<Mutex<Duration>>,
-    reset_retry_delay: Duration,
-}
-
-impl ProcessRetryStrategyHooks for ConnectRetryHooks {
-    type Error = ConnectRetryError;
-
-    fn on_start(&mut self, _now: Instant) {}
-
-    fn on_reset(&mut self, _elapsed: Duration, error: Self::Error) {
-        *self.connect_retry_delay.lock().unwrap() = self.reset_retry_delay;
-        match error {
-            ConnectRetryError::Closed => info!("Connection closed; retry strategy reset"),
-            ConnectRetryError::Failed(error) => {
-                warn!(%error, "Connection failed; retry strategy reset")
-            }
-        }
-    }
-
-    fn on_error(&mut self, _elapsed: Duration, waiting: Duration, error: Self::Error) {
-        match error {
-            ConnectRetryError::Closed => {
-                info!(retry = %humantime::format_duration(waiting), "Connection closed; retrying")
-            }
-            ConnectRetryError::Failed(error) => {
-                warn!(retry = %humantime::format_duration(waiting), %error, "Connection failed; retrying")
-            }
-        }
-    }
-
-    fn wait(&mut self, current: &mut RetryStrategy) -> impl Future<Output = ()> {
-        let delay = current.wait();
-        *self.connect_retry_delay.lock().unwrap() = current.peek() / 2;
-        let shutdown_rx = self.shutdown_rx.clone();
-        async move {
-            tokio::select! {
-                () = delay => {}
-                () = shutdown_rx => {}
-            }
-        }
-    }
-}
-
-fn is_shutdown(shutdown_rx: Shared<impl Future<Output = ()> + Send + 'static>) -> Arc<AtomicBool> {
-    let is_shutdown = Arc::new(AtomicBool::new(false));
-    tokio::spawn({
-        let is_shutdown = is_shutdown.clone();
-        async move {
-            let _ = shutdown_rx.await;
-            is_shutdown.store(true, SeqCst);
-        }
-    });
-    return is_shutdown;
 }
 
 #[nameth]

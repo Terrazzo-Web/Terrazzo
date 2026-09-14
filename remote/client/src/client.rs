@@ -1,22 +1,20 @@
 //! The Terrazzo Gateway [Client].
 
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
-use std::time::Instant;
 
+use autoclone::autoclone;
 use connect::ConnectError;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
-use futures::future::Shared;
+use futures::future::Either;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use tokio::sync::oneshot;
 use tracing::Instrument;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_common::declare_identifier;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::id::ClientId;
@@ -141,6 +139,7 @@ impl Client {
     }
 }
 
+#[autoclone]
 async fn run_impl(
     this: Arc<Client>,
     client_id: ClientId,
@@ -155,58 +154,42 @@ async fn run_impl(
     terminated_tx: oneshot::Sender<()>,
 ) {
     scopeguard::defer! { let _ = terminated_tx.send(()); };
-    let retry_strategy0 = this.client_api_server.retry_strategy.clone();
-    let mut retry_strategy = retry_strategy0.clone();
+    let retry_strategy = this.client_api_server.retry_strategy.clone();
     let shutdown_rx: BoxFuture<()> = Box::pin(shutdown_rx);
     let shutdown_rx = shutdown_rx.shared();
 
-    let is_shutdown = is_shutdown(shutdown_rx.clone());
-
-    let mut serving_tx: Option<oneshot::Sender<()>> = Some(serving_tx);
-    for attempt in 0usize.. {
-        let start = Instant::now();
-        let result = this
-            .connect(
-                client_id.clone(),
-                shutdown_rx.clone(),
-                retry_strategy.peek() / 2,
-                &mut serving_tx,
-            )
-            .instrument(info_span!("Connect", attempt))
-            .await;
-        if is_shutdown.load(SeqCst) {
-            return;
+    let serving_tx = Arc::new(tokio::sync::Mutex::new(Some(serving_tx)));
+    let connect_retry_delay = retry_strategy.peek() / 2;
+    let mut attempt = 0usize;
+    let connect_task = retry_strategy.process(|| {
+        let current_attempt = attempt;
+        attempt += 1;
+        async move {
+            autoclone!(this, client_id, shutdown_rx, serving_tx);
+            let mut serving_tx = serving_tx.lock().await;
+            let result = this
+                .connect(client_id, shutdown_rx, connect_retry_delay, &mut serving_tx)
+                .instrument(info_span!("Connect", current_attempt))
+                .await;
+            ControlFlow::<(), _>::Continue(match result {
+                Ok(()) => ConnectRetryError::Closed,
+                Err(error) => ConnectRetryError::Failed(error),
+            })
         }
-        if start.elapsed() < retry_strategy0.max_delay() {
-            match result {
-                Ok(()) => {
-                    info! { "Connection closed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
-                }
-                Err(error) => {
-                    warn! { %error, "Connection failed, retrying in {}...", humantime::format_duration(retry_strategy.peek()) }
-                }
-            }
-            if let futures::future::Either::Right(((), _retry_strategy_wait)) =
-                futures::future::select(Box::pin(retry_strategy.wait()), shutdown_rx.clone()).await
-            {
-                return;
-            }
-        } else {
-            retry_strategy = retry_strategy0.clone();
-        }
+    });
+    let connect_task = std::pin::pin!(connect_task);
+    match futures::future::select(connect_task, shutdown_rx.clone()).await {
+        Either::Left(((), _shutdown_rx)) => {}
+        Either::Right(((), _connect_task)) => {}
     }
 }
 
-fn is_shutdown(shutdown_rx: Shared<impl Future<Output = ()> + Send + 'static>) -> Arc<AtomicBool> {
-    let is_shutdown = Arc::new(AtomicBool::new(false));
-    tokio::spawn({
-        let is_shutdown = is_shutdown.clone();
-        async move {
-            let _ = shutdown_rx.await;
-            is_shutdown.store(true, SeqCst);
-        }
-    });
-    return is_shutdown;
+#[derive(Debug, thiserror::Error)]
+enum ConnectRetryError {
+    #[error("Connection closed")]
+    Closed,
+    #[error("Connection failed: {0}")]
+    Failed(ConnectError),
 }
 
 #[nameth]

@@ -7,6 +7,7 @@ pub mod handle;
 pub mod http_error;
 pub mod id;
 pub mod is_global;
+pub mod notify_once;
 pub mod p2p;
 pub mod ping;
 pub mod protos;

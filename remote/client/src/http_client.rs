@@ -27,12 +27,26 @@ use crate::client::config::P2pClientConfig;
 use crate::client::config::SniOverrideError;
 use crate::client::config::gateway_sni_override_resolution;
 
-pub(super) enum HttpClient {
+pub struct HttpClient(HttpClientImpl);
+
+enum HttpClientImpl {
     Direct(reqwest::Client),
     P2p(P2pHttpClient),
 }
 
-pub(super) struct HttpResponse {
+impl From<reqwest::Client> for HttpClient {
+    fn from(client: reqwest::Client) -> Self {
+        Self(HttpClientImpl::Direct(client))
+    }
+}
+
+impl From<P2pHttpClient> for HttpClient {
+    fn from(client: P2pHttpClient) -> Self {
+        Self(HttpClientImpl::P2p(client))
+    }
+}
+
+pub struct HttpResponse {
     pub status: StatusCode,
     pub body: String,
 }
@@ -44,8 +58,8 @@ impl HttpClient {
         content_type: &'static str,
         body: String,
     ) -> Result<HttpResponse, HttpRequestError> {
-        match self {
-            Self::Direct(client) => {
+        match self.0 {
+            HttpClientImpl::Direct(client) => {
                 let request = client
                     .get(url)
                     .header(CONTENT_TYPE, content_type)
@@ -56,12 +70,12 @@ impl HttpClient {
                     body: response.text().await?,
                 })
             }
-            Self::P2p(client) => client.get(url, content_type, body).await,
+            HttpClientImpl::P2p(client) => client.get(url, content_type, body).await,
         }
     }
 }
 
-pub(super) fn make_http_client<C>(
+pub fn make_http_client<C>(
     client_config: &C,
 ) -> Result<HttpClient, MakeHttpClientError<<C::GatewayPki as TrustedStoreConfig>::Error>>
 where
@@ -78,7 +92,7 @@ where
     match client_config.transport() {
         ClientTransport::Direct => {
             debug!("Making a Direct client connection");
-            make_direct_http_client(client_config).map(HttpClient::Direct)
+            make_direct_http_client(client_config).map(HttpClient::from)
         }
         ClientTransport::WebRtc(config) => {
             debug!("Making a WebRtc client connection: {config:#?}");
@@ -87,7 +101,7 @@ where
                 .to_tls_client(ChainOnlyServerCertificateVerifier)
                 .map_err(MakeHttpClientError::ToTlsClient)?;
             tls.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
-            Ok(HttpClient::P2p(P2pHttpClient {
+            Ok(HttpClient::from(P2pHttpClient {
                 config,
                 tls: Arc::new(tls),
             }))
@@ -120,7 +134,7 @@ where
     builder.build().map_err(MakeHttpClientError::Build)
 }
 
-pub(super) struct P2pHttpClient {
+struct P2pHttpClient {
     config: P2pClientConfig,
     tls: Arc<RustlsClientConfig>,
 }

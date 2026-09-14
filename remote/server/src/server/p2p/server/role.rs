@@ -1,9 +1,9 @@
+use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::Instant;
 
+use autoclone::autoclone;
 use axum::Extension;
 use axum::http::uri::Scheme;
-use futures::FutureExt as _;
 use futures::SinkExt as _;
 use hyper_util::rt::TokioExecutor;
 use hyper_util::rt::TokioIo;
@@ -18,7 +18,6 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
 use tracing::Instrument as _;
 use tracing::info;
 use tracing::info_span;
-use tracing::warn;
 use trz_gateway_common::p2p::protocol::MAX_SDP_LEN;
 use trz_gateway_common::p2p::protocol::PROTOCOL_VERSION;
 use trz_gateway_common::p2p::protocol::SignalMessage;
@@ -107,35 +106,16 @@ impl Server {
     }
 }
 
+#[autoclone]
 async fn start_p2p_registration_impl(config: P2pRegistrationConfig, server: Arc<Server>) {
-    let mut retry = config.retry_strategy.clone();
-    loop {
-        let started = Instant::now();
-        let result = server.clone().run_p2p_registration(config.clone()).await;
-        if server.shutdown.clone().now_or_never().is_some() {
-            return;
-        }
-        if started.elapsed() >= config.retry_strategy.max_delay() {
-            retry = config.retry_strategy.clone();
-        }
-        match result {
-            Ok(()) => info!(
-                retry = humantime::format_duration(retry.peek()).to_string(),
-                "P2P signaling registration closed"
-            ),
-            Err(error) => warn!(
-                retry = humantime::format_duration(retry.peek()).to_string(),
-                %error,
-                "P2P signaling registration failed"
-            ),
-        }
-
-        let delay = retry.wait();
-        tokio::select! {
-            () = delay => {}
-            () = server.shutdown.clone() => return,
-        }
-    }
+    let shutdown = server.shutdown.clone();
+    let registration_task = config.retry_strategy.clone().process(|| async move {
+        autoclone!(config, server);
+        let result = server.run_p2p_registration(config).await;
+        ControlFlow::<(), _>::Continue(result.err().unwrap_or(P2pServerError::RegistrationClosed))
+    });
+    let registration_task = std::pin::pin!(registration_task);
+    let _result = futures::future::select(registration_task, shutdown).await;
 }
 
 fn registration_request(

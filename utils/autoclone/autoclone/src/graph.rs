@@ -63,8 +63,9 @@ mod make_app {
   pub fn run(name: String) -> App {
     let c3 = c3();
     let c3 = c3.await; // Converts Future<C3> -> C3
+    let c3 = c3.into(); // convert because T in Future<T> returned by c3() != c3 from first parameter.
     let c1 = c1_impl(c3.clone()); // c3.clone() because it is referenced later
-    let c2 = c2(c3);
+    let c2 = c2(&c3); // Ref because c2 takes a ref. Doesn't matter that types don't match
     let (c1, c2) = tokio::join!(c1, c2); // Converts multiple parameters Future<T> -> T
     return run_impl(
       name.into(),
@@ -84,12 +85,12 @@ mod make_app {
   }
 
   // Preserve the original impl
-  async fn c1_impl(c3: C3) -> C1 {
+  async fn c1_impl(c3: Arc<C3>) -> C1 {
     C1::new(c3)
   }
 
   // Impl and derived are the same because there is no need to generate pub c2()
-  async fn c2(c3: C3) -> C2 {
+  async fn c2(c3: Arc<C3>) -> C2 {
     C2::new(c3)
   }
 
@@ -98,4 +99,16 @@ mod make_app {
     C3::new()
   }
 }
+
+Conversions
+1. Future<T> -> T using '.await'
+2. Result<T, E> -> T using '?'
+3. From<T>
+T -> Arc<T>
+T -> Rc<T>
+T -> Box<T>
+...
+T -> From<T>
+4. T -> &T
+5. &T -> T
 */

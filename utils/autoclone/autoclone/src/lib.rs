@@ -3,6 +3,7 @@ use crate::envelope::envelope2;
 
 mod autoclone;
 mod envelope;
+mod graph;
 
 /// A simple macro to cloning variable before passing them into a `move` closure or async block.
 ///

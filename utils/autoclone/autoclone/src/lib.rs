@@ -1,10 +1,10 @@
 use crate::autoclone::autoclone2;
 use crate::envelope::envelope2;
-use crate::graph::graph2;
+use crate::graphs::graph2;
 
 mod autoclone;
 mod envelope;
-mod graph;
+mod graphs;
 
 /// A simple macro to cloning variable before passing them into a `move` closure or async block.
 ///

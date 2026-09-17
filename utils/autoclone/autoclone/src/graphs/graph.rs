@@ -32,19 +32,13 @@ impl Graph {
                 .insert(func.sig.ident.clone(), function.into());
         }
         for function in self.functions.values() {
-            self.parse_params(function)
-        }
-    }
-
-    fn parse_params(&self, function: &Rc<Function>) {
-        for param in &function.implementation.sig.inputs {
-            function.parse_param(self, param)
+            function.record_params(self)
         }
     }
 
     pub fn process_functions(&mut self) {
         for function in &mut self.functions.values() {
-            let functions = function.process();
+            let functions = function.process_function();
             let Some((_, content)) = &mut self.module.content else {
                 return;
             };

@@ -8,12 +8,26 @@ use super::return_type::RefKind;
 use super::return_type::ReturnType;
 
 #[test]
-fn into_return_type_ref() {
-    let ty = make_type(quote! { &String });
+fn into_return_type_unit() {
+    let ty = make_type(quote! { () });
     let return_type = ReturnType::from(ty.as_ref());
+    assert_eq!(ReturnType::Unit, return_type);
+}
+
+#[test]
+fn into_return_type_void_fn() {
+    let func: syn::ItemFn = syn::parse2(quote! { fn x() {} }).unwrap();
+    let return_type = ReturnType::from(&func.sig.output);
+    assert_eq!(ReturnType::Unit, return_type);
+}
+
+#[test]
+fn into_return_type_value_fn() {
+    let func: syn::ItemFn = syn::parse2(quote! { fn x() -> Box<String> {} }).unwrap();
+    let return_type = ReturnType::from(&func.sig.output);
     assert_eq!(
         ReturnType::Ref {
-            kind: RefKind::Ref,
+            kind: RefKind::Box,
             ty: Rc::new(ReturnType::T(make_type(quote! { String })))
         },
         return_type

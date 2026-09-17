@@ -113,6 +113,10 @@ T -> From<T>
 5. &T -> T
 */
 
+mod function;
+mod graph;
+mod return_type;
+
 pub fn graph2(
     _attr: proc_macro2::TokenStream,
     item: proc_macro2::TokenStream,
@@ -122,7 +126,3 @@ pub fn graph2(
     graph.process_functions();
     graph.to_token_stream()
 }
-
-mod function;
-mod graph;
-mod return_type;

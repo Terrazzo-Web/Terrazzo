@@ -9,6 +9,7 @@ pub enum ReturnType {
 }
 
 pub enum RefKind {
+    Ref,
     Box,
     Arc,
     Rc,
@@ -26,9 +27,11 @@ impl From<&syn::ReturnType> for ReturnType {
 impl From<&syn::Type> for ReturnType {
     fn from(value: &syn::Type) -> Self {
         match value {
-            syn::Type::Group(syn::TypeGroup { elem, .. })
-            | syn::Type::Paren(syn::TypeParen { elem, .. })
-            | syn::Type::Reference(syn::TypeReference { elem, .. }) => (&**elem).into(),
+            syn::Type::Paren(syn::TypeParen { elem, .. }) => (&**elem).into(),
+            syn::Type::Reference(syn::TypeReference { elem, .. }) => Self::Ref {
+                kind: RefKind::Ref,
+                ty: Box::new((&**elem).into()),
+            },
             syn::Type::Path(syn::TypePath {
                 attrs: _,
                 qself,
@@ -43,6 +46,7 @@ impl From<&syn::Type> for ReturnType {
             syn::Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() => Self::Unit,
             syn::Type::Array { .. }
             | syn::Type::FnPtr { .. }
+            | syn::Type::Group { .. }
             | syn::Type::ImplTrait { .. }
             | syn::Type::Infer { .. }
             | syn::Type::Macro { .. }

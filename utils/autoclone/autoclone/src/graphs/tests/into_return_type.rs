@@ -84,6 +84,57 @@ fn into_return_type_rc() {
     );
 }
 
+#[test]
+fn into_return_type_future() {
+    let ty = make_type(quote! { Future<Output = String> });
+    let return_type = ReturnType::from(ty.as_ref());
+    assert_eq!(
+        ReturnType::Future(Rc::new(ReturnType::T(make_type(quote! { String })))),
+        return_type
+    );
+}
+
+#[test]
+fn into_return_type_result() {
+    let ty = make_type(quote! { Result<Vec<String>, std::io::Error> });
+    let return_type = ReturnType::from(ty.as_ref());
+    assert_eq!(
+        ReturnType::Result(
+            Rc::new(ReturnType::T(make_type(quote! { Vec<String> }))),
+            Rc::new(ReturnType::T(make_type(quote! { std::io::Error }))),
+        ),
+        return_type,
+    );
+}
+
+#[test]
+fn into_return_type_combo() {
+    let ty = make_type(quote! {
+        Future<Output =
+            Result<
+                Rc<
+                    Vec<String>
+                >,
+                Box<std::io::Error>
+            >
+        >
+    });
+    let return_type = ReturnType::from(ty.as_ref());
+    assert_eq!(
+        ReturnType::Future(Rc::new(ReturnType::Result(
+            Rc::new(ReturnType::Ref {
+                kind: RefKind::Rc,
+                ty: Rc::new(ReturnType::T(make_type(quote! { Vec<String> })))
+            }),
+            Rc::new(ReturnType::Ref {
+                kind: RefKind::Box,
+                ty: Rc::new(ReturnType::T(make_type(quote! { std::io::Error })))
+            }),
+        ))),
+        return_type,
+    );
+}
+
 fn make_type(tokens: proc_macro2::TokenStream) -> Rc<syn::Type> {
     Rc::new(syn::parse2(tokens).unwrap())
 }

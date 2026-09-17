@@ -119,7 +119,7 @@ fn parse_future<'l>(
                 eq_token: syn::token::Eq { .. },
                 ty,
             }) if ident.to_string() == "Output" => {
-                return Some(ReturnType::Future(ReturnType::T(ty.clone().into()).into()));
+                return Some(ReturnType::Future(ReturnType::from(ty).into()));
             }
             syn::GenericArgument::Type { .. }
             | syn::GenericArgument::Const { .. }
@@ -152,7 +152,7 @@ fn get_type_parameters<'l>(
                 return Some(accu);
             }
             syn::GenericArgument::Type(ty) => {
-                accu.push(ReturnType::T(ty.clone().into()));
+                accu.push(ReturnType::from(ty));
                 return Some(accu);
             }
             syn::GenericArgument::AssocConst { .. }

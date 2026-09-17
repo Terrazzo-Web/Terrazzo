@@ -116,6 +116,7 @@ T -> From<T>
 mod function;
 mod graph;
 mod return_type;
+mod tests;
 
 pub fn graph2(
     _attr: proc_macro2::TokenStream,

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use quote::quote;
 use syn::punctuated::Punctuated;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReturnType {
     Unit,
     T(Rc<syn::Type>),
@@ -12,7 +12,7 @@ pub enum ReturnType {
     Ref { kind: RefKind, ty: Rc<Self> },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefKind {
     Ref,
     Box,

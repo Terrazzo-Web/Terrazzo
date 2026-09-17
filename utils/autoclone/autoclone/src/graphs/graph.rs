@@ -37,14 +37,14 @@ impl Graph {
     }
 
     fn parse_params(&self, function: &Rc<Function>) {
-        for param in &function.definition.sig.inputs {
+        for param in &function.implementation.sig.inputs {
             function.parse_param(self, param)
         }
     }
 
     pub fn process_functions(&mut self) {
         for function in &mut self.functions.values() {
-            let functions = function.process(self);
+            let functions = function.process();
             let Some((_, content)) = &mut self.module.content else {
                 return;
             };

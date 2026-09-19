@@ -53,7 +53,7 @@ impl Function {
             let mut func = func.clone();
             let attr = {
                 let mut module: syn::ItemMod =
-                    syn::parse2(quote! { #[doc(hidden)] mod x }).unwrap();
+                    syn::parse2(quote! { #[doc(hidden)] mod x; }).unwrap();
                 module.attrs.remove(0)
             };
             func.attrs.push(attr);

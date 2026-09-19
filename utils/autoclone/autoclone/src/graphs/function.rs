@@ -186,12 +186,12 @@ impl Function {
                     .iter()
                     .map(|param| param.name().clone())
                     .collect::<Vec<_>>();
-                let tokens = quote! { let #callee_name = #callee_impl( #(#callee_parameters),* )};
-                let statement = match syn::parse2(tokens) {
+                let tokens = quote! { let #callee_name = #callee_impl( #(#callee_parameters),* ); };
+                let statement = match syn::parse2(tokens.clone()) {
                     Ok(statement) => statement,
                     Err(error) => {
-                        self.add_error(format!("Failed to parse into statement: {error}"));
-                        return;
+                        let error = format!("Failed to parse into statement: {error} -- {tokens}");
+                        syn::parse2(quote! { compile_error!(#error); }).unwrap()
                     }
                 };
                 state.statements.push(statement);

@@ -33,7 +33,10 @@ mod make_app {
     pub fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
         App { name, comp1, comp2 }
     }
-    pub fn run(name: String) -> App {}
+    pub fn run(name: String) -> App {
+        let comp1 = comp1_impl();
+        let comp2 = comp2_impl();
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }

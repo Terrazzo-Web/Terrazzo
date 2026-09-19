@@ -118,7 +118,7 @@ impl Function {
         }
     }
 
-    pub fn process_function(&self) -> Vec<syn::ItemFn> {
+    pub fn process_function(self: &Rc<Self>) -> Vec<syn::ItemFn> {
         let mut results = vec![];
         results.push(self.implementation.clone());
         if self.is_public {
@@ -127,13 +127,14 @@ impl Function {
         return results;
     }
 
-    fn create_public_fn(&self) -> syn::ItemFn {
+    fn create_public_fn(self: &Rc<Self>) -> syn::ItemFn {
         let mut state = self.create_generation_state();
 
         // TODO: Support for generics needs more work.
         let generics = self.implementation.sig.generics.clone();
 
         self.process_params(&mut state);
+        self.return_call_implementation(&mut state);
 
         syn::ItemFn {
             attrs: vec![],
@@ -177,23 +178,17 @@ impl Function {
                     .insert(param.name().clone(), callee.function.return_type.clone());
                 // TODO: handle coersions when callee.function.return_type != callee.ty
                 let callee_name = callee.function.public_name.clone();
-                let callee_impl = callee.function.implementation.sig.ident.clone();
-                callee.function.process_params(state);
-                let callee_parameters = callee
-                    .function
-                    .params
-                    .borrow()
-                    .iter()
-                    .map(|param| param.name().clone())
-                    .collect::<Vec<_>>();
-                let tokens = quote! { let #callee_name = #callee_impl( #(#callee_parameters),* ); };
-                let statement = match syn::parse2(tokens.clone()) {
-                    Ok(statement) => statement,
-                    Err(error) => {
-                        let error = format!("Failed to parse into statement: {error} -- {tokens}");
-                        syn::parse2(quote! { compile_error!(#error); }).unwrap()
-                    }
-                };
+                let call_implementation = callee.function.call_implementation(state);
+                let statement =
+                    match syn::parse2(quote! { let #callee_name = #call_implementation; }) {
+                        Ok(statement) => statement,
+                        Err(error) => {
+                            let error = format!(
+                                "Failed to parse into statement: {error} -- {call_implementation}"
+                            );
+                            syn::parse2(quote! { compile_error!(#error); }).unwrap()
+                        }
+                    };
                 state.statements.push(statement);
             }
             Parameter::Input(input) => {
@@ -205,6 +200,28 @@ impl Function {
                 state.inputs.push(input.clone());
             }
         }
+    }
+
+    fn call_implementation(
+        self: &Rc<Self>,
+        state: &mut GenerationState,
+    ) -> proc_macro2::TokenStream {
+        let callee_impl = self.implementation.sig.ident.clone();
+        self.process_params(state);
+        let callee_parameters = self
+            .params
+            .borrow()
+            .iter()
+            .map(|param| param.name().clone())
+            .collect::<Vec<_>>();
+        quote! { #callee_impl( #(#callee_parameters),* ) }
+    }
+
+    fn return_call_implementation(self: &Rc<Self>, state: &mut GenerationState) {
+        let call_implementation = self.call_implementation(state);
+        state
+            .statements
+            .push(syn::parse2(quote! { return #call_implementation; }).unwrap());
     }
 
     fn create_generation_state(&self) -> GenerationState {

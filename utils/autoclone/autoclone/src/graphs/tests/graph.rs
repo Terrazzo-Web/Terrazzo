@@ -36,6 +36,7 @@ mod make_app {
     pub fn run(name: String) -> App {
         let comp1 = comp1_impl();
         let comp2 = comp2_impl();
+        return run_impl(name, comp1, comp2);
     }
 }"#;
     run_test(quote! {}, sample, expected);

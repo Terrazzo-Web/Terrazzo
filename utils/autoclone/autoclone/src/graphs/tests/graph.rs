@@ -30,7 +30,7 @@ mod make_app {
         Comp2::new()
     }
     #[doc(hidden)]
-    pub fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
+    fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
         App { name, comp1, comp2 }
     }
     pub fn run(name: String) -> App {

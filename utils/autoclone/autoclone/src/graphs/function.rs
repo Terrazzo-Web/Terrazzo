@@ -13,6 +13,7 @@ pub struct Function {
     /// Public functions are converted to public graph entry points (same visibility).
     /// The public name is the original name of the function
     pub is_public: bool,
+    pub visibility: syn::Visibility,
     pub public_name: syn::Ident,
 
     /// The definition of the function implementation.
@@ -58,10 +59,12 @@ impl Function {
             };
             func.attrs.push(attr);
             func.sig.ident = format_ident!("{}_impl", func.sig.ident);
+            func.vis = syn::Visibility::Inherited;
             func
         };
         Function {
             is_public: matches!(func.vis, syn::Visibility::Public { .. }),
+            visibility: func.vis.clone(),
             public_name: func.sig.ident.clone(),
             implementation,
             return_type: ReturnType::from(&func.sig.output).into(),
@@ -138,7 +141,7 @@ impl Function {
 
         syn::ItemFn {
             attrs: vec![],
-            vis: self.implementation.vis.clone(),
+            vis: self.visibility.clone(),
             modifiers: Default::default(),
             sig: syn::Signature {
                 constness: None,

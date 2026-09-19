@@ -3,6 +3,7 @@
 mod autocomplete;
 pub mod file_path;
 pub mod fsio;
+mod git;
 mod manager;
 pub mod notify;
 mod path_selector;

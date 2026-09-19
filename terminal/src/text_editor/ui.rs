@@ -30,6 +30,7 @@ use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
 use super::manager::PreviewMode;
+use super::manager::SideViewMode;
 use super::manager::TextEditorManager;
 use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
@@ -60,6 +61,7 @@ mod folder;
 mod html_viewer;
 mod milkdown;
 mod pdf_viewer;
+pub(super) mod side_view;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -94,6 +96,10 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
+        side_view_mode: XSignal::new("side-view-mode", SideViewMode::Files),
+        files_side_view: XSignal::new("files-side-view", None),
+        git_side_view: XSignal::new("git-side-view", None),
+        is_git_repo: XSignal::new("is-git-repo", false),
         notify_service: Ptr::new(NotifyService::new(remote)),
         search: SearchState::new(),
         side_view_resize_manager: MousemoveManager::new(),
@@ -131,6 +137,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         div(
             class = style::HEADER,
             menu(manager.tile.clone()),
+            super::git::ui::git_button(&manager),
             manager.base_path_selector(),
             manager.file_path_selector(),
             manager.search_selector(search_input),
@@ -361,6 +368,8 @@ impl TextEditorManager {
                     .append(this.path.base.add_subscriber(move |base_path| {
                         autoclone!(this);
                         let batch = Batch::use_batch("Update base path");
+                        this.side_view_mode.set(SideViewMode::Files);
+                        this.files_side_view.force(None);
                         this.path.file.force(ROOT_FILE_PATH.clone());
                         this.side_view.force(Some(Arc::new(SideViewNode {
                             properties: SvnProperties {
@@ -375,6 +384,7 @@ impl TextEditorManager {
                             },
                         })));
                         drop(batch);
+                        super::git::ui::refresh(&this);
                     }))
             });
             let tile_id = this.tile.id;
@@ -429,6 +439,8 @@ impl TextEditorManager {
             if let Ok(p) = get_search {
                 this.search.query.force(p);
             }
+
+            super::git::ui::refresh(&this);
 
             drop(batch);
             drop(registrations);
@@ -522,7 +534,9 @@ impl TextEditorManager {
         let remote = self.remote.clone();
         let this = self.clone();
         self.side_view.add_subscriber(move |side_view| {
-            if this.search.is_active.get_value_untracked() {
+            if this.search.is_active.get_value_untracked()
+                || this.side_view_mode.get_value_untracked() == SideViewMode::Git
+            {
                 return;
             }
             spawn_local(async move {

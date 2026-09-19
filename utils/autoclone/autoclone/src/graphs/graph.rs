@@ -48,7 +48,7 @@ impl Graph {
         }
     }
 
-    pub fn to_token_stream(self) -> Result<proc_macro2::TokenStream, syn::Error> {
+    pub fn into_token_stream(self) -> Result<proc_macro2::TokenStream, syn::Error> {
         Ok(self.module.into_token_stream())
     }
 }

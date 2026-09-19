@@ -118,7 +118,7 @@ fn parse_future<'l>(
                 generics: None,
                 eq_token: syn::token::Eq { .. },
                 ty,
-            }) if ident.to_string() == "Output" => {
+            }) if *ident == "Output" => {
                 return Some(ReturnType::Future(ReturnType::from(ty).into()));
             }
             syn::GenericArgument::Type { .. }

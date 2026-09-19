@@ -80,7 +80,7 @@ impl Function {
     fn record_param(self: &Rc<Self>, graph: &Graph, param: &syn::FnArg) {
         match param {
             syn::FnArg::Receiver { .. } => {
-                self.add_error(format!("Graph functions cannot be associated methods"))
+                self.add_error("Graph functions cannot be associated methods")
             }
             syn::FnArg::Typed(syn::PatType {
                 attrs: _,
@@ -144,16 +144,16 @@ impl Function {
                 asyncness: state.asyncness,
                 safety: Default::default(),
                 abi: None,
-                fn_token: self.implementation.sig.fn_token.clone(),
+                fn_token: self.implementation.sig.fn_token,
                 ident: self.public_name.clone(),
                 generics,
-                paren_token: self.implementation.sig.paren_token.clone(),
+                paren_token: self.implementation.sig.paren_token,
                 inputs: state.get_inputs(),
                 variadic: None,
                 output: self.implementation.sig.output.clone(),
             },
             block: syn::Block {
-                brace_token: self.implementation.block.brace_token.clone(),
+                brace_token: self.implementation.block.brace_token,
                 stmts: state.statements,
             }
             .into(),
@@ -209,13 +209,13 @@ impl Function {
 
     fn create_generation_state(&self) -> GenerationState {
         GenerationState {
-            asyncness: self.implementation.sig.asyncness.clone(),
+            asyncness: self.implementation.sig.asyncness,
             ..Default::default()
         }
     }
 
-    pub fn add_error(&self, error: String) {
-        self.errors.borrow_mut().push(error);
+    pub fn add_error(&self, error: impl Into<String>) {
+        self.errors.borrow_mut().push(error.into());
     }
 }
 

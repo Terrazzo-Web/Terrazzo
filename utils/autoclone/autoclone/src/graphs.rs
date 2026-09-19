@@ -125,5 +125,5 @@ pub fn graph2(
     let mut graph = graph::Graph::new(item)?;
     graph.record_functions();
     graph.process_functions();
-    graph.to_token_stream()
+    graph.into_token_stream()
 }

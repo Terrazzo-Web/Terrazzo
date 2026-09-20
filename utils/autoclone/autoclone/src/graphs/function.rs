@@ -36,10 +36,6 @@ pub enum Parameter {
 
 pub struct CalleeParameter {
     function: Rc<Function>,
-    #[expect(
-        unused,
-        reason = "// TODO: handle coersions when callee.function.return_type != callee.ty"
-    )]
     ty: Rc<ReturnType>,
 }
 
@@ -182,6 +178,15 @@ impl Function {
                 // TODO: handle coersions when callee.function.return_type != callee.ty
                 let callee_name = callee.function.public_name.clone();
                 let call_implementation = callee.function.call_implementation(state);
+                let coercion = callee
+                    .function
+                    .return_type
+                    .coerce(&callee.ty, quote! { #call_implementation });
+                state.force_async |= coercion.force_async;
+                if coercion.force_async {
+                    state.asyncness = Some(syn::token::Async::default());
+                }
+                let call_implementation = coercion.expr;
                 let statement =
                     match syn::parse2(quote! { let #callee_name = #call_implementation; }) {
                         Ok(statement) => statement,
@@ -222,6 +227,10 @@ impl Function {
 
     fn return_call_implementation(self: &Rc<Self>, state: &mut GenerationState) {
         let call_implementation = self.call_implementation(state);
+        let call_implementation = match (self.return_type.as_ref(), state.force_error) {
+            (_, false) | (ReturnType::Result { .. }, _) => call_implementation,
+            (_, true) => quote! { Ok(#call_implementation) },
+        };
         state
             .statements
             .push(syn::parse2(quote! { return #call_implementation; }).unwrap());
@@ -285,6 +294,9 @@ struct GenerationState {
 
     /// The body of the public graph implementation
     statements: Vec<syn::Stmt>,
+
+    force_async: bool,
+    force_error: bool,
 }
 
 impl GenerationState {

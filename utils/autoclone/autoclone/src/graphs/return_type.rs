@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::punctuated::Punctuated;
 
@@ -188,5 +189,70 @@ impl From<&ReturnType> for syn::Type {
             }
         })
         .unwrap()
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum TypeTransformations {
+    Future,
+    Result,
+    Ref(RefKind),
+}
+
+impl ReturnType {
+    pub fn coerce(
+        self: &Rc<ReturnType>,
+        into: &Rc<ReturnType>,
+        mut expr: TokenStream,
+    ) -> TokenStream {
+        // a: Future<Result<Box<T>>> vs b: Rc<T>
+        let (_a, ta) = self.transformations();
+        let (_b, tb) = into.transformations();
+        // ta: [ Result<T> ; Future ] vs b: [ Rc ]
+        let mut ta = ta.into_iter().rev().peekable();
+        let mut tb = tb.into_iter().rev().peekable();
+        while ta.peek().is_some() && ta.peek() == tb.peek() {
+            ta.next();
+            tb.next();
+        }
+        for (i, taa) in ta.rev().enumerate() {
+            if i != 0 {
+                expr = quote! { (#expr) };
+            }
+            expr = match taa {
+                TypeTransformations::Future => quote! { #expr.await },
+                TypeTransformations::Result => quote! { #expr? },
+                TypeTransformations::Ref(_) => quote! { *#expr },
+            };
+        }
+        for tbb in tb {
+            expr = match tbb {
+                TypeTransformations::Future => quote! { async move { #expr } },
+                TypeTransformations::Result => quote! { Ok(#expr) },
+                TypeTransformations::Ref(ref_kind) => match ref_kind {
+                    RefKind::Ref => quote! { &#expr },
+                    RefKind::Box => quote! { Box::new(#expr) },
+                    RefKind::Arc => quote! { Arc::new(#expr) },
+                    RefKind::Rc => quote! { Rc::new(#expr) },
+                },
+            };
+        }
+        return expr;
+    }
+
+    fn transformations(mut self: &Rc<ReturnType>) -> (&Rc<Self>, Vec<TypeTransformations>) {
+        let mut transformations = vec![];
+        loop {
+            let (transformation, next) = match self.as_ref() {
+                ReturnType::Unit | ReturnType::T(_) => {
+                    return (self, transformations);
+                }
+                ReturnType::Future(ty) => (TypeTransformations::Future, ty),
+                ReturnType::Result(output, _error) => (TypeTransformations::Result, output),
+                ReturnType::Ref { kind, ty } => (TypeTransformations::Ref(*kind), ty),
+            };
+            transformations.push(transformation);
+            self = next;
+        }
     }
 }

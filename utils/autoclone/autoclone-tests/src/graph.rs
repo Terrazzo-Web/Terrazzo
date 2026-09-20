@@ -29,10 +29,10 @@ mod make_app {
     }
 
     fn comp1() -> Comp1 {
-        Comp1::default()
+        Comp1
     }
 
     fn comp2() -> Comp2 {
-        Comp2::default()
+        Comp2
     }
 }

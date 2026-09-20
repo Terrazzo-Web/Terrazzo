@@ -14,7 +14,7 @@ fn coerce_trivial() {
 fn actual() {
     a
 }"#,
-        coerce,
+        coerce.expr,
     );
 }
 
@@ -28,7 +28,7 @@ fn coerce_future_result_to_rc() {
 fn actual() {
     Box::new((a.await)?)
 }"#,
-        coerce,
+        coerce.expr,
     );
 }
 
@@ -42,7 +42,7 @@ fn coerce_future_to_result_rc() {
 fn actual() {
     Ok(Rc::new(a.await))
 }"#,
-        coerce,
+        coerce.expr,
     );
 }
 
@@ -56,7 +56,7 @@ fn coerce_future_to_rc_result() {
 fn actual() {
     Rc::new(Ok(a.await))
 }"#,
-        coerce,
+        coerce.expr,
     );
 }
 

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use proc_macro2::TokenStream;
+use quote::ToTokens;
 use quote::quote;
 use syn::punctuated::Punctuated;
 
@@ -192,19 +193,16 @@ impl From<&ReturnType> for syn::Type {
     }
 }
 
-#[derive(PartialEq, Eq)]
-pub enum TypeTransformations {
-    Future,
-    Result,
-    Ref(RefKind),
+#[derive(Default)]
+pub struct Coercion {
+    pub force_async: bool,
+    pub error_type: Option<Rc<ReturnType>>,
+    pub expr: proc_macro2::TokenStream,
 }
 
 impl ReturnType {
-    pub fn coerce(
-        self: &Rc<ReturnType>,
-        into: &Rc<ReturnType>,
-        mut expr: TokenStream,
-    ) -> TokenStream {
+    pub fn coerce(self: &Rc<ReturnType>, into: &Rc<ReturnType>, mut expr: TokenStream) -> Coercion {
+        let mut coercion = Coercion::default();
         // a: Future<Result<Box<T>>> vs b: Rc<T>
         let (_a, ta) = self.transformations();
         let (_b, tb) = into.transformations();
@@ -220,15 +218,31 @@ impl ReturnType {
                 expr = quote! { (#expr) };
             }
             expr = match taa {
-                TypeTransformations::Future => quote! { #expr.await },
-                TypeTransformations::Result => quote! { #expr? },
+                TypeTransformations::Future => {
+                    coercion.force_async = true;
+                    quote! { #expr.await }
+                }
+                TypeTransformations::Result(error_type) => {
+                    if let Some(prev_error_type) = &coercion.error_type
+                        && *prev_error_type != error_type
+                    {
+                        let error_msg = format!(
+                            "Error types don't match: {} vs {} -- in {expr}",
+                            syn::Type::from(prev_error_type.as_ref()).to_token_stream(),
+                            syn::Type::from(error_type.as_ref()).to_token_stream(),
+                        );
+                        expr = quote! { compile_error!(#error_msg) };
+                    }
+                    coercion.error_type = Some(error_type.clone());
+                    quote! { #expr? }
+                }
                 TypeTransformations::Ref(_) => quote! { *#expr },
             };
         }
         for tbb in tb {
             expr = match tbb {
                 TypeTransformations::Future => quote! { async move { #expr } },
-                TypeTransformations::Result => quote! { Ok(#expr) },
+                TypeTransformations::Result(_) => quote! { Ok(#expr) },
                 TypeTransformations::Ref(ref_kind) => match ref_kind {
                     RefKind::Ref => quote! { &#expr },
                     RefKind::Box => quote! { Box::new(#expr) },
@@ -237,7 +251,8 @@ impl ReturnType {
                 },
             };
         }
-        return expr;
+        coercion.expr = expr;
+        return coercion;
     }
 
     fn transformations(mut self: &Rc<ReturnType>) -> (&Rc<Self>, Vec<TypeTransformations>) {
@@ -248,11 +263,20 @@ impl ReturnType {
                     return (self, transformations);
                 }
                 ReturnType::Future(ty) => (TypeTransformations::Future, ty),
-                ReturnType::Result(output, _error) => (TypeTransformations::Result, output),
+                ReturnType::Result(output, error) => {
+                    (TypeTransformations::Result(error.clone()), output)
+                }
                 ReturnType::Ref { kind, ty } => (TypeTransformations::Ref(*kind), ty),
             };
             transformations.push(transformation);
             self = next;
         }
     }
+}
+
+#[derive(PartialEq, Eq)]
+enum TypeTransformations {
+    Future,
+    Result(Rc<ReturnType>),
+    Ref(RefKind),
 }

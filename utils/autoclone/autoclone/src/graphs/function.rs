@@ -58,12 +58,18 @@ impl Function {
             func.vis = syn::Visibility::Inherited;
             func
         };
+
+        let mut return_type = ReturnType::from(&func.sig.output).into();
+        if func.sig.asyncness.is_some() {
+            return_type = Rc::new(ReturnType::Future(return_type));
+        }
+
         Function {
             is_public: matches!(func.vis, syn::Visibility::Public { .. }),
             visibility: func.vis.clone(),
             public_name: func.sig.ident.clone(),
             implementation,
-            return_type: ReturnType::from(&func.sig.output).into(),
+            return_type,
             params: Default::default(),
             used_by: Default::default(),
             errors: Default::default(),

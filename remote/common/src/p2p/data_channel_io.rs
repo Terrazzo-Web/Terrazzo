@@ -338,6 +338,8 @@ impl DataChannelTransport for WebRtcTransport {
                     return Some(ChannelEvent::Close);
                 }
                 DataChannelEvent::OnBufferedAmountLow | DataChannelEvent::OnBufferedAmountHigh => {}
+                // Ignore additional events from this non-exhaustive enum.
+                _ => {}
             }
         }
     }

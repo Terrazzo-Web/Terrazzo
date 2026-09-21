@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::future::ready;
 use std::ops::Not;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -29,14 +27,8 @@ use crate::assets::icons;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::manager::EditorState;
 use crate::text_editor::manager::TextEditorManager;
-use crate::text_editor::notify::manager::SideViewNotify as _;
-use crate::text_editor::side::SideViewList;
-use crate::text_editor::side::SideViewNode;
-use crate::text_editor::side::SvnItem;
-use crate::text_editor::side::SvnProperties;
-use crate::text_editor::side::SvnStatus;
-use crate::text_editor::side::opaque::OpaqueNotifyRegistration;
 use crate::text_editor::style;
+use crate::text_editor::ui::side_view;
 
 impl TextEditorManager {
     #[autoclone]
@@ -128,7 +120,7 @@ fn start_search(manager: &Ptr<TextEditorManager>, do_search: &Ptr<impl Fn()>) {
         }))
     });
     if started {
-        manager.side_view.force(Some(search_side_view(
+        manager.side_view.force(Some(side_view::side_view(
             manager,
             &manager.path.base.get_value_untracked(),
             &[],
@@ -212,7 +204,7 @@ async fn do_search_impl(
     manager.search.query.force(input.clone());
     let mut results = run_query(manager.remote.clone(), base.clone(), input).await;
     while let Some(results) = results.next().await {
-        let side_view = search_side_view(&manager, &base, &results);
+        let side_view = side_view::side_view(&manager, &base, &results);
         let batch = Batch::use_batch("update-search-results");
         manager.editor_state.update_mut(move |editor_state| {
             let EditorState::Search(search_state) = editor_state else {
@@ -228,71 +220,6 @@ async fn do_search_impl(
             manager.side_view.force(Some(side_view));
         }
         drop(batch);
-    }
-}
-
-#[derive(Default)]
-struct SearchTreeNode {
-    children: HashMap<Arc<Path>, SearchTreeNode>,
-    metadata: Option<Arc<FileMetadata>>,
-}
-
-fn search_side_view(
-    manager: &Ptr<TextEditorManager>,
-    base: &Arc<Path>,
-    results: &[FileMetadata],
-) -> Arc<SideViewNode> {
-    let mut root = SearchTreeNode::default();
-    for metadata in results {
-        let path = Path::new(metadata.name.as_ref());
-        let mut node = &mut root;
-        for component in path.iter() {
-            node = node
-                .children
-                .entry(Arc::from(Path::new(component)))
-                .or_default();
-        }
-        let Some(name) = path.file_name() else {
-            continue;
-        };
-        node.metadata = Some(Arc::new(FileMetadata {
-            name: name.to_string_lossy().into_owned().into(),
-            ..metadata.clone()
-        }));
-    }
-
-    let root_path = crate::text_editor::file_path::FilePath {
-        base: base.clone(),
-        file: Arc::from(PathBuf::new()),
-    };
-    let notify = manager.watch_side_view_folder(&root_path);
-    Arc::new(search_tree_node(root, notify))
-}
-
-fn search_tree_node(node: SearchTreeNode, notify: OpaqueNotifyRegistration) -> SideViewNode {
-    if let Some(metadata) = node.metadata
-        && node.children.is_empty()
-    {
-        return SideViewNode {
-            properties: SvnProperties {
-                status: SvnStatus::Active,
-            },
-            item: SvnItem::File { metadata },
-        };
-    }
-    SideViewNode {
-        properties: SvnProperties {
-            status: SvnStatus::Active,
-        },
-        item: SvnItem::Folder {
-            folder: Arc::new(
-                node.children
-                    .into_iter()
-                    .map(|(name, child)| (name, Arc::new(search_tree_node(child, notify.clone()))))
-                    .collect::<SideViewList>(),
-            ),
-            notify,
-        },
     }
 }
 

@@ -54,7 +54,7 @@ fn coerce_async() {
                 Comp1::new()
             }
 
-            fn comp2() -> Comp2 {
+            fn comp2(comp1: Result<Comp1, Error>) -> Comp2 {
                 Comp2::new()
             }
         }
@@ -66,7 +66,7 @@ mod make_app {
         Comp1::new()
     }
     #[doc(hidden)]
-    fn comp2_impl() -> Comp2 {
+    fn comp2_impl(comp1: Result<Comp1, Error>) -> Comp2 {
         Comp2::new()
     }
     #[doc(hidden)]
@@ -75,8 +75,48 @@ mod make_app {
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl();
+        let comp2 = comp2_impl(Ok(comp1));
         return run_impl(name, comp1, comp2);
+    }
+}"#;
+    run_test(quote! {}, sample, expected);
+}
+
+#[test]
+fn coerce_async2() {
+    let sample = quote! {
+        mod make_app {
+            pub fn run(name: String, comp2: Comp2, comp1: Comp1) -> App {
+                App { name, comp1, comp2 }
+            }
+
+            async fn comp1() -> Comp1 {
+                Comp1::new()
+            }
+
+            fn comp2(comp1: Result<Comp1, Error>) -> Comp2 {
+                Comp2::new()
+            }
+        }
+    };
+    let expected = r#"
+mod make_app {
+    #[doc(hidden)]
+    async fn comp1_impl() -> Comp1 {
+        Comp1::new()
+    }
+    #[doc(hidden)]
+    fn comp2_impl(comp1: Result<Comp1, Error>) -> Comp2 {
+        Comp2::new()
+    }
+    #[doc(hidden)]
+    fn run_impl(name: String, comp2: Comp2, comp1: Comp1) -> App {
+        App { name, comp1, comp2 }
+    }
+    pub async fn run(name: String) -> App {
+        let comp1 = Ok(comp1_impl().await);
+        let comp2 = comp2_impl(comp1);
+        return run_impl(name, comp2, comp1?);
     }
 }"#;
     run_test(quote! {}, sample, expected);

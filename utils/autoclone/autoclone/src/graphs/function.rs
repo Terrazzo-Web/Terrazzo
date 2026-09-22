@@ -7,6 +7,7 @@ use quote::format_ident;
 use quote::quote;
 
 use super::graph::Graph;
+use super::return_type::Coercion;
 use super::return_type::ReturnType;
 
 pub struct Function {
@@ -141,6 +142,15 @@ impl Function {
         self.process_params(&mut state);
         self.return_call_implementation(&mut state);
 
+        let output = self.implementation.sig.output.clone();
+        let output = if let Some(error_type) = state.force_result.clone() {
+            let output = Rc::new((&output).into());
+            let output = ReturnType::Result(output, error_type);
+            syn::ReturnType::Type(syn::token::RArrow::default(), Box::new((&output).into()))
+        } else {
+            output
+        };
+
         syn::ItemFn {
             attrs: vec![],
             vis: self.visibility.clone(),
@@ -156,7 +166,7 @@ impl Function {
                 paren_token: self.implementation.sig.paren_token,
                 inputs: state.get_inputs(),
                 variadic: None,
-                output: self.implementation.sig.output.clone(),
+                output,
             },
             block: syn::Block {
                 brace_token: self.implementation.block.brace_token,
@@ -178,31 +188,36 @@ impl Function {
                 if let Some(_return_type) = state.nodes.get(param.name()) {
                     return;
                 }
-                state
+                let return_type = state
                     .nodes
-                    .insert(param.name().clone(), callee.function.return_type.clone());
-                // TODO: handle coersions when callee.function.return_type != callee.ty
+                    .insert(param.name().clone(), callee.ty.clone())
+                    .unwrap_or_else(|| callee.function.return_type.clone());
                 let callee_name = callee.function.public_name.clone();
-                let call_implementation = callee.function.call_implementation(state);
-                let coercion = callee
-                    .function
-                    .return_type
-                    .coerce(&callee.ty, quote! { #call_implementation });
-                state.force_async |= coercion.force_async;
-                if coercion.force_async {
-                    state.asyncness = Some(syn::token::Async::default());
-                }
-                let call_implementation = coercion.expr;
-                let statement =
-                    match syn::parse2(quote! { let #callee_name = #call_implementation; }) {
-                        Ok(statement) => statement,
-                        Err(error) => {
-                            let error = format!(
-                                "Failed to parse into statement: {error} -- {call_implementation}"
-                            );
-                            syn::parse2(quote! { compile_error!(#error); }).unwrap()
-                        }
-                    };
+
+                let call_implementation = {
+                    let call_implementation = callee.function.call_implementation(state);
+                    let coercion = return_type.coerce(&callee.ty, quote! { #call_implementation });
+                    state.apply(&coercion);
+                    coercion.expr
+                };
+
+                let statement = quote! { let #callee_name = #call_implementation; };
+
+                #[cfg(all(debug_assertions, not(test)))]
+                let statement = {
+                    let doc = format!("return_type: {return_type} -> #callee.ty: {}", callee.ty);
+                    quote! { #[doc(#doc)] #statement }
+                };
+
+                let statement = match syn::parse2(statement) {
+                    Ok(statement) => statement,
+                    Err(error) => {
+                        let error = format!(
+                            "Failed to parse into statement: {error} -- {call_implementation}"
+                        );
+                        syn::parse2(quote! { compile_error!(#error); }).unwrap()
+                    }
+                };
                 state.statements.push(statement);
             }
             Parameter::Input(input) => {
@@ -222,18 +237,24 @@ impl Function {
     ) -> proc_macro2::TokenStream {
         let callee_impl = self.implementation.sig.ident.clone();
         self.process_params(state);
-        let callee_parameters = self
-            .params
-            .borrow()
+        let params = self.params.borrow();
+        let callee_parameters = params
             .iter()
-            .map(|param| param.name().clone())
+            .map(|param| match state.nodes.get(param.name()) {
+                Some(ty) => {
+                    let coercion = ty.coerce(param.ty(), param.name().to_token_stream());
+                    state.apply(&coercion);
+                    coercion.expr
+                }
+                None => param.name().to_token_stream(),
+            })
             .collect::<Vec<_>>();
         quote! { #callee_impl( #(#callee_parameters),* ) }
     }
 
     fn return_call_implementation(self: &Rc<Self>, state: &mut GenerationState) {
         let call_implementation = self.call_implementation(state);
-        let call_implementation = match (self.return_type.as_ref(), state.force_error) {
+        let call_implementation = match (self.return_type.as_ref(), state.force_result.is_some()) {
             (_, false) | (ReturnType::Result { .. }, _) => call_implementation,
             (_, true) => quote! { Ok(#call_implementation) },
         };
@@ -259,6 +280,13 @@ impl Parameter {
         match self {
             Parameter::Callee(callee_parameter) => &callee_parameter.function.public_name,
             Parameter::Input(input_parameter) => &input_parameter.name,
+        }
+    }
+
+    pub fn ty(&self) -> &Rc<ReturnType> {
+        match self {
+            Parameter::Callee(callee_parameter) => &callee_parameter.ty,
+            Parameter::Input(input_parameter) => &input_parameter.ty,
         }
     }
 }
@@ -301,8 +329,7 @@ struct GenerationState {
     /// The body of the public graph implementation
     statements: Vec<syn::Stmt>,
 
-    force_async: bool,
-    force_error: bool,
+    force_result: Option<Rc<ReturnType>>,
 }
 
 impl GenerationState {
@@ -318,5 +345,12 @@ impl GenerationState {
 
     fn get_inputs<B: FromIterator<syn::FnArg>>(&self) -> B {
         self.get_inputs_iter().collect()
+    }
+
+    fn apply(&mut self, coercion: &Coercion) {
+        self.force_result = coercion.force_result.clone();
+        if coercion.force_async {
+            self.asyncness = syn::token::Async::default().into();
+        }
     }
 }

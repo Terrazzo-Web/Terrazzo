@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use quote::ToTokens;
 use quote::quote;
 use syn::punctuated::Punctuated;
 
@@ -194,7 +195,7 @@ impl From<&ReturnType> for syn::Type {
 #[derive(Default)]
 pub struct Coercion {
     pub force_async: bool,
-    pub force_result: bool,
+    pub force_result: Option<Rc<ReturnType>>,
     pub expr: proc_macro2::TokenStream,
 }
 
@@ -224,8 +225,8 @@ impl ReturnType {
                     coercion.force_async = true;
                     quote! { #expr.await }
                 }
-                TypeTransformations::Result => {
-                    coercion.force_result = true;
+                TypeTransformations::Result(error_type) => {
+                    coercion.force_result = Some(error_type);
                     quote! { #expr? }
                 }
                 TypeTransformations::Ref(_) => quote! { *#expr },
@@ -234,7 +235,7 @@ impl ReturnType {
         for tbb in tb {
             expr = match tbb {
                 TypeTransformations::Future => quote! { async move { #expr } },
-                TypeTransformations::Result => quote! { Ok(#expr) },
+                TypeTransformations::Result { .. } => quote! { Ok(#expr) },
                 TypeTransformations::Ref(ref_kind) => match ref_kind {
                     RefKind::Ref => quote! { &#expr },
                     RefKind::Box => quote! { Box::new(#expr) },
@@ -255,7 +256,9 @@ impl ReturnType {
                     return (self, transformations);
                 }
                 ReturnType::Future(ty) => (TypeTransformations::Future, ty),
-                ReturnType::Result(output, _error) => (TypeTransformations::Result, output),
+                ReturnType::Result(output, error) => {
+                    (TypeTransformations::Result(error.clone()), output)
+                }
                 ReturnType::Ref { kind, ty } => (TypeTransformations::Ref(*kind), ty),
             };
             transformations.push(transformation);
@@ -267,6 +270,12 @@ impl ReturnType {
 #[derive(PartialEq, Eq)]
 enum TypeTransformations {
     Future,
-    Result,
+    Result(Rc<ReturnType>),
     Ref(RefKind),
+}
+
+impl std::fmt::Display for ReturnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&syn::Type::from(self).to_token_stream(), f)
+    }
 }

@@ -146,17 +146,17 @@ mod make_app {
         Comp1::new()
     }
     #[doc(hidden)]
-    fn comp2_impl(comp1: Result<Comp1, Error>) -> Comp2 {
+    fn comp2_impl(comp1: Comp1) -> Comp2 {
         Comp2::new()
     }
     #[doc(hidden)]
-    fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
+    fn run_impl(name: String, comp1: &Comp1, comp2: &Comp2) -> App {
         App { name, comp1, comp2 }
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(Ok(comp1));
-        return run_impl(name, comp1, comp2);
+        let comp2 = comp2_impl(comp1);
+        return run_impl(name, &comp1, &comp2);
     }
 }"#;
     run_test(quote! {}, sample, expected);

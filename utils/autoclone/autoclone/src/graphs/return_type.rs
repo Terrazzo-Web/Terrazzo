@@ -33,11 +33,13 @@ impl From<&syn::ReturnType> for ReturnType {
 impl From<&syn::Type> for ReturnType {
     fn from(value: &syn::Type) -> Self {
         match value {
-            syn::Type::Paren(syn::TypeParen { elem, .. }) => (&**elem).into(),
-            syn::Type::Reference(syn::TypeReference { elem, .. }) => Self::Ref {
-                kind: RefKind::Ref,
-                ty: ReturnType::from(&**elem).into(),
-            },
+            syn::Type::Paren(syn::TypeParen { elem, .. }) => return (&**elem).into(),
+            syn::Type::Reference(syn::TypeReference { elem, .. }) => {
+                return Self::Ref {
+                    kind: RefKind::Ref,
+                    ty: ReturnType::from(&**elem).into(),
+                };
+            }
             syn::Type::Path(syn::TypePath {
                 attrs: _,
                 qself,
@@ -47,9 +49,24 @@ impl From<&syn::Type> for ReturnType {
                         segments,
                     },
             }) if qself.is_none() && leading_colon.is_none() && segments.len() == 1 => {
-                parse_well_known_type(segments).unwrap_or_else(|| Self::T(value.clone().into()))
+                return parse_well_known_type(segments)
+                    .unwrap_or_else(|| Self::T(value.clone().into()));
             }
-            syn::Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() => Self::Unit,
+            syn::Type::ImplTrait(syn::TypeImplTrait { bounds, .. }) if !bounds.is_empty() => {
+                if let syn::TypeParamBound::Trait(syn::TraitBound { path, .. }) =
+                    bounds.get(0).unwrap()
+                {
+                    return (&syn::Type::Path(syn::TypePath {
+                        attrs: Default::default(),
+                        qself: Default::default(),
+                        path: path.clone(),
+                    }))
+                        .into();
+                }
+            }
+            syn::Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() => {
+                return Self::Unit;
+            }
             syn::Type::Array { .. }
             | syn::Type::FnPtr { .. }
             | syn::Type::Group { .. }
@@ -63,8 +80,9 @@ impl From<&syn::Type> for ReturnType {
             | syn::Type::TraitObject { .. }
             | syn::Type::Tuple { .. }
             | syn::Type::Verbatim { .. }
-            | _ => Self::T(value.clone().into()),
+            | _ => (),
         }
+        return Self::T(value.clone().into());
     }
 }
 
@@ -201,26 +219,30 @@ pub struct Coercion {
 
 impl ReturnType {
     fn coerce_base(
-        self: &Rc<ReturnType>,
-        into: &Rc<ReturnType>,
+        self: &Rc<Self>,
+        into: &Rc<Self>,
         expr: &mut proc_macro2::TokenStream,
     ) -> (
         Coercion,
-        &Rc<ReturnType>,
+        Rc<Self>,
         impl Iterator<Item = TypeTransformations> + 'static,
     ) {
         let mut coercion = Coercion::default();
         // a: Future<Result<Box<T>>> vs b: Rc<T>
-        let (a, ta) = self.transformations();
+        let (_a, ta) = self.transformations();
         let (_b, tb) = into.transformations();
         // ta: [ Result<T> ; Future ] vs b: [ Rc ]
         let mut ta = ta.into_iter().rev().peekable();
         let mut tb = tb.into_iter().rev().peekable();
+        let a = ta
+            .peek()
+            .map(|(a, _)| a.clone())
+            .unwrap_or_else(|| self.clone());
         while ta.peek().is_some() && ta.peek() == tb.peek() {
             ta.next();
             tb.next();
         }
-        for (i, taa) in ta.rev().enumerate() {
+        for (i, (_, taa)) in ta.rev().enumerate() {
             if i != 0 {
                 *expr = quote! { (#expr) };
             }
@@ -236,12 +258,12 @@ impl ReturnType {
                 TypeTransformations::Ref(_) => quote! { *#expr },
             };
         }
-        (coercion, a, tb)
+        (coercion, a, tb.map(|(_, t)| t))
     }
 
     pub fn coerce(
-        self: &Rc<ReturnType>,
-        into: &Rc<ReturnType>,
+        self: &Rc<Self>,
+        into: &Rc<Self>,
         mut expr: proc_macro2::TokenStream,
     ) -> Coercion {
         let (mut coercion, _, tb) = self.coerce_base(into, &mut expr);
@@ -262,16 +284,16 @@ impl ReturnType {
     }
 
     pub fn coerce2(
-        self: &Rc<ReturnType>,
-        into: &Rc<ReturnType>,
+        self: &Rc<Self>,
+        into: &Rc<Self>,
         mut expr: proc_macro2::TokenStream,
-    ) -> (Coercion, &Rc<ReturnType>) {
+    ) -> (Coercion, Rc<Self>) {
         let (mut coercion, a, _tb) = self.coerce_base(into, &mut expr);
         coercion.expr = expr;
         return (coercion, a);
     }
 
-    fn transformations(mut self: &Rc<ReturnType>) -> (&Rc<Self>, Vec<TypeTransformations>) {
+    fn transformations(mut self: &Rc<Self>) -> (&Rc<Self>, Vec<(Rc<Self>, TypeTransformations)>) {
         let mut transformations = vec![];
         loop {
             let (transformation, next) = match self.as_ref() {
@@ -284,7 +306,7 @@ impl ReturnType {
                 }
                 ReturnType::Ref { kind, ty } => (TypeTransformations::Ref(*kind), ty),
             };
-            transformations.push(transformation);
+            transformations.push((self.clone(), transformation));
             self = next;
         }
     }

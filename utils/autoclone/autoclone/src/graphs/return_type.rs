@@ -200,14 +200,18 @@ pub struct Coercion {
 }
 
 impl ReturnType {
-    pub fn coerce(
+    fn coerce_base(
         self: &Rc<ReturnType>,
         into: &Rc<ReturnType>,
-        mut expr: proc_macro2::TokenStream,
-    ) -> Coercion {
+        expr: &mut proc_macro2::TokenStream,
+    ) -> (
+        Coercion,
+        &Rc<ReturnType>,
+        impl Iterator<Item = TypeTransformations> + 'static,
+    ) {
         let mut coercion = Coercion::default();
         // a: Future<Result<Box<T>>> vs b: Rc<T>
-        let (_a, ta) = self.transformations();
+        let (a, ta) = self.transformations();
         let (_b, tb) = into.transformations();
         // ta: [ Result<T> ; Future ] vs b: [ Rc ]
         let mut ta = ta.into_iter().rev().peekable();
@@ -218,9 +222,9 @@ impl ReturnType {
         }
         for (i, taa) in ta.rev().enumerate() {
             if i != 0 {
-                expr = quote! { (#expr) };
+                *expr = quote! { (#expr) };
             }
-            expr = match taa {
+            *expr = match taa {
                 TypeTransformations::Future => {
                     coercion.force_async = true;
                     quote! { #expr.await }
@@ -232,6 +236,15 @@ impl ReturnType {
                 TypeTransformations::Ref(_) => quote! { *#expr },
             };
         }
+        (coercion, a, tb)
+    }
+
+    pub fn coerce(
+        self: &Rc<ReturnType>,
+        into: &Rc<ReturnType>,
+        mut expr: proc_macro2::TokenStream,
+    ) -> Coercion {
+        let (mut coercion, _, tb) = self.coerce_base(into, &mut expr);
         for tbb in tb {
             expr = match tbb {
                 TypeTransformations::Future => quote! { async move { #expr } },
@@ -246,6 +259,16 @@ impl ReturnType {
         }
         coercion.expr = expr;
         return coercion;
+    }
+
+    pub fn coerce2(
+        self: &Rc<ReturnType>,
+        into: &Rc<ReturnType>,
+        mut expr: proc_macro2::TokenStream,
+    ) -> (Coercion, &Rc<ReturnType>) {
+        let (mut coercion, a, _tb) = self.coerce_base(into, &mut expr);
+        coercion.expr = expr;
+        return (coercion, a);
     }
 
     fn transformations(mut self: &Rc<ReturnType>) -> (&Rc<Self>, Vec<TypeTransformations>) {

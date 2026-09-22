@@ -190,14 +190,17 @@ impl Function {
                 }
                 let return_type = state
                     .nodes
-                    .insert(param.name().clone(), callee.ty.clone())
-                    .unwrap_or_else(|| callee.function.return_type.clone());
+                    .get(param.name())
+                    .unwrap_or_else(|| &callee.function.return_type)
+                    .clone();
                 let callee_name = callee.function.public_name.clone();
 
                 let call_implementation = {
                     let call_implementation = callee.function.call_implementation(state);
-                    let coercion = return_type.coerce(&callee.ty, quote! { #call_implementation });
+                    let (coercion, t) =
+                        return_type.coerce2(&callee.ty, quote! { #call_implementation });
                     state.apply(&coercion);
+                    state.nodes.insert(param.name().clone(), t.clone());
                     coercion.expr
                 };
 

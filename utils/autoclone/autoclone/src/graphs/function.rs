@@ -43,6 +43,8 @@ pub struct CalleeParameter {
 
 pub struct InputParameter {
     name: syn::Ident,
+    /// Preserve input syntax (including lifetimes and `impl Trait` bounds).
+    original_type: syn::Type,
     ty: Rc<ReturnType>,
 }
 
@@ -112,6 +114,7 @@ impl Function {
                 let Some(callee) = graph.functions.get(ident) else {
                     self.params.borrow_mut().push(Rc::from(InputParameter {
                         name: ident.clone(),
+                        original_type: *ty.clone(),
                         ty: ReturnType::from(ty.as_ref()).into(),
                     }));
                     return;
@@ -378,13 +381,11 @@ struct GenerationState {
 
 impl GenerationState {
     fn get_inputs_iter(&self) -> impl Iterator<Item = syn::FnArg> {
-        self.inputs
-            .iter()
-            .map(Rc::as_ref)
-            .map(|InputParameter { name, ty }| {
-                let ty = syn::Type::from(ty.as_ref());
-                syn::parse2(quote! {#name: #ty}).unwrap()
-            })
+        self.inputs.iter().map(|input| {
+            let name = &input.name;
+            let ty = &input.original_type;
+            syn::parse2(quote! {#name: #ty}).unwrap()
+        })
     }
 
     fn get_inputs<B: FromIterator<syn::FnArg>>(&self) -> B {

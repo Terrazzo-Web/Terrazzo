@@ -115,6 +115,7 @@ T -> From<T>
 
 mod function;
 mod graph;
+mod named_inputs;
 mod return_type;
 mod tests;
 

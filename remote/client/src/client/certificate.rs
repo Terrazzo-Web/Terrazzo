@@ -1,19 +1,15 @@
 //! Client certificates from the Terrazzo Gateway.
 
-use mime::APPLICATION_JSON;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use openssl::pkey::HasPublic;
 use openssl::pkey::PKeyRef;
 use reqwest::StatusCode;
-use trz_gateway_common::api::tunnel::GetCertificateRequest;
 use trz_gateway_common::x509::PemAsStringError;
-use trz_gateway_common::x509::PemString as _;
 
 use super::AuthCode;
 use super::config::ClientConfig;
 use super::config::SniOverrideError;
-use super::config::set_gateway_sni_override;
 use crate::http_client::HttpClient;
 use crate::http_client::HttpRequestError;
 
@@ -24,13 +20,33 @@ pub(crate) async fn get_certifiate(
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
-    certificate_request::run(client_config, key, auth_code, http_client).await
+    certificate_request::Run {
+        client_config,
+        http_client,
+        auth_code,
+        key,
+    }
+    .run()
+    .await
 }
 
 #[autoclone::graph]
 mod certificate_request {
-    use super::*;
+    use mime::APPLICATION_JSON;
+    use openssl::pkey::HasPublic;
+    use openssl::pkey::PKeyRef;
     use reqwest::Url;
+    use trz_gateway_common::api::tunnel::GetCertificateRequest;
+    use trz_gateway_common::x509::PemAsStringError;
+    use trz_gateway_common::x509::PemString as _;
+
+    use crate::client::AuthCode;
+    use crate::client::config::ClientConfig;
+    use crate::client::config::SniOverrideError;
+    use crate::client::config::set_gateway_sni_override;
+    use crate::http_client::HttpClient;
+
+    use super::GetCertificateError;
 
     fn public_key(key: &PKeyRef<impl HasPublic>) -> Result<String, PemAsStringError> {
         key.public_key_to_pem().pem_string()

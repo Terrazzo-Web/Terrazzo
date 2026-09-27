@@ -196,6 +196,7 @@ async fn independent_components_are_polled_concurrently() {
 #[graph]
 mod parallel_components {
     use std::sync::Arc;
+
     use tokio::sync::Barrier;
 
     pub fn run(first: usize, second: usize) -> usize {
@@ -241,6 +242,7 @@ fn poll_joined<T>(future: impl std::future::Future<Output = T>) -> T {
 #[graph]
 mod fallible_parallel {
     use std::sync::Arc;
+
     use tokio::sync::Barrier;
 
     pub fn run(first: &usize, second: usize) -> usize {
@@ -284,6 +286,7 @@ fn joined_results_convert_errors_in_component_order() {
 #[graph]
 mod joined_results {
     use std::sync::Arc;
+
     use tokio::sync::Barrier;
 
     #[derive(Debug, PartialEq)]
@@ -335,4 +338,68 @@ mod impl_trait_input {
     fn second(value: &impl ToString) -> String {
         value.to_string()
     }
+}
+
+#[test]
+fn named_graph_inputs() {
+    assert_eq!(
+        named_entries::MakeApp {
+            name: "app".to_owned(),
+            count: 2
+        }
+        .run(),
+        "app:2"
+    );
+    assert_eq!(
+        named_entries::MakeLabel {
+            name: "label".to_owned()
+        }
+        .run(),
+        "label"
+    );
+    assert_eq!(
+        shared_values::Run {}.run(),
+        ("value".to_owned(), "value".to_owned())
+    );
+    assert_eq!(impl_trait_input::Run { value: &42 }.run(), "42:42");
+    let text = "borrowed".to_owned();
+    assert_eq!(named_entries::Borrow { text: &text }.run(), "borrowed");
+    assert_eq!(
+        named_entries::BorrowElided { text: &text }.run(),
+        "borrowed"
+    );
+    assert_eq!(named_entries::Identity { value: 17 }.run(), 17);
+    assert_eq!(named_entries::ArrayLength { values: [1, 2, 3] }.run(), 3);
+}
+
+#[graph]
+mod named_entries {
+    pub fn make_app(name: String, count: usize) -> String {
+        format!("{name}:{count}")
+    }
+    pub fn make_label(name: String) -> String {
+        name
+    }
+    pub fn borrow<'a>(text: &'a str) -> &'a str {
+        text
+    }
+    pub fn borrow_elided(text: &str) -> &str {
+        text
+    }
+    pub fn identity<T>(value: T) -> T {
+        value
+    }
+    pub fn array_length<const N: usize>(values: [u8; N]) -> usize {
+        values.len()
+    }
+}
+
+#[tokio::test]
+async fn named_async_graph_inputs() {
+    assert_eq!(inferred_result::Run { fail: false }.run().await, Ok(15));
+    assert_eq!(
+        inferred_result::Run { fail: true }.run().await,
+        Err("component failed".to_owned())
+    );
+    assert_eq!(explicit_result::Run { fail: 0 }.run().await, Ok(3));
 }

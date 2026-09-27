@@ -40,7 +40,7 @@ mod make_app {
         return run_impl(name, comp1, comp2);
     }
     pub struct Run {
-      name: String
+        pub name: String,
     }
     impl Run {
         pub fn run(self) -> App {
@@ -88,6 +88,15 @@ mod make_app {
         let comp2 = comp2_impl(comp1.clone())?;
         return Ok(run_impl(name, comp1, comp2));
     }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> Result<App, Error> {
+            let Self { name } = self;
+            run(name).await
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }
@@ -131,6 +140,15 @@ mod make_app {
         let comp2 = comp2_impl(comp1.clone())?;
         return Ok(run_impl(name, comp1, comp2));
     }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> Result<App, Error1> {
+            let Self { name } = self;
+            run(name).await
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }
@@ -170,6 +188,15 @@ mod make_app {
         let comp1 = (comp1_impl().await)?;
         let comp2 = comp2_impl(comp1.clone())?;
         return run_impl(name, comp1, comp2);
+    }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> Result<App, Error> {
+            let Self { name } = self;
+            run(name).await
+        }
     }
 }"#;
     run_test(quote! {}, sample, expected);
@@ -211,6 +238,15 @@ mod make_app {
         let comp2 = comp2_impl(Ok(comp1.clone()));
         return run_impl(name, comp1, comp2);
     }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> App {
+            let Self { name } = self;
+            run(name).await
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }
@@ -250,6 +286,15 @@ mod make_app {
         let comp1 = comp1_impl().await;
         let comp2 = comp2_impl(Ok(comp1.clone()));
         return run_impl(name, comp2, comp1);
+    }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> App {
+            let Self { name } = self;
+            run(name).await
+        }
     }
 }"#;
     run_test(quote! {}, sample, expected);
@@ -291,6 +336,15 @@ mod make_app {
         let comp2 = comp2_impl().await;
         return run_impl(name, comp1, comp2);
     }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> App {
+            let Self { name } = self;
+            run(name).await
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }
@@ -331,6 +385,15 @@ mod make_app {
         let comp2 = comp2_impl(comp1.clone());
         return run_impl(name, &comp1, &comp2);
     }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> App {
+            let Self { name } = self;
+            run(name).await
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }
@@ -359,6 +422,15 @@ mod make_app {
         let comp1 = comp1_impl().await;
         let (comp2, comp3) = tokio::join!(comp2_impl(comp1.clone()), comp3_impl());
         return run_impl(name, comp1, comp2, comp3);
+    }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> App {
+            let Self { name } = self;
+            run(name).await
+        }
     }
 }"#;
     run_test(quote! {}, sample, expected);
@@ -389,6 +461,15 @@ mod make_app {
         let (comp2, comp3) = tokio::join!(comp2_impl(comp1.clone()), comp3_impl());
         let comp3 = comp3?;
         return Ok(run_impl(name, comp1, &comp2, comp3));
+    }
+    pub struct Run {
+        pub name: String,
+    }
+    impl Run {
+        pub async fn run(self) -> Result<App, String> {
+            let Self { name } = self;
+            run(name).await
+        }
     }
 }"#;
     run_test(quote! {}, sample, expected);

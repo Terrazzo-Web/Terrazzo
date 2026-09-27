@@ -65,7 +65,13 @@ impl Graph {
                     );
                     function
                 };
+                let named_inputs = if function.vis == syn::Visibility::Inherited {
+                    vec![]
+                } else {
+                    super::named_inputs::generate(&function)
+                };
                 content.push(syn::Item::Fn(function));
+                content.extend(named_inputs);
             }
         }
     }

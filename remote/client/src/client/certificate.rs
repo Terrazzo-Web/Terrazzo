@@ -40,13 +40,12 @@ mod certificate_request {
     use trz_gateway_common::x509::PemAsStringError;
     use trz_gateway_common::x509::PemString as _;
 
+    use super::GetCertificateError;
     use crate::client::AuthCode;
     use crate::client::config::ClientConfig;
     use crate::client::config::SniOverrideError;
     use crate::client::config::set_gateway_sni_override;
     use crate::http_client::HttpClient;
-
-    use super::GetCertificateError;
 
     fn public_key(key: &PKeyRef<impl HasPublic>) -> Result<String, PemAsStringError> {
         key.public_key_to_pem().pem_string()

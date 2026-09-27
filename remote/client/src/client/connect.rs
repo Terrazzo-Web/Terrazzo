@@ -87,6 +87,30 @@ impl GatewayClient {
 
 #[autoclone::graph]
 mod create_tunnel {
+    //! Builds a tunnel from the external inputs `gateway_client`, `client_id`, and `timeout`.
+    //!
+    //! Node dependencies (arrows point from a dependency to its consumer):
+    //!
+    //! ```text
+    //! websocket_url --> tls_request --> web_socket --> run
+    //! request --> connect_tcp --> connect_transport --> socket --> web_socket
+    //! ```
+    //!
+    //! `gateway_client` supplies `websocket_url`, `request`, `connect_transport`, and
+    //! `web_socket`; `client_id` supplies `tls_request`; `timeout` supplies
+    //! `connect_transport` and `web_socket`.
+    //!
+    //! `request` retains the original gateway host and port so Direct TCP connects to
+    //! the configured network address. It is used to select the TCP destination, not
+    //! sent as the WebSocket handshake. `tls_request` uses the SNI override, when set,
+    //! as its host: this selects the TLS server name and the WebSocket handshake's
+    //! Host header. It also includes the client ID header. For example, TCP can connect
+    //! to an IP address while TLS authenticates the gateway's DNS name. Without an SNI
+    //! override, both requests use the same URL, but only `tls_request` carries the ID.
+    //!
+    //! The `connect_tcp` edge carries an unevaluated future. `connect_transport`
+    //! awaits it only for Direct transport; WebRTC uses the configured peer connection.
+
     use std::sync::Arc;
     use std::time::Duration;
     use std::time::Instant;
@@ -124,6 +148,7 @@ mod create_tunnel {
     type Socket = ForceCloseIo<TransportStream>;
     type WebSocket = WebSocketStream<MaybeTlsStream<Socket>>;
 
+    /// Converts the connected WebSocket into tunnel I/O and a shared end-of-stream signal.
     pub fn run(
         web_socket: (WebSocket, ForceCloseHandle),
     ) -> Result<Tunnel<impl TransportIo + use<>>, ConnectError> {
@@ -136,6 +161,7 @@ mod create_tunnel {
         })
     }
 
+    /// Performs the TLS/WebSocket handshake within the timeout, retaining the force-close handle.
     async fn web_socket(
         tls_request: Request,
         socket: (Socket, ForceCloseHandle),
@@ -158,6 +184,7 @@ mod create_tunnel {
         Ok((web_socket, force_close))
     }
 
+    /// Builds the handshake request from the SNI-adjusted URL and adds the client ID header.
     fn tls_request(websocket_url: Url, client_id: ClientId) -> Result<Request, ConnectError> {
         let mut request = websocket_url
             .as_str()
@@ -169,10 +196,13 @@ mod create_tunnel {
         Ok(request)
     }
 
+    /// Wraps the selected transport so dropping the returned handle can force it closed.
     fn socket(connect_transport: TransportStream) -> (Socket, ForceCloseHandle) {
         ForceCloseIo::new(connect_transport)
     }
 
+    /// Selects Direct TCP or WebRTC transport and records connection timing in a tracing span.
+    /// Direct TCP uses `timeout`; WebRTC uses its configured connection timeout.
     async fn connect_transport(
         gateway_client: &GatewayClient,
         connect_tcp: impl Future<Output = Result<TcpStream, ConnectError>>,
@@ -198,7 +228,8 @@ mod create_tunnel {
         .await
     }
 
-    // Keep this future unevaluated until the Direct branch selects it.
+    /// Connects to the request's host and port, using the scheme's default port if needed,
+    /// and disables Nagle's algorithm. This future is evaluated only by the Direct branch.
     async fn connect_tcp(request: Request) -> Result<TcpStream, ConnectError> {
         let host = request
             .uri()
@@ -220,6 +251,7 @@ mod create_tunnel {
         Ok(socket)
     }
 
+    /// Converts the gateway URI to ws/wss and applies the hostname override for TLS and SNI.
     fn websocket_url(gateway_client: &GatewayClient) -> Result<Url, SniOverrideError> {
         let mut url = Url::parse(&format!(
             "ws{}",
@@ -229,6 +261,7 @@ mod create_tunnel {
         Ok(url)
     }
 
+    /// Builds the transport request from the original gateway address, without the SNI override.
     fn request(gateway_client: &GatewayClient) -> Result<Request, ConnectError> {
         format!("ws{}", &gateway_client.gateway_uri["http".len()..])
             .into_client_request()

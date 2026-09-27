@@ -4,9 +4,8 @@ use std::rc::Rc;
 use quote::ToTokens as _;
 use quote::quote;
 
-use crate::item_to_string;
-
 use super::function::Function;
+use crate::item_to_string;
 
 pub struct Graph {
     pub module: syn::ItemMod,

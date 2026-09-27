@@ -101,3 +101,112 @@ mod shared_inputs {
         input
     }
 }
+
+#[tokio::test]
+async fn inferred_result_propagates_errors() {
+    assert_eq!(inferred_result::run(false).await, Ok(15));
+    assert_eq!(
+        inferred_result::run(true).await,
+        Err("component failed".to_owned())
+    );
+}
+
+#[graph]
+mod inferred_result {
+    pub fn run(value: usize, doubled: usize) -> usize {
+        value + doubled
+    }
+
+    async fn value(fail: bool) -> Result<usize, String> {
+        if fail {
+            Err("component failed".to_owned())
+        } else {
+            Ok(5)
+        }
+    }
+
+    fn doubled(value: usize) -> Result<usize, String> {
+        Ok(value * 2)
+    }
+}
+
+#[tokio::test]
+async fn explicit_result_converts_component_errors() {
+    assert_eq!(explicit_result::run(0).await, Ok(3));
+    assert_eq!(
+        explicit_result::run(1).await,
+        Err(explicit_result::Error::First)
+    );
+    assert_eq!(
+        explicit_result::run(2).await,
+        Err(explicit_result::Error::Second)
+    );
+}
+
+#[graph]
+mod explicit_result {
+    #[derive(Debug, PartialEq)]
+    pub enum Error {
+        First,
+        Second,
+    }
+    struct First;
+    struct Second;
+
+    impl From<First> for Error {
+        fn from(_: First) -> Self {
+            Self::First
+        }
+    }
+    impl From<Second> for Error {
+        fn from(_: Second) -> Self {
+            Self::Second
+        }
+    }
+
+    pub async fn run(first: usize, second: usize) -> Result<usize, Error> {
+        Ok(first + second)
+    }
+    async fn first(fail: usize) -> Result<usize, First> {
+        if fail == 1 { Err(First) } else { Ok(1) }
+    }
+    fn second(fail: usize) -> Result<usize, Second> {
+        if fail == 2 { Err(Second) } else { Ok(2) }
+    }
+}
+
+#[tokio::test]
+async fn independent_components_are_polled_concurrently() {
+    let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+    let mut future = std::pin::pin!(parallel_components::run(barrier.clone(), barrier));
+    let waker = std::task::Waker::noop();
+    let mut context = std::task::Context::from_waker(waker);
+    // A sequential expansion would remain pending forever at the first barrier.
+    for _ in 0..4 {
+        if let std::task::Poll::Ready(value) =
+            std::future::Future::poll(future.as_mut(), &mut context)
+        {
+            assert_eq!(value, 3);
+            return;
+        }
+    }
+    panic!("independent components did not make concurrent progress");
+}
+
+#[graph]
+mod parallel_components {
+    use std::sync::Arc;
+    use tokio::sync::Barrier;
+
+    pub fn run(first: usize, second: usize) -> usize {
+        first + second
+    }
+    async fn first(left: Arc<Barrier>) -> usize {
+        left.wait().await;
+        1
+    }
+    async fn second(right: Arc<Barrier>) -> usize {
+        right.wait().await;
+        2
+    }
+}

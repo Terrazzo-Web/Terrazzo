@@ -293,6 +293,7 @@ name = "autoclone-tests"
 version = "0.2.20"
 dependencies = [
  "autoclone",
+ "tokio",
 ]
 
 [[package]]

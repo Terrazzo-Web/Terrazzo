@@ -143,9 +143,19 @@ impl Function {
 
         self.process_params(&mut state);
         self.return_call_implementation(&mut state);
+        state.join_independent_futures();
+        if !state.errors.is_empty() {
+            state.statements = state
+                .errors
+                .iter()
+                .map(|error| syn::parse2(quote! { compile_error!(#error); }).unwrap())
+                .collect();
+        }
 
         let output = self.implementation.sig.output.clone();
-        let output = if let Some(error_type) = state.force_result.clone() {
+        let output = if let Some(error_type) = state.force_result.clone()
+            && !state.declared_result
+        {
             let output = Rc::new((&output).into());
             let output = ReturnType::Result(output, error_type);
             syn::ReturnType::Type(syn::token::RArrow::default(), Box::new((&output).into()))
@@ -278,9 +288,15 @@ impl Function {
 
     fn return_call_implementation(self: &Rc<Self>, state: &mut GenerationState) {
         let call_implementation = self.call_implementation(state);
-        let call_implementation = match (self.return_type.as_ref(), state.force_result.is_some()) {
-            (_, false) | (ReturnType::Result { .. }, _) => call_implementation,
-            (_, true) => quote! { Ok(#call_implementation) },
+        let call_implementation = if self.implementation.sig.asyncness.is_some() {
+            quote! { #call_implementation.await }
+        } else {
+            call_implementation
+        };
+        let call_implementation = if state.force_result.is_some() && !state.declared_result {
+            quote! { Ok(#call_implementation) }
+        } else {
+            call_implementation
         };
         state
             .statements
@@ -290,6 +306,10 @@ impl Function {
     fn create_generation_state(&self) -> GenerationState {
         GenerationState {
             asyncness: self.implementation.sig.asyncness,
+            declared_result: matches!(
+                ReturnType::from(&self.implementation.sig.output),
+                ReturnType::Result(..)
+            ),
             ..Default::default()
         }
     }
@@ -357,6 +377,8 @@ struct GenerationState {
     statements: Vec<syn::Stmt>,
 
     force_result: Option<Rc<ReturnType>>,
+    declared_result: bool,
+    errors: Vec<String>,
 }
 
 impl GenerationState {
@@ -375,9 +397,99 @@ impl GenerationState {
     }
 
     fn apply(&mut self, coercion: &Coercion) {
-        self.force_result = coercion.force_result.clone();
+        if !self.declared_result
+            && let Some(error) = &coercion.force_result
+        {
+            match &self.force_result {
+                Some(previous) if previous != error => {
+                    let message = format!(
+                        "Cannot infer graph error type: conflicting error types `{previous}` and `{error}`; declare an explicit Result return type"
+                    );
+                    if !self.errors.contains(&message) {
+                        self.errors.push(message);
+                    }
+                }
+                None => self.force_result = Some(error.clone()),
+                _ => {}
+            }
+        }
         if coercion.force_async {
             self.asyncness = syn::token::Async::default().into();
         }
+    }
+
+    fn join_independent_futures(&mut self) {
+        let mut statements = Vec::new();
+        let mut pending: Vec<(syn::Local, syn::Ident, syn::Expr)> = Vec::new();
+        let mut names = HashSet::new();
+        let mut inputs = HashSet::new();
+        for statement in std::mem::take(&mut self.statements) {
+            let candidate = match &statement {
+                syn::Stmt::Local(local) => match (&local.pat, &local.init) {
+                    (syn::Pat::Ident(pat), Some(init)) if init.diverge.is_none() => {
+                        match init.expr.as_ref() {
+                            syn::Expr::Await(expr) => {
+                                Some((local.clone(), pat.ident.clone(), *expr.base.clone()))
+                            }
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                },
+                _ => None,
+            };
+            if let Some((local, name, expr)) = candidate {
+                let mut used = HashSet::new();
+                collect_identifiers(expr.to_token_stream(), &mut used);
+                // Keep dependent calls in order. Shared inputs are also kept sequential,
+                // since one future may borrow a value that the other consumes.
+                if !used.is_disjoint(&names) || !used.is_disjoint(&inputs) {
+                    flush_futures(&mut pending, &mut statements);
+                    names.clear();
+                    inputs.clear();
+                }
+                names.insert(name.clone());
+                inputs.extend(used);
+                pending.push((local, name, expr));
+            } else {
+                flush_futures(&mut pending, &mut statements);
+                names.clear();
+                inputs.clear();
+                statements.push(statement);
+            }
+        }
+        flush_futures(&mut pending, &mut statements);
+        self.statements = statements;
+    }
+}
+
+fn collect_identifiers(tokens: proc_macro2::TokenStream, names: &mut HashSet<syn::Ident>) {
+    for token in tokens {
+        match token {
+            proc_macro2::TokenTree::Ident(ident) => {
+                names.insert(ident);
+            }
+            proc_macro2::TokenTree::Group(group) => collect_identifiers(group.stream(), names),
+            _ => {}
+        }
+    }
+}
+
+fn flush_futures(
+    pending: &mut Vec<(syn::Local, syn::Ident, syn::Expr)>,
+    statements: &mut Vec<syn::Stmt>,
+) {
+    if pending.len() > 1 {
+        let names = pending.iter().map(|(_, name, _)| name);
+        let expressions = pending.iter().map(|(_, _, expr)| expr);
+        statements.push(
+            syn::parse2(quote! {
+                let (#(#names),*) = tokio::join!(#(#expressions),*);
+            })
+            .unwrap(),
+        );
+        pending.clear();
+    } else if let Some((local, _, _)) = pending.pop() {
+        statements.push(syn::Stmt::Local(local));
     }
 }

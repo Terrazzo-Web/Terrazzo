@@ -42,7 +42,6 @@ mod make_app {
     run_test(quote! {}, sample, expected);
 }
 
-// TODO: The generated run should return an Ok() of Result<App, Error> since evaluating the components may throw
 #[test]
 fn coerce_result() {
     let sample = quote! {
@@ -67,23 +66,22 @@ mod make_app {
         Ok(Comp1::new())
     }
     #[doc(hidden)]
-    fn comp2_impl(comp1: Comp1) -> Result<Comp1, Error> {
+    fn comp2_impl(comp1: Comp1) -> Result<Comp2, Error> {
         Ok(Comp2::new())
     }
     #[doc(hidden)]
     fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
         App { name, comp1, comp2 }
     }
-    pub async fn run(name: String) -> App { // TODO: this should be returning Result<App, Error>, there is no ambiguity on the returned error type
+    pub async fn run(name: String) -> Result<App, Error> {
         let comp1 = (comp1_impl().await)?;
         let comp2 = comp2_impl(comp1.clone())?;
-        return run_impl(name, comp1, comp2);
+        return Ok(run_impl(name, comp1, comp2));
     }
 }"#;
     run_test(quote! {}, sample, expected);
 }
 
-// TODO: The generation should produce compilation errors because the error types are inconsistent
 #[test]
 fn coerce_result_failure() {
     let sample = quote! {
@@ -115,16 +113,15 @@ mod make_app {
     fn run_impl(name: String, comp1: Comp1, comp2: Comp2) -> App {
         App { name, comp1, comp2 }
     }
-    pub async fn run(name: String) -> App { // TODO: there should be a compilation error added to this generated run function since it's undefined which error type should be returned.
-        let comp1 = (comp1_impl().await)?;
-        let comp2 = comp2_impl(comp1.clone())?;
-        return run_impl(name, comp1, comp2);
+    pub async fn run(name: String) -> Result<App, Error1> {
+        compile_error!(
+            "Cannot infer graph error type: conflicting error types `Error1` and `Error2`; declare an explicit Result return type"
+        );
     }
 }"#;
     run_test(quote! {}, sample, expected);
 }
 
-// TODO: The generation should assume Error1 and Error2 are From/Into convertible into Error and the ? operator will just work. There is no ambiguity that the error type should be Error and not Error1 or Error2 since this is what is declared on the original run function. The current assertion is thus correct, this is how the generated code should look like.
 #[test]
 fn coerce_result2() {
     let sample = quote! {
@@ -325,7 +322,6 @@ mod make_app {
     run_test(quote! {}, sample, expected);
 }
 
-// TODO: comp2 and comp3 can be awaited in parallel using tokio::join!
 #[test]
 fn parallel_eval() {
     let sample = quote! {
@@ -348,8 +344,7 @@ mod make_app {
     fn run_impl(name: String, comp1: Comp1, comp2: Comp2, comp3: Comp3) -> App {}
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(comp1.clone()).await;
-        let comp3 = comp3_impl().await;
+        let (comp2, comp3) = tokio::join!(comp2_impl(comp1.clone()), comp3_impl());
         return run_impl(name, comp1, comp2, comp3);
     }
 }"#;
@@ -377,11 +372,11 @@ mod make_app {
     async fn comp3_impl() -> Result<Comp3, String> {}
     #[doc(hidden)]
     fn run_impl(name: String, comp1: Comp1, comp2: &Comp2, comp3: Comp3) -> App {}
-    pub async fn run(name: String) -> App {
+    pub async fn run(name: String) -> Result<App, String> {
         let comp1 = comp1_impl().await;
         let comp2 = comp2_impl(comp1.clone()).await;
         let comp3 = (comp3_impl().await)?;
-        return run_impl(name, comp1, &comp2, comp3);
+        return Ok(run_impl(name, comp1, &comp2, comp3));
     }
 }"#;
     run_test(quote! {}, sample, expected);

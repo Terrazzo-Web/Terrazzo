@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use quote::ToTokens as _;
@@ -135,6 +136,7 @@ impl Function {
 
     fn create_public_fn(self: &Rc<Self>) -> syn::ItemFn {
         let mut state = self.create_generation_state();
+        self.count_uses(&mut state.remaining_uses, &mut HashSet::new());
 
         // TODO: Support for generics needs more work.
         let generics = self.implementation.sig.generics.clone();
@@ -179,6 +181,18 @@ impl Function {
     fn process_params(&self, state: &mut GenerationState) {
         for param in &self.params.borrow().clone() {
             self.process_param(state, param)
+        }
+    }
+
+    fn count_uses(&self, uses: &mut HashMap<syn::Ident, usize>, visited: &mut HashSet<syn::Ident>) {
+        if !visited.insert(self.public_name.clone()) {
+            return;
+        }
+        for param in self.params.borrow().iter() {
+            *uses.entry(param.name().clone()).or_default() += 1;
+            if let Parameter::Callee(callee) = param.as_ref() {
+                callee.function.count_uses(uses, visited);
+            }
         }
     }
 
@@ -245,7 +259,14 @@ impl Function {
             .iter()
             .map(|param| match state.nodes.get(param.name()) {
                 Some(ty) => {
-                    let coercion = ty.coerce(param.ty(), param.name().to_token_stream());
+                    let remaining = state.remaining_uses.get_mut(param.name()).unwrap();
+                    *remaining -= 1;
+                    let expr = param.name().to_token_stream();
+                    let coercion = if *remaining > 0 {
+                        ty.coerce_reused(param.ty(), expr)
+                    } else {
+                        ty.coerce(param.ty(), expr)
+                    };
                     state.apply(&coercion);
                     coercion.expr
                 }
@@ -328,6 +349,9 @@ struct GenerationState {
 
     /// The map from node -> type that are assigned in earlier statements
     nodes: HashMap<syn::Ident, Rc<ReturnType>>,
+
+    /// Uses left in this entry point's reachable graph, including borrowed uses.
+    remaining_uses: HashMap<syn::Ident, usize>,
 
     /// The body of the public graph implementation
     statements: Vec<syn::Stmt>,

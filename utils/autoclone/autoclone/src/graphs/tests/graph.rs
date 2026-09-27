@@ -75,7 +75,7 @@ mod make_app {
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(Ok(comp1));
+        let comp2 = comp2_impl(Ok(comp1.clone()));
         return run_impl(name, comp1, comp2);
     }
 }"#;
@@ -115,7 +115,7 @@ mod make_app {
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(Ok(comp1));
+        let comp2 = comp2_impl(Ok(comp1.clone()));
         return run_impl(name, comp2, comp1);
     }
 }"#;
@@ -195,7 +195,7 @@ mod make_app {
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(comp1);
+        let comp2 = comp2_impl(comp1.clone());
         return run_impl(name, &comp1, &comp2);
     }
 }"#;

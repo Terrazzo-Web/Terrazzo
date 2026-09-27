@@ -218,6 +218,32 @@ pub struct Coercion {
 }
 
 impl ReturnType {
+    pub fn coerce_reused(
+        self: &Rc<Self>,
+        into: &Rc<Self>,
+        expr: proc_macro2::TokenStream,
+    ) -> Coercion {
+        let (_, remaining, wrappers) = self.coerce_base(into, &mut expr.clone());
+        let borrows = remaining == *self
+            && matches!(
+                wrappers.into_iter().next(),
+                Some(TypeTransformations::Ref(RefKind::Ref))
+            );
+        let is_reference = matches!(
+            self.as_ref(),
+            Self::Ref {
+                kind: RefKind::Ref,
+                ..
+            }
+        );
+        let expr = if borrows || is_reference || matches!(self.as_ref(), Self::Unit) {
+            expr
+        } else {
+            quote! { #expr.clone() }
+        };
+        self.coerce(into, expr)
+    }
+
     fn coerce_base(
         self: &Rc<Self>,
         into: &Rc<Self>,

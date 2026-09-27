@@ -117,6 +117,9 @@ mod make_app {
         compile_error!(
             "Cannot infer graph error type: conflicting error types `Error1` and `Error2`; declare an explicit Result return type"
         );
+        let comp1 = (comp1_impl().await)?;
+        let comp2 = comp2_impl(comp1.clone())?;
+        return Ok(run_impl(name, comp1, comp2));
     }
 }"#;
     run_test(quote! {}, sample, expected);

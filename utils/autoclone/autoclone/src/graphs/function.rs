@@ -149,6 +149,7 @@ impl Function {
                 .errors
                 .iter()
                 .map(|error| syn::parse2(quote! { compile_error!(#error); }).unwrap())
+                .chain(state.statements)
                 .collect();
         }
 

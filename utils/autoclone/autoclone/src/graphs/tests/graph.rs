@@ -202,6 +202,36 @@ mod make_app {
     run_test(quote! {}, sample, expected);
 }
 
+#[test]
+fn parallel_eval() {
+    let sample = quote! {
+        mod make_app {
+            pub fn run(name: String, comp1: Comp1, comp2: Comp2, comp3: Comp3) -> App {}
+            async fn comp1() -> Comp1 {}
+            async fn comp2(comp1: Comp1) -> Comp2 {}
+            async fn comp3() -> Comp3 {}
+        }
+    };
+    let expected = r#"
+mod make_app {
+    #[doc(hidden)]
+    async fn comp1_impl() -> Comp1 {}
+    #[doc(hidden)]
+    async fn comp2_impl(comp1: Comp1) -> Comp2 {}
+    #[doc(hidden)]
+    async fn comp3_impl() -> Comp3 {}
+    #[doc(hidden)]
+    fn run_impl(name: String, comp1: Comp1, comp2: Comp2, comp3: Comp3) -> App {}
+    pub async fn run(name: String) -> App {
+        let comp1 = comp1_impl().await;
+        let comp2 = comp2_impl(comp1.clone()).await;
+        let comp3 = comp3_impl().await;
+        return run_impl(name, comp1, comp2, comp3);
+    }
+}"#;
+    run_test(quote! {}, sample, expected);
+}
+
 #[track_caller]
 fn run_test(args: proc_macro2::TokenStream, sample: proc_macro2::TokenStream, expected: &str) {
     let actual = super::super::graph2(args, sample).unwrap();

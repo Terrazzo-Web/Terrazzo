@@ -47,6 +47,7 @@ declare_icon!(download, "/icons/download.svg"; feature = "text-editor");
 declare_icon!(drag_handle_corner, "/icons/drag-handle-corner.svg");
 declare_icon!(file, "/icons/file-earmark-text.svg"; feature = "text-editor");
 declare_icon!(folder, "/icons/folder2-open.svg"; feature = "text-editor");
+declare_icon!(git, "/icons/git.svg"; feature = "text-editor");
 declare_icon!(hub, "/icons/hub.svg"; feature = "port-forward");
 declare_icon!(key_icon, "/icons/key.svg");
 declare_icon!(loading, "/icons/loading2.svg"; feature = "text-editor");

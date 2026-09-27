@@ -19,6 +19,7 @@ ASSETS = [
     "assets/icons/file-earmark-text.svg",
     "assets/icons/folder-plus.svg",
     "assets/icons/folder2-open.svg",
+    "assets/icons/git.svg",
     "assets/icons/hub.svg",
     "assets/icons/key.svg",
     "assets/icons/layout-split.svg",

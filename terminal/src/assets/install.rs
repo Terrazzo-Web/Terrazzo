@@ -56,6 +56,7 @@ fn install_icons() {
         install_icon(super::icons::download());
         install_icon(super::icons::file());
         install_icon(super::icons::folder());
+        install_icon(super::icons::git());
         install_icon(super::icons::loading());
         install_icon(super::icons::new_file());
         install_icon(super::icons::new_folder());

@@ -1,8 +1,10 @@
 use crate::autoclone::autoclone2;
 use crate::envelope::envelope2;
+use crate::graphs::graph2;
 
 mod autoclone;
 mod envelope;
+mod graphs;
 
 /// A simple macro to cloning variable before passing them into a `move` closure or async block.
 ///
@@ -24,6 +26,17 @@ pub fn envelope(
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     envelope2(attr.into(), item.into()).into()
+}
+
+/// A macro to write algorithms as graphs.
+#[proc_macro_attribute]
+pub fn graph(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    graph2(attr.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 fn item_to_string(item: &syn::Item) -> String {

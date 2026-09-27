@@ -11,11 +11,9 @@ use futures::future::Shared;
 use http::header::InvalidHeaderValue;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
-use reqwest::Url;
 use scopeguard::defer;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::RecvError;
 use tokio::time::error::Elapsed;
@@ -24,25 +22,18 @@ use tonic::transport::Server;
 use tracing::Span;
 use tracing::debug;
 use tracing::info;
-use tracing::info_span;
 use tracing::warn;
 use tracing_futures::Instrument as _;
-use trz_gateway_common::id::CLIENT_ID_HEADER;
 use trz_gateway_common::id::ClientId;
 use trz_gateway_common::protos::terrazzo::remote::health::health_service_server::HealthServiceServer;
 use trz_gateway_common::to_async_io::WebSocketIo;
 
-use self::tungstenite::client::IntoClientRequest as _;
-use super::ClientApiServer;
-use super::config::ClientTransport;
-use super::config::SniOverrideError;
-use super::config::set_gateway_sni_override;
-use super::connection::Connection;
-use super::connection::ForceCloseHandle;
-use super::connection::ForceCloseIo;
-use super::health::HealthServiceImpl;
-use super::transport_stream::TransportStream;
+use crate::client::ClientApiServer;
 use crate::client::GatewayClient;
+use crate::client::config::SniOverrideError;
+use crate::client::connection::Connection;
+use crate::client::connection::ForceCloseHandle;
+use crate::client::health::HealthServiceImpl;
 
 impl super::Client {
     /// API to create tunnels to the Terrazzo Gateway.
@@ -78,35 +69,111 @@ impl GatewayClient {
         client_id: ClientId,
         timeout: Duration,
     ) -> Result<Tunnel<impl TransportIo + use<>>, ConnectError> {
-        let GatewayClient {
-            gateway_uri,
-            gateway_sni_override,
-            transport,
-            gateway_tls_connector,
-        } = self;
-        info!(gateway_uri, sni = ?gateway_sni_override, ?transport, "Connecting WebSocket");
-        let web_socket_config = None;
-        let disable_nagle = true;
+        info!(
+            gateway_uri = self.gateway_uri,
+            sni = ?self.gateway_sni_override,
+            transport = ?self.transport,
+            "Connecting WebSocket"
+        );
+        create_tunnel::Run {
+            gateway_client: self,
+            client_id,
+            timeout,
+        }
+        .run()
+        .await
+    }
+}
 
-        let request = format!("ws{}", &gateway_uri["http".len()..])
-            .into_client_request()
-            .map_err(Box::from)?;
-        let mut tls_request = websocket_url(gateway_uri, gateway_sni_override.as_deref())?
-            .as_str()
-            .into_client_request()
-            .map_err(Box::from)?;
-        tls_request
-            .headers_mut()
-            .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
-        let socket = connect_transport(transport, &request, disable_nagle, timeout)
-            .instrument(info_span!("Connect Transport"))
-            .await?;
-        let (socket, force_close) = ForceCloseIo::new(socket);
+#[autoclone::graph]
+mod create_tunnel {
+    //! Builds a tunnel from the external inputs `gateway_client`, `client_id`, and `timeout`.
+    //!
+    //! Node dependencies (arrows point from a dependency to its consumer):
+    //!
+    //! ```text
+    //! websocket_url --> tls_request --> web_socket --> run
+    //! request --> connect_tcp --> connect_transport --> socket --> web_socket
+    //! ```
+    //!
+    //! `gateway_client` supplies `websocket_url`, `request`, `connect_transport`, and
+    //! `web_socket`; `client_id` supplies `tls_request`; `timeout` supplies
+    //! `connect_transport` and `web_socket`.
+    //!
+    //! `request` retains the original gateway host and port so Direct TCP connects to
+    //! the configured network address. It is used to select the TCP destination, not
+    //! sent as the WebSocket handshake. `tls_request` uses the SNI override, when set,
+    //! as its host: this selects the TLS server name and the WebSocket handshake's
+    //! Host header. It also includes the client ID header. For example, TCP can connect
+    //! to an IP address while TLS authenticates the gateway's DNS name. Without an SNI
+    //! override, both requests use the same URL, but only `tls_request` carries the ID.
+    //!
+    //! The `connect_tcp` edge carries an unevaluated future. `connect_transport`
+    //! awaits it only for Direct transport; WebRTC uses the configured peer connection.
+
+    use std::sync::Arc;
+    use std::time::Duration;
+    use std::time::Instant;
+
+    use futures::FutureExt as _;
+    use reqwest::Url;
+    use scopeguard::defer;
+    use tokio::net::TcpStream;
+    use tokio::time::error::Elapsed;
+    use tokio_tungstenite::MaybeTlsStream;
+    use tokio_tungstenite::WebSocketStream;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+    use tokio_tungstenite::tungstenite::handshake::client::Request;
+    use tracing::debug;
+    use tracing::info;
+    use tracing::info_span;
+    use tracing_futures::Instrument as _;
+    use trz_gateway_common::id::CLIENT_ID_HEADER;
+    use trz_gateway_common::id::ClientId;
+    use trz_gateway_common::to_async_io::WebSocketIo as _;
+
+    use super::TungsteniteWebSocketIo;
+    use super::Tunnel;
+    use crate::client::GatewayClient;
+    use crate::client::config::ClientTransport;
+    use crate::client::config::SniOverrideError;
+    use crate::client::config::set_gateway_sni_override;
+    use crate::client::connect::ConnectError;
+    use crate::client::connect::HasTimeout as _;
+    use crate::client::connect::TransportIo;
+    use crate::client::connection::ForceCloseHandle;
+    use crate::client::connection::ForceCloseIo;
+    use crate::client::transport_stream::TransportStream;
+
+    type Socket = ForceCloseIo<TransportStream>;
+    type WebSocket = WebSocketStream<MaybeTlsStream<Socket>>;
+
+    /// Converts the connected WebSocket into tunnel I/O and a shared end-of-stream signal.
+    pub fn run(
+        web_socket: (WebSocket, ForceCloseHandle),
+    ) -> Result<Tunnel<impl TransportIo + use<>>, ConnectError> {
+        let (web_socket, force_close) = web_socket;
+        let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
+        Ok(Tunnel {
+            stream,
+            eos: eos.map(|r| r.map_err(Arc::new)).boxed().shared(),
+            force_close,
+        })
+    }
+
+    /// Performs the TLS/WebSocket handshake within the timeout, retaining the force-close handle.
+    async fn web_socket(
+        tls_request: Request,
+        socket: (Socket, ForceCloseHandle),
+        gateway_client: &GatewayClient,
+        timeout: Duration,
+    ) -> Result<(WebSocket, ForceCloseHandle), ConnectError> {
+        let (socket, force_close) = socket;
         let (web_socket, response) = tokio_tungstenite::client_async_tls_with_config(
             tls_request,
             socket,
-            web_socket_config,
-            Some(gateway_tls_connector.clone()),
+            None,
+            Some(gateway_client.gateway_tls_connector.clone()),
         )
         .timeout(timeout)
         .await
@@ -114,13 +181,91 @@ impl GatewayClient {
         .map_err(Box::from)?;
         info!("Connected WebSocket");
         debug!("WebSocket response: {response:?}");
+        Ok((web_socket, force_close))
+    }
 
-        let (stream, eos) = TungsteniteWebSocketIo::to_async_io(web_socket);
-        Ok(Tunnel {
-            stream,
-            eos: eos.map(|r| r.map_err(Arc::new)).boxed().shared(),
-            force_close,
-        })
+    /// Builds the handshake request from the SNI-adjusted URL and adds the client ID header.
+    fn tls_request(websocket_url: Url, client_id: ClientId) -> Result<Request, ConnectError> {
+        let mut request = websocket_url
+            .as_str()
+            .into_client_request()
+            .map_err(Box::from)?;
+        request
+            .headers_mut()
+            .append(&CLIENT_ID_HEADER, client_id.as_ref().try_into()?);
+        Ok(request)
+    }
+
+    /// Wraps the selected transport so dropping the returned handle can force it closed.
+    fn socket(connect_transport: TransportStream) -> (Socket, ForceCloseHandle) {
+        ForceCloseIo::new(connect_transport)
+    }
+
+    /// Selects Direct TCP or WebRTC transport and records connection timing in a tracing span.
+    /// Direct TCP uses `timeout`; WebRTC uses its configured connection timeout.
+    async fn connect_transport(
+        gateway_client: &GatewayClient,
+        connect_tcp: impl Future<Output = Result<TcpStream, ConnectError>>,
+        timeout: Duration,
+    ) -> Result<TransportStream, ConnectError> {
+        async {
+            let start = Instant::now();
+            info!("Start");
+            defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
+            match &gateway_client.transport {
+                ClientTransport::Direct => Ok(TransportStream::Direct(
+                    connect_tcp
+                        .timeout(timeout)
+                        .await
+                        .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
+                )),
+                ClientTransport::WebRtc(config) => {
+                    Ok(TransportStream::WebRtc(crate::p2p::connect(config).await?))
+                }
+            }
+        }
+        .instrument(info_span!("Connect Transport"))
+        .await
+    }
+
+    /// Connects to the request's host and port, using the scheme's default port if needed,
+    /// and disables Nagle's algorithm. This future is evaluated only by the Direct branch.
+    async fn connect_tcp(request: Request) -> Result<TcpStream, ConnectError> {
+        let host = request
+            .uri()
+            .host()
+            .ok_or(ConnectError::MissingEndpointHost)?;
+        let port = request
+            .uri()
+            .port_u16()
+            .or_else(|| match request.uri().scheme_str() {
+                Some("wss") => Some(443),
+                Some("ws") => Some(80),
+                _ => None,
+            })
+            .ok_or(ConnectError::MissingEndpointPort)?;
+        let socket = TcpStream::connect((host, port))
+            .await
+            .map_err(ConnectError::TcpConnect)?;
+        socket.set_nodelay(true).map_err(ConnectError::TcpConnect)?;
+        Ok(socket)
+    }
+
+    /// Converts the gateway URI to ws/wss and applies the hostname override for TLS and SNI.
+    fn websocket_url(gateway_client: &GatewayClient) -> Result<Url, SniOverrideError> {
+        let mut url = Url::parse(&format!(
+            "ws{}",
+            &gateway_client.gateway_uri["http".len()..]
+        ))?;
+        set_gateway_sni_override(&mut url, gateway_client.gateway_sni_override.as_deref())?;
+        Ok(url)
+    }
+
+    /// Builds the transport request from the original gateway address, without the SNI override.
+    fn request(gateway_client: &GatewayClient) -> Result<Request, ConnectError> {
+        format!("ws{}", &gateway_client.gateway_uri["http".len()..])
+            .into_client_request()
+            .map_err(|error| ConnectError::Connect(Box::new(error)))
     }
 }
 
@@ -256,63 +401,9 @@ trait HasTimeout: Future + Sized {
 
 impl<T: Future + Sized> HasTimeout for T {}
 
-fn websocket_url(uri: &str, gateway_sni_override: Option<&str>) -> Result<Url, SniOverrideError> {
-    let mut url = Url::parse(&format!("ws{}", &uri["http".len()..]))?;
-    set_gateway_sni_override(&mut url, gateway_sni_override)?;
-    Ok(url)
-}
-
-async fn connect_tcp(
-    request: &tungstenite::handshake::client::Request,
-    disable_nagle: bool,
-) -> Result<TcpStream, ConnectError> {
-    let host = request
-        .uri()
-        .host()
-        .ok_or(ConnectError::MissingEndpointHost)?;
-    let port = request
-        .uri()
-        .port_u16()
-        .or_else(|| match request.uri().scheme_str() {
-            Some("wss") => Some(443),
-            Some("ws") => Some(80),
-            _ => None,
-        })
-        .ok_or(ConnectError::MissingEndpointPort)?;
-    let socket = TcpStream::connect((host, port))
-        .await
-        .map_err(ConnectError::TcpConnect)?;
-    if disable_nagle {
-        socket.set_nodelay(true).map_err(ConnectError::TcpConnect)?;
-    }
-    Ok(socket)
-}
-
 trait TransportIo: AsyncRead + AsyncWrite + Unpin + Send {}
 
 impl<T> TransportIo for T where T: AsyncRead + AsyncWrite + Unpin + Send {}
-
-async fn connect_transport(
-    transport: &ClientTransport,
-    request: &tungstenite::handshake::client::Request,
-    disable_nagle: bool,
-    timeout: Duration,
-) -> Result<TransportStream, ConnectError> {
-    let start = Instant::now();
-    info!("Start");
-    defer!(info!(elapsed = %humantime::format_duration(start.elapsed()), "End"));
-    match transport {
-        ClientTransport::Direct => Ok(TransportStream::Direct(
-            connect_tcp(request, disable_nagle)
-                .timeout(timeout)
-                .await
-                .map_err(|_: Elapsed| ConnectError::Timeout("TCP connect"))??,
-        )),
-        ClientTransport::WebRtc(config) => {
-            Ok(TransportStream::WebRtc(crate::p2p::connect(config).await?))
-        }
-    }
-}
 
 /// Errors returned by [Client::run](super::Client::run).
 #[nameth]

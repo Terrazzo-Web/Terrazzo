@@ -363,7 +363,14 @@ fn named_graph_inputs() {
     );
     assert_eq!(impl_trait_input::Run { value: &42 }.run(), "42:42");
     let text = "borrowed".to_owned();
-    assert_eq!(named_entries::Borrow { text: &text }.run(), "borrowed");
+    assert_eq!(
+        named_entries::Borrow {
+            text: &text,
+            fallback: "fallback"
+        }
+        .run(),
+        "borrowed"
+    );
     assert_eq!(
         named_entries::BorrowElided { text: &text }.run(),
         "borrowed"
@@ -380,8 +387,8 @@ mod named_entries {
     pub fn make_label(name: String) -> String {
         name
     }
-    pub fn borrow<'a>(text: &'a str) -> &'a str {
-        text
+    pub fn borrow<'a>(text: &'a str, fallback: &'a str) -> &'a str {
+        if text.is_empty() { fallback } else { text }
     }
     pub fn borrow_elided(text: &str) -> &str {
         text

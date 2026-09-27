@@ -229,17 +229,15 @@ impl ReturnType {
     ) {
         let mut coercion = Coercion::default();
         // a: Future<Result<Box<T>>> vs b: Rc<T>
-        let (_a, ta) = self.transformations();
+        let (a, ta) = self.transformations();
         let (_b, tb) = into.transformations();
         // ta: [ Result<T> ; Future ] vs b: [ Rc ]
         let mut ta = ta.into_iter().rev().peekable();
         let mut tb = tb.into_iter().rev().peekable();
-        let a = ta
-            .peek()
-            .map(|(a, _)| a.clone())
-            .unwrap_or_else(|| self.clone());
+        let mut a = a.clone();
         while ta.peek().is_some() && ta.peek() == tb.peek() {
-            ta.next();
+            // Shared wrappers remain on the value after the other wrappers are removed.
+            a = ta.next().unwrap().0;
             tb.next();
         }
         for (i, (_, taa)) in ta.rev().enumerate() {

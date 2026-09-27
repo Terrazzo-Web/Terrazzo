@@ -75,8 +75,8 @@ mod make_app {
     }
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(Ok(comp1.await));
-        return run_impl(name, comp1.await, comp2);
+        let comp2 = comp2_impl(Ok(comp1));
+        return run_impl(name, comp1, comp2);
     }
 }"#;
     run_test(quote! {}, sample, expected);
@@ -156,7 +156,7 @@ mod make_app {
     pub async fn run(name: String) -> App {
         let comp1 = comp1_impl();
         let comp2 = comp2_impl().await;
-        return run_impl(name, comp1, comp2.await);
+        return run_impl(name, comp1, comp2);
     }
 }"#;
     run_test(quote! {}, sample, expected);

@@ -19,6 +19,34 @@ fn actual() {
 }
 
 #[test]
+fn coerce2_tracks_remaining_type() {
+    for (from, into, expected_type, expected_expr) in [
+        (
+            quote! { Future<Output = String> },
+            quote! { Result<String, Error> },
+            quote! { String },
+            quote! { a.await },
+        ),
+        (
+            quote! { Future<Output = Result<String, Error>> },
+            quote! { Result<String, Error> },
+            quote! { Result<String, Error> },
+            quote! { a.await },
+        ),
+        (
+            quote! { Future<Output = Result<String, Error>> },
+            quote! { Future<Output = Result<String, Error>> },
+            quote! { Future<Output = Result<String, Error>> },
+            quote! { a },
+        ),
+    ] {
+        let (coercion, actual_type) = make_type(from).coerce2(&make_type(into), quote! { a });
+        assert_eq!(actual_type, make_type(expected_type));
+        assert_eq!(coercion.expr.to_string(), expected_expr.to_string());
+    }
+}
+
+#[test]
 fn coerce_future_result_to_rc() {
     let from = make_type(quote! { Future<Output = Result<String, i32>> });
     let into = make_type(quote! { Box<String> });

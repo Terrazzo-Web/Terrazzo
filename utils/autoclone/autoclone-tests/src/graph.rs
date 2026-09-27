@@ -210,3 +210,109 @@ mod parallel_components {
         2
     }
 }
+
+#[test]
+fn fallible_components_are_polled_concurrently() {
+    for fail in [false, true] {
+        let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+        let result = poll_joined(fallible_parallel::run(barrier.clone(), barrier, fail));
+        assert_eq!(
+            result,
+            if fail {
+                Err("failed".to_owned())
+            } else {
+                Ok(3)
+            }
+        );
+    }
+}
+
+fn poll_joined<T>(future: impl std::future::Future<Output = T>) -> T {
+    let mut future = std::pin::pin!(future);
+    let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+    for _ in 0..4 {
+        if let std::task::Poll::Ready(value) = future.as_mut().poll(&mut context) {
+            return value;
+        }
+    }
+    panic!("independent components did not make concurrent progress");
+}
+
+#[graph]
+mod fallible_parallel {
+    use std::sync::Arc;
+    use tokio::sync::Barrier;
+
+    pub fn run(first: &usize, second: usize) -> usize {
+        first + second
+    }
+    async fn first(left: Arc<Barrier>) -> usize {
+        left.wait().await;
+        1
+    }
+    async fn second(right: Arc<Barrier>, fail: bool) -> Result<usize, String> {
+        right.wait().await;
+        if fail {
+            Err("failed".to_owned())
+        } else {
+            Ok(2)
+        }
+    }
+}
+
+#[test]
+fn joined_results_convert_errors_in_component_order() {
+    for (fail_first, fail_second, expected) in [
+        (false, false, Ok(3)),
+        (true, false, Err(joined_results::Error::First)),
+        (false, true, Err(joined_results::Error::Second)),
+        (true, true, Err(joined_results::Error::First)),
+    ] {
+        let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
+        assert_eq!(
+            poll_joined(joined_results::run(
+                barrier.clone(),
+                fail_first,
+                barrier,
+                fail_second
+            )),
+            expected,
+        );
+    }
+}
+
+#[graph]
+mod joined_results {
+    use std::sync::Arc;
+    use tokio::sync::Barrier;
+
+    #[derive(Debug, PartialEq)]
+    pub enum Error {
+        First,
+        Second,
+    }
+    struct First;
+    struct Second;
+    impl From<First> for Error {
+        fn from(_: First) -> Self {
+            Self::First
+        }
+    }
+    impl From<Second> for Error {
+        fn from(_: Second) -> Self {
+            Self::Second
+        }
+    }
+
+    pub fn run(first: usize, second: usize) -> Result<usize, Error> {
+        Ok(first + second)
+    }
+    async fn first(left: Arc<Barrier>, fail_first: bool) -> Result<usize, First> {
+        left.wait().await;
+        if fail_first { Err(First) } else { Ok(1) }
+    }
+    async fn second(right: Arc<Barrier>, fail_second: bool) -> Result<usize, Second> {
+        right.wait().await;
+        if fail_second { Err(Second) } else { Ok(2) }
+    }
+}

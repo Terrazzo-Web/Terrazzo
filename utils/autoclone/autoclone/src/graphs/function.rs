@@ -421,17 +421,28 @@ impl GenerationState {
 
     fn join_independent_futures(&mut self) {
         let mut statements = Vec::new();
-        let mut pending: Vec<(syn::Local, syn::Ident, syn::Expr)> = Vec::new();
+        let mut pending: Vec<(syn::Local, syn::Ident, syn::Expr, bool)> = Vec::new();
         let mut names = HashSet::new();
         let mut inputs = HashSet::new();
         for statement in std::mem::take(&mut self.statements) {
             let candidate = match &statement {
                 syn::Stmt::Local(local) => match (&local.pat, &local.init) {
                     (syn::Pat::Ident(pat), Some(init)) if init.diverge.is_none() => {
-                        match init.expr.as_ref() {
-                            syn::Expr::Await(expr) => {
-                                Some((local.clone(), pat.ident.clone(), *expr.base.clone()))
-                            }
+                        let (expr, fallible) = match init.expr.as_ref() {
+                            syn::Expr::Try(expr) => (expr.expr.as_ref(), true),
+                            expr => (expr, false),
+                        };
+                        let expr = match expr {
+                            syn::Expr::Paren(expr) => expr.expr.as_ref(),
+                            expr => expr,
+                        };
+                        match expr {
+                            syn::Expr::Await(expr) => Some((
+                                local.clone(),
+                                pat.ident.clone(),
+                                *expr.base.clone(),
+                                fallible,
+                            )),
                             _ => None,
                         }
                     }
@@ -439,7 +450,7 @@ impl GenerationState {
                 },
                 _ => None,
             };
-            if let Some((local, name, expr)) = candidate {
+            if let Some((local, name, expr, fallible)) = candidate {
                 let mut used = HashSet::new();
                 collect_identifiers(expr.to_token_stream(), &mut used);
                 // Keep dependent calls in order. Shared inputs are also kept sequential,
@@ -451,7 +462,7 @@ impl GenerationState {
                 }
                 names.insert(name.clone());
                 inputs.extend(used);
-                pending.push((local, name, expr));
+                pending.push((local, name, expr, fallible));
             } else {
                 flush_futures(&mut pending, &mut statements);
                 names.clear();
@@ -477,20 +488,26 @@ fn collect_identifiers(tokens: proc_macro2::TokenStream, names: &mut HashSet<syn
 }
 
 fn flush_futures(
-    pending: &mut Vec<(syn::Local, syn::Ident, syn::Expr)>,
+    pending: &mut Vec<(syn::Local, syn::Ident, syn::Expr, bool)>,
     statements: &mut Vec<syn::Stmt>,
 ) {
     if pending.len() > 1 {
-        let names = pending.iter().map(|(_, name, _)| name);
-        let expressions = pending.iter().map(|(_, _, expr)| expr);
+        let names = pending.iter().map(|(_, name, _, _)| name);
+        let expressions = pending.iter().map(|(_, _, expr, _)| expr);
         statements.push(
             syn::parse2(quote! {
                 let (#(#names),*) = tokio::join!(#(#expressions),*);
             })
             .unwrap(),
         );
-        pending.clear();
-    } else if let Some((local, _, _)) = pending.pop() {
+        // Await the whole group before propagating errors in component order.
+        // Keeping `?` in the entry point also preserves From conversions into its error type.
+        for (_, name, _, fallible) in pending.drain(..) {
+            if fallible {
+                statements.push(syn::parse2(quote! { let #name = #name?; }).unwrap());
+            }
+        }
+    } else if let Some((local, _, _, _)) = pending.pop() {
         statements.push(syn::Stmt::Local(local));
     }
 }

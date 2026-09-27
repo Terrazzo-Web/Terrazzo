@@ -354,7 +354,6 @@ mod make_app {
     run_test(quote! {}, sample, expected);
 }
 
-// TODO: comp2 and comp3 could also be awaited in parallel using tokio::join!, but this is more complicated. I will instruct you to address this TODO later
 #[test]
 fn parallel_eval2() {
     let sample = quote! {
@@ -377,8 +376,8 @@ mod make_app {
     fn run_impl(name: String, comp1: Comp1, comp2: &Comp2, comp3: Comp3) -> App {}
     pub async fn run(name: String) -> Result<App, String> {
         let comp1 = comp1_impl().await;
-        let comp2 = comp2_impl(comp1.clone()).await;
-        let comp3 = (comp3_impl().await)?;
+        let (comp2, comp3) = tokio::join!(comp2_impl(comp1.clone()), comp3_impl());
+        let comp3 = comp3?;
         return Ok(run_impl(name, comp1, &comp2, comp3));
     }
 }"#;

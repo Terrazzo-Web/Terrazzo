@@ -39,6 +39,15 @@ mod make_app {
         let comp2 = comp2_impl();
         return run_impl(name, comp1, comp2);
     }
+    pub struct Run {
+      name: String
+    }
+    impl Run {
+        pub fn run(self) -> App {
+            let Self { name } = self;
+            run(name)
+        }
+    }
 }"#;
     run_test(quote! {}, sample, expected);
 }

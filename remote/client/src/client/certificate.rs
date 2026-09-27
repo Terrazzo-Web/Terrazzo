@@ -24,23 +24,55 @@ pub(crate) async fn get_certifiate(
     auth_code: AuthCode,
     key: &PKeyRef<impl HasPublic>,
 ) -> Result<String, GetCertificateError> {
-    let public_key = key.public_key_to_pem().pem_string()?;
-    let mut url = client_config.url("/remote/certificate")?;
-    set_gateway_sni_override(&mut url, client_config.gateway_sni_override())?;
-    let body = serde_json::to_string(&GetCertificateRequest {
-        auth_code,
-        public_key,
-        name: client_config.client_name(),
-    })?;
-    let response = http_client
-        .get(url, APPLICATION_JSON.as_ref(), body)
-        .await?;
-    let status = response.status;
-    let body = response.body;
-    if !status.is_success() {
-        return Err(GetCertificateError::HttpStatus { status, body });
+    certificate_request::run(client_config, key, auth_code, http_client).await
+}
+
+#[autoclone::graph]
+mod certificate_request {
+    use super::*;
+    use reqwest::Url;
+
+    fn public_key(key: &PKeyRef<impl HasPublic>) -> Result<String, PemAsStringError> {
+        key.public_key_to_pem().pem_string()
     }
-    Ok(body)
+
+    fn url(client_config: &impl ClientConfig) -> Result<Url, SniOverrideError> {
+        let mut url = client_config.url("/remote/certificate")?;
+        set_gateway_sni_override(&mut url, client_config.gateway_sni_override())?;
+        Ok(url)
+    }
+
+    fn request_body(
+        public_key: String,
+        auth_code: AuthCode,
+        client_config: &impl ClientConfig,
+    ) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&GetCertificateRequest {
+            auth_code,
+            public_key,
+            name: client_config.client_name(),
+        })
+    }
+
+    async fn response_body(
+        url: Url,
+        request_body: String,
+        http_client: HttpClient,
+    ) -> Result<String, GetCertificateError> {
+        let response = http_client
+            .get(url, APPLICATION_JSON.as_ref(), request_body)
+            .await?;
+        let status = response.status;
+        let body = response.body;
+        if !status.is_success() {
+            return Err(GetCertificateError::HttpStatus { status, body });
+        }
+        Ok(body)
+    }
+
+    pub fn run(response_body: String) -> Result<String, GetCertificateError> {
+        Ok(response_body)
+    }
 }
 
 /// Errors returned by [get_certifiate].

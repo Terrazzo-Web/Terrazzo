@@ -56,12 +56,17 @@ impl From<&syn::Type> for ReturnType {
                 if let syn::TypeParamBound::Trait(syn::TraitBound { path, .. }) =
                     bounds.get(0).unwrap()
                 {
-                    return (&syn::Type::Path(syn::TypePath {
+                    let parsed = Self::from(&syn::Type::Path(syn::TypePath {
                         attrs: Default::default(),
                         qself: Default::default(),
                         path: path.clone(),
-                    }))
-                        .into();
+                    }));
+                    // Only Future needs structural parsing so we can insert `.await`.
+                    // Preserve other `impl Trait` types verbatim: replacing them with
+                    // the trait path would drop `impl` and any additional bounds.
+                    if matches!(parsed, Self::Future(_)) {
+                        return parsed;
+                    }
                 }
             }
             syn::Type::Tuple(syn::TypeTuple { elems, .. }) if elems.is_empty() => {

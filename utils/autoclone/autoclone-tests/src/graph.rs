@@ -316,3 +316,23 @@ mod joined_results {
         if fail_second { Err(Second) } else { Ok(2) }
     }
 }
+
+#[test]
+fn graph_preserves_impl_trait_inputs() {
+    assert_eq!(impl_trait_input::run(&42), "42:42");
+}
+
+#[graph]
+mod impl_trait_input {
+    pub fn run(first: String, second: String) -> String {
+        format!("{first}:{second}")
+    }
+
+    fn first(value: &impl ToString) -> String {
+        value.to_string()
+    }
+
+    fn second(value: &impl ToString) -> String {
+        value.to_string()
+    }
+}

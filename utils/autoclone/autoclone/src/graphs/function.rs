@@ -231,12 +231,6 @@ impl Function {
 
                 let statement = quote! { let #callee_name = #call_implementation; };
 
-                #[cfg(all(debug_assertions, not(test)))]
-                let statement = {
-                    let doc = format!("return_type: {return_type} -> #callee.ty: {}", callee.ty);
-                    quote! { #[doc(#doc)] #statement }
-                };
-
                 let statement = match syn::parse2(statement) {
                     Ok(statement) => statement,
                     Err(error) => {

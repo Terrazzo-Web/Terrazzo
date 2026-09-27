@@ -1,4 +1,5 @@
 use quote::quote;
+use syn::visit_mut::VisitMut;
 
 use crate::item_to_string;
 
@@ -388,10 +389,29 @@ mod make_app {
 fn run_test(args: proc_macro2::TokenStream, sample: proc_macro2::TokenStream, expected: &str) {
     let actual = super::super::graph2(args, sample).unwrap();
     let actual = syn::parse2(actual.clone())
-        .map(|item| item_to_string(&item))
+        .map(|mut item| {
+            RemoveCfgAttr.visit_item_mut(&mut item);
+            item_to_string(&item)
+        })
         .unwrap_or_else(|error| format!("Error {error}\nParsing {actual}"));
     if expected.trim() != actual.trim() {
         println!("{}", actual);
         panic!();
+    }
+}
+
+struct RemoveCfgAttr;
+
+impl syn::visit_mut::VisitMut for RemoveCfgAttr {
+    fn visit_attributes_mut(&mut self, i: &mut Vec<syn::Attribute>) {
+        i.retain(|syn::Attribute { meta, .. }| {
+            if let syn::Meta::List(syn::MetaList { path, .. }) = meta
+                && path.is_ident("cfg_attr")
+            {
+                false
+            } else {
+                true
+            }
+        });
     }
 }

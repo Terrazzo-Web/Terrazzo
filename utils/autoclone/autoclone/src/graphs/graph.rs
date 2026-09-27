@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use quote::ToTokens as _;
+use quote::quote;
+
+use crate::item_to_string;
 
 use super::function::Function;
 
@@ -43,6 +46,25 @@ impl Graph {
                 return;
             };
             for function in functions {
+                let function = if let syn::Visibility::Inherited = &function.vis {
+                    function
+                } else {
+                    let doc = format!(
+                        r#"Implementation:
+> ```ignore
+> {}
+> ```"#,
+                        item_to_string(&syn::Item::Fn(function.clone())).replace("\n", "\n> ")
+                    );
+                    let doc = quote! { #[cfg_attr(debug_assertions, doc = #doc)] };
+                    let mut function = function;
+                    function.attrs.extend(
+                        syn::parse2::<syn::ItemFn>(quote! { #doc fn x() {}})
+                            .unwrap()
+                            .attrs,
+                    );
+                    function
+                };
                 content.push(syn::Item::Fn(function));
             }
         }

@@ -45,7 +45,17 @@ pub fn merge(
 
 #[autoclone::graph]
 mod merge_graph {
-    use super::*;
+    use std::collections::HashMap;
+
+    use wasm_bindgen::JsCast as _;
+    use web_sys::Document;
+    use web_sys::Element;
+    use web_sys::Node;
+
+    use crate::element::XElement;
+    use crate::element::template::XTemplate;
+    use crate::key::XKey;
+    use crate::node::XNode;
 
     pub fn run<'t>(
         merge_nodes: (),

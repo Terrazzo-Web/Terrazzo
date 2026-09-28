@@ -168,7 +168,7 @@ impl Function {
             output
         };
 
-        syn::ItemFn {
+        let mut function = syn::ItemFn {
             attrs: vec![],
             vis: self.visibility.clone(),
             modifiers: Default::default(),
@@ -190,7 +190,9 @@ impl Function {
                 stmts: state.statements,
             }
             .into(),
-        }
+        };
+        super::named_inputs::prune_internal_lifetimes(&mut function.sig);
+        function
     }
 
     fn process_params(&self, state: &mut GenerationState) {

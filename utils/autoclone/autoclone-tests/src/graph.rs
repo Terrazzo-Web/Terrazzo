@@ -484,7 +484,7 @@ mod internal_iterator {
         iter.sum()
     }
 
-    fn iter<'t>(values: &'t [usize]) -> impl Iterator<Item = &'t usize> {
+    fn iter(values: &[usize]) -> impl Iterator<Item = &usize> {
         values.iter()
     }
 

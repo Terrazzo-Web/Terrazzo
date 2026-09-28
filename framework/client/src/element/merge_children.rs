@@ -49,7 +49,7 @@ mod merge_graph {
 
     pub fn run<'t>(
         merge_nodes: (),
-        element: &'t Element,
+        element: &Element,
         cur_nodes_iter: &mut impl Iterator<Item = &'t Node>,
     ) {
         let () = merge_nodes;
@@ -111,7 +111,7 @@ mod merge_graph {
         cur_elements
     }
 
-    fn cur_nodes_iter<'t>(cur_nodes: &'t [Node]) -> impl Iterator<Item = &'t Node> {
+    fn cur_nodes_iter(cur_nodes: &[Node]) -> impl Iterator<Item = &Node> {
         cur_nodes.iter()
     }
 

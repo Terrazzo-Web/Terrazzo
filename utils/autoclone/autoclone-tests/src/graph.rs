@@ -410,3 +410,64 @@ async fn named_async_graph_inputs() {
     );
     assert_eq!(explicit_result::Run { fail: 0 }.run().await, Ok(3));
 }
+
+#[test]
+fn mutable_graph_nodes_and_inputs() {
+    let mut input = vec![1];
+    assert_eq!(
+        mutable_values::Run { input: &mut input }.run(),
+        vec![1, 2, 3]
+    );
+    assert_eq!(input, vec![1, 2, 3]);
+}
+
+#[graph]
+mod mutable_values {
+    struct Value(Vec<usize>);
+
+    fn value() -> Value {
+        Value(Vec::new())
+    }
+
+    fn first(value: &mut Value, input: &mut Vec<usize>) {
+        input.push(2);
+        value.0.extend_from_slice(input);
+    }
+
+    fn second(first: (), value: &mut Value, input: &mut Vec<usize>) {
+        let () = first;
+        input.push(3);
+        value.0.push(3);
+    }
+
+    pub fn run(second: (), value: Value) -> Vec<usize> {
+        let () = second;
+        value.0
+    }
+}
+
+#[tokio::test]
+async fn mutable_joined_graph_nodes() {
+    assert_eq!(mutable_joined::run().await, Ok(5));
+}
+
+#[graph]
+mod mutable_joined {
+    async fn left() -> Result<usize, String> {
+        Ok(1)
+    }
+
+    async fn right() -> usize {
+        2
+    }
+
+    fn update(left: &mut usize, right: &mut usize) {
+        *left += 1;
+        *right += 1;
+    }
+
+    pub fn run(update: (), left: usize, right: usize) -> Result<usize, String> {
+        let () = update;
+        Ok(left + right)
+    }
+}

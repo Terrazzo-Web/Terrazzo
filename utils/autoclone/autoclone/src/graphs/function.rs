@@ -9,6 +9,7 @@ use quote::quote;
 
 use super::graph::Graph;
 use super::return_type::Coercion;
+use super::return_type::RefKind;
 use super::return_type::ReturnType;
 
 pub struct Function {
@@ -232,7 +233,20 @@ impl Function {
                     coercion.expr
                 };
 
-                let statement = quote! { let #callee_name = #call_implementation; };
+                let mutable = callee.function.used_by.borrow().iter().any(|user| {
+                    user.params.borrow().iter().any(|parameter| {
+                        parameter.name() == &callee_name
+                            && matches!(
+                                parameter.ty().as_ref(),
+                                ReturnType::Ref {
+                                    kind: RefKind::Mut,
+                                    ..
+                                }
+                            )
+                    })
+                });
+                let mutability = mutable.then(syn::token::Mut::default);
+                let statement = quote! { let #mutability #callee_name = #call_implementation; };
 
                 let statement = match syn::parse2(statement) {
                     Ok(statement) => statement,
@@ -487,7 +501,13 @@ fn flush_futures(
     statements: &mut Vec<syn::Stmt>,
 ) {
     if pending.len() > 1 {
-        let names = pending.iter().map(|(_, name, _, _)| name);
+        let names = pending.iter().map(|(local, name, _, fallible)| {
+            if *fallible {
+                quote! { #name }
+            } else {
+                local.pat.to_token_stream()
+            }
+        });
         let expressions = pending.iter().map(|(_, _, expr, _)| expr);
         statements.push(
             syn::parse2(quote! {
@@ -497,9 +517,10 @@ fn flush_futures(
         );
         // Await the whole group before propagating errors in component order.
         // Keeping `?` in the entry point also preserves From conversions into its error type.
-        for (_, name, _, fallible) in pending.drain(..) {
+        for (local, name, _, fallible) in pending.drain(..) {
             if fallible {
-                statements.push(syn::parse2(quote! { let #name = #name?; }).unwrap());
+                let pattern = &local.pat;
+                statements.push(syn::parse2(quote! { let #pattern = #name?; }).unwrap());
             }
         }
     } else if let Some((local, _, _, _)) = pending.pop() {

@@ -60,12 +60,12 @@ fn coerce_result() {
                 App { name, comp1, comp2 }
             }
 
-            async fn comp1() -> Result<Comp1, Error> {
-                Ok(Comp1::new())
-            }
-
             fn comp2(comp1: Comp1) -> Result<Comp2, Error> {
                 Ok(Comp2::new())
+            }
+
+            async fn comp1() -> Result<Comp1, Error> {
+                Ok(Comp1::new())
             }
         }
     };
@@ -109,12 +109,12 @@ fn coerce_result_failure() {
                 App { name, comp1, comp2 }
             }
 
-            async fn comp1() -> Result<Comp1, Error1> {
-                Ok(Comp1::new())
-            }
-
             fn comp2(comp1: Comp1) -> Result<Comp2, Error2> {
                 Ok(Comp2::new())
+            }
+
+            async fn comp1() -> Result<Comp1, Error1> {
+                Ok(Comp1::new())
             }
         }
     };
@@ -161,12 +161,12 @@ fn coerce_result2() {
                 Ok(App { name, comp1, comp2 })
             }
 
-            async fn comp1() -> Result<Comp1, Error1> {
-                Ok(Comp1::new())
-            }
-
             fn comp2(comp1: Comp1) -> Result<Comp2, Error2> {
                 Ok(Comp2::new())
+            }
+
+            async fn comp1() -> Result<Comp1, Error1> {
+                Ok(Comp1::new())
             }
         }
     };
@@ -210,12 +210,12 @@ fn coerce_async() {
                 App { name, comp1, comp2 }
             }
 
-            async fn comp1() -> Comp1 {
-                Comp1::new()
-            }
-
             fn comp2(comp1: Result<Comp1, Error>) -> Comp2 {
                 Comp2::new()
+            }
+
+            async fn comp1() -> Comp1 {
+                Comp1::new()
             }
         }
     };
@@ -259,12 +259,12 @@ fn coerce_async2() {
                 App { name, comp1, comp2 }
             }
 
-            async fn comp1() -> Comp1 {
-                Comp1::new()
-            }
-
             fn comp2(comp1: Result<Comp1, Error>) -> Comp2 {
                 Comp2::new()
+            }
+
+            async fn comp1() -> Comp1 {
+                Comp1::new()
             }
         }
     };
@@ -357,12 +357,12 @@ fn coerce_ref() {
                 App { name, comp1, comp2 }
             }
 
-            async fn comp1() -> Comp1 {
-                Comp1::new()
-            }
-
             fn comp2(comp1: Comp1) -> Comp2 {
                 Comp2::new()
+            }
+
+            async fn comp1() -> Comp1 {
+                Comp1::new()
             }
         }
     };
@@ -403,8 +403,8 @@ fn parallel_eval() {
     let sample = quote! {
         mod make_app {
             pub fn run(name: String, comp1: Comp1, comp2: Comp2, comp3: Comp3) -> App {}
-            async fn comp1() -> Comp1 {}
             async fn comp2(comp1: Comp1) -> Comp2 {}
+            async fn comp1() -> Comp1 {}
             async fn comp3() -> Comp3 {}
         }
     };
@@ -441,8 +441,8 @@ fn parallel_eval2() {
     let sample = quote! {
         mod make_app {
             pub fn run(name: String, comp1: Comp1, comp2: &Comp2, comp3: Comp3) -> App {}
-            async fn comp1() -> Comp1 {}
             async fn comp2(comp1: Comp1) -> Comp2 {}
+            async fn comp1() -> Comp1 {}
             async fn comp3() -> Result<Comp3, String> {}
         }
     };
@@ -473,6 +473,83 @@ mod make_app {
     }
 }"#;
     run_test(quote! {}, sample, expected);
+}
+
+#[test]
+fn topological_order_accepts_shared_dependencies_and_external_inputs() {
+    let sample = quote! {
+        mod graph {
+            pub fn run(left: usize, right: usize) -> usize { left + right }
+            fn unrelated() {}
+            pub fn left(shared: usize) -> usize { shared }
+            const OFFSET: usize = 1;
+            fn right(shared: usize) -> usize { shared + OFFSET }
+            fn shared(mut input: usize) -> usize { input }
+        }
+    };
+    super::super::graph2(quote! {}, sample).unwrap();
+}
+
+#[test]
+fn topological_order_rejects_backward_dependencies() {
+    for sample in [
+        quote! {
+            mod graph {
+                fn helper() -> usize { 1 }
+                pub fn run(helper: usize) -> usize { helper }
+            }
+        },
+        quote! {
+            mod graph {
+                pub fn run(helper: usize) -> usize { helper }
+                fn leaf() -> usize { 1 }
+                fn helper(leaf: usize) -> usize { leaf }
+            }
+        },
+        quote! {
+            mod graph {
+                fn leaf() -> usize { 1 }
+                fn helper(leaf: usize) -> usize { leaf }
+            }
+        },
+        quote! {
+            mod graph {
+                pub fn run(helper: usize) -> usize { helper }
+                pub fn helper(run: usize) -> usize { run }
+            }
+        },
+        quote! {
+            mod graph {
+                pub fn run(run: usize) -> usize { run }
+            }
+        },
+    ] {
+        let error = super::super::graph2(quote! {}, sample).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("must be declared before its dependency"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn topological_order_diagnostic_names_caller_and_dependency() {
+    let error = super::super::graph2(
+        quote! {},
+        quote! {
+            mod graph {
+                fn helper() -> usize { 1 }
+                pub fn run(helper: usize) -> usize { helper }
+            }
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Graph functions must be declared in topological order: `run` must be declared before its dependency `helper`"
+    );
 }
 
 #[track_caller]

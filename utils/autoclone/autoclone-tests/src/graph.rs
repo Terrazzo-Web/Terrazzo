@@ -51,12 +51,12 @@ mod shared_values {
         (value, wrapped)
     }
 
-    fn value() -> String {
-        "value".to_owned()
-    }
-
     fn wrapped(value: Result<String, ()>) -> String {
         value.unwrap()
+    }
+
+    fn value() -> String {
+        "value".to_owned()
     }
 }
 
@@ -73,12 +73,12 @@ mod borrowed_values {
         borrowed + value.0
     }
 
-    fn value() -> Value {
-        Value(5)
-    }
-
     fn borrowed(value: &Value) -> usize {
         value.0
+    }
+
+    fn value() -> Value {
+        Value(5)
     }
 }
 
@@ -117,16 +117,16 @@ mod inferred_result {
         value + doubled
     }
 
+    fn doubled(value: usize) -> Result<usize, String> {
+        Ok(value * 2)
+    }
+
     async fn value(fail: bool) -> Result<usize, String> {
         if fail {
             Err("component failed".to_owned())
         } else {
             Ok(5)
         }
-    }
-
-    fn doubled(value: usize) -> Result<usize, String> {
-        Ok(value * 2)
     }
 }
 

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use quote::ToTokens as _;
@@ -20,15 +21,34 @@ impl Graph {
         })
     }
 
-    pub fn record_functions(&mut self) {
+    pub fn record_functions(&mut self) -> Result<(), syn::Error> {
         let Some((_, content)) = &mut self.module.content else {
-            return;
+            return Ok(());
         };
         let functions = content
             .extract_if(0.., |item| matches!(item, syn::Item::Fn { .. }))
             .collect::<Vec<_>>();
+        let mut preceding = HashSet::new();
         for item in functions {
             let syn::Item::Fn(func) = item else { continue };
+            // Include the current function to reject self-dependencies as well.
+            preceding.insert(func.sig.ident.clone());
+            for param in &func.sig.inputs {
+                if let syn::FnArg::Typed(param) = param
+                    && let syn::Pat::Ident(param) = &*param.pat
+                    && param.by_ref.is_none()
+                    && param.subpat.is_none()
+                    && preceding.contains(&param.ident)
+                {
+                    return Err(syn::Error::new(
+                        param.ident.span(),
+                        format!(
+                            "Graph functions must be declared in topological order: `{}` must be declared before its dependency `{}`",
+                            func.sig.ident, param.ident
+                        ),
+                    ));
+                }
+            }
             let function = Function::new(&func);
             self.functions
                 .insert(func.sig.ident.clone(), function.into());
@@ -36,6 +56,7 @@ impl Graph {
         for function in self.functions.values() {
             function.record_params(self)
         }
+        Ok(())
     }
 
     pub fn process_functions(&mut self) {

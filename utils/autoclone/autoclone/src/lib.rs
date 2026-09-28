@@ -29,6 +29,9 @@ pub fn envelope(
 }
 
 /// A macro to write algorithms as graphs.
+///
+/// Declare each function before the graph functions it depends on (parameters
+/// whose names match functions in the module), including private helper chains.
 #[proc_macro_attribute]
 pub fn graph(
     attr: proc_macro::TokenStream,

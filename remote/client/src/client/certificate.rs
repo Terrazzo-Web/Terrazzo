@@ -47,8 +47,24 @@ mod certificate_request {
     use crate::client::config::set_gateway_sni_override;
     use crate::http_client::HttpClient;
 
-    fn public_key(key: &PKeyRef<impl HasPublic>) -> Result<String, PemAsStringError> {
-        key.public_key_to_pem().pem_string()
+    pub fn run(response_body: String) -> Result<String, GetCertificateError> {
+        Ok(response_body)
+    }
+
+    async fn response_body(
+        url: Url,
+        request_body: String,
+        http_client: HttpClient,
+    ) -> Result<String, GetCertificateError> {
+        let response = http_client
+            .get(url, APPLICATION_JSON.as_ref(), request_body)
+            .await?;
+        let status = response.status;
+        let body = response.body;
+        if !status.is_success() {
+            return Err(GetCertificateError::HttpStatus { status, body });
+        }
+        Ok(body)
     }
 
     fn url(client_config: &impl ClientConfig) -> Result<Url, SniOverrideError> {
@@ -69,24 +85,8 @@ mod certificate_request {
         })
     }
 
-    async fn response_body(
-        url: Url,
-        request_body: String,
-        http_client: HttpClient,
-    ) -> Result<String, GetCertificateError> {
-        let response = http_client
-            .get(url, APPLICATION_JSON.as_ref(), request_body)
-            .await?;
-        let status = response.status;
-        let body = response.body;
-        if !status.is_success() {
-            return Err(GetCertificateError::HttpStatus { status, body });
-        }
-        Ok(body)
-    }
-
-    pub fn run(response_body: String) -> Result<String, GetCertificateError> {
-        Ok(response_body)
+    fn public_key(key: &PKeyRef<impl HasPublic>) -> Result<String, PemAsStringError> {
+        key.public_key_to_pem().pem_string()
     }
 }
 

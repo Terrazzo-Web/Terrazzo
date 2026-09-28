@@ -33,7 +33,7 @@ pub fn merge(
 ) {
     trace! { new_count = new_nodes.len(), old_count = old_nodes.len(), "Children" };
     let document: Document = window().or_throw("window").document().or_throw("document");
-    merge_children::Run {
+    merge_graph::Run {
         document: &document,
         template,
         new_nodes,
@@ -44,7 +44,7 @@ pub fn merge(
 }
 
 #[autoclone::graph]
-mod merge_children {
+mod merge_graph {
     use super::*;
 
     fn old_elements_map(old_nodes: &mut [XNode]) -> HashMap<XKey, &mut XElement> {
@@ -70,7 +70,7 @@ mod merge_children {
 
     fn cur_elements<'a>(
         template: &XTemplate,
-        cur_nodes: &'a Vec<Node>,
+        cur_nodes: &'a [Node],
     ) -> HashMap<XKey, &'a Element> {
         let mut cur_elements = HashMap::new();
         let mut index = 0;
@@ -83,7 +83,7 @@ mod merge_children {
         cur_elements
     }
 
-    fn cur_nodes_iter(cur_nodes: &Vec<Node>) -> std::slice::Iter<'_, Node> {
+    fn cur_nodes_iter(cur_nodes: &[Node]) -> std::slice::Iter<'_, Node> {
         cur_nodes.iter()
     }
 

@@ -425,13 +425,9 @@ fn mutable_graph_nodes_and_inputs() {
 mod mutable_values {
     struct Value(Vec<usize>);
 
-    fn value() -> Value {
-        Value(Vec::new())
-    }
-
-    fn first(value: &mut Value, input: &mut Vec<usize>) {
-        input.push(2);
-        value.0.extend_from_slice(input);
+    pub fn run(second: (), value: Value) -> Vec<usize> {
+        let () = second;
+        value.0
     }
 
     fn second(first: (), value: &mut Value, input: &mut Vec<usize>) {
@@ -440,9 +436,13 @@ mod mutable_values {
         value.0.push(3);
     }
 
-    pub fn run(second: (), value: Value) -> Vec<usize> {
-        let () = second;
-        value.0
+    fn first(value: &mut Value, input: &mut Vec<usize>) {
+        input.push(2);
+        value.0.extend_from_slice(input);
+    }
+
+    fn value() -> Value {
+        Value(Vec::new())
     }
 }
 
@@ -453,12 +453,9 @@ async fn mutable_joined_graph_nodes() {
 
 #[graph]
 mod mutable_joined {
-    async fn left() -> Result<usize, String> {
-        Ok(1)
-    }
-
-    async fn right() -> usize {
-        2
+    pub fn run(update: (), left: usize, right: usize) -> Result<usize, String> {
+        let () = update;
+        Ok(left + right)
     }
 
     fn update(left: &mut usize, right: &mut usize) {
@@ -466,8 +463,32 @@ mod mutable_joined {
         *right += 1;
     }
 
-    pub fn run(update: (), left: usize, right: usize) -> Result<usize, String> {
-        let () = update;
-        Ok(left + right)
+    async fn right() -> usize {
+        2
+    }
+
+    async fn left() -> Result<usize, String> {
+        Ok(1)
+    }
+}
+
+#[test]
+fn iterator_with_internal_lifetime() {
+    assert_eq!(internal_iterator::Run {}.run(), 3);
+    assert_eq!(internal_iterator::run(), 3);
+}
+
+#[graph]
+mod internal_iterator {
+    pub fn run<'t>(iter: impl Iterator<Item = &'t usize>) -> usize {
+        iter.sum()
+    }
+
+    fn iter<'t>(values: &'t [usize]) -> impl Iterator<Item = &'t usize> {
+        values.iter()
+    }
+
+    fn values() -> Vec<usize> {
+        vec![1, 2]
     }
 }

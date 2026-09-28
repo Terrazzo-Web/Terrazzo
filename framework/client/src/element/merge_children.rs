@@ -47,53 +47,22 @@ pub fn merge(
 mod merge_graph {
     use super::*;
 
-    fn old_elements_map(old_nodes: &mut [XNode]) -> HashMap<XKey, &mut XElement> {
-        let mut old_elements_map = HashMap::new();
-        for old_node in old_nodes {
-            if let XNode::Element(old_element) = old_node {
-                old_elements_map.insert(old_element.key.to_owned(), old_element);
-            }
-        }
-        old_elements_map
+    pub fn run<'t>(
+        merge_nodes: (),
+        element: &'t Element,
+        cur_nodes_iter: &mut impl Iterator<Item = &'t Node>,
+    ) {
+        let () = merge_nodes;
+        super::detatch_remaining_nodes(element, cur_nodes_iter, None);
     }
 
-    fn cur_nodes(element: &Element) -> Vec<Node> {
-        let mut cur_nodes = vec![];
-        let cur_nodes_view = element.child_nodes();
-        for index in 0..cur_nodes_view.length() {
-            if let Some(cur_node) = cur_nodes_view.item(index) {
-                cur_nodes.push(cur_node);
-            }
-        }
-        cur_nodes
-    }
-
-    fn cur_elements<'a>(
-        template: &XTemplate,
-        cur_nodes: &'a [Node],
-    ) -> HashMap<XKey, &'a Element> {
-        let mut cur_elements = HashMap::new();
-        let mut index = 0;
-        for cur_node in cur_nodes {
-            if let Some(cur_element) = cur_node.dyn_ref::<Element>() {
-                cur_elements.insert(XKey::of(template, index, cur_element), cur_element);
-                index += 1;
-            }
-        }
-        cur_elements
-    }
-
-    fn cur_nodes_iter(cur_nodes: &[Node]) -> std::slice::Iter<'_, Node> {
-        cur_nodes.iter()
-    }
-
-    fn merge_nodes<'a>(
+    fn merge_nodes<'t>(
         document: &Document,
         template: &XTemplate,
         element: &Element,
         mut old_elements_map: HashMap<XKey, &mut XElement>,
-        cur_elements: HashMap<XKey, &'a Element>,
-        cur_nodes_iter: &mut std::slice::Iter<'a, Node>,
+        cur_elements: HashMap<XKey, &'t Element>,
+        cur_nodes_iter: &mut impl Iterator<Item = &'t Node>,
         new_nodes: &mut [XNode],
     ) {
         let mut cur_elements = cur_elements;
@@ -120,13 +89,41 @@ mod merge_graph {
         }
     }
 
-    pub fn run(
-        merge_nodes: (),
-        element: &Element,
-        cur_nodes_iter: &mut std::slice::Iter<'_, Node>,
-    ) {
-        let () = merge_nodes;
-        super::detatch_remaining_nodes(element, cur_nodes_iter, None);
+    fn old_elements_map(old_nodes: &mut [XNode]) -> HashMap<XKey, &mut XElement> {
+        let mut old_elements_map = HashMap::new();
+        for old_node in old_nodes {
+            if let XNode::Element(old_element) = old_node {
+                old_elements_map.insert(old_element.key.to_owned(), old_element);
+            }
+        }
+        old_elements_map
+    }
+
+    fn cur_elements<'a>(template: &XTemplate, cur_nodes: &'a [Node]) -> HashMap<XKey, &'a Element> {
+        let mut cur_elements = HashMap::new();
+        let mut index = 0;
+        for cur_node in cur_nodes {
+            if let Some(cur_element) = cur_node.dyn_ref::<Element>() {
+                cur_elements.insert(XKey::of(template, index, cur_element), cur_element);
+                index += 1;
+            }
+        }
+        cur_elements
+    }
+
+    fn cur_nodes_iter<'t>(cur_nodes: &'t [Node]) -> impl Iterator<Item = &'t Node> {
+        cur_nodes.iter()
+    }
+
+    fn cur_nodes(element: &Element) -> Vec<Node> {
+        let mut cur_nodes = vec![];
+        let cur_nodes_view = element.child_nodes();
+        for index in 0..cur_nodes_view.length() {
+            if let Some(cur_node) = cur_nodes_view.item(index) {
+                cur_nodes.push(cur_node);
+            }
+        }
+        cur_nodes
     }
 }
 

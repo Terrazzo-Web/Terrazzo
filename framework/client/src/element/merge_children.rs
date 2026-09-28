@@ -33,8 +33,21 @@ pub fn merge(
 ) {
     trace! { new_count = new_nodes.len(), old_count = old_nodes.len(), "Children" };
     let document: Document = window().or_throw("window").document().or_throw("document");
+    merge_children::Run {
+        document: &document,
+        template,
+        new_nodes,
+        old_nodes,
+        element,
+    }
+    .run();
+}
 
-    let mut old_elements_map = {
+#[autoclone::graph]
+mod merge_children {
+    use super::*;
+
+    fn old_elements_map(old_nodes: &mut [XNode]) -> HashMap<XKey, &mut XElement> {
         let mut old_elements_map = HashMap::new();
         for old_node in old_nodes {
             if let XNode::Element(old_element) = old_node {
@@ -42,8 +55,9 @@ pub fn merge(
             }
         }
         old_elements_map
-    };
-    let cur_nodes = {
+    }
+
+    fn cur_nodes(element: &Element) -> Vec<Node> {
         let mut cur_nodes = vec![];
         let cur_nodes_view = element.child_nodes();
         for index in 0..cur_nodes_view.length() {
@@ -52,42 +66,57 @@ pub fn merge(
             }
         }
         cur_nodes
-    };
-    let mut cur_elements = {
+    }
+
+    fn cur_elements<'a>(
+        template: &XTemplate,
+        cur_nodes: &'a Vec<Node>,
+    ) -> HashMap<XKey, &'a Element> {
         let mut cur_elements = HashMap::new();
         let mut index = 0;
-        for cur_node in &cur_nodes {
+        for cur_node in cur_nodes {
             if let Some(cur_element) = cur_node.dyn_ref::<Element>() {
                 cur_elements.insert(XKey::of(template, index, cur_element), cur_element);
                 index += 1;
             }
         }
         cur_elements
-    };
-
-    let mut cur_nodes = cur_nodes.iter();
-
-    let mut index = 0;
-    for new_node in new_nodes {
-        match new_node {
-            XNode::Element(new_element) => {
-                merge_element(
-                    &document,
-                    template,
-                    element,
-                    &mut old_elements_map,
-                    &mut cur_nodes,
-                    &mut cur_elements,
-                    index,
-                    new_element,
-                );
-                index += 1;
-            }
-            XNode::Text(new_text) => merge_text(&document, element, &mut cur_nodes, new_text),
-        }
     }
 
-    detatch_remaining_nodes(element, &mut cur_nodes, None);
+    pub fn run(
+        document: &Document,
+        template: &XTemplate,
+        element: &Element,
+        mut old_elements_map: HashMap<XKey, &mut XElement>,
+        cur_elements: HashMap<XKey, &Element>,
+        cur_nodes: &Vec<Node>,
+        new_nodes: &mut [XNode],
+    ) {
+        let mut cur_elements = cur_elements;
+        let mut cur_nodes = cur_nodes.iter();
+        let mut index = 0;
+        for new_node in new_nodes {
+            match new_node {
+                XNode::Element(new_element) => {
+                    super::merge_element(
+                        document,
+                        template,
+                        element,
+                        &mut old_elements_map,
+                        &mut cur_nodes,
+                        &mut cur_elements,
+                        index,
+                        new_element,
+                    );
+                    index += 1;
+                }
+                XNode::Text(new_text) => {
+                    super::merge_text(document, element, &mut cur_nodes, new_text);
+                }
+            }
+        }
+        super::detatch_remaining_nodes(element, &mut cur_nodes, None);
+    }
 }
 
 fn merge_element<'t>(

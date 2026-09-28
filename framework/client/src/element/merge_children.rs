@@ -83,15 +83,15 @@ mod merge_children {
         cur_elements
     }
 
-    pub fn run(
+    fn merge_nodes<'a>(
         document: &Document,
         template: &XTemplate,
         element: &Element,
         mut old_elements_map: HashMap<XKey, &mut XElement>,
-        cur_elements: HashMap<XKey, &Element>,
-        cur_nodes: &Vec<Node>,
+        cur_elements: HashMap<XKey, &'a Element>,
+        cur_nodes: &'a Vec<Node>,
         new_nodes: &mut [XNode],
-    ) {
+    ) -> std::slice::Iter<'a, Node> {
         let mut cur_elements = cur_elements;
         let mut cur_nodes = cur_nodes.iter();
         let mut index = 0;
@@ -115,7 +115,11 @@ mod merge_children {
                 }
             }
         }
-        super::detatch_remaining_nodes(element, &mut cur_nodes, None);
+        cur_nodes
+    }
+
+    pub fn run(element: &Element, mut merge_nodes: std::slice::Iter<'_, Node>) {
+        super::detatch_remaining_nodes(element, &mut merge_nodes, None);
     }
 }
 

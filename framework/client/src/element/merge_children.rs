@@ -83,17 +83,20 @@ mod merge_children {
         cur_elements
     }
 
+    fn cur_nodes_iter(cur_nodes: &Vec<Node>) -> std::slice::Iter<'_, Node> {
+        cur_nodes.iter()
+    }
+
     fn merge_nodes<'a>(
         document: &Document,
         template: &XTemplate,
         element: &Element,
         mut old_elements_map: HashMap<XKey, &mut XElement>,
         cur_elements: HashMap<XKey, &'a Element>,
-        cur_nodes: &'a Vec<Node>,
+        cur_nodes_iter: &mut std::slice::Iter<'a, Node>,
         new_nodes: &mut [XNode],
-    ) -> std::slice::Iter<'a, Node> {
+    ) {
         let mut cur_elements = cur_elements;
-        let mut cur_nodes = cur_nodes.iter();
         let mut index = 0;
         for new_node in new_nodes {
             match new_node {
@@ -103,7 +106,7 @@ mod merge_children {
                         template,
                         element,
                         &mut old_elements_map,
-                        &mut cur_nodes,
+                        cur_nodes_iter,
                         &mut cur_elements,
                         index,
                         new_element,
@@ -111,15 +114,19 @@ mod merge_children {
                     index += 1;
                 }
                 XNode::Text(new_text) => {
-                    super::merge_text(document, element, &mut cur_nodes, new_text);
+                    super::merge_text(document, element, cur_nodes_iter, new_text);
                 }
             }
         }
-        cur_nodes
     }
 
-    pub fn run(element: &Element, mut merge_nodes: std::slice::Iter<'_, Node>) {
-        super::detatch_remaining_nodes(element, &mut merge_nodes, None);
+    pub fn run(
+        merge_nodes: (),
+        element: &Element,
+        cur_nodes_iter: &mut std::slice::Iter<'_, Node>,
+    ) {
+        let () = merge_nodes;
+        super::detatch_remaining_nodes(element, cur_nodes_iter, None);
     }
 }
 

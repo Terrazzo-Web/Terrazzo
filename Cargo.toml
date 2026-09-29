@@ -154,7 +154,7 @@ tempfile = { version = "3.27.0" }
 thiserror = { version = "2.0.21" }
 tls-parser = { version = "0.12.2" }
 tokio = { version = "1.53.1" }
-tokio-rustls = { version = "0.26.5" }
+tokio-rustls = { version = "0.26.6" }
 tokio-stream = { version = "0.1.19", features = ["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
 tokio-util = { version = "0.7.19" }

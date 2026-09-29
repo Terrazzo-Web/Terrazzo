@@ -16,6 +16,7 @@ pub enum ReturnType {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefKind {
     Ref,
+    Mut,
     Box,
     Arc,
     Rc,
@@ -34,9 +35,15 @@ impl From<&syn::Type> for ReturnType {
     fn from(value: &syn::Type) -> Self {
         match value {
             syn::Type::Paren(syn::TypeParen { elem, .. }) => return (&**elem).into(),
-            syn::Type::Reference(syn::TypeReference { elem, .. }) => {
+            syn::Type::Reference(syn::TypeReference {
+                elem, mutability, ..
+            }) => {
                 return Self::Ref {
-                    kind: RefKind::Ref,
+                    kind: if mutability.is_some() {
+                        RefKind::Mut
+                    } else {
+                        RefKind::Ref
+                    },
                     ty: ReturnType::from(&**elem).into(),
                 };
             }
@@ -205,6 +212,7 @@ impl From<&ReturnType> for syn::Type {
                 let return_type = syn::Type::from(&**ty);
                 match kind {
                     RefKind::Ref => quote! { & #return_type },
+                    RefKind::Mut => quote! { &mut #return_type },
                     RefKind::Box => quote! { Box<#return_type> },
                     RefKind::Arc => quote! { Arc<#return_type> },
                     RefKind::Rc => quote! { Rc<#return_type> },
@@ -232,12 +240,12 @@ impl ReturnType {
         let borrows = remaining == *self
             && matches!(
                 wrappers.into_iter().next(),
-                Some(TypeTransformations::Ref(RefKind::Ref))
+                Some(TypeTransformations::Ref(RefKind::Ref | RefKind::Mut))
             );
         let is_reference = matches!(
             self.as_ref(),
             Self::Ref {
-                kind: RefKind::Ref,
+                kind: RefKind::Ref | RefKind::Mut,
                 ..
             }
         );
@@ -302,6 +310,7 @@ impl ReturnType {
                 TypeTransformations::Result { .. } => quote! { Ok(#expr) },
                 TypeTransformations::Ref(ref_kind) => match ref_kind {
                     RefKind::Ref => quote! { &#expr },
+                    RefKind::Mut => quote! { &mut #expr },
                     RefKind::Box => quote! { Box::new(#expr) },
                     RefKind::Arc => quote! { Arc::new(#expr) },
                     RefKind::Rc => quote! { Rc::new(#expr) },

@@ -410,3 +410,85 @@ async fn named_async_graph_inputs() {
     );
     assert_eq!(explicit_result::Run { fail: 0 }.run().await, Ok(3));
 }
+
+#[test]
+fn mutable_graph_nodes_and_inputs() {
+    let mut input = vec![1];
+    assert_eq!(
+        mutable_values::Run { input: &mut input }.run(),
+        vec![1, 2, 3]
+    );
+    assert_eq!(input, vec![1, 2, 3]);
+}
+
+#[graph]
+mod mutable_values {
+    struct Value(Vec<usize>);
+
+    pub fn run(second: (), value: Value) -> Vec<usize> {
+        let () = second;
+        value.0
+    }
+
+    fn second(first: (), value: &mut Value, input: &mut Vec<usize>) {
+        let () = first;
+        input.push(3);
+        value.0.push(3);
+    }
+
+    fn first(value: &mut Value, input: &mut Vec<usize>) {
+        input.push(2);
+        value.0.extend_from_slice(input);
+    }
+
+    fn value() -> Value {
+        Value(Vec::new())
+    }
+}
+
+#[tokio::test]
+async fn mutable_joined_graph_nodes() {
+    assert_eq!(mutable_joined::run().await, Ok(5));
+}
+
+#[graph]
+mod mutable_joined {
+    pub fn run(update: (), left: usize, right: usize) -> Result<usize, String> {
+        let () = update;
+        Ok(left + right)
+    }
+
+    fn update(left: &mut usize, right: &mut usize) {
+        *left += 1;
+        *right += 1;
+    }
+
+    async fn right() -> usize {
+        2
+    }
+
+    async fn left() -> Result<usize, String> {
+        Ok(1)
+    }
+}
+
+#[test]
+fn iterator_with_internal_lifetime() {
+    assert_eq!(internal_iterator::Run {}.run(), 3);
+    assert_eq!(internal_iterator::run(), 3);
+}
+
+#[graph]
+mod internal_iterator {
+    pub fn run<'t>(iter: impl Iterator<Item = &'t usize>) -> usize {
+        iter.sum()
+    }
+
+    fn iter(values: &[usize]) -> impl Iterator<Item = &usize> {
+        values.iter()
+    }
+
+    fn values() -> Vec<usize> {
+        vec![1, 2]
+    }
+}

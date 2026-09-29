@@ -135,3 +135,44 @@ impl VisitMut for FieldTypes {
         }
     }
 }
+
+/// Drop lifetimes belonging only to internal nodes from the generated entry point.
+pub fn prune_internal_lifetimes(signature: &mut syn::Signature) {
+    #[derive(Default)]
+    struct UsedLifetimes(HashSet<String>);
+    impl VisitMut for UsedLifetimes {
+        fn visit_lifetime_mut(&mut self, lifetime: &mut syn::Lifetime) {
+            self.0.insert(lifetime.ident.to_string());
+        }
+    }
+    let mut used = UsedLifetimes::default();
+    for input in &mut signature.inputs {
+        used.visit_fn_arg_mut(input);
+    }
+    used.visit_return_type_mut(&mut signature.output);
+    for parameter in &mut signature.generics.params {
+        match parameter {
+            syn::GenericParam::Lifetime(parameter) => {
+                for bound in &mut parameter.bounds {
+                    used.visit_lifetime_mut(bound);
+                }
+            }
+            parameter => used.visit_generic_param_mut(parameter),
+        }
+    }
+    if let Some(clause) = &mut signature.generics.where_clause {
+        used.visit_where_clause_mut(clause);
+    }
+    signature.generics.params = signature
+        .generics
+        .params
+        .clone()
+        .into_iter()
+        .filter(|parameter| match parameter {
+            syn::GenericParam::Lifetime(parameter) => {
+                used.0.contains(&parameter.lifetime.ident.to_string())
+            }
+            _ => true,
+        })
+        .collect();
+}

@@ -28,8 +28,14 @@ where
             let entry = occupied_entry.get().1.clone();
             drop(occupied_entry);
             info!("Found");
-            // A failed handoff must not replace the existing terminal process.
-            return Ok(entry.lease_output(rewind).await?);
+            if let Ok(lease) = entry.lease_output(rewind).await {
+                return Ok(lease);
+            }
+            info!("Can't get a lease");
+            let process = open_process(terminal_id).await?;
+            let entry = ProcessIoEntry::new(process);
+            processes.insert(terminal_id.clone(), (terminal_def, entry.clone()));
+            return Ok(entry.lease_output(/* rewind = */ false).await?);
         }
         dashmap::Entry::Vacant(vacant_entry) => {
             info!("Not found");

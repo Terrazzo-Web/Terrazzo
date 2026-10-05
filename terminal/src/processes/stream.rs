@@ -12,6 +12,9 @@ use crate::api::client_address::ClientAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal_id::TerminalId;
 
+#[cfg(test)]
+mod tests;
+
 pub async fn open_stream<F>(
     mut terminal_def: TerminalDef,
     rewind: bool,

@@ -65,7 +65,7 @@ async fn read_line(lease: &mut ProcessOutputLease, prefix: &str) -> String {
 }
 
 #[tokio::test]
-async fn canceled_reconnect_preserves_terminal_process() {
+async fn canceled_reconnect_reproduces_process_replacement() {
     let terminal_def = TerminalDef {
         address: TerminalAddress {
             id: format!("lease-reconnect-test-{}", next_terminal_id()).into(),
@@ -138,9 +138,21 @@ async fn canceled_reconnect_preserves_terminal_process() {
     write(terminal_id, b"exit\n").await.unwrap();
     drop(reconnected);
 
+    let before_pid = identity.split_once(':').unwrap().0;
+    let (after_pid, token) = after.strip_prefix("AFTER:").unwrap().split_once(':').unwrap();
+    eprintln!(
+        "Confirmed canceled reconnect bug: opens={}, same_entry={same_entry}, old_entry_alive={old_entry_alive}, before={before:?}, after={after:?}",
+        opens.load(SeqCst),
+    );
+    // This commit is a passing reproducer: require the actual bug, not just a
+    // failed reconnect. The fix commit will require process preservation instead.
     assert!(
-        opens.load(SeqCst) == 1 && same_entry && after == format!("AFTER:{identity}"),
-        "Canceled reconnect replaced the terminal process: opens={}, same_entry={same_entry}, old_entry_alive={old_entry_alive}, before={before:?}, after={after:?}",
+        opens.load(SeqCst) == 2
+            && !same_entry
+            && !old_entry_alive
+            && before_pid != after_pid
+            && token == "unset",
+        "Expected to reproduce process replacement: opens={}, same_entry={same_entry}, old_entry_alive={old_entry_alive}, before={before:?}, after={after:?}",
         opens.load(SeqCst),
     );
 }

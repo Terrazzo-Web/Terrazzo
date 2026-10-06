@@ -12,6 +12,9 @@ use crate::api::client_address::ClientAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal_id::TerminalId;
 
+#[cfg(test)]
+mod tests;
+
 pub async fn open_stream<F>(
     mut terminal_def: TerminalDef,
     rewind: bool,
@@ -28,14 +31,8 @@ where
             let entry = occupied_entry.get().1.clone();
             drop(occupied_entry);
             info!("Found");
-            if let Ok(lease) = entry.lease_output(rewind).await {
-                return Ok(lease);
-            }
-            info!("Can't get a lease");
-            let process = open_process(terminal_id).await?;
-            let entry = ProcessIoEntry::new(process);
-            processes.insert(terminal_id.clone(), (terminal_def, entry.clone()));
-            return Ok(entry.lease_output(/* rewind = */ false).await?);
+            // A failed handoff must not replace the existing terminal process.
+            return Ok(entry.lease_output(rewind).await?);
         }
         dashmap::Entry::Vacant(vacant_entry) => {
             info!("Not found");

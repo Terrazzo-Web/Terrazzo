@@ -31,7 +31,7 @@ pub const TERRAZZO_CLIENT_NAME: &str = "TERRAZZO_CLIENT_NAME";
 pub struct ProcessIO {
     input: OwnedWritePty,
     output: TailStream,
-    #[expect(unused)]
+    #[cfg_attr(not(test), expect(unused))]
     child_process: tokio::process::Child,
 }
 
@@ -154,8 +154,9 @@ impl Stream for ProcessOutput {
 mod tests {
     #[tokio::test]
     async fn open() {
-        super::ProcessIO::open(Option::<String>::None, 1000, None)
+        let mut process = super::ProcessIO::open(Option::<String>::None, 1000, None)
             .await
             .unwrap();
+        process.child_process.kill().await.unwrap();
     }
 }

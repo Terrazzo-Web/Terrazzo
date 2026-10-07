@@ -68,7 +68,7 @@ pub struct Cli {
 
     /// If using mesh: the TLS server name to validate for the Gateway endpoint
     #[arg(long)]
-    pub sni_override: Option<String>,
+    pub gateway_sni_override: Option<String>,
 
     /// If using mesh: the Gateway CA
     #[arg(long)]

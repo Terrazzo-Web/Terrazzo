@@ -93,6 +93,7 @@ SERVER_DEPS = [
     "@crates//:tower",
     "@crates//:tower-http",
     "@crates//:tracing",
+    "@crates//:url",
     "@crates//:uuid",
 ]
 SERVER_FEATURES = ["server"]
@@ -109,7 +110,6 @@ CONVERTER_SERVER_DEPS = CONVERTER_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TI
     "@crates//:tls-parser",
     "@crates//:tokio-rustls",
     "@crates//:unescaper",
-    "@crates//:url",
     "@crates//:x509-parser",
 ]
 CONVERTER_SERVER_FEATURES = CONVERTER_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + TILES_STATE_SERVER_FEATURES + ["converter-server"]
@@ -182,15 +182,15 @@ _EXCLUSION_MAP = [
     {"feature": "tiles-state-client", "delta": []},
     {"feature": "tiles-state-server", "delta": []},
     {"feature": "remote-fn-streaming", "delta": [90, 9]},
-    {"feature": "remote-fn", "delta": [89, 108, 6, 521]},
-    {"feature": "remote-fn-unary", "delta": [-519, -106, 10]},
+    {"feature": "remote-fn", "delta": [89, 108, 6, 523]},
+    {"feature": "remote-fn-unary", "delta": [-521, -106, 10]},
     {"feature": "converter", "delta": [-118, 6, 170, 2, 176, 15]},
     {"feature": "logs-panel", "delta": [-204, 15, -172, 2, 234, 4, 244, 5]},
     {"feature": "port-forward", "delta": [-252, 5, -240, 4, 74, 7, 254, 3, 262, 4]},
-    {"feature": "terminal", "delta": [-268, 4, -258, 3, -86, 7, 270, 2, 276, 4, 286, 4, 296, 21, 523]},
-    {"feature": "text-editor", "delta": [-521, -336, 21, -292, 4, -282, 4, -272, 2, 52, 11, 128, 3, 226, 3, 340, 17, 376, 16, 412, 28]},
-    {"feature": "client", "delta": [-452, 4, -434, 2, -426, 6, -411, -406, 16, -371, -368, 5, -356, 9, -132, 3, -72, 11, 3, 6, 2, 206, 3, 214, 6, 235, 239, 288, 3, 318, 3, 328, 5, 505, 517, 523]},
-    {"feature": "server", "delta": [-521, -515, -503, -466, 7, -444, 5, -430, 2, -413, -369, -357, -336, 5, -322, 3, -292, 3, -237, -233, -230, 9, -210, 3, -8, 2, -1, 16, 3, 34, 62, 160, 5, 178, 13, 257, 270, 2, 276, 4, 296, 11, 327, 349, 357, 360, 5, 418, 5, 519]},
+    {"feature": "terminal", "delta": [-268, 4, -258, 3, -86, 7, 270, 2, 276, 5, 288, 4, 298, 21, 525]},
+    {"feature": "text-editor", "delta": [-523, -338, 21, -294, 4, -284, 5, -272, 2, 52, 11, 128, 3, 226, 3, 342, 17, 378, 16, 414, 28]},
+    {"feature": "client", "delta": [-454, 4, -436, 2, -428, 6, -413, -408, 16, -373, -370, 5, -358, 9, -132, 3, -72, 11, 3, 6, 2, 206, 3, 214, 6, 235, 239, 290, 3, 320, 3, 330, 5, 507, 519, 525]},
+    {"feature": "server", "delta": [-523, -517, -505, -468, 7, -446, 5, -432, 2, -415, -371, -359, -338, 5, -324, 3, -294, 3, -237, -233, -230, 9, -210, 3, -8, 2, -1, 16, 3, 34, 62, 160, 5, 178, 13, 257, 270, 2, 276, 5, 298, 11, 329, 351, 359, 362, 5, 420, 5, 521]},
 ]
 
 def compute_srcs(features):

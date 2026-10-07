@@ -22,7 +22,7 @@ pub struct MeshConfig<T: ConfigTypes = RuntimeTypes> {
     pub gateway_url: T::String,
 
     /// The TLS server name to validate when connecting to the Gateway endpoint.
-    pub sni_override: T::MaybeString,
+    pub gateway_sni_override: T::MaybeString,
 
     /// The Gateway CA.
     ///

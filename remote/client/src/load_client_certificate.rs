@@ -81,7 +81,7 @@ pub async fn load_client_certificate<C: ClientConfig>(
         }
     }
 
-    info! { "Loading client certificate from {}", client_config.base_url() };
+    info! { "Loading client certificate from {:?}", client_config.base_url() };
     let client_cert = make_client_certificate(client_config, auth_code).await?;
     let client_cert_pem = store_client_certificate(certificate_path, client_cert)?;
     Ok(PemCertificate::from(client_cert_pem).cache()?)

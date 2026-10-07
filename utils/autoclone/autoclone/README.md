@@ -200,3 +200,25 @@ the attribute conditionally or during a refactor.
 * The crate also exposes `#[envelope]`, a separate helper for wrapping a type in
   a shared pointer.
 
+
+## Named graph inputs
+
+`#[graph]` generates a CamelCase input struct for each public entry point.
+Its public fields are the external inputs needed by that entry point; graph
+nodes are computed automatically. The consuming `run` method has the same
+result and async behavior as the generated free function.
+
+```rust
+#[autoclone::graph]
+mod app {
+    pub fn make_app(name: String, count: usize) -> String {
+        format!("{name}: {count}")
+    }
+}
+
+let result = app::MakeApp { name: "demo".into(), count: 2 }.run();
+assert_eq!(result, "demo: 2");
+```
+
+For async graphs, use `Inputs { /* fields */ }.run().await`. The generated
+free function remains available for positional calls.

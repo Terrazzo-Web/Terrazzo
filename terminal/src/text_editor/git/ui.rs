@@ -1,3 +1,4 @@
+use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
@@ -20,6 +21,7 @@ pub fn git_button(manager: &Ptr<TextEditorManager>) -> XElement {
     )
 }
 
+#[autoclone]
 #[html]
 #[template(tag = span)]
 fn git_button_impl(
@@ -30,12 +32,42 @@ fn git_button_impl(
     if !is_git_repo {
         return tag(style::display = "none", style::visibility = "hidden");
     }
+    let src_signal = XSignal::new(
+        "git-icon",
+        if mode == SideViewMode::Git {
+            icons::git()
+        } else {
+            icons::hdd()
+        },
+    );
+
+    #[template(wrap = true)]
+    pub fn make_src_signal(#[signal] mut src_signal: &'static str) -> XAttributeValue {
+        src_signal
+    }
+
     img(
         class = style::TOGGLE_EDITOR_DIFF,
         class = (mode == SideViewMode::Git).then_some(style::ACTIVE),
         #[cfg(not(feature = "client-prod"))]
         class = "toggle-git-side-view",
-        src = icons::git(),
+        src %= make_src_signal(src_signal.clone()),
+        mouseover = move |_| {
+            autoclone!(src_signal);
+            src_signal.set(if mode != SideViewMode::Git {
+                icons::git()
+            } else {
+                icons::hdd()
+            })
+        },
+        mouseout = move |_| {
+            autoclone!(src_signal);
+            src_signal.set(if mode == SideViewMode::Git {
+                icons::git()
+            } else {
+                icons::hdd()
+            })
+        },
         title = if mode == SideViewMode::Git {
             "Show files"
         } else {
@@ -52,6 +84,7 @@ fn git_button_impl(
                     manager
                         .side_view
                         .force(manager.git_side_view.get_value_untracked());
+                    refresh(&manager);
                 }
                 SideViewMode::Git => {
                     manager.side_view_mode.set(SideViewMode::Files);

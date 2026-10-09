@@ -75,6 +75,7 @@ pub struct Debounce {
 }
 
 impl DoDebounce for Duration {
+    // TODO: Why not use async_debounce?
     fn async_throttle<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,

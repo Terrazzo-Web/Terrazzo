@@ -28,14 +28,21 @@ remote_fn_service::unary::declare_remote_fn!(
     Option<Vec<FileMetadata>>,
     |_server, base| async move {
         git_status_impl(&base)
-            .map_err(GitStatusError)
+            .map_err(|error| GitStatusError {
+                path: base.clone(),
+                source: error,
+            })
             .map_err(GrpcError::from)
     }
 );
 
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to read Git status: {0}")]
-struct GitStatusError(std::io::Error);
+#[error("Failed to read Git status from {path:?}: {source}")]
+struct GitStatusError {
+    path: Arc<Path>,
+    #[source]
+    source: std::io::Error,
+}
 
 impl IsGrpcError for GitStatusError {
     fn code(&self) -> tonic::Code {

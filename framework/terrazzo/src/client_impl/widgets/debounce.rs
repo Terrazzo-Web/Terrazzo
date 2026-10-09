@@ -44,6 +44,15 @@ pub trait DoDebounce: Copy + 'static {
         F: Fn(T) -> FR + 'static,
         FR: Future<Output = R> + 'static,
         R: Clone + Send + Sync + 'static;
+    /// Starts the callback after the configured delay, then coalesces calls until
+    /// it finishes and another delay elapses. Coalesced calls share the first
+    /// call's result, ignoring their arguments. The result includes the final delay.
+    fn async_throttle<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
+    where
+        T: 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: Clone + Send + Sync + 'static;
     fn with_max_delay(self) -> impl DoDebounce;
     fn cancellable(self) -> Cancellable<Self> {
         Cancellable::of(self)
@@ -66,6 +75,20 @@ pub struct Debounce {
 }
 
 impl DoDebounce for Duration {
+    fn async_throttle<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
+    where
+        T: 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: Clone + Send + Sync + 'static,
+    {
+        Debounce {
+            delay: self,
+            max_delay: None,
+        }
+        .async_throttle(callback)
+    }
+
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         Debounce {
             delay: self,
@@ -97,6 +120,38 @@ impl DoDebounce for Duration {
 }
 
 impl DoDebounce for Debounce {
+    fn async_throttle<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
+    where
+        T: 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: Clone + Send + Sync + 'static,
+    {
+        let active: Arc<Mutex<Option<Shared<BoxFuture<R>>>>> = Arc::default();
+        let callback = Arc::new(callback);
+        let throttled = self.async_debounce({
+            let active = active.clone();
+            move |arg| {
+                let active = active.clone();
+                let callback = callback.clone();
+                async move {
+                    let _finished = guard((), |_| {
+                        *active.lock().or_throw("async throttle completion") = None;
+                    });
+                    let result = callback(arg).await;
+                    if let Err(error) = super::sleep::sleep(self.delay).await {
+                        warn!("Failed to delay async callback: {error}");
+                    }
+                    result
+                }
+            }
+        });
+        move |arg| {
+            let mut active = active.lock().or_throw("async throttle");
+            active.get_or_insert_with(|| throttled(arg)).clone()
+        }
+    }
+
     #[autoclone]
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         let state = Ptr::new(Cell::new(DebounceState::default()));
@@ -221,6 +276,16 @@ impl<R> std::fmt::Debug for AsyncState<R> {
 }
 
 impl DoDebounce for () {
+    fn async_throttle<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
+    where
+        T: 'static,
+        F: Fn(T) -> FR + 'static,
+        FR: Future<Output = R> + 'static,
+        R: Clone + Send + Sync + 'static,
+    {
+        Duration::ZERO.async_throttle(callback)
+    }
+
     fn debounce<T: 'static>(self, f: impl Fn(T) + 'static) -> impl Fn(T) {
         f
     }

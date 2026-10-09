@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::debounce::DoDebounce as _;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::warn;
@@ -98,34 +101,56 @@ fn git_button_impl(
     )
 }
 
-pub fn refresh(manager: &Ptr<TextEditorManager>) {
-    let manager = manager.clone();
-    let base = manager.path.base.get_value_untracked();
-    manager.is_git_repo.set(false);
-    spawn_local(async move {
-        let result = git_status(manager.remote.clone(), base.clone()).await;
-        if manager.path.base.get_value_untracked() != base {
-            return;
-        }
-        match result {
-            Ok(Some(files)) => {
-                let side_view = side_view::side_view(&manager, &base, &files);
-                manager.git_side_view.force(Some(side_view.clone()));
-                manager.is_git_repo.set(true);
+pub fn refresh_on_mouse_activity(manager: Ptr<TextEditorManager>) -> impl Fn(web_sys::MouseEvent) {
+    let refresh = Duration::from_secs(1).async_throttle({
+        let manager = manager.clone();
+        move |()| {
+            let manager = manager.clone();
+            async move {
                 if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
-                    manager.side_view.force(Some(side_view));
+                    refresh_impl(&manager).await;
                 }
             }
-            Ok(None) => {
-                manager.git_side_view.force(None);
-                if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
-                    manager
-                        .side_view
-                        .force(manager.files_side_view.get_value_untracked());
-                    manager.side_view_mode.set(SideViewMode::Files);
-                }
-            }
-            Err(error) => warn!("Failed to load Git status: {error}"),
         }
     });
+    move |_| {
+        if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
+            drop(refresh(()));
+        }
+    }
+}
+
+pub fn refresh(manager: &Ptr<TextEditorManager>) {
+    let manager = manager.clone();
+    manager.is_git_repo.set(false);
+    spawn_local(async move { refresh_impl(&manager).await });
+}
+
+async fn refresh_impl(manager: &Ptr<TextEditorManager>) {
+    let base = manager.path.base.get_value_untracked();
+    let result = git_status(manager.remote.clone(), base.clone()).await;
+    if manager.path.base.get_value_untracked() != base {
+        return;
+    }
+    match result {
+        Ok(Some(files)) => {
+            let side_view = side_view::side_view(&manager, &base, &files);
+            manager.git_side_view.force(Some(side_view.clone()));
+            manager.is_git_repo.set(true);
+            if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
+                manager.side_view.force(Some(side_view));
+            }
+        }
+        Ok(None) => {
+            manager.is_git_repo.set(false);
+            manager.git_side_view.force(None);
+            if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
+                manager
+                    .side_view
+                    .force(manager.files_side_view.get_value_untracked());
+                manager.side_view_mode.set(SideViewMode::Files);
+            }
+        }
+        Err(error) => warn!("Failed to load Git status: {error}"),
+    }
 }

@@ -103,15 +103,17 @@ fn git_button_impl(
 
 #[autoclone]
 pub fn refresh_on_mouse_activity(manager: Ptr<TextEditorManager>) -> impl Fn(web_sys::MouseEvent) {
-    let refresh = Duration::from_secs(1).async_throttle(move |()| {
-        autoclone!(manager);
-        async move {
+    let refresh = Duration::from_secs(1)
+        .with_max_delay()
+        .async_debounce(move |()| {
             autoclone!(manager);
-            if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
-                refresh_impl(&manager).await;
+            async move {
+                autoclone!(manager);
+                if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
+                    refresh_impl(&manager).await;
+                }
             }
-        }
-    });
+        });
     move |_| {
         if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
             drop(refresh(()));
@@ -133,7 +135,7 @@ async fn refresh_impl(manager: &Ptr<TextEditorManager>) {
     }
     match result {
         Ok(Some(files)) => {
-            let side_view = side_view::side_view(&manager, &base, &files);
+            let side_view = side_view::side_view(manager, &base, &files);
             manager.git_side_view.force(Some(side_view.clone()));
             manager.is_git_repo.set(true);
             if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {

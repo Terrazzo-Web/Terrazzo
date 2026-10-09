@@ -101,17 +101,14 @@ fn git_button_impl(
     )
 }
 
+#[autoclone]
 pub fn refresh_on_mouse_activity(manager: Ptr<TextEditorManager>) -> impl Fn(web_sys::MouseEvent) {
-    let refresh = Duration::from_secs(1).async_throttle({
-        // TODO: use `autoclone!`
-        let manager = manager.clone();
-        move |()| {
-            // TODO: use `autoclone!`
-            let manager = manager.clone();
-            async move {
-                if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
-                    refresh_impl(&manager).await;
-                }
+    let refresh = Duration::from_secs(1).async_throttle(move |()| {
+        autoclone!(manager);
+        async move {
+            autoclone!(manager);
+            if manager.side_view_mode.get_value_untracked() == SideViewMode::Git {
+                refresh_impl(&manager).await;
             }
         }
     });

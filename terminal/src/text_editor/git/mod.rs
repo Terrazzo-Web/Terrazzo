@@ -10,11 +10,11 @@ use crate::api::client_address::ClientAddress;
 use crate::text_editor::fsio::FileMetadata;
 
 #[server(protocol = Http<Json, Json>)]
-pub async fn git_status(
+pub async fn git_diff_ls(
     remote: ClientAddress,
     base: Arc<Path>,
 ) -> Result<Option<Vec<FileMetadata>>, ServerFnError> {
-    service::git_status(remote, base).await
+    service::git_diff_ls(remote, base).await
 }
 
 #[cfg(feature = "server")]

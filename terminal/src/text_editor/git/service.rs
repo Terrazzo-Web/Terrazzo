@@ -13,22 +13,22 @@ use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::backend::client_service::remote_fn_service;
 use crate::text_editor::fsio::git::git_repo_root;
 
-pub async fn git_status(
+pub async fn git_diff_ls(
     remote: ClientAddress,
     base: Arc<Path>,
 ) -> Result<Option<Vec<FileMetadata>>, ServerFnError> {
-    Ok(GIT_STATUS_FN.call(remote, base).await?)
+    Ok(GIT_DIFF_LS_FN.call(remote, base).await?)
 }
 
 remote_fn_service::unary::declare_remote_fn!(
-    GIT_STATUS_FN,
-    "texteditor.git_status",
+    GIT_DIFF_LS_FN,
+    "texteditor.git_diff_ls",
     Arc<Path>,
     Option<Vec<FileMetadata>>,
     |_server, base| async move {
-        match git_status_impl::run(&base) {
+        match git_diff_ls_impl::run(&base) {
             Ok(files) => Ok(Some(files)),
-            Err(GitStatusError::NotGit) => Ok(None),
+            Err(GitDiffLsError::NotGit) => Ok(None),
             Err(error) => Err(GrpcError::from(error)),
         }
     }
@@ -36,22 +36,25 @@ remote_fn_service::unary::declare_remote_fn!(
 
 #[nameth]
 #[derive(Debug, thiserror::Error)]
-pub enum GitStatusError {
+pub enum GitDiffLsError {
     #[error("[{n}] Not a Git repository", n = self.name())]
     NotGit,
 
     #[error("[{n}] {0}", n = self.name())]
-    GitStatusError(#[from] std::io::Error),
+    IoError(#[from] std::io::Error),
+
+    #[error("[{n}] git status failed: {0}", n = self.name())]
+    GitStatusError(String),
 }
 
-impl IsGrpcError for GitStatusError {
+impl IsGrpcError for GitDiffLsError {
     fn code(&self) -> tonic::Code {
         tonic::Code::FailedPrecondition
     }
 }
 
 #[graph]
-mod git_status_impl {
+mod git_diff_ls_impl {
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::path::Path;
@@ -61,10 +64,10 @@ mod git_status_impl {
     use std::sync::Arc;
 
     use super::FileMetadata;
-    use super::GitStatusError;
+    use super::GitDiffLsError;
     use super::git_repo_root;
 
-    pub fn run(files: Vec<FileMetadata>) -> Result<Vec<FileMetadata>, GitStatusError> {
+    pub fn run(files: Vec<FileMetadata>) -> Result<Vec<FileMetadata>, GitDiffLsError> {
         Ok(files)
     }
 
@@ -116,7 +119,7 @@ mod git_status_impl {
         paths
     }
 
-    fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitStatusError> {
+    fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitDiffLsError> {
         let (repo_root, relative) = base_from_root;
         let output = Command::new("git")
             .args([
@@ -131,14 +134,17 @@ mod git_status_impl {
             .current_dir(repo_root.join(relative))
             .output()?;
         if !output.status.success() {
-            // TODO: allocate a new error enum value 'GitStatusError' and rename the enum itself GitStatusError->GitDiffLsError
-            return Err(GitStatusError::NotGit);
+            return Err(GitDiffLsError::GitStatusError(format!(
+                "{}: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim_end(),
+            )));
         }
         Ok(output)
     }
 
-    fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitStatusError> {
-        let repo_root = git_repo_root(base).ok_or(GitStatusError::NotGit)?;
+    fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitDiffLsError> {
+        let repo_root = git_repo_root(base).ok_or(GitDiffLsError::NotGit)?;
         let relative = base
             .strip_prefix(repo_root.as_ref())
             .unwrap_or_else(|_| Path::new(""))

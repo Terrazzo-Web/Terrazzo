@@ -8,7 +8,7 @@ use terrazzo::widgets::debounce::DoDebounce as _;
 use wasm_bindgen_futures::spawn_local;
 
 use self::diagnostics::warn;
-use super::git_status;
+use super::git_diff_ls;
 use crate::assets::icons;
 use crate::text_editor::manager::SideViewMode;
 use crate::text_editor::manager::TextEditorManager;
@@ -129,7 +129,7 @@ pub fn refresh(manager: &Ptr<TextEditorManager>) {
 
 async fn refresh_impl(manager: &Ptr<TextEditorManager>) {
     let base = manager.path.base.get_value_untracked();
-    let result = git_status(manager.remote.clone(), base.clone()).await;
+    let result = git_diff_ls(manager.remote.clone(), base.clone()).await;
     if manager.path.base.get_value_untracked() != base {
         return;
     }

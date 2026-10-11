@@ -1,10 +1,28 @@
 #![cfg(feature = "tiles-state")]
 
+/// Generates a state module with remote getters and debounced client setters.
+///
+/// - `make_state!(name, Type)` uses `Default::default()` for missing values.
+/// - `make_state!(name, Type, default)` uses the supplied default expression.
+/// - `make_state!(name, Type, default, preference)` also maintains a global
+///   default under the `None` tile key. Each tile write updates both that tile's
+///   value and the global default, so tiles without a saved value inherit the
+///   last stored preference. Existing tile values take precedence; the supplied
+///   default is used when neither a tile value nor a global value exists.
+///
+/// The `@impl` variant is an internal implementation shared by these forms.
+#[allow(unused_macro_rules)] // Preference rules are only used by text-editor builds.
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     $crate::tiles::state::make_state!($name, $ty, Default::default());
 };
 ($name:ident, $ty:ty, $default:expr) => {
+    $crate::tiles::state::make_state!(@impl $name, $ty, $default, false);
+};
+($name:ident, $ty:ty, $default:expr, preference) => {
+    $crate::tiles::state::make_state!(@impl $name, $ty, $default, true);
+};
+(@impl $name:ident, $ty:ty, $default:expr, $preference:expr) => {
     pub mod $name {
         use server_fn::ServerFnError;
         use terrazzo::server;
@@ -151,6 +169,7 @@ macro_rules! make_state {
                     ready(Ok::<super::ty::Type, StateError>(
                         state
                             .get(&request.tile)
+                            .or_else(|| if $preference { state.get(&None) } else { None })
                             .cloned()
                             .unwrap_or_else(super::default_value),
                     ))
@@ -164,6 +183,9 @@ macro_rules! make_state {
                 (),
                 |_server, request: SetRequest| {
                     let mut state = super::state::STATE.lock().expect(stringify!($name));
+                    if $preference && request.tile.is_some() {
+                        state.insert(None, request.value.clone());
+                    }
                     state.insert(request.tile, request.value);
                     ready(Ok::<(), StateError>(()))
                 }

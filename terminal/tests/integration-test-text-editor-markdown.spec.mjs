@@ -18,6 +18,20 @@ import {
     setBasePath,
 } from './text-editor-helpers.mjs';
 
+async function showPreview(page) {
+    const toggle = page.locator('.toggle-html-preview');
+    await expect(toggle).toBeVisible({ timeout: 10 * SECOND });
+    for (let index = 0; index < 2; index++) {
+        if (await toggle.getAttribute('title') === 'Show editor') {
+            break;
+        }
+        const title = await toggle.getAttribute('title');
+        await toggle.click();
+        await expect(toggle).not.toHaveAttribute('title', title);
+    }
+    await expect(toggle).toHaveAttribute('title', 'Show editor');
+}
+
 test.describe('Markdown editor', () => {
     test.describe.configure({ retries: 5 });
 
@@ -50,6 +64,7 @@ test.describe('Markdown editor', () => {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
+        await showPreview(page);
 
         const wysiwyg = getMilkdownWysiwyg(page);
         const milkdownContent = getMilkdownContent(page);
@@ -117,19 +132,23 @@ test.describe('Markdown editor', () => {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
+        await showPreview(page);
 
         const previewToggle = page.locator('.toggle-html-preview');
         await previewToggle.click();
+        const diffToggle = page.locator('.toggle-editor-diff');
         const source = getMilkdownSource(page);
+        await expect(source).toBeVisible();
         await expect(source).toContainText('Hello, World!', { timeout: 10 * SECOND });
         await replaceEditorText(page, source, '# Working copy\n\nChanged in Markdown.');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toContain('Working copy');
 
         await reopenFolderFile(page, fileName);
         await previewToggle.click();
-        const diffToggle = page.locator('.toggle-editor-diff');
         await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
-        await diffToggle.click();
+        if (await diffToggle.getAttribute('title') === 'Show diff') {
+            await diffToggle.click();
+        }
 
         await expect(getMilkdownWysiwyg(page)).toBeVisible({ timeout: 10 * SECOND });
         const diffEditors = getMilkdownMergeViewEditors(page);
@@ -165,6 +184,7 @@ test.describe('Markdown editor', () => {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
+        await showPreview(page);
 
         await expect(getMilkdownWysiwyg(page)).toBeVisible({ timeout: 10 * SECOND });
         await page.waitForTimeout(2 * SECOND);
@@ -197,6 +217,7 @@ test.describe('Markdown editor', () => {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
+        await showPreview(page);
 
         const wysiwyg = getMilkdownWysiwyg(page);
         const content = getMilkdownContent(page);
@@ -241,6 +262,7 @@ test.describe('Markdown editor', () => {
         await writeFile(htmlFixture.filePath, '<h1>HTML preview remains available.</h1>');
         await setBasePath(page, htmlFixture.baseDir, htmlFileName);
         await openFolderFile(page, htmlFileName);
+        await showPreview(page);
         await expect(getHtmlViewerFrame(page)).toBeVisible({ timeout: 10 * SECOND });
         await expect(page.locator('.toggle-html-preview')).toBeVisible();
     });

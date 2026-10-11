@@ -11,6 +11,7 @@ use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewNode;
+use super::state::PreviewMode;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
@@ -79,14 +80,6 @@ impl EditorDataState {
     pub(super) fn supports_preview(&self) -> bool {
         self.is_html() || self.is_markdown()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) enum PreviewMode {
-    #[default]
-    Preview,
-    Editor,
-    SideBySide,
 }
 
 impl PreviewMode {

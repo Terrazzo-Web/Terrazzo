@@ -293,7 +293,8 @@ test.describe('Converter', () => {
         await expect(tiles).toHaveCount(2);
         await expect(tileResizeBar).toBeAttached();
         await expect(tileResizeBars).toHaveCount(1);
-        await expect(getConverterInput(page)).toHaveCount(1);
+        await expect(getConverterInput(page)).toHaveCount(2);
+        await expect(tiles.nth(1).locator('textarea.converter-input')).toBeVisible();
 
         await expect(
             await getResizeBarStyles(tileResizeBar),
@@ -319,6 +320,10 @@ test.describe('Converter', () => {
             const box = await getBoundingBox(leftTile);
             return Math.round(box.width - beforeDrag.width);
         }).toBeGreaterThan(90);
+
+        await tiles.nth(1).locator('.app-menu-trigger').hover();
+        await tiles.nth(1).locator('img.tile-close').click();
+        await expect(getConverterInput(page)).toHaveCount(1);
     });
 
     test('tabbed tile splitter switches without flicker and adds tile tabs', async ({ page }) => {

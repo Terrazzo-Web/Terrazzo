@@ -18,8 +18,7 @@ def terminal_rules(
         client_features = [],
         client_deps = [],
         server_features = [],
-        server_deps = [],
-        server_deps_proc_macro = []):
+        server_deps = []):
     """Defines the client and server Bazel targets for the terminal package.
 
     Args:
@@ -28,12 +27,10 @@ def terminal_rules(
         client_deps: List of additional dependencies for client targets.
         server_features: List of Rust crate features enabled for server library targets.
         server_deps: List of additional dependencies for server library targets.
-        server_deps_proc_macro: List of macro dependencies for server library targets.
     """
     client_features = _dedupe(client_features)
     client_deps = _dedupe(client_deps)
     server_features = _dedupe(server_features)
-    server_deps_proc_macro = _dedupe(server_deps_proc_macro)
     server_deps = _dedupe(server_deps)
 
     if prefix and not prefix.endswith("-"):
@@ -120,7 +117,6 @@ def terminal_rules(
         },
         rustc_env_files = ["rustc.env"],
         deps = server_deps,
-        deps_proc_macro = server_deps_proc_macro,
     )
 
     rust_rules_matrix(

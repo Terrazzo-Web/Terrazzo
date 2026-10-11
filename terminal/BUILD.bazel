@@ -34,7 +34,7 @@ feature_deps(
         "trz-gateway-client": "//remote/client",
         "trz-gateway-common": "//remote/common",
     },
-    dependency_exclusion = ["autoclone", "trz-gateway-server"],
+    dependency_exclusion = ["trz-gateway-server"],
 )
 
 terminal_assets(
@@ -51,7 +51,6 @@ terminal_rules(
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + PROD_DEPS,
-    server_deps_proc_macro = ["//utils/autoclone/autoclone"],
     server_features = PROD_FEATURES,
 )
 
@@ -88,7 +87,6 @@ terminal_rules(
         "//remote/server:acme",
         "//utils/nameth/nameth",
     ] + TEXT_EDITOR_SERVER_DEPS,
-    server_deps_proc_macro = ["//utils/autoclone/autoclone"],
     server_features = TEXT_EDITOR_SERVER_FEATURES,
 )
 

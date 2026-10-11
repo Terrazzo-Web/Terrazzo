@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use autoclone::graph;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
+use terrazzo::graph;
 
 use super::FileMetadata;
 use crate::api::client_address::ClientAddress;

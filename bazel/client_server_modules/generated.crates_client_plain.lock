@@ -5389,7 +5389,6 @@ dependencies = [
 name = "terrazzo-terminal"
 version = "0.2.21"
 dependencies = [
- "autoclone",
  "axum-extra",
  "base64 0.23.1",
  "bitflags 2.13.2",

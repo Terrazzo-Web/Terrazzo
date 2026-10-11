@@ -21,7 +21,6 @@ path = "src/server.rs"
 required-features = ["server"]
 
 [dependencies]
-autoclone = { workspace = true, optional = true }
 axum-extra = { workspace = true, optional = true, features = ["cookie"] }
 base64 = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
@@ -226,7 +225,6 @@ text-editor-client = [
   "web-sys/KeyboardEvent",
 ]
 text-editor-server = [
-  "dep:autoclone",
   "dep:chrono",
   "dep:libc",
   "dep:lru",

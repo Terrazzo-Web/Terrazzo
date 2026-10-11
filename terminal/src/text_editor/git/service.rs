@@ -26,7 +26,7 @@ remote_fn_service::unary::declare_remote_fn!(
     Arc<Path>,
     Option<Vec<FileMetadata>>,
     |_server, base| async move {
-        match git_diff_ls_impl::run(&base).await {
+        match git_diff_ls::run(&base).await {
             Ok(files) => Ok(Some(files)),
             Err(GitDiffLsError::NotGit) => Ok(None),
             Err(error) => Err(GrpcError::from(error)),
@@ -54,7 +54,7 @@ impl IsGrpcError for GitDiffLsError {
 }
 
 #[graph]
-mod git_diff_ls_impl {
+mod git_diff_ls {
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::path::Path;

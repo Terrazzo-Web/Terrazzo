@@ -105,7 +105,7 @@ hyper-util = { version = "0.1.21" }
 include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.25" }
-jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.190" }
 lru = { version = "0.18.5" }
 mime = { version = "0.3.17" }

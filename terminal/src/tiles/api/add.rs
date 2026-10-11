@@ -41,7 +41,10 @@ fn add_node_aux(
                 .ok_or(TilesStateError::DuplicateTileId(next_to))?;
             let new = Arc::new(Tiles::Tile(Tile {
                 id: new_id,
-                app: App::Default,
+                app: match with_direction {
+                    Direction::Horizontal | Direction::Vertical => node.app,
+                    Direction::Tabbed => App::Default,
+                },
                 remote: node.remote.clone(),
                 title: format!("New tile {new_id}").into(),
             }));

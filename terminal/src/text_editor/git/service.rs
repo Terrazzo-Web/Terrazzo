@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
 use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
+use autoclone::graph;
+use nameth::NamedEnumValues as _;
+use nameth::nameth;
 use server_fn::ServerFnError;
 
 use super::FileMetadata;
@@ -27,21 +26,22 @@ remote_fn_service::unary::declare_remote_fn!(
     Arc<Path>,
     Option<Vec<FileMetadata>>,
     |_server, base| async move {
-        git_status_impl(&base)
-            .map_err(|error| GitStatusError {
-                path: base.clone(),
-                source: error,
-            })
-            .map_err(GrpcError::from)
+        match git_status_impl::run(&base) {
+            Ok(files) => Ok(Some(files)),
+            Err(GitStatusError::NotGit) => Ok(None),
+            Err(error) => Err(GrpcError::from(error)),
+        }
     }
 );
 
+#[nameth]
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to read Git status from {path:?}: {source}")]
-struct GitStatusError {
-    path: Arc<Path>,
-    #[source]
-    source: std::io::Error,
+pub enum GitStatusError {
+    #[error("[{n}] Not a Git repository", n = self.name())]
+    NotGit,
+
+    #[error("[{n}] {0}", n = self.name())]
+    GitStatusError(#[from] std::io::Error),
 }
 
 impl IsGrpcError for GitStatusError {
@@ -50,87 +50,99 @@ impl IsGrpcError for GitStatusError {
     }
 }
 
-/* TODO: use autoclone::graph
+#[graph]
+mod git_status_impl {
+    use std::collections::HashMap;
+    use std::collections::HashSet;
+    use std::path::Path;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::process::Output;
+    use std::sync::Arc;
 
-I see the following nodes:
-- base is the input parameter
-- base_from_root is the first node. You need to create a new enum error type where NotGit is one of the enum values, the other ones are the std::io::Errors
-- output is the second node and derives from base_from_root
-- paths
-- files
+    use super::FileMetadata;
+    use super::GitStatusError;
+    use super::git_repo_root;
 
-The result should a typed Result<Vec<FileMetadata>, GitStatusError>
-
-Where GitStatusError is enum GitStatusError { NotGit, GitStatusError(std::io::Error) }
-
-use
-#[nameth]
-#[derive(Debug, thiserror::Error)]
-pub enum GitStatusError {
-    #[error("[{n}] {0}", n = self.name())]
-    ... error code ...
- */
-fn git_status_impl(base: &Path) -> std::io::Result<Option<Vec<FileMetadata>>> {
-    let Some(repo_root) = git_repo_root(base) else {
-        return Ok(None);
-    };
-    let base_from_root = base
-        .strip_prefix(repo_root.as_ref())
-        .unwrap_or_else(|_| Path::new(""));
-    let output = Command::new("git")
-        .args([
-            "status",
-            "--porcelain=v1",
-            "-z",
-            "--untracked-files=all",
-            "--ignored=no",
-            "--",
-            ".",
-        ])
-        .current_dir(base)
-        .output()?;
-    if !output.status.success() {
-        return Ok(None);
+    pub fn run(files: Vec<FileMetadata>) -> Result<Vec<FileMetadata>, GitStatusError> {
+        Ok(files)
     }
 
-    // Porcelain v1 with `-z` emits unquoted, NUL-terminated records:
-    // - New: `?? PATH\0` when untracked, or `A  PATH\0` when staged.
-    // - Changed: ` M PATH\0` in the worktree, `M  PATH\0` in the index, or `MM PATH\0` in both.
-    // - Moved: `R  DESTINATION\0SOURCE\0`; copy records use `C` and the same two-path layout.
-    // - Deleted: ` D PATH\0` from the worktree or `D  PATH\0` from the index.
-    // The first and second status columns (`X` and `Y`) describe the index and worktree.
-    let mut records = output.stdout.split(|byte| *byte == 0);
-    let mut paths = HashSet::new();
-    while let Some(record) = records.next() {
-        // A valid record needs two status bytes, one separating space, and at least one path byte.
-        // This also skips the empty field after the output's final NUL terminator.
-        if record.len() < 4 {
-            continue;
-        }
-        let status = &record[..2];
-        let path = PathBuf::from(String::from_utf8_lossy(&record[3..]).into_owned());
-        if let Ok(path) = path.strip_prefix(base_from_root) {
-            paths.insert(path.to_owned());
-        }
-        if status.contains(&b'R') || status.contains(&b'C') {
-            let _old_path = records.next();
-        }
+    fn files(base: &Path, paths: HashSet<PathBuf>) -> Vec<FileMetadata> {
+        let mut gids = HashMap::new();
+        let mut uids = HashMap::new();
+        let mut files = paths
+            .into_iter()
+            .map(|path| {
+                let metadata = std::fs::symlink_metadata(base.join(&path));
+                FileMetadata::make(
+                    path.display().to_string().into(),
+                    metadata.as_ref(),
+                    &mut gids,
+                    &mut uids,
+                )
+            })
+            .collect::<Vec<_>>();
+        files.sort_by(|left, right| left.name.cmp(&right.name));
+        files
     }
 
-    let mut gids = HashMap::new();
-    let mut uids = HashMap::new();
-    let mut files = paths
-        .into_iter()
-        .map(|path| {
-            let metadata = std::fs::symlink_metadata(base.join(&path));
-            FileMetadata::make(
-                path.display().to_string().into(),
-                metadata.as_ref(),
-                &mut gids,
-                &mut uids,
-            )
-        })
-        .collect::<Vec<_>>();
-    files.sort_by(|left, right| left.name.cmp(&right.name));
-    Ok(Some(files))
+    fn paths(output: Output, base_from_root: &(Arc<Path>, PathBuf)) -> HashSet<PathBuf> {
+        let (_, base_from_root) = base_from_root;
+        // Porcelain v1 with `-z` emits unquoted, NUL-terminated records:
+        // - New: `?? PATH\0` when untracked, or `A  PATH\0` when staged.
+        // - Changed: ` M PATH\0` in the worktree, `M  PATH\0` in the index, or `MM PATH\0` in both.
+        // - Moved: `R  DESTINATION\0SOURCE\0`; copy records use `C` and the same two-path layout.
+        // - Deleted: ` D PATH\0` from the worktree or `D  PATH\0` from the index.
+        // The first and second status columns (`X` and `Y`) describe the index and worktree.
+        let mut records = output.stdout.split(|byte| *byte == 0);
+        let mut paths = HashSet::new();
+        while let Some(record) = records.next() {
+            // A valid record needs two status bytes, one separating space, and at least one path byte.
+            // This also skips the empty field after the output's final NUL terminator.
+            if record.len() < 4 {
+                continue;
+            }
+            let status = &record[..2];
+            let path = PathBuf::from(String::from_utf8_lossy(&record[3..]).into_owned());
+            if let Ok(path) = path.strip_prefix(base_from_root) {
+                paths.insert(path.to_owned());
+            }
+            if status.contains(&b'R') || status.contains(&b'C') {
+                let _old_path = records.next();
+            }
+        }
+
+        paths
+    }
+
+    fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitStatusError> {
+        let (repo_root, relative) = base_from_root;
+        let output = Command::new("git")
+            .args([
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignored=no",
+                "--",
+                ".",
+            ])
+            .current_dir(repo_root.join(relative))
+            .output()?;
+        if !output.status.success() {
+            // TODO: allocate a new error enum value 'GitStatusError' and rename the enum itself GitStatusError->GitDiffLsError
+            return Err(GitStatusError::NotGit);
+        }
+        Ok(output)
+    }
+
+    fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitStatusError> {
+        let repo_root = git_repo_root(base).ok_or(GitStatusError::NotGit)?;
+        let relative = base
+            .strip_prefix(repo_root.as_ref())
+            .unwrap_or_else(|_| Path::new(""))
+            .to_owned();
+        Ok((repo_root, relative))
+    }
 }

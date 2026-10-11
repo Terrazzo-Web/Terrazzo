@@ -62,6 +62,7 @@ mod git_diff_ls {
     use std::process::Output;
     use std::sync::Arc;
     use tokio::process::Command;
+    use tracing::debug;
 
     use super::FileMetadata;
     use super::GitDiffLsError;
@@ -121,6 +122,7 @@ mod git_diff_ls {
 
     async fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitDiffLsError> {
         let (repo_root, relative) = base_from_root;
+        let current_dir = repo_root.join(relative);
         let output = Command::new("git")
             .args([
                 "status",
@@ -131,12 +133,12 @@ mod git_diff_ls {
                 "--",
                 ".",
             ])
-            .current_dir(repo_root.join(relative))
+            .current_dir(&current_dir)
             .output()
             .await?;
         if !output.status.success() {
             return Err(GitDiffLsError::GitStatusError(format!(
-                "{}: {}",
+                "{}: path={current_dir:?} {}",
                 output.status,
                 String::from_utf8_lossy(&output.stderr).trim_end(),
             )));
@@ -146,10 +148,50 @@ mod git_diff_ls {
 
     fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitDiffLsError> {
         let repo_root = git_repo_root(base).ok_or(GitDiffLsError::NotGit)?;
+        debug!("Found repo root:{repo_root:?} of base:{base:?}");
         let relative = base
             .strip_prefix(repo_root.as_ref())
-            .unwrap_or_else(|_| Path::new(""))
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidInput, error))?
             .to_owned();
         Ok((repo_root, relative))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GitDiffLsError;
+    use super::git_diff_ls;
+
+    #[tokio::test]
+    async fn rejects_invalid_git_directory() {
+        let folder = tempfile::tempdir().unwrap();
+        std::fs::create_dir(folder.path().join(".git")).unwrap();
+        let base = folder.path().join("nested");
+        std::fs::create_dir(&base).unwrap();
+
+        assert!(matches!(
+            git_diff_ls::run(&base).await,
+            Err(GitDiffLsError::NotGit)
+        ));
+    }
+
+    #[tokio::test]
+    async fn lists_changes_relative_to_base() {
+        let folder = tempfile::tempdir().unwrap();
+        let output = tokio::process::Command::new("git")
+            .arg("init")
+            .current_dir(folder.path())
+            .output()
+            .await
+            .unwrap();
+        assert!(output.status.success());
+        let base = folder.path().join("nested");
+        std::fs::create_dir(&base).unwrap();
+        std::fs::write(base.join("changed.txt"), "changed").unwrap();
+        std::fs::write(folder.path().join("outside.txt"), "outside").unwrap();
+
+        let files = git_diff_ls::run(&base).await.unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].name.as_ref(), "changed.txt");
     }
 }

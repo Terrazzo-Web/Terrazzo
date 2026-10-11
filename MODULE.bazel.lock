@@ -534,7 +534,7 @@
           "FILE:@@//bazel/feature_deps/Cargo.toml 28f7ae00a8fdfac9a44091296c1c437426fd6cd9b79a230bc56af4cde68902a7",
           "FILE:@@//utils/nameth/nameth/Cargo.toml 901f39913de1ba25b26ff4551057daf312ea61903456d94706677370a56cf79e",
           "FILE:@@//utils/nameth/nameth-macro/Cargo.toml adedef3f1c8c330a7ef8fe039e1e84037a5cbc03d2ec51f2ae817949bd5bc5aa",
-          "FILE:@@//demo/Cargo.toml 4752012416e4187160a18876c49981e564042ad2f7595c1c9fa166e4be5e50c6",
+          "FILE:@@//demo/Cargo.toml b88030d3b889c1d1ddc2a1204bcbc22f83f19311f18175f0b4455d1cd02a8d32",
           "FILE:@@//framework/terrazzo/Cargo.toml 4d91974dace889e81e195268190bc296aaa3eb0dd3b2d7f8aed57f99fb9c21a1",
           "FILE:@@//utils/autoclone/autoclone/Cargo.toml 160e4c92a6653f8713cf1c87e129755bf12496cfba74b7e2d58686bf90e6f7bf",
           "FILE:@@//framework/client/Cargo.toml 13fcbd4fb15b5f975100932a5a59687313203666df5893dc1692fcd3692427c1",

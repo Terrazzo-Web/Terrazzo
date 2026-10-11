@@ -163,7 +163,16 @@ mod git_diff_ls {
 
 #[cfg(test)]
 mod tests {
+    use super::GitDiffLsError;
     use super::git_diff_ls;
+
+    #[tokio::test]
+    async fn empty_base_is_not_git() {
+        assert!(matches!(
+            git_diff_ls::run(std::path::Path::new("")).await,
+            Err(GitDiffLsError::NotGit)
+        ));
+    }
 
     #[tokio::test]
     async fn lists_changes_relative_to_base() {

@@ -1,10 +1,17 @@
 #![cfg(feature = "tiles-state")]
 
+// TODO: Add doc-comment to explain the various variants and explain what 'preference' means, the idea is that it serves as the global default value reflecting the last value.
 macro_rules! make_state {
 ($name:ident, $ty:ty) => {
     $crate::tiles::state::make_state!($name, $ty, Default::default());
 };
 ($name:ident, $ty:ty, $default:expr) => {
+    $crate::tiles::state::make_state!(@impl $name, $ty, $default, false);
+};
+($name:ident, $ty:ty, $default:expr, preference) => {
+    $crate::tiles::state::make_state!(@impl $name, $ty, $default, true);
+};
+(@impl $name:ident, $ty:ty, $default:expr, $preference:expr) => {
     pub mod $name {
         use server_fn::ServerFnError;
         use terrazzo::server;
@@ -151,6 +158,7 @@ macro_rules! make_state {
                     ready(Ok::<super::ty::Type, StateError>(
                         state
                             .get(&request.tile)
+                            .or_else(|| if $preference { state.get(&None) } else { None })
                             .cloned()
                             .unwrap_or_else(super::default_value),
                     ))
@@ -164,6 +172,9 @@ macro_rules! make_state {
                 (),
                 |_server, request: SetRequest| {
                     let mut state = super::state::STATE.lock().expect(stringify!($name));
+                    if $preference && request.tile.is_some() {
+                        state.insert(None, request.value.clone());
+                    }
                     state.insert(request.tile, request.value);
                     ready(Ok::<(), StateError>(()))
                 }

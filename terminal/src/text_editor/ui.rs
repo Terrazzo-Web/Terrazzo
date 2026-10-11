@@ -363,6 +363,14 @@ impl TextEditorManager {
                 *consumers.lock().unwrap() = registrations
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
+                    .append(this.save_on_change(
+                        this.show_editor_diff.clone(),
+                        state::show_editor_diff::set,
+                    ))
+                    .append(this.save_on_change(
+                        this.show_html_preview.clone(),
+                        state::show_html_preview::set,
+                    ))
                     .append(this.save_side_view_on_change())
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
                     .append(this.path.base.add_subscriber(move |base_path| {
@@ -389,13 +397,18 @@ impl TextEditorManager {
             });
             let tile_id = this.tile.id;
             let remote: Remote = this.remote.clone();
-            let (get_side_view, get_base_path, get_file_path, get_search) = futures::future::join4(
-                state::side_view::get(Some(tile_id), remote.clone()),
-                state::base_path::get(Some(tile_id), remote.clone()),
-                state::file_path::get(Some(tile_id), remote.clone()),
-                state::search::get(Some(tile_id), remote.clone()),
+            let (get_paths, get_editor_diff, get_html_preview) = futures::future::join3(
+                futures::future::join4(
+                    state::side_view::get(Some(tile_id), remote.clone()),
+                    state::base_path::get(Some(tile_id), remote.clone()),
+                    state::file_path::get(Some(tile_id), remote.clone()),
+                    state::search::get(Some(tile_id), remote.clone()),
+                ),
+                state::show_editor_diff::get(Some(tile_id), remote.clone()),
+                state::show_html_preview::get(Some(tile_id), remote.clone()),
             )
             .await;
+            let (get_side_view, get_base_path, get_file_path, get_search) = get_paths;
             let base_path = get_base_path.as_ref().ok().cloned();
             let side_view = if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
@@ -436,6 +449,12 @@ impl TextEditorManager {
                 this.path.base.get_value_untracked().iter().next().is_none()
                     || this.path.file.get_value_untracked().iter().next().is_none(),
             );
+            if let Ok(value) = get_editor_diff {
+                this.show_editor_diff.force(value);
+            }
+            if let Ok(value) = get_html_preview {
+                this.show_html_preview.force(value);
+            }
             if let Ok(p) = get_search {
                 this.search.query.force(p);
             }
@@ -552,13 +571,11 @@ impl TextEditorManager {
     #[autoclone]
     fn save_on_change<T>(
         &self,
-        path: XSignal<Arc<T>>,
-        setter: impl AsyncFn(Option<TileId>, Remote, Arc<T>) -> Result<(), ServerFnError>
-        + Copy
-        + 'static,
+        path: XSignal<T>,
+        setter: impl AsyncFn(Option<TileId>, Remote, T) -> Result<(), ServerFnError> + Copy + 'static,
     ) -> Consumers
     where
-        T: ?Sized + 'static,
+        T: Clone + 'static,
     {
         let tile_id = self.tile.id;
         let remote = self.remote.clone();

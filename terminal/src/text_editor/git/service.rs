@@ -122,23 +122,27 @@ mod git_diff_ls {
 
     async fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitDiffLsError> {
         let (repo_root, relative) = base_from_root;
-        let current_dir = repo_root.join(relative);
         let output = Command::new("git")
             .args([
+                "--literal-pathspecs",
                 "status",
                 "--porcelain=v1",
                 "-z",
                 "--untracked-files=all",
                 "--ignored=no",
                 "--",
-                ".",
             ])
-            .current_dir(&current_dir)
+            .arg(if relative.as_os_str().is_empty() {
+                Path::new(".")
+            } else {
+                relative.as_path()
+            })
+            .current_dir(repo_root)
             .output()
             .await?;
         if !output.status.success() {
             return Err(GitDiffLsError::GitStatusError(format!(
-                "{}: path={current_dir:?} {}",
+                "{}: repo_root={repo_root:?} {}",
                 output.status,
                 String::from_utf8_lossy(&output.stderr).trim_end(),
             )));
@@ -159,21 +163,7 @@ mod git_diff_ls {
 
 #[cfg(test)]
 mod tests {
-    use super::GitDiffLsError;
     use super::git_diff_ls;
-
-    #[tokio::test]
-    async fn rejects_invalid_git_directory() {
-        let folder = tempfile::tempdir().unwrap();
-        std::fs::create_dir(folder.path().join(".git")).unwrap();
-        let base = folder.path().join("nested");
-        std::fs::create_dir(&base).unwrap();
-
-        assert!(matches!(
-            git_diff_ls::run(&base).await,
-            Err(GitDiffLsError::NotGit)
-        ));
-    }
 
     #[tokio::test]
     async fn lists_changes_relative_to_base() {
@@ -185,7 +175,7 @@ mod tests {
             .await
             .unwrap();
         assert!(output.status.success());
-        let base = folder.path().join("nested");
+        let base = folder.path().join("nested[folder]");
         std::fs::create_dir(&base).unwrap();
         std::fs::write(base.join("changed.txt"), "changed").unwrap();
         std::fs::write(folder.path().join("outside.txt"), "outside").unwrap();

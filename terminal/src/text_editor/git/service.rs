@@ -26,7 +26,7 @@ remote_fn_service::unary::declare_remote_fn!(
     Arc<Path>,
     Option<Vec<FileMetadata>>,
     |_server, base| async move {
-        match git_diff_ls_impl::run(&base) {
+        match git_diff_ls_impl::run(&base).await {
             Ok(files) => Ok(Some(files)),
             Err(GitDiffLsError::NotGit) => Ok(None),
             Err(error) => Err(GrpcError::from(error)),
@@ -59,9 +59,9 @@ mod git_diff_ls_impl {
     use std::collections::HashSet;
     use std::path::Path;
     use std::path::PathBuf;
-    use std::process::Command;
     use std::process::Output;
     use std::sync::Arc;
+    use tokio::process::Command;
 
     use super::FileMetadata;
     use super::GitDiffLsError;
@@ -119,7 +119,7 @@ mod git_diff_ls_impl {
         paths
     }
 
-    fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitDiffLsError> {
+    async fn output(base_from_root: &(Arc<Path>, PathBuf)) -> Result<Output, GitDiffLsError> {
         let (repo_root, relative) = base_from_root;
         let output = Command::new("git")
             .args([
@@ -132,7 +132,8 @@ mod git_diff_ls_impl {
                 ".",
             ])
             .current_dir(repo_root.join(relative))
-            .output()?;
+            .output()
+            .await?;
         if !output.status.success() {
             return Err(GitDiffLsError::GitStatusError(format!(
                 "{}: {}",

@@ -50,6 +50,26 @@ impl IsGrpcError for GitStatusError {
     }
 }
 
+/* TODO: use autoclone::graph
+
+I see the following nodes:
+- base is the input parameter
+- base_from_root is the first node. You need to create a new enum error type where NotGit is one of the enum values, the other ones are the std::io::Errors
+- output is the second node and derives from base_from_root
+- paths
+- files
+
+The result should a typed Result<Vec<FileMetadata>, GitStatusError>
+
+Where GitStatusError is enum GitStatusError { NotGit, GitStatusError(std::io::Error) }
+
+use
+#[nameth]
+#[derive(Debug, thiserror::Error)]
+pub enum GitStatusError {
+    #[error("[{n}] {0}", n = self.name())]
+    ... error code ...
+ */
 fn git_status_impl(base: &Path) -> std::io::Result<Option<Vec<FileMetadata>>> {
     let Some(repo_root) = git_repo_root(base) else {
         return Ok(None);

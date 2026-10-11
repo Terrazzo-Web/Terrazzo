@@ -13,7 +13,11 @@ const LRU_CACHE_SIZE: NonZero<usize> = NonZero::new(10_000).expect("LRU_CACHE_SI
 static GIT_REPOS: LazyLock<GitReposCache<StdFs>> = LazyLock::new(|| GitReposCache::new(StdFs));
 
 pub fn git_repo_root(path: impl AsRef<Path>) -> Option<Arc<Path>> {
-    GIT_REPOS.git_repo_root(path.as_ref())
+    let path = path.as_ref();
+    if path.as_os_str().is_empty() {
+        return None;
+    }
+    GIT_REPOS.git_repo_root(path)
 }
 
 pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::Result<String> {
@@ -143,6 +147,11 @@ mod tests {
             self.calls.borrow_mut().push(path.to_owned());
             self.dirs.contains(path)
         }
+    }
+
+    #[test]
+    fn empty_path_has_no_repo_root() {
+        assert!(git_repo_root("").is_none());
     }
 
     #[test]

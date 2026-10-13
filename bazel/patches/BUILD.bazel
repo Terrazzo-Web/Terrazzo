@@ -1,1 +1,0 @@
-exports_files(["aws-lc-sys-jitterentropy-cflags.patch"])

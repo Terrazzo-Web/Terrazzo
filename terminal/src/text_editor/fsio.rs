@@ -60,6 +60,42 @@ pub enum File {
     Error(String),
 }
 
+impl File {
+    #[cfg(any(feature = "client", test))]
+    pub(super) fn has_diff(&self, content: &str) -> bool {
+        matches!(self, Self::TextFile { original: Some(original), .. } if original.as_ref() != content)
+    }
+}
+
+#[cfg(test)]
+mod diff_tests {
+    use super::*;
+
+    #[test]
+    fn diff_tracks_edits_and_reverts_against_git_baseline() {
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original: Some(Arc::from("original")),
+            content: Arc::from("original"),
+        };
+        assert!(!file.has_diff("original"));
+        assert!(file.has_diff("edited"));
+        assert!(!file.has_diff("original"));
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original: Some(Arc::from("")),
+            content: Arc::from(""),
+        };
+        assert!(file.has_diff("added"));
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original: None,
+            content: Arc::from("untracked"),
+        };
+        assert!(!file.has_diff("edited"));
+    }
+}
+
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct FileMetadata {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "n"))]

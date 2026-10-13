@@ -82,6 +82,10 @@ impl EditorBody for CodeMirrorJs {
         self.focus();
     }
 
+    fn set_collapse_unchanged(&self, collapse: bool) {
+        self.inner.set_collapse_unchanged(collapse);
+    }
+
     fn cargo_check(&self, diagnostics: JsValue) {
         self.cargo_check(diagnostics);
     }
@@ -115,6 +119,9 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn focus(this: &CodeMirrorJsImpl);
+
+    #[wasm_bindgen(method)]
+    pub fn set_collapse_unchanged(this: &CodeMirrorJsImpl, collapse: bool);
 
     #[wasm_bindgen(method)]
     pub fn cargo_check(this: &CodeMirrorJsImpl, diagnostics: JsValue);

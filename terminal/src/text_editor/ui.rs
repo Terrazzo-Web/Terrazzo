@@ -93,6 +93,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         show_editor_diff: XSignal::new("show-editor-diff", false),
+        collapse_unchanged: XSignal::new("collapse-unchanged", true),
         show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
@@ -150,6 +151,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
                 manager.editor_state.clone(),
                 manager.show_editor_diff.clone(),
                 manager.show_html_preview.clone(),
+                manager.collapse_unchanged.clone(),
             ),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
@@ -236,27 +238,64 @@ fn toggle_editor_diff(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
     #[signal] show_html_preview: PreviewMode,
+    collapse_unchanged: XSignal<bool>,
 ) -> XElement {
-    let has_diff = match editor_state {
-        EditorState::Data(_)
-            if editor_state.supports_preview() && !show_html_preview.shows_editor() =>
-        {
-            false
-        }
-        EditorState::Data(editor_state) => match &*editor_state.data {
-            fsio::File::TextFile {
-                original: Some(original),
-                content,
-                ..
-            } => original != content,
-            _ => false,
-        },
-        _ => false,
+    let preview_only = editor_state.supports_preview() && !show_html_preview.shows_editor();
+    let EditorState::Data(editor) = editor_state else {
+        return tag(style::display = "none");
     };
-    if !has_diff {
-        return tag(style::display = "none", style::visibility = "hidden");
+    if preview_only {
+        return tag(style::display = "none");
     }
+    let file = editor.data.get_value_untracked();
+    let has_diff = XSignal::new("diff-available", file_has_diff(&file));
+    let generation = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let registration = editor.data.add_subscriber({
+        let has_diff = has_diff.clone();
+        let data = editor.data.clone();
+        move |_| {
+            use std::sync::atomic::Ordering::SeqCst;
+            let version = generation.fetch_add(1, SeqCst) + 1;
+            let generation = generation.clone();
+            let has_diff = has_diff.clone();
+            let data = data.clone();
+            spawn_local(async move {
+                if terrazzo::widgets::sleep::sleep(Duration::from_millis(150))
+                    .await
+                    .is_ok()
+                    && generation.load(SeqCst) == version
+                {
+                    has_diff.set(file_has_diff(&data.get_value_untracked()));
+                }
+            });
+        }
+    });
+    tag(
+        class = style::DIFF_CONTROLS,
+        diff_controls(has_diff, show_editor_diff, collapse_unchanged),
+        after_render = move |_| {
+            let _keep = &registration;
+        },
+    )
+}
 
+fn file_has_diff(file: &fsio::File) -> bool {
+    match file {
+        fsio::File::TextFile { content, .. } => file.has_diff(content),
+        _ => false,
+    }
+}
+
+#[html]
+#[template(tag = span)]
+fn diff_controls(
+    #[signal] has_diff: bool,
+    show_editor_diff: XSignal<bool>,
+    collapse_unchanged: XSignal<bool>,
+) -> XElement {
+    if !has_diff {
+        return tag(style::display = "none");
+    }
     #[template(wrap = true)]
     fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
         show_editor_diff.then_some(style::ACTIVE)
@@ -271,15 +310,57 @@ fn toggle_editor_diff(
         }
     }
 
-    return img(
+    tag(
+        class = style::DIFF_CONTROLS,
+        img(
+            class = style::TOGGLE_EDITOR_DIFF,
+            class %= make_class(show_editor_diff.clone()),
+            #[cfg(not(feature = "client-prod"))]
+            class = "toggle-editor-diff",
+            src = icons::diff(),
+            title %= make_title(show_editor_diff.clone()),
+            click = {
+                let show_editor_diff = show_editor_diff.clone();
+                move |_| show_editor_diff.update(|show| Some(!show))
+            },
+        ),
+        toggle_unchanged_regions(show_editor_diff, collapse_unchanged),
+    )
+}
+
+#[html]
+#[template(tag = span)]
+fn toggle_unchanged_regions(
+    #[signal] show_editor_diff: bool,
+    collapse_unchanged: XSignal<bool>,
+) -> XElement {
+    if !show_editor_diff {
+        return tag(style::display = "none");
+    }
+    #[template(wrap = true)]
+    fn make_src(#[signal] collapse_unchanged: bool) -> XAttributeValue {
+        if collapse_unchanged {
+            icons::chevron_bar_expand()
+        } else {
+            icons::chevron_bar_contract()
+        }
+    }
+    #[template(wrap = true)]
+    fn make_title(#[signal] collapse_unchanged: bool) -> XAttributeValue {
+        if collapse_unchanged {
+            "Show unchanged regions"
+        } else {
+            "Hide unchanged regions"
+        }
+    }
+    img(
         class = style::TOGGLE_EDITOR_DIFF,
-        class %= make_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
-        class = "toggle-editor-diff",
-        src = icons::diff(),
-        title %= make_title(show_editor_diff.clone()),
-        click = move |_| show_editor_diff.update(|show| Some(!show)),
-    );
+        class = "toggle-unchanged-regions",
+        src %= make_src(collapse_unchanged.clone()),
+        title %= make_title(collapse_unchanged.clone()),
+        click = move |_| collapse_unchanged.update(|collapse| Some(!collapse)),
+    )
 }
 
 #[html]
@@ -291,7 +372,7 @@ fn editor_container(
     #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
     let body = match editor_state {
-        EditorState::Data(editor_state) => match &*editor_state.data {
+        EditorState::Data(editor_state) => match &*editor_state.data.get_value_untracked() {
             fsio::File::TextFile {
                 original, content, ..
             } => {
@@ -531,15 +612,24 @@ impl TextEditorManager {
                     });
                 }
 
+                let batch = Batch::use_batch("Update editor document");
+                let has_diff = match data.as_deref() {
+                    Some(file @ fsio::File::TextFile { content, .. }) => file.has_diff(content),
+                    _ => false,
+                };
+                if !has_diff {
+                    this.show_editor_diff.set(false);
+                }
                 if let Some(data) = data {
                     this.editor_state.force(EditorState::Data(EditorDataState {
                         path,
-                        data,
+                        data: XSignal::new("editor-document", data),
                         cursor_position,
                     }))
                 } else {
                     this.editor_state.force(EditorState::default());
                 }
+                drop(batch);
                 drop(loading);
                 drop(end);
             };
@@ -604,7 +694,7 @@ fn is_focusable(
     let EditorState::Data(EditorDataState { data, .. }) = &state else {
         return None;
     };
-    let fsio::File::TextFile { .. } = **data else {
+    let fsio::File::TextFile { .. } = *data.get_value_untracked() else {
         return None;
     };
     let is_html_preview = state.is_html() && show_html_preview == PreviewMode::Preview;

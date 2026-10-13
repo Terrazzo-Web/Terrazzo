@@ -26,11 +26,11 @@ use super::style;
 use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
-use crate::text_editor::state::PreviewMode;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
+use crate::text_editor::state::PreviewMode;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
 use crate::utils::more_path::MorePath as _;
@@ -52,6 +52,8 @@ pub(super) trait EditorBody {
     fn focus(&self) {}
 
     fn cargo_check(&self, _diagnostics: JsValue) {}
+
+    fn set_collapse_unchanged(&self, _collapse: bool) {}
 }
 
 struct HtmlEditorBody {
@@ -71,6 +73,10 @@ impl EditorBody for HtmlEditorBody {
 
     fn focus(&self) {
         self.source.focus();
+    }
+
+    fn set_collapse_unchanged(&self, collapse: bool) {
+        self.source.set_collapse_unchanged(collapse);
     }
 
     fn cargo_check(&self, diagnostics: JsValue) {
@@ -139,6 +145,14 @@ pub fn editor(
     let writing = Arc::new(AtomicU32::new(0));
 
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
+    let collapse_registration = manager.collapse_unchanged.add_subscriber({
+        let editor_body = editor_body.clone();
+        move |collapse| {
+            if let Some(body) = &*editor_body.lock().unwrap() {
+                body.set_collapse_unchanged(collapse);
+            }
+        }
+    });
     let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
         autoclone!(editor_body);
         if let Some(editor_body) = &*editor_body.lock().unwrap() {
@@ -209,6 +223,7 @@ pub fn editor(
         },
         after_render = move |element| {
             autoclone!(path);
+            let _moved = &collapse_registration;
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let body: Option<Box<dyn EditorBody>> = match &document {
@@ -218,7 +233,11 @@ pub fn editor(
                         EditorType::Text | EditorType::Markdown | EditorType::Html
                     ) =>
                 {
-                    let original = if show_editor_diff {
+                    let original = if show_editor_diff
+                        && original
+                            .as_ref()
+                            .is_some_and(|original| original != content)
+                    {
                         original
                             .as_deref()
                             .map(JsValue::from)
@@ -300,6 +319,9 @@ pub fn editor(
                 EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
                 EditorDocument::Text { .. } => None,
             };
+            if let Some(body) = &body {
+                body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
+            }
             *editor_body.lock().unwrap() = body;
         },
     )
@@ -364,6 +386,7 @@ fn make_on_change(
         if let Some(html_preview) = &html_preview {
             let _ = html_preview.set_attribute("srcdoc", &content);
         }
+        manager.update_content(&path, Arc::from(content.as_str()));
         writing.fetch_add(1, SeqCst);
         let writing_done = guard((), move |()| {
             autoclone!(writing);
@@ -455,6 +478,7 @@ async fn notify_edit(
                 return;
             };
             if writing.load(SeqCst) == 0 {
+                manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }
         }

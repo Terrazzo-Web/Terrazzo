@@ -24,6 +24,7 @@ pub(super) struct TextEditorManager {
     pub force_edit_path: XSignal<bool>,
     pub editor_state: XSignal<EditorState>,
     pub show_editor_diff: XSignal<bool>,
+    pub collapse_unchanged: XSignal<bool>,
     pub show_html_preview: XSignal<PreviewMode>,
     pub synchronized_state: XSignal<SynchronizedState>,
     pub side_view: XSignal<Option<Arc<SideViewNode>>>,
@@ -51,6 +52,30 @@ pub(super) enum EditorState {
     Empty,
 }
 
+impl TextEditorManager {
+    pub(super) fn update_content(&self, path: &FilePath<Arc<Path>>, content: Arc<str>) {
+        let EditorState::Data(editor) = self.editor_state.get_value_untracked() else {
+            return;
+        };
+        if &editor.path != path {
+            return;
+        }
+        editor.data.update(|file| {
+            let fsio::File::TextFile { .. } = &**file else {
+                return None;
+            };
+            let mut file = file.clone();
+            if let fsio::File::TextFile {
+                content: current, ..
+            } = Arc::make_mut(&mut file)
+            {
+                *current = content;
+            }
+            Some(file)
+        });
+    }
+}
+
 impl EditorState {
     pub(super) fn is_html(&self) -> bool {
         matches!(self, Self::Data(editor_state) if editor_state.is_html())
@@ -64,7 +89,8 @@ impl EditorState {
 #[derive(Clone)]
 pub(super) struct EditorDataState {
     pub path: FilePath<Arc<Path>>,
-    pub data: Arc<fsio::File>,
+    // Content updates notify document consumers without replacing the mounted editor.
+    pub data: XSignal<Arc<fsio::File>>,
     pub cursor_position: Option<fsio::CursorPosition>,
 }
 

@@ -1,3 +1,5 @@
+import { CodeMirrorJsImpl } from "./code_mirror.js";
+
 class MilkdownJsImpl {
     crepe;
     source;
@@ -49,7 +51,7 @@ class MilkdownJsImpl {
             this.updateMilkdownFromSource(markdown);
             onchange(markdown);
         };
-        this.source = new JsDeps.CodeMirrorJsImpl(
+        this.source = new CodeMirrorJsImpl(
             sourcePane,
             original,
             content,
@@ -134,6 +136,10 @@ class MilkdownJsImpl {
         this.pendingContent = markdown;
         this.source.set_content(markdown);
         this.onchange(markdown);
+    }
+
+    set_collapse_unchanged(collapse) {
+        this.source.set_collapse_unchanged(collapse);
     }
 
     destroy() {

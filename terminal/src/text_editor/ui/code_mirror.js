@@ -45,7 +45,7 @@ class CodeMirrorJsImpl {
         }
 
         const selection = selectionFromCursorPosition(cursorPosition, content.length);
-        if (original) {
+        if (original !== null && original !== undefined) {
             const mergePaneExtensions = [
                 JsDeps.EditorView.theme({
                     "&": {
@@ -57,6 +57,18 @@ class CodeMirrorJsImpl {
                     },
                     ".cm-content": {
                         minWidth: "0",
+                    },
+                    "&.cm-merge-a .cm-changedLine": {
+                        backgroundColor: "rgba(255, 0, 0, 0.20)",
+                    },
+                    "&.cm-merge-b .cm-changedLine": {
+                        backgroundColor: "rgba(155, 185, 85, 0.20)",
+                    },
+                    "&.cm-merge-a .cm-changedText": {
+                        background: "rgba(255, 0, 0, 0.30)",
+                    },
+                    "&.cm-merge-b .cm-changedText": {
+                        background: "rgba(155, 185, 85, 0.40)",
                     },
                 }),
             ];
@@ -82,6 +94,7 @@ class CodeMirrorJsImpl {
                         ...mergePaneExtensions,
                     ],
                 },
+                collapseUnchanged: { margin: 3, minSize: 4 },
                 parent: element,
             });
             this.rootView.dom.style.overflowX = "auto";
@@ -113,6 +126,14 @@ class CodeMirrorJsImpl {
         });
         this.editorView.focus();
         this.reloadFromDisk = false;
+    }
+
+    set_collapse_unchanged(collapse) {
+        if (this.rootView instanceof JsDeps.MergeView) {
+            this.rootView.reconfigure({
+                collapseUnchanged: collapse ? { margin: 3, minSize: 4 } : undefined,
+            });
+        }
     }
 
     destroy() {

@@ -38,6 +38,9 @@ static PERFORMANCE: LazyLock<Performance> =
 /// ```
 pub trait DoDebounce: Copy + 'static {
     fn debounce<T: 'static>(self, callback: impl Fn(T) + 'static) -> impl Fn(T);
+    /// Debounces pending calls using their latest argument. Callbacks run serially;
+    /// calls received during execution form the next batch, which starts no sooner
+    /// than the configured delay after completion. Each batch shares its result.
     fn async_debounce<T, F, FR, R>(self, callback: F) -> impl Fn(T) -> Shared<BoxFuture<R>>
     where
         T: 'static,
@@ -142,43 +145,32 @@ impl DoDebounce for Debounce {
         FR: Future<Output = R> + 'static,
         R: Clone + Send + Sync + 'static,
     {
-        let async_state: Arc<Mutex<AsyncState<_>>> = Arc::default();
+        let async_state: Arc<Mutex<AsyncState<T, R>>> = Arc::default();
         let user_callback = Arc::new(user_callback);
-        let debounced_callback = ThreadSafe(self.debounce(move |a| {
+        let debounced_callback = ThreadSafe(self.debounce(move |()| {
             autoclone!(async_state);
+            async_state.lock().or_throw("async_state start").running = true;
             wasm_bindgen_futures::spawn_local(async move {
-                autoclone!(async_state);
-                autoclone!(user_callback);
-                let result = user_callback(a).await;
-                let mut async_state = async_state.lock().or_throw("async_state lock 1");
-                let AsyncState::Running { tx, rx: _ } = std::mem::take(&mut *async_state) else {
-                    warn!("Expected the async debounce callback to be running");
-                    panic!("Expected the async debounce callback to be running");
-                };
-                let Ok(()) = tx.send(result) else {
-                    warn!("Failed to send debounced async callback completion");
-                    return;
-                };
+                autoclone!(async_state, user_callback);
+                run_async_callbacks(
+                    async_state,
+                    |arg| user_callback(arg),
+                    || async {
+                        if let Err(error) = super::sleep::sleep(self.delay).await {
+                            warn!("Failed to delay async callback: {error}");
+                        }
+                    },
+                )
+                .await;
             });
         }));
-        move |a| {
+        move |arg| {
             autoclone!(async_state);
-            let mut async_state = async_state.lock().or_throw("async_state 1");
-            let future_result = match &mut *async_state {
-                AsyncState::NotRunning => {
-                    let (tx, rx) = oneshot::channel();
-                    let future_result: BoxFuture<R> =
-                        Box::pin(rx.map(|r| r.or_throw("Async debounce state canceled!")));
-                    let future_result = future_result.shared();
-                    *async_state = AsyncState::Running {
-                        tx,
-                        rx: future_result.clone(),
-                    };
-                    future_result
-                }
-                AsyncState::Running { tx: _, rx } => rx.clone(),
-            };
-            debounced_callback(a);
+            let mut async_state = async_state.lock().or_throw("async_state enqueue");
+            let future_result = async_state.enqueue(arg);
+            if !async_state.running {
+                debounced_callback(());
+            }
             future_result
         }
     }
@@ -201,22 +193,75 @@ impl<T> Drop for ClearDebounceOnDrop<T> {
     }
 }
 
-#[derive(Default)]
-enum AsyncState<R> {
-    #[default]
-    NotRunning,
-    Running {
-        tx: oneshot::Sender<R>,
-        rx: Shared<BoxFuture<R>>,
-    },
+struct AsyncState<T, R> {
+    running: bool,
+    pending: Option<AsyncPending<T, R>>,
 }
 
-impl<R> std::fmt::Debug for AsyncState<R> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotRunning => write!(f, "NotRunning"),
-            Self::Running { .. } => write!(f, "Running"),
+impl<T, R> Default for AsyncState<T, R> {
+    fn default() -> Self {
+        Self {
+            running: false,
+            pending: None,
         }
+    }
+}
+
+struct AsyncPending<T, R> {
+    arg: T,
+    tx: oneshot::Sender<R>,
+    rx: Shared<BoxFuture<R>>,
+}
+
+impl<T, R: Clone + Send + Sync + 'static> AsyncState<T, R> {
+    fn enqueue(&mut self, arg: T) -> Shared<BoxFuture<R>> {
+        if let Some(pending) = &mut self.pending {
+            pending.arg = arg;
+            return pending.rx.clone();
+        }
+        let (tx, rx) = oneshot::channel();
+        let rx: BoxFuture<R> = Box::pin(rx.map(|r| r.or_throw("Async debounce state canceled!")));
+        let rx = rx.shared();
+        self.pending = Some(AsyncPending {
+            arg,
+            tx,
+            rx: rx.clone(),
+        });
+        rx
+    }
+}
+
+async fn run_async_callbacks<T, R, F, FR, D, DR>(
+    async_state: Arc<Mutex<AsyncState<T, R>>>,
+    callback: F,
+    delay: D,
+) where
+    F: Fn(T) -> FR,
+    FR: Future<Output = R>,
+    D: Fn() -> DR,
+    DR: Future<Output = ()>,
+{
+    loop {
+        let pending = async_state
+            .lock()
+            .or_throw("async_state start callback")
+            .pending
+            .take()
+            .or_throw("async_state pending callback");
+        let result = callback(pending.arg).await;
+        if pending.tx.send(result).is_err() {
+            warn!("Failed to send debounced async callback completion");
+        }
+        {
+            let mut async_state = async_state.lock().or_throw("async_state completion");
+            if async_state.pending.is_none() {
+                async_state.running = false;
+                return;
+            }
+        }
+        // Keep the worker active during the delay so new calls only update the
+        // next batch, rather than scheduling another worker.
+        delay().await;
     }
 }
 
@@ -296,5 +341,76 @@ impl<F: Future> Future for ThreadSafe<F> {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         self.project().0.poll(cx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::VecDeque;
+    use std::rc::Rc;
+
+    use super::*;
+
+    #[test]
+    fn async_batches_wait_for_completion_and_keep_latest_argument() {
+        let state: Arc<Mutex<AsyncState<i32, i32>>> = Arc::default();
+        let enqueue = |arg| state.lock().unwrap().enqueue(arg);
+        let first = enqueue(1);
+        let first_coalesced = enqueue(2);
+        state.lock().unwrap().running = true;
+
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let (first_tx, first_rx) = oneshot::channel();
+        let (second_tx, second_rx) = oneshot::channel();
+        let replies = RefCell::new(VecDeque::from([first_rx, second_rx]));
+        let (delay_tx, delay_rx) = oneshot::channel();
+        let delay_rx = RefCell::new(Some(delay_rx));
+        let mut worker = Box::pin(run_async_callbacks(
+            state.clone(),
+            |arg| {
+                seen.borrow_mut().push(arg);
+                let reply = replies.borrow_mut().pop_front().unwrap();
+                async move { reply.await.unwrap() }
+            },
+            || {
+                let delay_rx = delay_rx.borrow_mut().take().unwrap();
+                async move { delay_rx.await.unwrap() }
+            },
+        ));
+
+        assert!(worker.as_mut().now_or_never().is_none());
+        assert_eq!(&*seen.borrow(), &[2]);
+        let second = enqueue(3);
+        let second_coalesced = enqueue(4);
+        assert!(worker.as_mut().now_or_never().is_none());
+        assert_eq!(&*seen.borrow(), &[2]);
+        assert!(second.clone().now_or_never().is_none());
+
+        first_tx.send(20).unwrap();
+        assert!(worker.as_mut().now_or_never().is_none());
+        assert_eq!(first.now_or_never(), Some(20));
+        assert_eq!(first_coalesced.now_or_never(), Some(20));
+        assert_eq!(&*seen.borrow(), &[2]);
+        assert!(state.lock().unwrap().running);
+
+        // Calls during the completion delay also belong to the next batch.
+        let during_delay = enqueue(5);
+        delay_tx.send(()).unwrap();
+        assert!(worker.as_mut().now_or_never().is_none());
+        assert_eq!(&*seen.borrow(), &[2, 5]);
+        assert!(second.clone().now_or_never().is_none());
+
+        second_tx.send(50).unwrap();
+        assert_eq!(worker.as_mut().now_or_never(), Some(()));
+        assert_eq!(second.now_or_never(), Some(50));
+        assert_eq!(second_coalesced.now_or_never(), Some(50));
+        assert_eq!(during_delay.now_or_never(), Some(50));
+        assert!(!state.lock().unwrap().running);
+        assert!(state.lock().unwrap().pending.is_none());
+
+        // A later call starts a fresh batch instead of reusing a completed result.
+        assert!(enqueue(6).now_or_never().is_none());
+        assert_eq!(state.lock().unwrap().pending.as_ref().unwrap().arg, 6);
     }
 }

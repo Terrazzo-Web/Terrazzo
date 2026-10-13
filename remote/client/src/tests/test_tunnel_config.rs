@@ -7,6 +7,7 @@ use trz_gateway_common::protos::terrazzo::remote::tests::test_tunnel_service_ser
 use trz_gateway_common::retry_strategy::RetryStrategy;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
 use trz_gateway_server::server::gateway_config::GatewayConfig;
+use url::Url;
 
 use super::calculator;
 use super::test_client_config::TestClientConfig;
@@ -31,7 +32,7 @@ impl<G> TestTunnelConfig<G> {
 }
 
 impl<G: GatewayConfig> ClientConfig for TestTunnelConfig<G> {
-    fn base_url(&self) -> impl std::fmt::Display {
+    fn base_url(&self) -> Result<Url, url::ParseError> {
         self.client_config.base_url()
     }
 

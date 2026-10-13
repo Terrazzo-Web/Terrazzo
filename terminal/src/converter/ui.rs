@@ -1,5 +1,7 @@
 #![cfg(feature = "client")]
 
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -37,6 +39,7 @@ pub fn converter(tile: TilePtr) -> XElement {
     let conversions = XSignal::new("conversions", Conversions::default());
     let preferred_language = XSignal::new("preferred-language", None);
     let resize_manager = MousemoveManager::new();
+    let conversions_requester = ConversionsRequester::new();
     tag(
         class = style::OUTER,
         converter_impl(
@@ -44,6 +47,7 @@ pub fn converter(tile: TilePtr) -> XElement {
             conversions,
             preferred_language,
             resize_manager,
+            conversions_requester,
         ),
     )
 }
@@ -55,6 +59,7 @@ fn converter_impl(
     conversions: XSignal<Conversions>,
     preferred_language: XSignal<Option<Language>>,
     resize_manager: MousemoveManager,
+    conversions_requester: ConversionsRequester,
 ) -> XElement {
     div(
         class = style::INNER,
@@ -72,6 +77,7 @@ fn converter_impl(
                 tile.remote.clone(),
                 conversions.clone(),
                 resize_manager.clone(),
+                conversions_requester,
             ),
             resize_bar_horz(resize_manager, Default::default()),
             show_conversions(conversions, preferred_language),
@@ -87,31 +93,51 @@ fn show_input(
     #[signal] remote: Remote,
     conversions: XSignal<Conversions>,
     resize_manager: MousemoveManager,
+    conversions_requester: ConversionsRequester,
 ) -> XElement {
     let element = ElementCapture::<HtmlTextAreaElement>::default();
+    let input_since_render = Rc::new(Cell::new(false));
     tag(
         #[cfg(not(feature = "client-prod"))]
         class = "converter-input",
         style::flex %= width(resize_manager.delta.clone()),
         before_render = element.capture(),
         input = move |_: web_sys::InputEvent| {
-            autoclone!(tile, remote, element, conversions);
+            autoclone!(
+                tile,
+                remote,
+                element,
+                conversions,
+                input_since_render,
+                conversions_requester
+            );
+            input_since_render.set(true);
             let value: Arc<str> = element.with(|e| e.value().into());
             spawn_local(async move {
                 autoclone!(tile, remote, value);
                 let _set = content_state::set(tile.id.into(), remote.clone(), value.clone()).await;
             });
-            get_conversions(remote.clone(), value, conversions.clone());
+            conversions_requester.request(remote.clone(), value, conversions.clone());
         },
         after_render = move |_| {
             spawn_local(async move {
-                autoclone!(tile, remote, element, conversions);
+                autoclone!(
+                    tile,
+                    remote,
+                    element,
+                    conversions,
+                    input_since_render,
+                    conversions_requester
+                );
                 let Ok(content) = content_state::get(tile.id.into(), remote.clone()).await else {
                     warn!("Failed to load converter content");
                     return;
                 };
+                if input_since_render.get() {
+                    return;
+                }
                 if element.try_with(|e| e.set_value(&content)).is_some() {
-                    get_conversions(remote.clone(), content, conversions.clone());
+                    conversions_requester.request(remote.clone(), content, conversions.clone());
                 }
             });
         },
@@ -148,33 +174,20 @@ fn show_conversions(
     )
 }
 
-fn get_conversions(remote: Remote, content: Arc<str>, conversions: XSignal<Conversions>) {
-    let debounced = get_conversions_debounced();
-    debounced(GetConversionsUiRequest {
-        remote,
-        content,
-        conversions,
-    })
-}
-
-fn get_conversions_debounced() -> &'static dyn Fn(GetConversionsUiRequest) {
-    use std::sync::OnceLock;
-    static DEBOUNCED: OnceLock<DebouncedGetConversions> = OnceLock::new();
-    let debounced = DEBOUNCED.get_or_init(|| {
-        DebouncedGetConversions(Box::new(DEBOUNCE_DELAY.debounce(spawn_conversions_request)))
-    });
-    &*debounced.0
-}
-
 fn spawn_conversions_request(
     GetConversionsUiRequest {
         remote,
         content,
         conversions: conversions_mut,
+        generation,
+        latest_generation,
     }: GetConversionsUiRequest,
 ) {
     spawn_local(async move {
         let conversions = super::api::get_conversions(remote, content).await;
+        if latest_generation.get() != generation {
+            return;
+        }
         match conversions {
             Ok(conversions) => conversions_mut.force(conversions),
             Err(error) => {
@@ -195,8 +208,33 @@ struct GetConversionsUiRequest {
     remote: Remote,
     content: Arc<str>,
     conversions: XSignal<Conversions>,
+    generation: u64,
+    latest_generation: Rc<Cell<u64>>,
 }
 
-struct DebouncedGetConversions(Box<dyn Fn(GetConversionsUiRequest)>);
-unsafe impl Send for DebouncedGetConversions {}
-unsafe impl Sync for DebouncedGetConversions {}
+#[derive(Clone)]
+struct ConversionsRequester {
+    latest_generation: Rc<Cell<u64>>,
+    debounced: Rc<dyn Fn(GetConversionsUiRequest)>,
+}
+
+impl ConversionsRequester {
+    fn new() -> Self {
+        Self {
+            latest_generation: Rc::new(Cell::new(0)),
+            debounced: Rc::new(DEBOUNCE_DELAY.debounce(spawn_conversions_request)),
+        }
+    }
+
+    fn request(&self, remote: Remote, content: Arc<str>, conversions: XSignal<Conversions>) {
+        let generation = self.latest_generation.get().wrapping_add(1);
+        self.latest_generation.set(generation);
+        (self.debounced)(GetConversionsUiRequest {
+            remote,
+            content,
+            conversions,
+            generation,
+            latest_generation: self.latest_generation.clone(),
+        });
+    }
+}

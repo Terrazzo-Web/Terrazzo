@@ -47,6 +47,60 @@ fn add_remove() {
 }
 
 #[test]
+fn split_preserves_app() {
+    let apps = [
+        App::Default,
+        #[cfg(feature = "terminal")]
+        App::Terminal,
+        #[cfg(feature = "text-editor")]
+        App::TextEditor,
+        #[cfg(feature = "converter")]
+        App::Converter,
+        #[cfg(feature = "port-forward")]
+        App::PortForward,
+    ];
+    for app in apps {
+        for direction in [
+            Direction::Horizontal,
+            Direction::Vertical,
+            Direction::Tabbed,
+        ] {
+            for side in [Side::Before, Side::After] {
+                let tree = Arc::new(Tiles::Tile(Tile {
+                    id: TileId::for_test(1),
+                    app,
+                    remote: Default::default(),
+                    title: "Original".into(),
+                }));
+                let tree = add_node_for_tests(
+                    tree,
+                    direction,
+                    TileId::for_test(1),
+                    side,
+                    &mut Some(TileId::for_test(2)),
+                )
+                .unwrap();
+                let Tiles::Array { nodes, .. } = &*tree else {
+                    panic!("expected split tree, got {tree:?}");
+                };
+                for node in nodes {
+                    let Tiles::Tile(tile) = &**node else {
+                        panic!("expected tile, got {node:?}");
+                    };
+                    let expected_app =
+                        if tile.id == TileId::for_test(2) && direction == Direction::Tabbed {
+                            App::Default
+                        } else {
+                            app
+                        };
+                    assert_eq!(tile.app, expected_app);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn missing_remote_defaults_to_local() {
     let tile = serde_json::from_value::<Tile>(serde_json::json!({
         "id": 1,

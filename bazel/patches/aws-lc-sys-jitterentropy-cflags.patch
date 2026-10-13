@@ -1,0 +1,13 @@
+--- a/builder/cc_builder.rs
++++ b/builder/cc_builder.rs
+@@ -624,6 +624,10 @@
+         // CPU Jitter Entropy is compiled separately due to needing specific flags.
+         // Only set up the builder if jitter entropy is actually going to be built.
+         let mut jitter_entropy_builder = should_build_jitter_entropy().then(|| {
++            // cc snapshots the environment on first use, including compiler probes.
++            // Filter optimization flags before preparing the builder; filtering
++            // only at compile_intermediates is too late for cc >= 1.6.
++            let _je_cflags_guards = Self::jitter_entropy_cflags_guards(is_cl_like);
+             let mut jitter_entropy_builder = self.prepare_jitter_entropy_builder(is_cl_like);
+             jitter_entropy_builder.flag(format!(
+                 "{}{}",

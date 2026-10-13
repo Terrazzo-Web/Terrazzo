@@ -21,6 +21,7 @@ use trz_gateway_server::auth_code::AuthCode as ServerAuthCode;
 use trz_gateway_server::server::Server;
 use trz_gateway_server::server::gateway_config::GatewayConfig as _;
 use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationConfig;
+use url::Url;
 use uuid::Uuid;
 
 use super::test_gateway_config::TestGatewayConfig;
@@ -158,8 +159,8 @@ impl P2pCertificateConfig {
 }
 
 impl ClientConfig for P2pCertificateConfig {
-    fn base_url(&self) -> impl std::fmt::Display {
-        format!("https://{}", self.tls_name)
+    fn base_url(&self) -> Result<Url, url::ParseError> {
+        Url::parse(&format!("https://{}", self.tls_name))
     }
 
     fn client_name(&self) -> ClientName {

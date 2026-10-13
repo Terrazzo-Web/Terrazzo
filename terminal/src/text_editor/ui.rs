@@ -29,7 +29,7 @@ use super::fsio::ROOT_BASE_PATH;
 use super::fsio::ROOT_FILE_PATH;
 use super::manager::EditorDataState;
 use super::manager::EditorState;
-use super::manager::PreviewMode;
+use super::manager::SideViewMode;
 use super::manager::TextEditorManager;
 use super::notify::manager::SideViewNotify;
 use super::notify::ui::NotifyService;
@@ -40,6 +40,7 @@ use super::side::SvnItem;
 use super::side::SvnProperties;
 use super::side::SvnStatus;
 use super::state;
+use super::state::PreviewMode;
 use super::style;
 use super::synchronized_state::SynchronizedState;
 use super::synchronized_state::show_synchronized_state;
@@ -60,6 +61,7 @@ mod folder;
 mod html_viewer;
 mod milkdown;
 mod pdf_viewer;
+pub(super) mod side_view;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -94,6 +96,10 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
+        side_view_mode: XSignal::new("side-view-mode", SideViewMode::Files),
+        files_side_view: XSignal::new("files-side-view", None),
+        git_side_view: XSignal::new("git-side-view", None),
+        is_git_repo: XSignal::new("is-git-repo", false),
         notify_service: Ptr::new(NotifyService::new(remote)),
         search: SearchState::new(),
         side_view_resize_manager: MousemoveManager::new(),
@@ -131,6 +137,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         div(
             class = style::HEADER,
             menu(manager.tile.clone()),
+            super::git::ui::git_button(&manager),
             manager.base_path_selector(),
             manager.file_path_selector(),
             manager.search_selector(search_input),
@@ -356,11 +363,21 @@ impl TextEditorManager {
                 *consumers.lock().unwrap() = registrations
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
+                    .append(this.save_on_change(
+                        this.show_editor_diff.clone(),
+                        state::show_editor_diff::set,
+                    ))
+                    .append(this.save_on_change(
+                        this.show_html_preview.clone(),
+                        state::show_html_preview::set,
+                    ))
                     .append(this.save_side_view_on_change())
                     .append(this.save_on_change(this.search.query.clone(), state::search::set))
                     .append(this.path.base.add_subscriber(move |base_path| {
                         autoclone!(this);
                         let batch = Batch::use_batch("Update base path");
+                        this.side_view_mode.set(SideViewMode::Files);
+                        this.files_side_view.force(None);
                         this.path.file.force(ROOT_FILE_PATH.clone());
                         this.side_view.force(Some(Arc::new(SideViewNode {
                             properties: SvnProperties {
@@ -375,17 +392,23 @@ impl TextEditorManager {
                             },
                         })));
                         drop(batch);
+                        super::git::ui::refresh(&this);
                     }))
             });
             let tile_id = this.tile.id;
             let remote: Remote = this.remote.clone();
-            let (get_side_view, get_base_path, get_file_path, get_search) = futures::future::join4(
-                state::side_view::get(Some(tile_id), remote.clone()),
-                state::base_path::get(Some(tile_id), remote.clone()),
-                state::file_path::get(Some(tile_id), remote.clone()),
-                state::search::get(Some(tile_id), remote.clone()),
+            let (get_paths, get_editor_diff, get_html_preview) = futures::future::join3(
+                futures::future::join4(
+                    state::side_view::get(Some(tile_id), remote.clone()),
+                    state::base_path::get(Some(tile_id), remote.clone()),
+                    state::file_path::get(Some(tile_id), remote.clone()),
+                    state::search::get(Some(tile_id), remote.clone()),
+                ),
+                state::show_editor_diff::get(Some(tile_id), remote.clone()),
+                state::show_html_preview::get(Some(tile_id), remote.clone()),
             )
             .await;
+            let (get_side_view, get_base_path, get_file_path, get_search) = get_paths;
             let base_path = get_base_path.as_ref().ok().cloned();
             let side_view = if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
@@ -426,9 +449,17 @@ impl TextEditorManager {
                 this.path.base.get_value_untracked().iter().next().is_none()
                     || this.path.file.get_value_untracked().iter().next().is_none(),
             );
+            if let Ok(value) = get_editor_diff {
+                this.show_editor_diff.force(value);
+            }
+            if let Ok(value) = get_html_preview {
+                this.show_html_preview.force(value);
+            }
             if let Ok(p) = get_search {
                 this.search.query.force(p);
             }
+
+            super::git::ui::refresh(&this);
 
             drop(batch);
             drop(registrations);
@@ -522,7 +553,9 @@ impl TextEditorManager {
         let remote = self.remote.clone();
         let this = self.clone();
         self.side_view.add_subscriber(move |side_view| {
-            if this.search.is_active.get_value_untracked() {
+            if this.search.is_active.get_value_untracked()
+                || this.side_view_mode.get_value_untracked() == SideViewMode::Git
+            {
                 return;
             }
             spawn_local(async move {
@@ -538,13 +571,11 @@ impl TextEditorManager {
     #[autoclone]
     fn save_on_change<T>(
         &self,
-        path: XSignal<Arc<T>>,
-        setter: impl AsyncFn(Option<TileId>, Remote, Arc<T>) -> Result<(), ServerFnError>
-        + Copy
-        + 'static,
+        path: XSignal<T>,
+        setter: impl AsyncFn(Option<TileId>, Remote, T) -> Result<(), ServerFnError> + Copy + 'static,
     ) -> Consumers
     where
-        T: ?Sized + 'static,
+        T: Clone + 'static,
     {
         let tile_id = self.tile.id;
         let remote = self.remote.clone();

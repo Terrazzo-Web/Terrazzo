@@ -3,6 +3,15 @@ crates.render_config(
     default_alias_rule_bzl = "//bazel:crate_aliases.bzl",
     default_alias_rule_name = "cfg_alias",
 )
+
+# cc >= 1.6 snapshots CFLAGS before aws-lc-sys filters jitterentropy flags.
+# Apply to every crate universe so host tools and client/server builds agree.
+crates.annotation(
+    crate = "aws-lc-sys",
+    patch_args = ["-p1"],
+    patches = ["//bazel/patches:aws-lc-sys-jitterentropy-cflags.patch"],
+    version = "0.45.0",
+)
 crates.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",

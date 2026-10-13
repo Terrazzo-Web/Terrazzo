@@ -11,6 +11,7 @@ use super::notify::ui::NotifyService;
 use super::search::state::EditorSearchState;
 use super::search::state::SearchState;
 use super::side::SideViewNode;
+use super::state::PreviewMode;
 use super::synchronized_state::SynchronizedState;
 use crate::frontend::mousemove::MousemoveManager;
 use crate::frontend::remotes::Remote;
@@ -26,9 +27,20 @@ pub(super) struct TextEditorManager {
     pub show_html_preview: XSignal<PreviewMode>,
     pub synchronized_state: XSignal<SynchronizedState>,
     pub side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub side_view_mode: XSignal<SideViewMode>,
+    pub files_side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub git_side_view: XSignal<Option<Arc<SideViewNode>>>,
+    pub is_git_repo: XSignal<bool>,
     pub notify_service: Ptr<NotifyService>,
     pub search: Ptr<SearchState>,
     pub side_view_resize_manager: MousemoveManager,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) enum SideViewMode {
+    #[default]
+    Files,
+    Git,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -68,14 +80,6 @@ impl EditorDataState {
     pub(super) fn supports_preview(&self) -> bool {
         self.is_html() || self.is_markdown()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) enum PreviewMode {
-    #[default]
-    Preview,
-    Editor,
-    SideBySide,
 }
 
 impl PreviewMode {

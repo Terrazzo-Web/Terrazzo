@@ -26,7 +26,7 @@ use super::style;
 use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
-use crate::text_editor::manager::PreviewMode;
+use crate::text_editor::state::PreviewMode;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;

@@ -10,6 +10,7 @@ rust_rules(
         "//remote/server",
         "//utils/fixture",
     ],
+    deps_proc_macro = ["//utils/autoclone/autoclone"],
     deps = [
         "//remote/common",
         "//utils/nameth/nameth",

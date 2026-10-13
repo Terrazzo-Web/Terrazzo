@@ -3,6 +3,7 @@
 
 pub use ::autoclone::autoclone;
 pub use ::autoclone::envelope;
+pub use ::autoclone::graph;
 
 #[cfg(feature = "client")]
 mod client_impl;

@@ -27,6 +27,7 @@ use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::ROOT_BASE_PATH;
 use crate::text_editor::fsio::ROOT_FILE_PATH;
 use crate::text_editor::fsio::client::list_folder;
+use crate::text_editor::git::ui::refresh_on_mouse_activity;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::ui::RemoveBehavior;
 use crate::text_editor::ui::drag::on_move_dragover;
@@ -40,7 +41,12 @@ use crate::utils::more_path::MorePath as _;
 
 impl TextEditorManager {
     pub fn show_side_view(self: &Ptr<TextEditorManager>) -> XElement {
-        show_side_view(self.clone(), self.path.base.clone(), self.side_view.clone())
+        show_side_view(
+            self.clone(),
+            self.path.base.clone(),
+            self.side_view.clone(),
+            Ptr::new(refresh_on_mouse_activity(self.clone())),
+        )
     }
 }
 
@@ -50,6 +56,7 @@ fn show_side_view(
     manager: Ptr<TextEditorManager>,
     #[signal] base: Arc<Path>,
     #[signal] side_view: Option<Arc<SideViewNode>>,
+    refresh_on_mouse_activity: Ptr<dyn Fn(MouseEvent)>,
 ) -> XElement {
     debug!(?base, "Loading side view");
     let root = base
@@ -58,6 +65,9 @@ fn show_side_view(
         .unwrap_or_else(|| &ROOT_BASE_PATH);
     return tag(
         class = style::SIDE,
+        mousemove = move |event| {
+            refresh_on_mouse_activity(event);
+        },
         #[cfg(not(feature = "client-prod"))]
         class = "side-view",
         style::flex %= side_view_width(manager.side_view_resize_manager.delta.clone()),

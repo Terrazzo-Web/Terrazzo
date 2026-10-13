@@ -76,7 +76,7 @@ integration tests must continue to work unchanged.
 
    Preserve `gateway_url`, but document it as the target HTTPS authority in
    WebRTC mode. It is still used for the HTTP authority and target TLS identity;
-   it must not be resolved or dialed by the P2P connector. `sni_override` keeps
+   it must not be resolved or dialed by the P2P connector. `gateway_sni_override` keeps
    its current meaning.
 
 2. Follow the existing `ConfigTypes` pattern so file fields may be omitted while

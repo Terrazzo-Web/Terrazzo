@@ -93,6 +93,12 @@ fn install_icons() {
         install_icon(super::icons::chevron_bar_down());
     }
 
+    #[cfg(feature = "text-editor")]
+    {
+        install_icon(super::icons::chevron_bar_contract());
+        install_icon(super::icons::chevron_bar_expand());
+    }
+
     install_icon(super::icons::close_app());
     install_icon(super::icons::collection());
     install_icon(super::icons::drag_handle_corner());

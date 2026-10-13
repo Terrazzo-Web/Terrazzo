@@ -38,6 +38,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Cargo-generated updates"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
 
   bazel-build:
     runs-on: ubuntu-latest
@@ -71,6 +72,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Bazel-generated updates"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
 
       - name: Buildifier check
         run: bazel run //bazel:buildifier_check
@@ -140,3 +142,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: apply Auto-generated updates"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"

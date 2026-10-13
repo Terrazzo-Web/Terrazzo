@@ -47,6 +47,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
             }
             debug!("Loading text file {path:?}");
             let content: Arc<str> = tokio::fs::read_to_string(&path).await?.into();
+            // Keep the Git baseline even for clean files so local edits can reveal the diff.
             let original = git::git_repo_root(&path)
                 .is_some()
                 .then(|| {
@@ -55,7 +56,6 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                         .ok()
                 })
                 .flatten()
-                .filter(|original| original != content.as_ref())
                 .map(Arc::from);
             reconcile_touched_path(&path);
             return Ok(Some(File::TextFile {

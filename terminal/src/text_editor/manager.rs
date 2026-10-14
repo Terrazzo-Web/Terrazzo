@@ -25,6 +25,7 @@ pub(super) struct TextEditorManager {
     pub editor_state: XSignal<EditorState>,
     pub show_editor_diff: XSignal<bool>,
     pub collapse_unchanged: XSignal<bool>,
+    pub flush_editor_changes: XSignal<()>,
     pub show_html_preview: XSignal<PreviewMode>,
     pub synchronized_state: XSignal<SynchronizedState>,
     pub side_view: XSignal<Option<Arc<SideViewNode>>>,

@@ -95,6 +95,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         editor_state: XSignal::new("editor-state", EditorState::default()),
         show_editor_diff: XSignal::new("show-editor-diff", false),
         collapse_unchanged: XSignal::new("collapse-unchanged", true),
+        flush_editor_changes: XSignal::new("flush-editor-changes", ()),
         show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
@@ -372,6 +373,8 @@ fn editor_container(
     #[signal] show_editor_diff: bool,
     #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
+    // Capture the latest unsent edit before rebuilding or switching files.
+    manager.flush_editor_changes.force(());
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data.get_value_untracked() {
             fsio::File::TextFile {

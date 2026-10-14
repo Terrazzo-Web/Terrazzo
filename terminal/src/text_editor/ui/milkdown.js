@@ -31,7 +31,6 @@ class MilkdownJsImpl {
         this.sourceReplacementNotificationSeen = false;
         this.suppressedMilkdownMarkdown = null;
         this.pendingContent = content;
-        this.onchange = onchange;
         this.lastFocusedPane = "wysiwyg";
         this.fullPath = fullPath;
         wysiwygPane.inert = true;
@@ -49,17 +48,17 @@ class MilkdownJsImpl {
             if (this.destroyed) return;
             this.pendingContent = markdown;
             this.updateMilkdownFromSource(markdown);
-            onchange(markdown);
         };
         this.source = new CodeMirrorJsImpl(
             sourcePane,
             original,
             content,
-            sourceOnChange,
+            onchange,
             oncursor,
             cursorPosition,
             basePath,
             fullPath,
+            sourceOnChange,
         );
         // CodeMirror focuses itself during construction. Restore the mode's
         // intended focus target after its focusin handler has run.
@@ -135,11 +134,19 @@ class MilkdownJsImpl {
         if (this.pendingContent === markdown) return;
         this.pendingContent = markdown;
         this.source.set_content(markdown);
-        this.onchange(markdown);
+        this.source.notify_change();
     }
 
     set_collapse_unchanged(collapse) {
         this.source.set_collapse_unchanged(collapse);
+    }
+
+    flush_changes() {
+        this.source.flush_changes();
+    }
+
+    has_pending_changes() {
+        return this.source.has_pending_changes();
     }
 
     destroy() {

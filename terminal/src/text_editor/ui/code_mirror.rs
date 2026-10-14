@@ -70,6 +70,14 @@ impl CodeMirrorJs {
 }
 
 impl EditorBody for CodeMirrorJs {
+    fn flush_changes(&self) {
+        self.inner.flush_changes();
+    }
+
+    fn has_pending_changes(&self) -> bool {
+        self.inner.has_pending_changes()
+    }
+
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -110,6 +118,12 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     fn destroy(this: &CodeMirrorJsImpl);
+
+    #[wasm_bindgen(method)]
+    pub fn flush_changes(this: &CodeMirrorJsImpl);
+
+    #[wasm_bindgen(method)]
+    pub fn has_pending_changes(this: &CodeMirrorJsImpl) -> bool;
 
     #[wasm_bindgen(method)]
     pub fn set_content(this: &CodeMirrorJsImpl, content: String);

@@ -46,6 +46,12 @@ pub(super) enum EditorDocument {
 pub(super) trait EditorBody {
     fn set_content(&self, content: String);
 
+    fn flush_changes(&self) {}
+
+    fn has_pending_changes(&self) -> bool {
+        false
+    }
+
     fn insert_text(&self, _text: String) {}
 
     fn focus(&self) {}
@@ -122,6 +128,14 @@ pub fn editor(
             body.set_collapse_unchanged(collapse);
         }
     });
+    let flush_registration = manager.flush_editor_changes.add_subscriber({
+        let editor_body = editor_body.clone();
+        move |_| {
+            if let Some(body) = &*editor_body.lock().unwrap() {
+                body.flush_changes();
+            }
+        }
+    });
     let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
         autoclone!(editor_body);
         if let Some(editor_body) = &*editor_body.lock().unwrap() {
@@ -193,6 +207,7 @@ pub fn editor(
         after_render = move |element| {
             autoclone!(path);
             let _moved = &collapse_registration;
+            let _moved = &flush_registration;
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
             let context = EditorBodyContext {
@@ -219,16 +234,17 @@ pub fn editor(
     )
 }
 
-/// Builds the callback invoked for each local document-changing CodeMirror update
-/// (typing, paste, undo/redo), or a changed Markdown body emitted by Milkdown.
+/// Builds the full-document callback throttled in JavaScript to at most once per
+/// second while typing, pasting, or undoing/redoing in CodeMirror or Milkdown.
+/// Each burst delivers its latest document even if typing stops. Mode changes and
+/// editor teardown explicitly flush pending edits and may bypass the interval.
 /// Cursor-only updates and disk reloads do not invoke it.
 ///
-/// Every invocation transfers the full document from JavaScript to Rust and updates
-/// client state immediately: serialization and copying scale with document size,
-/// so multi-megabyte files can incur noticeable work on each edit. Only persistence
-/// is coalesced: `store_file` sends the latest body per file after a 500 ms window
-/// (1500 ms in debug builds). That window is not reset by each keystroke. The
-/// separate 150 ms diff-availability debounce does not reduce callback payloads.
+/// CodeMirror flattens the document only when the throttle emits. Each invocation
+/// still copies the whole body into Rust, so its cost scales with file size.
+/// Persistence independently coalesces bodies in 500 ms windows (1500 ms in debug
+/// builds); that window is not reset by keystrokes. Markdown source/preview
+/// synchronization stays immediate within JavaScript.
 #[autoclone]
 pub(super) fn make_on_change(
     manager: &Ptr<TextEditorManager>,
@@ -346,7 +362,7 @@ async fn notify_edit(
                 manager.path.file.force(path.file);
                 return;
             };
-            if writing.load(SeqCst) == 0 {
+            if writing.load(SeqCst) == 0 && !editor_body.has_pending_changes() {
                 manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }

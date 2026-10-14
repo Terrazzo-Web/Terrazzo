@@ -20,7 +20,11 @@ pub async fn load_file(
     remote: Remote,
     path: FilePath<Arc<Path>>,
 ) -> Result<Option<super::File>, ServerFnError> {
-    super::load_file(remote, path).await
+    let mut file = super::load_file(remote, path).await?;
+    if let Some(file) = &mut file {
+        file.restore_original();
+    }
+    Ok(file)
 }
 
 pub async fn load_file_metadata(

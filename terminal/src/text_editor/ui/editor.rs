@@ -368,7 +368,16 @@ impl EditorType {
     }
 }
 
-// TODO: add some doc-comments: how often does the returned callback run. It's a relatively expensive callback, it takes the whole body as a payload, but what if the body is a few megabytes?
+/// Builds the callback invoked for each local document-changing CodeMirror update
+/// (typing, paste, undo/redo), or a changed Markdown body emitted by Milkdown.
+/// Cursor-only updates and disk reloads do not invoke it.
+///
+/// Every invocation transfers the full document from JavaScript to Rust and updates
+/// client state immediately: serialization and copying scale with document size,
+/// so multi-megabyte files can incur noticeable work on each edit. Only persistence
+/// is coalesced: `store_file` sends the latest body per file after a 500 ms window
+/// (1500 ms in debug builds). That window is not reset by each keystroke. The
+/// separate 150 ms diff-availability debounce does not reduce callback payloads.
 #[autoclone]
 fn make_on_change(
     manager: &Ptr<TextEditorManager>,
@@ -457,7 +466,15 @@ fn make_edits_notify_handler(
     }
 }
 
-// TODO: add some doc-comments: how often does the returned callback run. It's a relatively expensive callback, it takes the whole body as a payload, but what if the body is a few megabytes?
+/// Reloads the full file once for each Create/Modify event delivered by the file
+/// watcher, including events caused by our own saves. Events are not debounced
+/// here, so one disk operation may trigger multiple reloads.
+///
+/// Each invocation performs a full-file server read and response transfer, which
+/// scale with file size. Pending local writes suppress applying the response to
+/// the editor, but the load has already happened. For multi-megabyte files, bursts
+/// of notifications can therefore cause repeated large transfers even when the
+/// response is discarded; this path does not send incremental changes.
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
@@ -470,6 +487,7 @@ async fn notify_edit(
             metadata: _,
             original: _,
             content,
+            ..
         })) => {
             debug!("Loaded modified file");
             let Some(editor_body) = &*editor_body.lock().unwrap() else {

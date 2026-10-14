@@ -17,11 +17,11 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
 use self::diagnostics::debug_span;
 use self::diagnostics::warn;
-use super::code_mirror::CodeMirrorJs;
+use super::editor_render::EditorBodyContext;
+use super::editor_render::EditorType;
+use super::editor_render::make_pdf_body;
 use super::fsio;
 use super::fsio::client::store_file;
-use super::milkdown::MilkdownJs;
-use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
@@ -33,7 +33,6 @@ use crate::text_editor::notify::server_fn::NotifyResponse;
 use crate::text_editor::state::PreviewMode;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
-use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
 pub(super) enum EditorDocument {
@@ -54,34 +53,6 @@ pub(super) trait EditorBody {
     fn cargo_check(&self, _diagnostics: JsValue) {}
 
     fn set_collapse_unchanged(&self, _collapse: bool) {}
-}
-
-struct HtmlEditorBody {
-    source: CodeMirrorJs,
-    preview: Element,
-}
-
-impl EditorBody for HtmlEditorBody {
-    fn set_content(&self, content: String) {
-        self.source.set_content(content.clone());
-        let _ = self.preview.set_attribute("srcdoc", &content);
-    }
-
-    fn insert_text(&self, text: String) {
-        self.source.insert_text(text);
-    }
-
-    fn focus(&self) {
-        self.source.focus();
-    }
-
-    fn set_collapse_unchanged(&self, collapse: bool) {
-        self.source.set_collapse_unchanged(collapse);
-    }
-
-    fn cargo_check(&self, diagnostics: JsValue) {
-        self.source.cargo_check(diagnostics);
-    }
 }
 
 #[autoclone]
@@ -224,98 +195,21 @@ pub fn editor(
             let _moved = &collapse_registration;
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
-            let body: Option<Box<dyn EditorBody>> = match &document {
-                EditorDocument::Text { original, content }
-                    if matches!(
-                        editor_type,
-                        EditorType::Text | EditorType::Markdown | EditorType::Html
-                    ) =>
-                {
-                    let original = if show_editor_diff
-                        && original
-                            .as_ref()
-                            .is_some_and(|original| original != content)
-                    {
-                        original
-                            .as_deref()
-                            .map(JsValue::from)
-                            .unwrap_or(JsValue::null())
-                    } else {
-                        JsValue::null()
-                    };
-                    let cursor_position = cursor_position
-                        .and_then(|cursor_position| {
-                            serde_wasm_bindgen::to_value(&cursor_position).ok()
-                        })
-                        .unwrap_or(JsValue::null());
-                    let base_path = path.base.as_ref().to_owned_string();
-                    let full_path = path.as_deref().full_path().to_owned_string();
-                    if editor_type == EditorType::Markdown {
-                        let wysiwyg_pane = element
-                            .query_selector(&format!(
-                                ".{}",
-                                super::milkdown::style::MILKDOWN_WYSIWYG_PANE
-                            ))
-                            .expect("Invalid Milkdown preview pane selector")
-                            .expect("Missing Milkdown preview pane");
-                        let source_pane = element
-                            .query_selector(&format!(
-                                ".{}",
-                                super::milkdown::style::MILKDOWN_SOURCE_PANE
-                            ))
-                            .expect("Invalid Milkdown source pane selector")
-                            .expect("Missing Milkdown source pane");
-                        Some(Box::new(MilkdownJs::new(
-                            wysiwyg_pane,
-                            source_pane,
-                            original,
-                            content.as_ref().into(),
-                            make_on_change(&manager, &path, &writing, None),
-                            make_on_cursor_position_change(&manager, &path),
-                            cursor_position,
-                            base_path,
-                            full_path,
-                            show_html_preview == PreviewMode::Editor,
-                        )))
-                    } else {
-                        let (source_element, preview) = if editor_type == EditorType::Html {
-                            let source = element
-                                .query_selector(&format!(
-                                    ".{}",
-                                    super::html_viewer::style::HTML_SOURCE_PANE
-                                ))
-                                .expect("Invalid HTML source pane selector")
-                                .expect("Missing HTML source pane");
-                            let preview = element
-                                .query_selector(&format!(
-                                    ".{}",
-                                    super::html_viewer::style::HTML_PREVIEW_PANE
-                                ))
-                                .expect("Invalid HTML preview pane selector")
-                                .expect("Missing HTML preview pane");
-                            (source, Some(preview))
-                        } else {
-                            (element.clone(), None)
-                        };
-                        let source = CodeMirrorJs::new(
-                            source_element,
-                            original,
-                            content.as_ref().into(),
-                            make_on_change(&manager, &path, &writing, preview.clone()),
-                            make_on_cursor_position_change(&manager, &path),
-                            cursor_position,
-                            base_path,
-                            full_path,
-                        );
-                        if let Some(preview) = preview {
-                            Some(Box::new(HtmlEditorBody { source, preview }))
-                        } else {
-                            Some(Box::new(source))
-                        }
-                    }
+            let context = EditorBodyContext {
+                manager: &manager,
+                path: &path,
+                writing: &writing,
+                element: &element,
+                cursor_position,
+                editor_type,
+                show_editor_diff,
+                show_html_preview,
+            };
+            let body = match &document {
+                EditorDocument::Text { original, content } => {
+                    context.make_text_body(original, content)
                 }
-                EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
-                EditorDocument::Text { .. } => None,
+                EditorDocument::Pdf(base64) => Some(make_pdf_body(&element, base64)),
             };
             if let Some(body) = &body {
                 body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
@@ -323,49 +217,6 @@ pub fn editor(
             *editor_body.lock().unwrap() = body;
         },
     )
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum EditorType {
-    Html,
-    Pdf,
-    Text,
-    Markdown,
-}
-
-impl EditorType {
-    fn use_overlay(self, preview_mode: PreviewMode) -> bool {
-        match self {
-            EditorType::Html => preview_mode.shows_editor(),
-            EditorType::Pdf => false,
-            EditorType::Text | EditorType::Markdown => true,
-        }
-    }
-
-    fn class(self) -> Option<&'static str> {
-        Some(match self {
-            EditorType::Html => super::html_viewer::style::HTML_VIEWER,
-            EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
-            EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
-            EditorType::Text => return None,
-        })
-    }
-
-    fn preview_mode_class(self, preview_mode: PreviewMode) -> Option<&'static str> {
-        match self {
-            EditorType::Html => Some(match preview_mode {
-                PreviewMode::Preview => super::html_viewer::style::PREVIEW_MODE,
-                PreviewMode::Editor => super::html_viewer::style::EDITOR_MODE,
-                PreviewMode::SideBySide => super::html_viewer::style::SIDE_BY_SIDE_MODE,
-            }),
-            EditorType::Markdown => Some(match preview_mode {
-                PreviewMode::Preview => super::milkdown::style::PREVIEW_MODE,
-                PreviewMode::Editor => super::milkdown::style::EDITOR_MODE,
-                PreviewMode::SideBySide => super::milkdown::style::SIDE_BY_SIDE_MODE,
-            }),
-            EditorType::Pdf | EditorType::Text => None,
-        }
-    }
 }
 
 /// Builds the callback invoked for each local document-changing CodeMirror update
@@ -379,7 +230,7 @@ impl EditorType {
 /// (1500 ms in debug builds). That window is not reset by each keystroke. The
 /// separate 150 ms diff-availability debounce does not reduce callback payloads.
 #[autoclone]
-fn make_on_change(
+pub(super) fn make_on_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
@@ -418,7 +269,7 @@ fn make_on_change(
 }
 
 #[autoclone]
-fn make_on_cursor_position_change(
+pub(super) fn make_on_cursor_position_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
 ) -> Closure<dyn FnMut(JsValue)> {

@@ -57,6 +57,7 @@ use crate::tiles::signals::TilePtr;
 mod code_mirror;
 pub mod drag;
 mod editor;
+mod editor_render;
 mod folder;
 mod html_viewer;
 mod milkdown;

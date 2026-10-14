@@ -199,7 +199,7 @@ pub fn editor(
                 manager: &manager,
                 path: &path,
                 writing: &writing,
-                element: &element,
+                element,
                 cursor_position,
                 editor_type,
                 show_editor_diff,
@@ -209,7 +209,7 @@ pub fn editor(
                 EditorDocument::Text { original, content } => {
                     context.make_text_body(original, content)
                 }
-                EditorDocument::Pdf(base64) => Some(make_pdf_body(&element, base64)),
+                EditorDocument::Pdf(base64) => Some(make_pdf_body(element, base64)),
             };
             if let Some(body) = &body {
                 body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());

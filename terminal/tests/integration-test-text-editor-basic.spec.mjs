@@ -330,56 +330,6 @@ test.describe('Text editor basic', () => {
         await expect(getCodeMirrorContent(page)).toContainText('Modified line 30');
     });
 
-    test('throttles full-document callbacks during continuous typing and delivers the final edit', async ({ page }) => {
-        test.setTimeout(60 * SECOND);
-        const { baseDir, filePath } = await createTempFile('throttled.txt');
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-        await setBasePath(page, baseDir, 'throttled.txt');
-        await openFolderFile(page, 'throttled.txt');
-        const editor = getCodeMirrorContent(page);
-        await expect(editor).toBeVisible();
-        await page.evaluate(async () => {
-            const url = performance.getEntriesByType('resource').find(entry => entry.name.endsWith('/code_mirror.js')).name;
-            const { ChangeNotifier } = await import(url);
-            const flush = ChangeNotifier.prototype.flush;
-            window.__changeTimes = [];
-            ChangeNotifier.prototype.flush = function () {
-                if (this.pending !== null) window.__changeTimes.push(performance.now());
-                return flush.call(this);
-            };
-        });
-        await editor.click();
-        const content = 'continuous typing test';
-        await page.keyboard.type(content, { delay: 120 });
-        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(content);
-        const times = await page.evaluate(() => window.__changeTimes);
-        expect(times.length).toBeGreaterThanOrEqual(3);
-        expect(times.length).toBeLessThanOrEqual(5);
-        for (let index = 1; index < times.length; index++) {
-            expect(times[index] - times[index - 1]).toBeGreaterThanOrEqual(999);
-        }
-    });
-
-    test('flushes pending edits before rebuilding the diff editor', async ({ page }) => {
-        test.setTimeout(60 * SECOND);
-        const { baseDir, fileName, filePath } = await createCommittedReadme('pending.txt');
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-        await setBasePath(page, baseDir, fileName);
-        await openFolderFile(page, fileName);
-        const editor = getCodeMirrorContent(page);
-        await replaceEditorText(page, editor, 'First edit');
-        const diff = page.locator('.toggle-editor-diff');
-        await expect(diff).toBeVisible();
-        await editor.evaluate(node => {
-            const view = window.JsDeps.EditorView.findFromDOM(node);
-            view.dispatch({ changes: { from: view.state.doc.length, insert: ' with pending text' } });
-        });
-        await diff.click();
-        await expect(getMergeViewEditors(page)).toHaveCount(2);
-        await expect(getCodeMirrorContent(page).nth(1)).toHaveText('First edit with pending text');
-        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('First edit with pending text');
-    });
-
     test('expands and collapses side-view folder nodes', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

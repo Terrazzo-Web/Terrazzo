@@ -1,42 +1,3 @@
-// Keep only a getter for the latest document, so throttling precedes serialization.
-class ChangeNotifier {
-    constructor(onchange, clock = {
-        now: () => performance.now(),
-        setTimeout: (callback, delay) => setTimeout(callback, delay),
-        clearTimeout: (timer) => clearTimeout(timer),
-    }) {
-        this.onchange = onchange;
-        this.clock = clock;
-        this.lastSent = -Infinity;
-        this.pending = null;
-        this.timer = null;
-    }
-
-    schedule(getContent) {
-        this.pending = getContent;
-        const remaining = 1000 - (this.clock.now() - this.lastSent);
-        if (remaining <= 0) {
-            this.flush();
-        } else if (this.timer === null) {
-            this.timer = this.clock.setTimeout(() => {
-                this.timer = null;
-                // Timers can fire early; preserve the minimum interval.
-                this.schedule(this.pending);
-            }, Math.ceil(remaining));
-        }
-    }
-
-    flush() {
-        if (this.timer !== null) this.clock.clearTimeout(this.timer);
-        this.timer = null;
-        const getContent = this.pending;
-        this.pending = null;
-        if (getContent === null) return;
-        this.lastSent = this.clock.now();
-        this.onchange(getContent());
-    }
-}
-
 class CodeMirrorJsImpl {
     rootView;
     editorView;
@@ -52,16 +13,14 @@ class CodeMirrorJsImpl {
         cursorPosition,
         basePath,
         fullPath,
-        onedit = null,
     ) {
         this.basePath = basePath;
         this.fullPath = fullPath;
         this.reloadFromDisk = true;
-        this.changeNotifier = new ChangeNotifier(onchange);
         const updateListener = JsDeps.EditorView.updateListener.of((update) => {
             if (!this.reloadFromDisk && update.docChanged) {
-                if (onedit) onedit(update.state.doc.toString());
-                this.notify_change();
+                const content = update.state.doc.toString();
+                onchange(content);
             }
             if (!this.reloadFromDisk && update.selectionSet) {
                 const selection = update.state.selection.main;
@@ -177,20 +136,7 @@ class CodeMirrorJsImpl {
         }
     }
 
-    notify_change() {
-        this.changeNotifier.schedule(() => this.editorView.state.doc.toString());
-    }
-
-    flush_changes() {
-        this.changeNotifier.flush();
-    }
-
-    has_pending_changes() {
-        return this.changeNotifier.pending !== null;
-    }
-
     destroy() {
-        this.flush_changes();
         this.rootView.destroy();
         console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
     }
@@ -296,6 +242,5 @@ function clampCursorOffset(offset, docLength) {
 }
 
 export {
-    CodeMirrorJsImpl,
-    ChangeNotifier
+    CodeMirrorJsImpl
 };

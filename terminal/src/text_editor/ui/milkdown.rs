@@ -77,14 +77,6 @@ impl MilkdownJs {
 }
 
 impl EditorBody for MilkdownJs {
-    fn flush_changes(&self) {
-        self.inner.flush_changes();
-    }
-
-    fn has_pending_changes(&self) -> bool {
-        self.inner.has_pending_changes()
-    }
-
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -128,12 +120,6 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     fn destroy(this: &MilkdownJsImpl);
-
-    #[wasm_bindgen(method)]
-    pub fn flush_changes(this: &MilkdownJsImpl);
-
-    #[wasm_bindgen(method)]
-    pub fn has_pending_changes(this: &MilkdownJsImpl) -> bool;
 
     #[wasm_bindgen(method)]
     pub fn set_content(this: &MilkdownJsImpl, content: String);

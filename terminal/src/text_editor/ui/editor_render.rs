@@ -24,14 +24,6 @@ struct HtmlEditorBody {
 }
 
 impl EditorBody for HtmlEditorBody {
-    fn flush_changes(&self) {
-        self.source.flush_changes();
-    }
-
-    fn has_pending_changes(&self) -> bool {
-        self.source.has_pending_changes()
-    }
-
     fn set_content(&self, content: String) {
         self.source.set_content(content.clone());
         let _ = self.preview.set_attribute("srcdoc", &content);

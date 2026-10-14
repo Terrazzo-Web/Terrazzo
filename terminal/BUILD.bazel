@@ -1,6 +1,5 @@
 load("@crates//:defs.bzl", "all_crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel:generated_file.bzl", "generate_file")
 load("//bazel:playwright_rules.bzl", "playwright_matrix_test")
 load("//bazel:scss_rules.bzl", "scss_rule")
@@ -277,15 +276,4 @@ playwright_matrix_test(
     },
     server = "//terminal/integration:exec",
     test = "tests/integration-test-text-editor-viewer.spec.mjs",
-)
-
-sh_test(
-    name = "editor-change-notifier-test",
-    srcs = ["tests/editor-change-notifier-test.sh"],
-    args = ["$(location @local_node_tools//:node)"],
-    data = [
-        "src/text_editor/ui/code_mirror.js",
-        "tests/editor-change-notifier.test.mjs",
-        "@local_node_tools//:node",
-    ],
 )

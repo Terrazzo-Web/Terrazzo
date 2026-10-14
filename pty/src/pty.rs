@@ -37,8 +37,11 @@ pub enum PtyError {
 impl Pty {
     pub fn new() -> Result<Self, PtyError> {
         let pty = raw_pty::RawPty::open()?;
-        let async_fd = tokio::io::unix::AsyncFd::new(pty);
-        Ok(Self(async_fd.map_err(PtyError::AsyncFdError)?))
+        // SAFETY: RawPty owns its file descriptor and never replaces or closes it
+        // while borrowed. AsyncFd keeps that owner alive until it is dropped or
+        // returned by into_inner.
+        let async_fd = unsafe { tokio::io::unix::AsyncFd::register(pty) };
+        Ok(Self(async_fd.map_err(|error| PtyError::AsyncFdError(error.into()))?))
     }
 
     pub fn resize(&self, size: Size) -> Result<(), PtyError> {

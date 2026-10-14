@@ -55,6 +55,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                         .inspect_err(|error| warn!("Failed to load git file: {error}"))
                         .ok()
                 })
+                // TODO: the following line was removed. Instead, can we copy `content` field into the `original` field if the `original` is absent, on the client side? this way we avoid sending the same payload twice and retain the same behavior.
                 .flatten()
                 .map(Arc::from);
             reconcile_touched_path(&path);

@@ -145,12 +145,10 @@ pub fn editor(
     let writing = Arc::new(AtomicU32::new(0));
 
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
-    let collapse_registration = manager.collapse_unchanged.add_subscriber({
-        let editor_body = editor_body.clone();
-        move |collapse| {
-            if let Some(body) = &*editor_body.lock().unwrap() {
-                body.set_collapse_unchanged(collapse);
-            }
+    let collapse_registration = manager.collapse_unchanged.add_subscriber(move |collapse| {
+        autoclone!(editor_body);
+        if let Some(body) = &*editor_body.lock().unwrap() {
+            body.set_collapse_unchanged(collapse);
         }
     });
     let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
@@ -370,6 +368,7 @@ impl EditorType {
     }
 }
 
+// TODO: add some doc-comments: how often does the returned callback run. It's a relatively expensive callback, it takes the whole body as a payload, but what if the body is a few megabytes?
 #[autoclone]
 fn make_on_change(
     manager: &Ptr<TextEditorManager>,
@@ -458,6 +457,7 @@ fn make_edits_notify_handler(
     }
 }
 
+// TODO: add some doc-comments: how often does the returned callback run. It's a relatively expensive callback, it takes the whole body as a payload, but what if the body is a few megabytes?
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,

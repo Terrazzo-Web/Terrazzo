@@ -35,15 +35,20 @@ pub fn envelope(
 ///
 /// The module documentation must contain a fenced `graph` block showing every
 /// function and every direct dependency (external inputs are not nodes).
-/// Arrows point from a function to its dependency; plain lines allow either
-/// direction. Repeating a node label is allowed, for example:
+/// Arrows point from a dependency to its consumer; plain lines allow either
+/// direction.
+///
+/// Draw an intuitive visual layout that makes the flow, branches, and shared
+/// dependencies visible at a glance. Write each node once unless doing so is
+/// impractical; use connectors to show branches and joins. For AI-generated
+/// diagrams, prefer Unicode box drawing symbols and arrows for a polished,
+/// readable layout. For example:
 ///
 /// ````text
 /// /// ```graph
-/// /// run --> left
-/// /// run --> right
-/// /// left --> shared
-/// /// right --> shared
+/// /// run ←── left ────────┐
+/// ///  │                   │
+/// ///  └←── right ←── shared
 /// /// ```
 /// ````
 ///

@@ -478,7 +478,7 @@ mod make_app {
 #[test]
 fn topological_order_accepts_shared_dependencies_and_external_inputs() {
     let sample = quote! {
-        #[doc = "```graph\nrun --> left\nrun --> right\nleft --> shared\nright --> shared\nunrelated\n```"]
+        #[doc = "```graph\nrun <-- left\nrun <-- right\nleft <-- shared\nright <-- shared\nunrelated\n```"]
         mod graph {
             pub fn run(left: usize, right: usize) -> usize { left + right }
             fn unrelated() {}

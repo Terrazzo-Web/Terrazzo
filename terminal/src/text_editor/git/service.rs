@@ -54,11 +54,9 @@ impl IsGrpcError for GitDiffLsError {
 }
 
 /// ```graph
-/// run --> files
-/// files --> paths
-/// paths --> output
-/// paths --> base_from_root
-/// output --> base_from_root
+/// run ←── files ←── paths ←── output ←── base_from_root
+///                     │                        │
+///                     └────────────────────────┘
 /// ```
 #[graph]
 mod git_diff_ls {

@@ -89,11 +89,12 @@ impl GatewayClient {
 mod create_tunnel {
     //! Builds a tunnel from the external inputs `gateway_client`, `client_id`, and `timeout`.
     //!
-    //! Node dependencies (arrows point from a function to its dependency):
+    //! Node dependencies (arrows point from a dependency to its consumer):
     //!
     //! ```graph
-    //! run --> web_socket --> tls_request --> websocket_url
-    //! web_socket --> socket --> connect_transport --> connect_tcp --> request
+    //! run ←── web_socket ──┬←── tls_request ←── websocket_url
+    //!                      │
+    //!                      └←── socket ←── connect_transport ←── connect_tcp ←── request
     //! ```
     //!
     //! `gateway_client` supplies `websocket_url`, `request`, `connect_transport`, and

@@ -44,13 +44,13 @@ pub fn merge(
 }
 
 /// ```graph
-/// run --> merge_nodes
-/// run --> cur_nodes_iter
-/// merge_nodes --> old_elements_map
-/// merge_nodes --> cur_elements
-/// merge_nodes --> cur_nodes_iter
-/// cur_elements --> cur_nodes
-/// cur_nodes_iter --> cur_nodes
+/// run ←──────────────────────────── cur_nodes_iter ─────────┐
+///  │                                      │                 │
+///  └←── merge_nodes ←─────────────────────┘                 │
+///           │                                               │
+///           ├←── cur_elements ←── cur_nodes ───────────────→┘
+///           │
+///           └←── old_elements_map
 /// ```
 #[autoclone::graph]
 mod merge_graph {

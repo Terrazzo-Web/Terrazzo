@@ -10,8 +10,8 @@ fn simple_graph() {
 
 #[allow(unused)]
 /// ```graph
-/// run --> comp1
-/// run --> comp2
+/// run <-- comp1
+/// run <-- comp2
 /// ```
 #[graph]
 mod make_app {
@@ -50,9 +50,9 @@ fn shared_owned_node() {
 }
 
 /// ```graph
-/// run --> value
-/// run --> wrapped
-/// wrapped --> value
+/// run <-- value
+/// run <-- wrapped
+/// wrapped <-- value
 /// ```
 #[graph]
 mod shared_values {
@@ -75,9 +75,9 @@ fn borrowed_node_and_last_use_need_no_clone() {
 }
 
 /// ```graph
-/// run --> borrowed
-/// run --> value
-/// borrowed --> value
+/// run <-- borrowed
+/// run <-- value
+/// borrowed <-- value
 /// ```
 #[graph]
 mod borrowed_values {
@@ -102,8 +102,8 @@ fn shared_input() {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod shared_inputs {
@@ -130,9 +130,9 @@ async fn inferred_result_propagates_errors() {
 }
 
 /// ```graph
-/// run --> value
-/// run --> doubled
-/// doubled --> value
+/// run <-- value
+/// run <-- doubled
+/// doubled <-- value
 /// ```
 #[graph]
 mod inferred_result {
@@ -167,8 +167,8 @@ async fn explicit_result_converts_component_errors() {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod explicit_result {
@@ -221,8 +221,8 @@ async fn independent_components_are_polled_concurrently() {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod parallel_components {
@@ -271,8 +271,8 @@ fn poll_joined<T>(future: impl std::future::Future<Output = T>) -> T {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod fallible_parallel {
@@ -319,8 +319,8 @@ fn joined_results_convert_errors_in_component_order() {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod joined_results {
@@ -365,8 +365,8 @@ fn graph_preserves_impl_trait_inputs() {
 }
 
 /// ```graph
-/// run --> first
-/// run --> second
+/// run <-- first
+/// run <-- second
 /// ```
 #[graph]
 mod impl_trait_input {
@@ -473,11 +473,11 @@ fn mutable_graph_nodes_and_inputs() {
 }
 
 /// ```graph
-/// run --> second
-/// run --> value
-/// second --> first
-/// second --> value
-/// first --> value
+/// run <-- second
+/// run <-- value
+/// second <-- first
+/// second <-- value
+/// first <-- value
 /// ```
 #[graph]
 mod mutable_values {
@@ -510,11 +510,11 @@ async fn mutable_joined_graph_nodes() {
 }
 
 /// ```graph
-/// run --> update
-/// run --> left
-/// run --> right
-/// update --> left
-/// update --> right
+/// run <-- update
+/// run <-- left
+/// run <-- right
+/// update <-- left
+/// update <-- right
 /// ```
 #[graph]
 mod mutable_joined {
@@ -544,8 +544,8 @@ fn iterator_with_internal_lifetime() {
 }
 
 /// ```graph
-/// run --> iter
-/// iter --> values
+/// run <-- iter
+/// iter <-- values
 /// ```
 #[graph]
 mod internal_iterator {

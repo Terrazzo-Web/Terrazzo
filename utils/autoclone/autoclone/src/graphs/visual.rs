@@ -194,8 +194,8 @@ pub fn validate(graph: &Graph) -> syn::Result<()> {
         for parameter in function.params.borrow().iter() {
             if matches!(parameter.as_ref(), super::function::Parameter::Callee(_)) {
                 expected.insert((
-                    normalize(function.public_name.to_string()),
                     normalize(parameter.name().to_string()),
+                    normalize(function.public_name.to_string()),
                 ));
             }
         }
@@ -251,14 +251,14 @@ mod tests {
     #[test]
     fn accepts_connectors_and_directions() {
         for diagram in [
-            "run --> helper",
-            "helper <-- run",
+            "run <-- helper",
+            "helper --> run",
             "run --- helper",
-            "run ──→ helper",
-            "helper ←── run",
+            "run ←── helper",
+            "helper ──→ run",
             "run\n |\n helper",
-            "run\n │\n ↓\n helper",
-            "helper\n ↑\n │\n run",
+            "run\n │\n ↑\n helper",
+            "helper\n ↓\n │\n run",
             "run\n   \\\n    helper",
             "    run\n   /\nhelper",
             "run ─┐\n     │\n     └── helper",
@@ -272,15 +272,15 @@ mod tests {
     fn rejects_missing_and_incorrect_diagrams() {
         for (text, message) in [
             ("", "require a ```graph"),
-            ("```rust\nrun --> helper\n```", "require a ```graph"),
-            ("```graph\nrun --> helper", "Unclosed"),
+            ("```rust\nrun <-- helper\n```", "require a ```graph"),
+            ("```graph\nrun <-- helper", "Unclosed"),
             ("```graph\nrun\n```", "missing"),
-            ("```graph\nrun --> helper\nghost\n```", "unknown"),
+            ("```graph\nrun <-- helper\nghost\n```", "unknown"),
             ("```graph\nrun    helper\n```", "Missing graph edge"),
-            ("```graph\nrun <-- helper\n```", "Unexpected graph edge"),
+            ("```graph\nrun --> helper\n```", "Unexpected graph edge"),
             ("```graph\nrun @ helper\n```", "Unsupported"),
             (
-                "```graph\nrun --> helper\nrun --> run\n```",
+                "```graph\nrun <-- helper\nrun <-- run\n```",
                 "Unexpected graph edge",
             ),
             ("```graph\n```", "missing"),
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn checks_private_chains_isolated_nodes_and_junctions() {
         let diagram =
-            "```graph\nrun --> left --> leaf\nrun --> right\nright --> leaf\nisolated\n```";
+            "```graph\nrun <-- left <-- leaf\nrun <-- right\nright <-- leaf\nisolated\n```";
         let item = quote! {
             #[doc = #diagram]
             mod example {
@@ -313,10 +313,10 @@ mod tests {
                 .contains(&("run".into(), "right".into(), false))
         );
         assert!(
-            !super::Diagram::parse("run --> left --> leaf")
+            !super::Diagram::parse("run <-- left <-- leaf")
                 .unwrap()
                 .edges
-                .contains(&("run".into(), "leaf".into(), true))
+                .contains(&("leaf".into(), "run".into(), true))
         );
     }
 
@@ -327,9 +327,9 @@ mod tests {
             quote! {
                 mod example {
                     //! ```graph
-                    //! run --+--> left
+                    //! run --+<-- left
                     //!       |
-                    //!       └--> right
+                    //!       └<-- right
                     //! ```
                     pub fn run(left: usize, right: usize) -> usize { left + right }
                     fn left() -> usize { 1 }
@@ -346,7 +346,7 @@ mod tests {
             quote! {},
             quote! {
                 /// ```graph
-                /// r#type --> café
+                /// r#type <-- café
                 /// ```
                 mod example {
                     pub fn r#type(café: usize) -> usize { café }
@@ -360,7 +360,7 @@ mod tests {
     #[test]
     fn validates_every_block() {
         let error =
-            validate("```graph\nrun --> helper\n```\n```graph\nrun helper\n```").unwrap_err();
+            validate("```graph\nrun <-- helper\n```\n```graph\nrun helper\n```").unwrap_err();
         assert!(error.to_string().contains("Missing graph edge"));
     }
 }

@@ -31,10 +31,9 @@ pub(crate) async fn get_certifiate(
 }
 
 /// ```graph
-/// run --> response_body
-/// response_body --> url
-/// response_body --> request_body
-/// request_body --> public_key
+/// run ←── response_body ──┬←── url
+///                         │
+///                         └←── request_body ←── public_key
 /// ```
 #[autoclone::graph]
 mod certificate_request {

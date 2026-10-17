@@ -1,5 +1,16 @@
 pub(super) use graph::Run;
 
+/// Initializes the server and client, then waits for shutdown.
+///
+/// ```graph
+///    ┌──────────────────────────────┐
+///    │                              │
+/// root_ca ──→ tls_config ──→ backend_config ──→ running_server ──→ client_handle ──→ run
+///                  │                │                  │                              │
+///                  │                │                  └──────────────────────────────┘
+///                  │                │
+///   active_challenges───────────────┘
+/// ```
 #[terrazzo::graph]
 mod graph {
     use std::future::ready;

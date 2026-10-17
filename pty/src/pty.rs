@@ -41,7 +41,9 @@ impl Pty {
         // while borrowed. AsyncFd keeps that owner alive until it is dropped or
         // returned by into_inner.
         let async_fd = unsafe { tokio::io::unix::AsyncFd::register(pty) };
-        Ok(Self(async_fd.map_err(|error| PtyError::AsyncFdError(error.into()))?))
+        Ok(Self(
+            async_fd.map_err(|error| PtyError::AsyncFdError(error.into()))?,
+        ))
     }
 
     pub fn resize(&self, size: Size) -> Result<(), PtyError> {

@@ -53,6 +53,11 @@ impl IsGrpcError for GitDiffLsError {
     }
 }
 
+/// ```graph
+/// base_from_root ──→ output ──→ paths ──→ files ──→ run
+///        │                        │
+///        └────────────────────────┘
+/// ```
 #[graph]
 mod git_diff_ls {
     use std::collections::HashMap;
@@ -61,6 +66,7 @@ mod git_diff_ls {
     use std::path::PathBuf;
     use std::process::Output;
     use std::sync::Arc;
+
     use tokio::process::Command;
     use tracing::debug;
 

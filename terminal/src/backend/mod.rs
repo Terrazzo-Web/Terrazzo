@@ -1,6 +1,5 @@
 #![cfg(feature = "server")]
 
-use std::future::ready;
 use std::ops::ControlFlow;
 use std::ops::Deref;
 use std::path::Path;
@@ -12,14 +11,11 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use clap::Parser as _;
-use futures::FutureExt as _;
 use futures::future::Either;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
 use terrazzo::autoclone;
-use tokio::signal::unix::SignalKind;
-use tokio::signal::unix::signal;
 use tokio::sync::oneshot;
 use tracing::Instrument as _;
 use tracing::debug;
@@ -39,18 +35,12 @@ use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::handle::ServerStopError;
 use trz_gateway_common::notify_once;
-use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
-use trz_gateway_common::security_configuration::either::EitherConfig;
-use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
 use trz_gateway_common::x509::time::asn1_to_system_time;
 use trz_gateway_server::server::GatewayError;
 use trz_gateway_server::server::Server as GatewayServer;
-use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
-use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 
 use self::agent::AgentTunnelConfig;
-use self::auth::AuthConfig;
 use self::cli::Action;
 use self::cli::Cli;
 use self::config::Config;
@@ -61,11 +51,9 @@ use self::config::kill::KillServerError;
 use self::config::mesh::DynamicMeshConfig;
 use self::config::password::SetPasswordError;
 use self::daemonize::DaemonizeServerError;
-use self::root_ca_config::PrivateRootCa;
 use self::root_ca_config::PrivateRootCaError;
 use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
-use self::tls_config::make_tls_config;
 use crate::assets;
 
 mod agent;
@@ -76,6 +64,7 @@ pub mod config;
 mod daemonize;
 pub mod protos;
 mod root_ca_config;
+mod run_server_graph;
 mod server_config;
 pub mod throttling_stream;
 mod tls_config;
@@ -181,104 +170,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
         return Ok(server_config.set_password(cli.password_stdin)?);
     }
 
-    let backend_config = {
-        let root_ca = PrivateRootCa::load(&config)?;
-        let active_challenges = ActiveChallenges::default();
-
-        let tls_config = {
-            let root_ca = root_ca.clone();
-            let active_challenges = active_challenges.clone();
-            let dynamic_acme_config = config.letsencrypt.clone();
-            let joined_config = config.letsencrypt.zip(
-                &config
-                    .server
-                    .view_diff(|server_config| server_config.certificate_renewal_threshold),
-            );
-            joined_config.view(move |(letsencrypt, certificate_renewal_threshold)| {
-                debug!("Refresh TLS config");
-                if let Some(letsencrypt) = &**letsencrypt {
-                    EitherConfig::Right(SecurityConfig {
-                        trusted_store: NativeTrustedStoreConfig,
-                        certificate: AcmeCertificateConfig::new(
-                            dynamic_acme_config.clone(),
-                            letsencrypt.clone(),
-                            active_challenges.clone(),
-                            *certificate_renewal_threshold,
-                        ),
-                    })
-                } else {
-                    EitherConfig::Left(make_tls_config(&root_ca).unwrap())
-                }
-            })
-        };
-
-        TerminalBackendServer {
-            config,
-            root_ca,
-            tls_config,
-            auth_config: server_config
-                .view(|server| DiffArc::from(AuthConfig::new(server)))
-                .into(),
-            active_challenges,
-        }
-    };
-
-    assets::install::install_assets();
-    let config = backend_config.config.clone();
-    let (server, server_handle, crash) = GatewayServer::run(backend_config).await?;
-    let server = Arc::new(Server::new(server, config.clone()));
-
-    #[cfg(feature = "remote-fn")]
-    {
-        use self::client_service::remote_fn_service;
-
-        remote_fn_service::set_remote_fn_server(Arc::downgrade(&server));
-
-        #[cfg(feature = "remote-fn-unary")]
-        remote_fn_service::unary::setup();
-
-        #[cfg(feature = "remote-fn-streaming")]
-        remote_fn_service::streaming::setup();
-    }
-
-    let crash = crash
-        .then(|crash| {
-            let crash = crash
-                .map(|crash| format!("Crashed: {crash}"))
-                .unwrap_or_else(|_| "Server task dropped".to_owned());
-            ready(crash)
-        })
-        .shared();
-
-    let client_handle = async {
-        match run_client_async(cli, config, server.clone()).await {
-            Ok(client_handle) => Ok(Some(client_handle)),
-            Err(RunClientError::ClientNotEnabled) => Ok(None),
-            Err(error) => Err(error),
-        }
-    };
-    let client_handle = tokio::select! {
-        h = client_handle => h,
-        crash = crash.clone() => Err(RunClientError::Aborted(crash)),
-    }?;
-
-    let mut terminate = signal(SignalKind::terminate()).map_err(RunServerError::Signal)?;
-    tokio::select! {
-        biased;
-        crash = crash.clone() => {
-            server_handle.stop(crash).await?;
-        }
-        _ = terminate.recv() => {
-            server_handle.stop("Quit").await?;
-        }
-    }
-    drop(server);
-
-    if let Some(client_handle) = client_handle {
-        client_handle.stop("Quit").await?;
-    }
-
-    Ok(())
+    run_server_graph::Run { cli, config }.run().await
 }
 
 #[nameth]

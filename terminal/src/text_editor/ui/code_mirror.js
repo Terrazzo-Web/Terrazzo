@@ -10,17 +10,29 @@ class CodeMirrorJsImpl {
         content,
         onchange,
         oncursor,
+        onflush,
+        ondirty,
         cursorPosition,
         basePath,
         fullPath,
     ) {
+        this.onchange = onchange;
+        this.onflush = onflush;
+        this.ondirty = ondirty;
+        this.dirty = false;
+        this.destroyed = false;
+        this.changeTimer = null;
         this.basePath = basePath;
         this.fullPath = fullPath;
         this.reloadFromDisk = true;
         const updateListener = JsDeps.EditorView.updateListener.of((update) => {
             if (!this.reloadFromDisk && update.docChanged) {
-                const content = update.state.doc.toString();
-                onchange(content);
+                if (!this.dirty) {
+                    this.dirty = true;
+                    this.ondirty(true);
+                }
+                clearTimeout(this.changeTimer);
+                this.changeTimer = setTimeout(() => this.flush(), 200);
             }
             if (!this.reloadFromDisk && update.selectionSet) {
                 const selection = update.state.selection.main;
@@ -136,12 +148,33 @@ class CodeMirrorJsImpl {
         }
     }
 
+    has_pending_changes() {
+        return this.dirty;
+    }
+
+    flush(immediate = false) {
+        clearTimeout(this.changeTimer);
+        this.changeTimer = null;
+        if (this.destroyed) return;
+        if (this.dirty) {
+            this.dirty = false;
+            this.onchange(this.editorView.state.doc.toString(), immediate);
+            this.ondirty(false);
+        }
+        if (immediate) this.onflush();
+    }
+
     destroy() {
+        if (this.destroyed) return;
+        this.flush(true);
+        this.destroyed = true;
         this.rootView.destroy();
         console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
     }
 
     set_content(content) {
+        // Local edits remain authoritative until they have been emitted.
+        if (this.dirty || this.destroyed) return;
         const current = this.editorView.state.doc;
         if (current.toString() === content) return;
         this.reloadFromDisk = true;

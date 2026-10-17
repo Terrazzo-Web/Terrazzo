@@ -87,13 +87,14 @@ pub async fn delete_file(remote: Remote, path: FilePath<Arc<Path>>) -> Result<()
 
 static STORE_FILE_STATE: LazyLock<Mutex<StoreFileState>> = LazyLock::new(Mutex::default);
 
-pub async fn store_file<B: Send + 'static, A: Send + 'static>(
+pub fn store_file<B: Send + 'static, A: Send + 'static>(
     remote: Remote,
     path: FilePath<Arc<Path>>,
     content: String,
     before: B,
     after: A,
-) {
+    immediate: bool,
+) -> impl Future<Output = ()> {
     assert!(std::mem::needs_drop::<B>());
     assert!(std::mem::needs_drop::<A>());
     let (done_tx, done_rx) = oneshot::channel();
@@ -110,6 +111,7 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
             .find(|pending| pending.remote == remote && pending.path == path)
         {
             pending.content = content;
+            pending.immediate |= immediate;
             pending.waiters.push(waiter);
         } else {
             state.pending.push(PendingStoreFile {
@@ -117,7 +119,13 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
                 path,
                 content,
                 waiters: vec![waiter],
+                immediate,
             });
+        }
+        if immediate {
+            if let Some(wake) = state.wake.take() {
+                let _ = wake.send(());
+            }
         }
         let schedule = !state.scheduled;
         state.scheduled = true;
@@ -126,56 +134,95 @@ pub async fn store_file<B: Send + 'static, A: Send + 'static>(
     if schedule {
         spawn_local(flush_pending_store_files());
     }
-    let _ = done_rx.await;
+    async move {
+        let _ = done_rx.await;
+    }
+}
+
+/// Expedite a queued save without starting a second writer.
+pub fn flush_file(remote: &Remote, path: &FilePath<Arc<Path>>) {
+    let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
+    if let Some(pending) = state
+        .pending
+        .iter_mut()
+        .find(|pending| &pending.remote == remote && &pending.path == path)
+    {
+        pending.immediate = true;
+        if let Some(wake) = state.wake.take() {
+            let _ = wake.send(());
+        }
+    }
 }
 
 async fn flush_pending_store_files() {
-    if let Err(error) = sleep(STORE_FILE_DEBOUNCE_DELAY).await {
-        warn!("Failed to wait before storing files: {error}");
-    }
-    let pending = {
-        let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
-        state.scheduled = false;
-        std::mem::take(&mut state.pending)
-    };
-    for PendingStoreFile {
-        remote,
-        path,
-        content,
-        waiters,
-    } in pending
-    {
-        let (before, after): (Vec<_>, Vec<_>) = waiters
-            .into_iter()
-            .map(
-                |StoreFileWaiter {
-                     before,
-                     after,
-                     done,
-                 }| {
-                    let after = (after, done);
-                    (before, after)
-                },
-            )
-            .unzip();
-        drop(before);
-        let () = super::store_file_impl(remote, path, content)
-            .await
-            .unwrap_or_else(|error| warn!("Failed to store file: {error}"));
-        for (after, done) in after {
-            drop(after);
-            let _ = done.send(());
+    // Keep one writer alive through network requests, so an older save cannot
+    // complete after a newer one. A close wakes the current coalescing window.
+    loop {
+        let wait = {
+            let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
+            if state.pending.is_empty() {
+                state.scheduled = false;
+                state.wake = None;
+                return;
+            }
+            if state.pending.iter().any(|pending| pending.immediate) {
+                None
+            } else {
+                let (wake, wait) = oneshot::channel();
+                state.wake = Some(wake);
+                Some(wait)
+            }
+        };
+        if let Some(wait) = wait {
+            let _ = futures::future::select(Box::pin(sleep(STORE_FILE_DEBOUNCE_DELAY)), wait).await;
+        }
+        let pending = {
+            let mut state = STORE_FILE_STATE.lock().expect("store_file_state");
+            state.wake = None;
+            std::mem::take(&mut state.pending)
+        };
+        for PendingStoreFile {
+            remote,
+            path,
+            content,
+            waiters,
+            immediate: _,
+        } in pending
+        {
+            let (before, after): (Vec<_>, Vec<_>) = waiters
+                .into_iter()
+                .map(
+                    |StoreFileWaiter {
+                         before,
+                         after,
+                         done,
+                     }| {
+                        let after = (after, done);
+                        (before, after)
+                    },
+                )
+                .unzip();
+            drop(before);
+            let () = super::store_file_impl(remote, path, content)
+                .await
+                .unwrap_or_else(|error| warn!("Failed to store file: {error}"));
+            for (after, done) in after {
+                drop(after);
+                let _ = done.send(());
+            }
         }
     }
 }
 
 #[derive(Default)]
 struct StoreFileState {
+    wake: Option<oneshot::Sender<()>>,
     pending: Vec<PendingStoreFile>,
     scheduled: bool,
 }
 
 struct PendingStoreFile {
+    immediate: bool,
     remote: Remote,
     path: FilePath<Arc<Path>>,
     content: String,

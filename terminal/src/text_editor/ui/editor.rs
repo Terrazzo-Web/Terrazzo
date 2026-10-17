@@ -44,6 +44,12 @@ pub(super) enum EditorDocument {
 }
 
 pub(super) trait EditorBody {
+    fn flush(&self) {}
+
+    fn has_pending_changes(&self) -> bool {
+        false
+    }
+
     fn set_content(&self, content: String);
 
     fn insert_text(&self, _text: String) {}
@@ -215,29 +221,35 @@ pub fn editor(
                 body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
             }
             *editor_body.lock().unwrap() = body;
+            // A weak reference avoids a manager -> body -> callback -> manager cycle.
+            let body = Ptr::downgrade(&editor_body);
+            *manager.flush_editor.borrow_mut() = Some(Ptr::new(move || {
+                if let Some(body) = body.upgrade() {
+                    if let Some(body) = &*body.lock().unwrap() {
+                        body.flush();
+                    }
+                }
+            }));
         },
     )
 }
 
-/// Builds the callback invoked for each local document-changing CodeMirror update
-/// (typing, paste, undo/redo), or a changed Markdown body emitted by Milkdown.
-/// Cursor-only updates and disk reloads do not invoke it.
-///
-/// Every invocation transfers the full document from JavaScript to Rust and updates
-/// client state immediately: serialization and copying scale with document size,
-/// so multi-megabyte files can incur noticeable work on each edit. Only persistence
-/// is coalesced: `store_file` sends the latest body per file after a 500 ms window
-/// (1500 ms in debug builds). That window is not reset by each keystroke. The
-/// separate 150 ms diff-availability debounce does not reduce callback payloads.
-#[autoclone]
+/// Receives full documents after the editors' 200 ms trailing debounce, or
+/// immediately on teardown. Serialization and JS-to-Rust copying happen once
+/// per emission rather than per keystroke. Normal saves are coalesced separately;
+/// teardown bypasses that save window. Cursor updates and disk reloads are excluded.
 pub(super) fn make_on_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
     html_preview: Option<Element>,
-) -> Closure<dyn FnMut(JsValue)> {
-    Closure::new(move |content: JsValue| {
-        autoclone!(manager, path, writing);
+) -> Closure<dyn FnMut(JsValue, bool)> {
+    let manager = manager.clone();
+    let path = path.clone();
+    let writing = writing.clone();
+    Closure::new(move |content: JsValue, immediate: bool| {
+        let path = path.clone();
+        let writing = writing.clone();
         let Some(content) = content.as_string() else {
             debug!("Changed content is not a string");
             return;
@@ -248,23 +260,45 @@ pub(super) fn make_on_change(
         manager.update_content(&path, Arc::from(content.as_str()));
         writing.fetch_add(1, SeqCst);
         let writing_done = guard((), move |()| {
-            autoclone!(writing);
             writing.fetch_sub(1, SeqCst);
         });
-        let write = async move {
-            autoclone!(manager, path);
-            let synchronized_state_done =
-                SynchronizedState::enqueue(manager.synchronized_state.clone());
-            let () = store_file(
-                manager.remote.clone(),
-                path,
-                content,
-                guard((), move |()| ()),
-                (writing_done, synchronized_state_done),
-            )
-            .await;
-        };
+        let synchronized_state_done =
+            SynchronizedState::enqueue(manager.synchronized_state.clone());
+        let write = store_file(
+            manager.remote.clone(),
+            path,
+            content,
+            guard((), move |()| ()),
+            (writing_done, synchronized_state_done),
+            immediate,
+        );
         spawn_local(write.in_current_span());
+    })
+}
+
+/// Mark the debounce window as unsaved without transferring any document text.
+pub(super) fn make_on_dirty(manager: &Ptr<TextEditorManager>) -> Closure<dyn FnMut(bool)> {
+    let state = manager.synchronized_state.clone();
+    let mut pending: Option<Box<dyn Send + Sync>> = None;
+    Closure::new(move |dirty: bool| {
+        if dirty {
+            if pending.is_none() {
+                pending = Some(Box::new(SynchronizedState::enqueue(state.clone())));
+            }
+        } else {
+            pending = None;
+        }
+    })
+}
+
+pub(super) fn make_on_flush(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+) -> Closure<dyn FnMut()> {
+    let manager = manager.clone();
+    let path = path.clone();
+    Closure::new(move || {
+        fsio::client::flush_file(&manager.remote, &path);
     })
 }
 
@@ -346,7 +380,7 @@ async fn notify_edit(
                 manager.path.file.force(path.file);
                 return;
             };
-            if writing.load(SeqCst) == 0 {
+            if writing.load(SeqCst) == 0 && !editor_body.has_pending_changes() {
                 manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }

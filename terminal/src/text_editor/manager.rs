@@ -18,6 +18,7 @@ use crate::frontend::remotes::Remote;
 use crate::tiles::signals::TilePtr;
 
 pub(super) struct TextEditorManager {
+    pub flush_editor: std::cell::RefCell<Option<Ptr<dyn Fn()>>>,
     pub tile: TilePtr,
     pub remote: Remote,
     pub path: FilePath<XSignal<Arc<Path>>>,
@@ -53,6 +54,13 @@ pub(super) enum EditorState {
 }
 
 impl TextEditorManager {
+    pub(super) fn flush_editor(&self) {
+        let flush = self.flush_editor.borrow().clone();
+        if let Some(flush) = flush {
+            flush();
+        }
+    }
+
     pub(super) fn update_content(&self, path: &FilePath<Arc<Path>>, content: Arc<str>) {
         let EditorState::Data(editor) = self.editor_state.get_value_untracked() else {
             return;

@@ -7,7 +7,9 @@ use super::editor::EditorBody;
 
 pub struct CodeMirrorJs {
     inner: CodeMirrorJsImpl,
-    _onchange: Closure<dyn FnMut(JsValue)>,
+    _onchange: Closure<dyn FnMut(JsValue, bool)>,
+    _onflush: Closure<dyn FnMut()>,
+    _ondirty: Closure<dyn FnMut(bool)>,
     _oncursor: Closure<dyn FnMut(JsValue)>,
 }
 
@@ -30,8 +32,10 @@ impl CodeMirrorJs {
         element: Element,
         original: JsValue,
         content: JsValue,
-        onchange: Closure<dyn FnMut(JsValue)>,
+        onchange: Closure<dyn FnMut(JsValue, bool)>,
         oncursor: Closure<dyn FnMut(JsValue)>,
+        onflush: Closure<dyn FnMut()>,
+        ondirty: Closure<dyn FnMut(bool)>,
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
@@ -43,12 +47,16 @@ impl CodeMirrorJs {
                 content,
                 &onchange,
                 &oncursor,
+                &onflush,
+                &ondirty,
                 cursor_position,
                 base_path,
                 full_path,
             ),
             _onchange: onchange,
             _oncursor: oncursor,
+            _onflush: onflush,
+            _ondirty: ondirty,
         }
     }
 
@@ -70,6 +78,14 @@ impl CodeMirrorJs {
 }
 
 impl EditorBody for CodeMirrorJs {
+    fn flush(&self) {
+        self.inner.flush(true);
+    }
+
+    fn has_pending_changes(&self) -> bool {
+        self.inner.has_pending_changes()
+    }
+
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -101,12 +117,20 @@ extern "C" {
         element: Element,
         original: JsValue,
         content: JsValue,
-        onchange: &Closure<dyn FnMut(JsValue)>,
+        onchange: &Closure<dyn FnMut(JsValue, bool)>,
         oncursor: &Closure<dyn FnMut(JsValue)>,
+        onflush: &Closure<dyn FnMut()>,
+        ondirty: &Closure<dyn FnMut(bool)>,
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
     ) -> CodeMirrorJsImpl;
+
+    #[wasm_bindgen(method)]
+    fn flush(this: &CodeMirrorJsImpl, immediate: bool);
+
+    #[wasm_bindgen(method)]
+    pub fn has_pending_changes(this: &CodeMirrorJsImpl) -> bool;
 
     #[wasm_bindgen(method)]
     fn destroy(this: &CodeMirrorJsImpl);

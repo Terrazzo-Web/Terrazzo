@@ -9,7 +9,9 @@ terrazzo_css::import_style!(pub(super) style, "milkdown.scss");
 
 pub struct MilkdownJs {
     inner: MilkdownJsImpl,
-    _onchange: Closure<dyn FnMut(JsValue)>,
+    _onchange: Closure<dyn FnMut(JsValue, bool)>,
+    _onflush: Closure<dyn FnMut()>,
+    _ondirty: Closure<dyn FnMut(bool)>,
     _oncursor: Closure<dyn FnMut(JsValue)>,
 }
 
@@ -34,8 +36,10 @@ impl MilkdownJs {
         source_pane: Element,
         original: JsValue,
         content: JsValue,
-        onchange: Closure<dyn FnMut(JsValue)>,
+        onchange: Closure<dyn FnMut(JsValue, bool)>,
         oncursor: Closure<dyn FnMut(JsValue)>,
+        onflush: Closure<dyn FnMut()>,
+        ondirty: Closure<dyn FnMut(bool)>,
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
@@ -49,6 +53,8 @@ impl MilkdownJs {
                 content,
                 &onchange,
                 &oncursor,
+                &onflush,
+                &ondirty,
                 cursor_position,
                 base_path,
                 full_path,
@@ -56,6 +62,8 @@ impl MilkdownJs {
             ),
             _onchange: onchange,
             _oncursor: oncursor,
+            _onflush: onflush,
+            _ondirty: ondirty,
         }
     }
 
@@ -77,6 +85,14 @@ impl MilkdownJs {
 }
 
 impl EditorBody for MilkdownJs {
+    fn flush(&self) {
+        self.inner.flush(true);
+    }
+
+    fn has_pending_changes(&self) -> bool {
+        self.inner.has_pending_changes()
+    }
+
     fn set_content(&self, content: String) {
         self.set_content(content);
     }
@@ -110,13 +126,21 @@ extern "C" {
         source_pane: Element,
         original: JsValue,
         content: JsValue,
-        onchange: &Closure<dyn FnMut(JsValue)>,
+        onchange: &Closure<dyn FnMut(JsValue, bool)>,
         oncursor: &Closure<dyn FnMut(JsValue)>,
+        onflush: &Closure<dyn FnMut()>,
+        ondirty: &Closure<dyn FnMut(bool)>,
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
         focus_source: bool,
     ) -> MilkdownJsImpl;
+
+    #[wasm_bindgen(method)]
+    fn flush(this: &MilkdownJsImpl, immediate: bool);
+
+    #[wasm_bindgen(method)]
+    pub fn has_pending_changes(this: &MilkdownJsImpl) -> bool;
 
     #[wasm_bindgen(method)]
     fn destroy(this: &MilkdownJsImpl);

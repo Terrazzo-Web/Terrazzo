@@ -10,6 +10,8 @@ use super::code_mirror::CodeMirrorJs;
 use super::editor::EditorBody;
 use super::editor::make_on_change;
 use super::editor::make_on_cursor_position_change;
+use super::editor::make_on_dirty;
+use super::editor::make_on_flush;
 use super::milkdown::MilkdownJs;
 use super::pdf_viewer::PdfJs;
 use crate::text_editor::file_path::FilePath;
@@ -24,6 +26,14 @@ struct HtmlEditorBody {
 }
 
 impl EditorBody for HtmlEditorBody {
+    fn flush(&self) {
+        EditorBody::flush(&self.source);
+    }
+
+    fn has_pending_changes(&self) -> bool {
+        self.source.has_pending_changes()
+    }
+
     fn set_content(&self, content: String) {
         self.source.set_content(content.clone());
         let _ = self.preview.set_attribute("srcdoc", &content);
@@ -127,6 +137,8 @@ impl EditorBodyContext<'_> {
             document.content,
             make_on_change(self.manager, self.path, self.writing, None),
             make_on_cursor_position_change(self.manager, self.path),
+            make_on_flush(self.manager, self.path),
+            make_on_dirty(self.manager),
             document.cursor_position,
             document.base_path,
             document.full_path,
@@ -159,6 +171,8 @@ impl EditorBodyContext<'_> {
             document.content,
             make_on_change(self.manager, self.path, self.writing, preview.clone()),
             make_on_cursor_position_change(self.manager, self.path),
+            make_on_flush(self.manager, self.path),
+            make_on_dirty(self.manager),
             document.cursor_position,
             document.base_path,
             document.full_path,

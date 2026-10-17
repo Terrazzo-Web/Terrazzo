@@ -85,6 +85,7 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
     let manager = Ptr::new(TextEditorManager {
+        flush_editor: Default::default(),
         tile,
         remote: remote.clone(),
         path: FilePath {
@@ -372,6 +373,8 @@ fn editor_container(
     #[signal] show_editor_diff: bool,
     #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
+    // Flush before taking the content snapshot for a replacement editor.
+    manager.flush_editor();
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data.get_value_untracked() {
             fsio::File::TextFile {

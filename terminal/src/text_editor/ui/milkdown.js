@@ -1,3 +1,5 @@
+import { CodeMirrorJsImpl } from "./code_mirror.js";
+
 class MilkdownJsImpl {
     crepe;
     source;
@@ -18,6 +20,8 @@ class MilkdownJsImpl {
         content,
         onchange,
         oncursor,
+        onflush,
+        ondirty,
         cursorPosition,
         basePath,
         fullPath,
@@ -30,31 +34,38 @@ class MilkdownJsImpl {
         this.suppressedMilkdownMarkdown = null;
         this.pendingContent = content;
         this.onchange = onchange;
+        this.onflush = onflush;
+        this.ondirty = ondirty;
+        this.wysiwygDirty = false;
         this.lastFocusedPane = "wysiwyg";
         this.fullPath = fullPath;
         wysiwygPane.inert = true;
         wysiwygPane.dataset.milkdownReady = "false";
 
         wysiwygPane.addEventListener("focusin", () => {
+            this.source.flush();
             this.lastFocusedPane = "wysiwyg";
         });
         sourcePane.addEventListener("focusin", () => {
+            this.flushWysiwyg();
             this.lastFocusedPane = "source";
         });
         this.wysiwygPane = wysiwygPane;
 
-        const sourceOnChange = (markdown) => {
+        const sourceOnChange = (markdown, immediate) => {
             if (this.destroyed) return;
             this.pendingContent = markdown;
             this.updateMilkdownFromSource(markdown);
-            onchange(markdown);
+            onchange(markdown, immediate);
         };
-        this.source = new JsDeps.CodeMirrorJsImpl(
+        this.source = new CodeMirrorJsImpl(
             sourcePane,
             original,
             content,
             sourceOnChange,
             oncursor,
+            () => {}, // The wrapper flushes persistence after both panes.
+            (dirty) => this.ondirty(dirty || this.wysiwygDirty),
             cursorPosition,
             basePath,
             fullPath,
@@ -85,12 +96,13 @@ class MilkdownJsImpl {
                 this.propagateMilkdownMarkdown(markdown);
             });
         });
+        // Track pending input immediately without serializing the document.
+        // Milkdown's markdownUpdated listener handles the debounced sync.
         this.onMilkdownInput = () => {
             if (this.destroyed || !this.ready || this.updatingMilkdownFromSource) return;
-            queueMicrotask(() => {
-                if (this.destroyed || !this.ready || this.updatingMilkdownFromSource) return;
-                this.propagateMilkdownMarkdown(this.crepe.getMarkdown());
-            });
+            this.wysiwygDirty = true;
+            this.suppressedMilkdownMarkdown = null;
+            this.ondirty(true);
         };
         wysiwygPane.addEventListener("input", this.onMilkdownInput);
 
@@ -129,15 +141,42 @@ class MilkdownJsImpl {
         }
     }
 
-    propagateMilkdownMarkdown(markdown) {
-        if (this.pendingContent === markdown) return;
+    propagateMilkdownMarkdown(markdown, immediate = false) {
+        this.wysiwygDirty = false;
+        if (this.pendingContent === markdown) {
+            this.ondirty(this.source.has_pending_changes());
+            return;
+        }
         this.pendingContent = markdown;
         this.source.set_content(markdown);
-        this.onchange(markdown);
+        this.onchange(markdown, immediate);
+        this.ondirty(this.source.has_pending_changes());
+    }
+
+    set_collapse_unchanged(collapse) {
+        this.source.set_collapse_unchanged(collapse);
+    }
+
+    has_pending_changes() {
+        return this.wysiwygDirty || this.source.has_pending_changes();
+    }
+
+    // Input marks pending edits; toolbar-only edits may miss this close flush
+    // if their debounced markdownUpdated notification has not arrived yet.
+    flushWysiwyg(immediate = false) {
+        if (this.destroyed || !this.ready || !this.wysiwygDirty) return;
+        this.propagateMilkdownMarkdown(this.crepe.getMarkdown(), immediate);
+    }
+
+    flush(immediate = false) {
+        this.source.flush(immediate);
+        this.flushWysiwyg(immediate);
+        if (immediate) this.onflush();
     }
 
     destroy() {
         if (this.destroyed) return;
+        this.flush(true);
         this.destroyed = true;
         this.wysiwygPane.removeEventListener("input", this.onMilkdownInput);
         this.source.destroy();
@@ -148,7 +187,7 @@ class MilkdownJsImpl {
     }
 
     set_content(content) {
-        if (this.destroyed) return;
+        if (this.destroyed || this.has_pending_changes()) return;
         this.pendingContent = content;
         this.source.set_content(content);
         this.updateMilkdownFromSource(content);

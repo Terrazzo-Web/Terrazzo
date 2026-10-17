@@ -39,16 +39,18 @@ pub fn envelope(
 /// direction.
 ///
 /// Draw an intuitive visual layout that makes the flow, branches, and shared
-/// dependencies visible at a glance. Write each node once unless doing so is
-/// impractical; use connectors to show branches and joins. For AI-generated
+/// dependencies visible at a glance. Arrange dependencies on the left and their
+/// consumers on the right so data flows left to right. Write each node once
+/// unless doing so is impractical; use connectors to show branches and joins.
+/// For AI-generated
 /// diagrams, prefer Unicode box drawing symbols and arrows for a polished,
 /// readable layout. For example:
 ///
 /// ````text
 /// /// ```graph
-/// /// run ←── left ────────┐
-/// ///  │                   │
-/// ///  └←── right ←── shared
+/// /// ┌──────── left ──→ run
+/// /// │                   │
+/// /// shared ──→ right ──→┘
 /// /// ```
 /// ````
 ///

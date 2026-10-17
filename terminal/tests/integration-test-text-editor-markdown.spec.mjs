@@ -124,6 +124,31 @@ test.describe('Markdown editor', () => {
         await expect.poll(async () => readFile(filePath, 'utf8')).toBe(externalReplacement);
     });
 
+    for (const pane of ['source', 'wysiwyg']) {
+        test(`flushes pending Markdown ${pane} edits before changing preview mode`, async ({ page }) => {
+            test.setTimeout(60 * SECOND);
+            const fileName = `close-flush-${pane}.md`;
+            const { baseDir, filePath } = await createTempFile(fileName);
+            await writeFile(filePath, 'Initial paragraph.');
+            await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+            await setBasePath(page, baseDir, fileName);
+            await openFolderFile(page, fileName);
+            await showPreview(page);
+            if (pane === 'source') await page.locator('.toggle-html-preview').click();
+            await expect(getMilkdownWysiwyg(page)).toHaveAttribute('data-milkdown-ready', 'true', {
+                timeout: 10 * SECOND,
+            });
+            const editor = pane === 'source' ? getMilkdownSource(page) : getMilkdownContent(page);
+            await editor.click();
+            await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+            await page.keyboard.insertText('Saved before the debounce fires.');
+            await page.locator('.toggle-html-preview').evaluate((toggle) => toggle.click());
+            await expect(getMilkdownSource(page)).toContainText('Saved before the debounce fires.');
+            await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 2 * SECOND })
+                .toContain('Saved before the debounce fires.');
+        });
+    }
+
     test('keeps the Milkdown pane while showing a source diff', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

@@ -41,7 +41,9 @@ declare_icon!(collapse_vert, "/icons/arrows-collapse.svg"; feature = "text-edito
 declare_icon!(collection, "/icons/collection.svg");
 declare_icon!(converter, "/icons/regex.svg"; feature = "converter");
 declare_icon!(copy, "/icons/copy.svg"; feature = "converter");
-declare_icon!(diff, "/icons/layout-split.svg"; feature = "text-editor");
+declare_icon!(chevron_bar_contract, "/icons/chevron-bar-contract.svg"; feature = "text-editor");
+declare_icon!(chevron_bar_expand, "/icons/chevron-bar-expand.svg"; feature = "text-editor");
+declare_icon!(diff, "/icons/arrow-left-right.svg"; feature = "text-editor");
 declare_icon!(done, "/icons/done.svg"; any(feature = "converter", feature = "text-editor"));
 declare_icon!(download, "/icons/download.svg"; feature = "text-editor");
 declare_icon!(drag_handle_corner, "/icons/drag-handle-corner.svg");

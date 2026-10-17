@@ -47,6 +47,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
             }
             debug!("Loading text file {path:?}");
             let content: Arc<str> = tokio::fs::read_to_string(&path).await?.into();
+            // Omit duplicate text; the client shares `content` for a clean Git baseline.
             let original = git::git_repo_root(&path)
                 .is_some()
                 .then(|| {
@@ -54,13 +55,18 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                         .inspect_err(|error| warn!("Failed to load git file: {error}"))
                         .ok()
                 })
-                .flatten()
-                .filter(|original| original != content.as_ref())
-                .map(Arc::from);
+                .flatten();
+            let original_is_content = original.as_deref() == Some(content.as_ref());
+            let original = if original_is_content {
+                None
+            } else {
+                original.map(Arc::from)
+            };
             reconcile_touched_path(&path);
             return Ok(Some(File::TextFile {
                 metadata: FileMetadata::single(&path, &metadata).into(),
                 original,
+                original_is_content,
                 content,
             }));
         }
@@ -103,6 +109,7 @@ pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File
             return Ok(Some(File::TextFile {
                 metadata: file_metadata,
                 original: None,
+                original_is_content: false,
                 content: Arc::from(""),
             }));
         }

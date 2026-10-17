@@ -312,13 +312,13 @@ async function git(cwd, args) {
     await execFileAsync('git', args, { cwd });
 }
 
-export async function createCommittedReadme(fileName = 'README.md') {
+export async function createCommittedReadme(fileName = 'README.md', content = 'Hello, World!') {
     const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-git-'));
     const filePath = path.join(baseDir, fileName);
     await git(baseDir, ['init']);
     await git(baseDir, ['config', 'user.email', 'test@example.com']);
     await git(baseDir, ['config', 'user.name', 'Test User']);
-    await writeFile(filePath, 'Hello, World!');
+    await writeFile(filePath, content);
     await git(baseDir, ['add', fileName]);
     await git(baseDir, ['commit', '-m', 'Add README']);
     return { baseDir, fileName, filePath };

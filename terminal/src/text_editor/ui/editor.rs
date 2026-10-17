@@ -17,23 +17,22 @@ use self::diagnostics::Instrument as _;
 use self::diagnostics::debug;
 use self::diagnostics::debug_span;
 use self::diagnostics::warn;
-use super::code_mirror::CodeMirrorJs;
+use super::editor_render::EditorBodyContext;
+use super::editor_render::EditorType;
+use super::editor_render::make_pdf_body;
 use super::fsio;
 use super::fsio::client::store_file;
-use super::milkdown::MilkdownJs;
-use super::pdf_viewer::PdfJs;
 use super::style;
 use crate::frontend::input_overlay::InputOverlay;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::manager::EditorDataState;
-use crate::text_editor::state::PreviewMode;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::notify::server_fn::EventKind;
 use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::server_fn::NotifyResponse;
+use crate::text_editor::state::PreviewMode;
 use crate::text_editor::synchronized_state::SynchronizedState;
 use crate::text_editor::ui::ROOT_FILE_PATH;
-use crate::utils::more_path::MorePath as _;
 
 #[derive(Clone)]
 pub(super) enum EditorDocument {
@@ -45,6 +44,12 @@ pub(super) enum EditorDocument {
 }
 
 pub(super) trait EditorBody {
+    fn flush(&self) {}
+
+    fn has_pending_changes(&self) -> bool {
+        false
+    }
+
     fn set_content(&self, content: String);
 
     fn insert_text(&self, _text: String) {}
@@ -52,30 +57,8 @@ pub(super) trait EditorBody {
     fn focus(&self) {}
 
     fn cargo_check(&self, _diagnostics: JsValue) {}
-}
 
-struct HtmlEditorBody {
-    source: CodeMirrorJs,
-    preview: Element,
-}
-
-impl EditorBody for HtmlEditorBody {
-    fn set_content(&self, content: String) {
-        self.source.set_content(content.clone());
-        let _ = self.preview.set_attribute("srcdoc", &content);
-    }
-
-    fn insert_text(&self, text: String) {
-        self.source.insert_text(text);
-    }
-
-    fn focus(&self) {
-        self.source.focus();
-    }
-
-    fn cargo_check(&self, diagnostics: JsValue) {
-        self.source.cargo_check(diagnostics);
-    }
+    fn set_collapse_unchanged(&self, _collapse: bool) {}
 }
 
 #[autoclone]
@@ -139,6 +122,12 @@ pub fn editor(
     let writing = Arc::new(AtomicU32::new(0));
 
     let editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>> = Ptr::new(Mutex::new(None));
+    let collapse_registration = manager.collapse_unchanged.add_subscriber(move |collapse| {
+        autoclone!(editor_body);
+        if let Some(body) = &*editor_body.lock().unwrap() {
+            body.set_collapse_unchanged(collapse);
+        }
+    });
     let focus_editor: Ptr<dyn Fn()> = Ptr::new(move || {
         autoclone!(editor_body);
         if let Some(editor_body) = &*editor_body.lock().unwrap() {
@@ -209,154 +198,58 @@ pub fn editor(
         },
         after_render = move |element| {
             autoclone!(path);
+            let _moved = &collapse_registration;
             let _moved = &edits_notify_registration;
             let _moved = &diagnostics_notify_registration;
-            let body: Option<Box<dyn EditorBody>> = match &document {
-                EditorDocument::Text { original, content }
-                    if matches!(
-                        editor_type,
-                        EditorType::Text | EditorType::Markdown | EditorType::Html
-                    ) =>
-                {
-                    let original = if show_editor_diff {
-                        original
-                            .as_deref()
-                            .map(JsValue::from)
-                            .unwrap_or(JsValue::null())
-                    } else {
-                        JsValue::null()
-                    };
-                    let cursor_position = cursor_position
-                        .and_then(|cursor_position| {
-                            serde_wasm_bindgen::to_value(&cursor_position).ok()
-                        })
-                        .unwrap_or(JsValue::null());
-                    let base_path = path.base.as_ref().to_owned_string();
-                    let full_path = path.as_deref().full_path().to_owned_string();
-                    if editor_type == EditorType::Markdown {
-                        let wysiwyg_pane = element
-                            .query_selector(&format!(
-                                ".{}",
-                                super::milkdown::style::MILKDOWN_WYSIWYG_PANE
-                            ))
-                            .expect("Invalid Milkdown preview pane selector")
-                            .expect("Missing Milkdown preview pane");
-                        let source_pane = element
-                            .query_selector(&format!(
-                                ".{}",
-                                super::milkdown::style::MILKDOWN_SOURCE_PANE
-                            ))
-                            .expect("Invalid Milkdown source pane selector")
-                            .expect("Missing Milkdown source pane");
-                        Some(Box::new(MilkdownJs::new(
-                            wysiwyg_pane,
-                            source_pane,
-                            original,
-                            content.as_ref().into(),
-                            make_on_change(&manager, &path, &writing, None),
-                            make_on_cursor_position_change(&manager, &path),
-                            cursor_position,
-                            base_path,
-                            full_path,
-                            show_html_preview == PreviewMode::Editor,
-                        )))
-                    } else {
-                        let (source_element, preview) = if editor_type == EditorType::Html {
-                            let source = element
-                                .query_selector(&format!(
-                                    ".{}",
-                                    super::html_viewer::style::HTML_SOURCE_PANE
-                                ))
-                                .expect("Invalid HTML source pane selector")
-                                .expect("Missing HTML source pane");
-                            let preview = element
-                                .query_selector(&format!(
-                                    ".{}",
-                                    super::html_viewer::style::HTML_PREVIEW_PANE
-                                ))
-                                .expect("Invalid HTML preview pane selector")
-                                .expect("Missing HTML preview pane");
-                            (source, Some(preview))
-                        } else {
-                            (element.clone(), None)
-                        };
-                        let source = CodeMirrorJs::new(
-                            source_element,
-                            original,
-                            content.as_ref().into(),
-                            make_on_change(&manager, &path, &writing, preview.clone()),
-                            make_on_cursor_position_change(&manager, &path),
-                            cursor_position,
-                            base_path,
-                            full_path,
-                        );
-                        if let Some(preview) = preview {
-                            Some(Box::new(HtmlEditorBody { source, preview }))
-                        } else {
-                            Some(Box::new(source))
-                        }
-                    }
-                }
-                EditorDocument::Pdf(base64) => Some(Box::new(PdfJs::new(element.clone(), base64))),
-                EditorDocument::Text { .. } => None,
+            let context = EditorBodyContext {
+                manager: &manager,
+                path: &path,
+                writing: &writing,
+                element,
+                cursor_position,
+                editor_type,
+                show_editor_diff,
+                show_html_preview,
             };
+            let body = match &document {
+                EditorDocument::Text { original, content } => {
+                    context.make_text_body(original, content)
+                }
+                EditorDocument::Pdf(base64) => Some(make_pdf_body(element, base64)),
+            };
+            if let Some(body) = &body {
+                body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
+            }
             *editor_body.lock().unwrap() = body;
+            // A weak reference avoids a manager -> body -> callback -> manager cycle.
+            let body = Ptr::downgrade(&editor_body);
+            *manager.flush_editor.borrow_mut() = Some(Ptr::new(move || {
+                if let Some(body) = body.upgrade()
+                    && let Some(body) = &*body.lock().unwrap()
+                {
+                    body.flush();
+                }
+            }));
         },
     )
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum EditorType {
-    Html,
-    Pdf,
-    Text,
-    Markdown,
-}
-
-impl EditorType {
-    fn use_overlay(self, preview_mode: PreviewMode) -> bool {
-        match self {
-            EditorType::Html => preview_mode.shows_editor(),
-            EditorType::Pdf => false,
-            EditorType::Text | EditorType::Markdown => true,
-        }
-    }
-
-    fn class(self) -> Option<&'static str> {
-        Some(match self {
-            EditorType::Html => super::html_viewer::style::HTML_VIEWER,
-            EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
-            EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
-            EditorType::Text => return None,
-        })
-    }
-
-    fn preview_mode_class(self, preview_mode: PreviewMode) -> Option<&'static str> {
-        match self {
-            EditorType::Html => Some(match preview_mode {
-                PreviewMode::Preview => super::html_viewer::style::PREVIEW_MODE,
-                PreviewMode::Editor => super::html_viewer::style::EDITOR_MODE,
-                PreviewMode::SideBySide => super::html_viewer::style::SIDE_BY_SIDE_MODE,
-            }),
-            EditorType::Markdown => Some(match preview_mode {
-                PreviewMode::Preview => super::milkdown::style::PREVIEW_MODE,
-                PreviewMode::Editor => super::milkdown::style::EDITOR_MODE,
-                PreviewMode::SideBySide => super::milkdown::style::SIDE_BY_SIDE_MODE,
-            }),
-            EditorType::Pdf | EditorType::Text => None,
-        }
-    }
-}
-
-#[autoclone]
-fn make_on_change(
+/// Receives full documents after the editors' 200 ms trailing debounce, or
+/// immediately on teardown. Serialization and JS-to-Rust copying happen once
+/// per emission rather than per keystroke. Normal saves are coalesced separately;
+/// teardown bypasses that save window. Cursor updates and disk reloads are excluded.
+pub(super) fn make_on_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
     html_preview: Option<Element>,
-) -> Closure<dyn FnMut(JsValue)> {
-    Closure::new(move |content: JsValue| {
-        autoclone!(manager, path, writing);
+) -> Closure<dyn FnMut(JsValue, bool)> {
+    let manager = manager.clone();
+    let path = path.clone();
+    let writing = writing.clone();
+    Closure::new(move |content: JsValue, immediate: bool| {
+        let path = path.clone();
+        let writing = writing.clone();
         let Some(content) = content.as_string() else {
             debug!("Changed content is not a string");
             return;
@@ -364,30 +257,53 @@ fn make_on_change(
         if let Some(html_preview) = &html_preview {
             let _ = html_preview.set_attribute("srcdoc", &content);
         }
+        manager.update_content(&path, Arc::from(content.as_str()));
         writing.fetch_add(1, SeqCst);
         let writing_done = guard((), move |()| {
-            autoclone!(writing);
             writing.fetch_sub(1, SeqCst);
         });
-        let write = async move {
-            autoclone!(manager, path);
-            let synchronized_state_done =
-                SynchronizedState::enqueue(manager.synchronized_state.clone());
-            let () = store_file(
-                manager.remote.clone(),
-                path,
-                content,
-                guard((), move |()| ()),
-                (writing_done, synchronized_state_done),
-            )
-            .await;
-        };
+        let synchronized_state_done =
+            SynchronizedState::enqueue(manager.synchronized_state.clone());
+        let write = store_file(
+            manager.remote.clone(),
+            path,
+            content,
+            guard((), move |()| ()),
+            (writing_done, synchronized_state_done),
+            immediate,
+        );
         spawn_local(write.in_current_span());
     })
 }
 
+/// Mark the debounce window as unsaved without transferring any document text.
+pub(super) fn make_on_dirty(manager: &Ptr<TextEditorManager>) -> Closure<dyn FnMut(bool)> {
+    let state = manager.synchronized_state.clone();
+    let mut pending: Option<Box<dyn Send + Sync>> = None;
+    Closure::new(move |dirty: bool| {
+        if dirty {
+            if pending.is_none() {
+                pending = Some(Box::new(SynchronizedState::enqueue(state.clone())));
+            }
+        } else {
+            pending = None;
+        }
+    })
+}
+
+pub(super) fn make_on_flush(
+    manager: &Ptr<TextEditorManager>,
+    path: &FilePath<Arc<Path>>,
+) -> Closure<dyn FnMut()> {
+    let manager = manager.clone();
+    let path = path.clone();
+    Closure::new(move || {
+        fsio::client::flush_file(&manager.remote, &path);
+    })
+}
+
 #[autoclone]
-fn make_on_cursor_position_change(
+pub(super) fn make_on_cursor_position_change(
     manager: &Ptr<TextEditorManager>,
     path: &FilePath<Arc<Path>>,
 ) -> Closure<dyn FnMut(JsValue)> {
@@ -435,6 +351,15 @@ fn make_edits_notify_handler(
     }
 }
 
+/// Reloads the full file once for each Create/Modify event delivered by the file
+/// watcher, including events caused by our own saves. Events are not debounced
+/// here, so one disk operation may trigger multiple reloads.
+///
+/// Each invocation performs a full-file server read and response transfer, which
+/// scale with file size. Pending local writes suppress applying the response to
+/// the editor, but the load has already happened. For multi-megabyte files, bursts
+/// of notifications can therefore cause repeated large transfers even when the
+/// response is discarded; this path does not send incremental changes.
 async fn notify_edit(
     manager: Ptr<TextEditorManager>,
     editor_body: Ptr<Mutex<Option<Box<dyn EditorBody>>>>,
@@ -447,6 +372,7 @@ async fn notify_edit(
             metadata: _,
             original: _,
             content,
+            ..
         })) => {
             debug!("Loaded modified file");
             let Some(editor_body) = &*editor_body.lock().unwrap() else {
@@ -454,7 +380,8 @@ async fn notify_edit(
                 manager.path.file.force(path.file);
                 return;
             };
-            if writing.load(SeqCst) == 0 {
+            if writing.load(SeqCst) == 0 && !editor_body.has_pending_changes() {
+                manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }
         }

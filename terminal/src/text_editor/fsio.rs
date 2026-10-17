@@ -48,6 +48,10 @@ pub enum File {
         metadata: Arc<FileMetadata>,
         content: Arc<str>,
         original: Option<Arc<str>>,
+        /// Transport marker for a Git baseline identical to `content`.
+        #[serde(default, skip_serializing_if = "is_false")]
+        #[cfg_attr(not(feature = "diagnostics"), serde(rename = "oc"))]
+        original_is_content: bool,
     },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "P"))]
     PdfFile {
@@ -58,6 +62,102 @@ pub enum File {
     Folder(Arc<Vec<FileMetadata>>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
     Error(String),
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
+}
+
+impl File {
+    /// Restores an omitted clean Git baseline by sharing the content allocation.
+    #[cfg(any(feature = "client", test))]
+    pub(super) fn restore_original(&mut self) {
+        if let Self::TextFile {
+            content,
+            original,
+            original_is_content,
+            ..
+        } = self
+            && *original_is_content
+        {
+            original.get_or_insert_with(|| content.clone());
+            *original_is_content = false;
+        }
+    }
+
+    #[cfg(any(feature = "client", test))]
+    pub(super) fn has_diff(&self, content: &str) -> bool {
+        matches!(self, Self::TextFile { original: Some(original), .. } if original.as_ref() != content)
+    }
+}
+
+#[cfg(test)]
+mod diff_tests {
+    use super::*;
+
+    #[test]
+    fn omitted_baseline_shares_content_and_still_tracks_edits() {
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original: None,
+            original_is_content: true,
+            content: Arc::from("clean baseline"),
+        };
+        let payload = serde_json::to_string(&file).unwrap();
+        assert_eq!(payload.matches("clean baseline").count(), 1);
+        let mut file: File = serde_json::from_str(&payload).unwrap();
+        file.restore_original();
+        let File::TextFile {
+            content,
+            original: Some(original),
+            ..
+        } = &file
+        else {
+            panic!("missing baseline")
+        };
+        assert!(Arc::ptr_eq(content, original));
+        assert!(!file.has_diff("clean baseline"));
+        assert!(file.has_diff("edited"));
+    }
+
+    #[test]
+    fn missing_git_baseline_stays_missing() {
+        let mut file = File::TextFile {
+            metadata: Default::default(),
+            original: None,
+            original_is_content: false,
+            content: Arc::from("untracked"),
+        };
+        file.restore_original();
+        assert!(!file.has_diff("edited"));
+    }
+
+    #[test]
+    fn diff_tracks_edits_and_reverts_against_git_baseline() {
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original_is_content: false,
+            original: Some(Arc::from("original")),
+            content: Arc::from("original"),
+        };
+        assert!(!file.has_diff("original"));
+        assert!(file.has_diff("edited"));
+        assert!(!file.has_diff("original"));
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original_is_content: false,
+            original: Some(Arc::from("")),
+            content: Arc::from(""),
+        };
+        assert!(file.has_diff("added"));
+        let file = File::TextFile {
+            metadata: Default::default(),
+            original_is_content: false,
+            original: None,
+            content: Arc::from("untracked"),
+        };
+        assert!(!file.has_diff("edited"));
+    }
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]

@@ -54,7 +54,6 @@ use self::daemonize::DaemonizeServerError;
 use self::root_ca_config::PrivateRootCaError;
 use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
-use crate::assets;
 
 mod agent;
 pub mod auth;
@@ -118,7 +117,7 @@ pub fn run_server() -> Result<(), RunServerError> {
 
     #[cfg(feature = "debug")]
     if cli.action == Action::ListAssets {
-        assets::install::install_assets();
+        crate::assets::install::install_assets();
         terrazzo::static_assets::echo_asset_dependencies(env!("CARGO_MANIFEST_DIR"));
         return Ok(());
     }

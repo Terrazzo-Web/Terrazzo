@@ -1,6 +1,8 @@
 //! Grid-based graph documentation. Connectors join only through matching ports;
 //! identifiers terminate paths, so a chain never implies transitive edges.
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 use super::graph::Graph;
 

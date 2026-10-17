@@ -66,6 +66,7 @@ mod git_diff_ls {
     use std::path::PathBuf;
     use std::process::Output;
     use std::sync::Arc;
+
     use tokio::process::Command;
     use tracing::debug;
 

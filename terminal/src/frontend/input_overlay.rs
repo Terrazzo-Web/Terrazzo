@@ -36,6 +36,37 @@ impl InputOverlay {
     }
 }
 
+/// Assembles the overlay from controls and their shared state.
+/// Shared state labels repeat to keep each control's inputs readable without crossings.
+/// External callbacks `send` and `focus_target` are supplied by the caller.
+///
+/// ```graph
+/// new ←──┬←── html ←─┬←── state_button ←──┬←── is_open
+///        │           │                    ├←── is_recording
+///        │           │                    ├←── value
+///        │           │                    ├←── textarea
+///        │           │                    └←── speech_recognition
+///        │           │
+///        │           ├←── send_button ←───┬←── is_open
+///        │           │                    ├←── is_recording
+///        │           │                    ├←── value
+///        │           │                    ├←── textarea
+///        │           │                    └←── speech_recognition
+///        │           │
+///        │           ├←── compose_textarea ←──┬←── is_open
+///        │           │                        ├←── is_recording
+///        │           │                        ├←── value
+///        │           │                        ├←── textarea
+///        │           │                        └←── speech_recognition
+///        │           │
+///        │           ├←── drop_is_open ←──┬←── is_recording
+///        │           │                    └←── speech_recognition
+///        │           │
+///        │           └←── is_open
+///        │
+///        ├←── is_open
+///        └←── textarea
+/// ```
 #[terrazzo::graph]
 mod new_graph {
     use std::cell::RefCell;

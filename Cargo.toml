@@ -106,7 +106,7 @@ include_directory = { version = "0.1.1" }
 instant-acme = { version = "0.8.5" }
 inventory = { version = "0.3.25" }
 jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
-libc = { version = "0.2.190" }
+libc = { version = "0.2.191" }
 lru = { version = "0.18.5" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }

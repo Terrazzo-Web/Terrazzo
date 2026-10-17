@@ -52,6 +52,24 @@ test.describe('Text editor basic', () => {
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, world!');
     });
 
+    test('flushes pending CodeMirror edits before recreating the editor', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const { baseDir, fileName, filePath } = await createCommittedReadme('close-flush.txt', 'Original');
+        await writeFile(filePath, 'Modified');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
+        await expect(page.locator('.toggle-editor-diff')).toBeVisible();
+        await replaceEditorText(page, editor, 'Saved before the debounce fires.');
+        // Avoid click actionability waits: recreate immediately after input.
+        await page.locator('.toggle-editor-diff').evaluate((toggle) => toggle.click());
+        await expect(editor.last()).toContainText('Saved before the debounce fires.');
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 2 * SECOND })
+            .toBe('Saved before the debounce fires.');
+    });
+
     test('inserts typed input from the editor overlay', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

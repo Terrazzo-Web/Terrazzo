@@ -224,10 +224,10 @@ pub fn editor(
             // A weak reference avoids a manager -> body -> callback -> manager cycle.
             let body = Ptr::downgrade(&editor_body);
             *manager.flush_editor.borrow_mut() = Some(Ptr::new(move || {
-                if let Some(body) = body.upgrade() {
-                    if let Some(body) = &*body.lock().unwrap() {
-                        body.flush();
-                    }
+                if let Some(body) = body.upgrade()
+                    && let Some(body) = &*body.lock().unwrap()
+                {
+                    body.flush();
                 }
             }));
         },

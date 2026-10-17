@@ -122,10 +122,8 @@ pub fn store_file<B: Send + 'static, A: Send + 'static>(
                 immediate,
             });
         }
-        if immediate {
-            if let Some(wake) = state.wake.take() {
-                let _ = wake.send(());
-            }
+        if immediate && let Some(wake) = state.wake.take() {
+            let _ = wake.send(());
         }
         let schedule = !state.scheduled;
         state.scheduled = true;

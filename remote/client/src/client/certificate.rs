@@ -30,6 +30,12 @@ pub(crate) async fn get_certifiate(
     .await
 }
 
+/// ```graph
+/// run --> response_body
+/// response_body --> url
+/// response_body --> request_body
+/// request_body --> public_key
+/// ```
 #[autoclone::graph]
 mod certificate_request {
     use mime::APPLICATION_JSON;

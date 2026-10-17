@@ -43,6 +43,15 @@ pub fn merge(
     .run();
 }
 
+/// ```graph
+/// run --> merge_nodes
+/// run --> cur_nodes_iter
+/// merge_nodes --> old_elements_map
+/// merge_nodes --> cur_elements
+/// merge_nodes --> cur_nodes_iter
+/// cur_elements --> cur_nodes
+/// cur_nodes_iter --> cur_nodes
+/// ```
 #[autoclone::graph]
 mod merge_graph {
     use std::collections::HashMap;

@@ -32,6 +32,25 @@ pub fn envelope(
 ///
 /// Declare each function before the graph functions it depends on (parameters
 /// whose names match functions in the module), including private helper chains.
+///
+/// The module documentation must contain a fenced `graph` block showing every
+/// function and every direct dependency (external inputs are not nodes).
+/// Arrows point from a function to its dependency; plain lines allow either
+/// direction. Repeating a node label is allowed, for example:
+///
+/// ````text
+/// /// ```graph
+/// /// run --> left
+/// /// run --> right
+/// /// left --> shared
+/// /// right --> shared
+/// /// ```
+/// ````
+///
+/// Diagrams use character columns, continuous vertical/diagonal strokes, and
+/// optional horizontal spaces. Supported connectors include `-`, `|`, `/`,
+/// `\`, `+`, Unicode box drawing lines/corners/junctions, and `→ ← ↑ ↓`.
+/// Junctions connect all their branches; use separate strokes for crossings.
 #[proc_macro_attribute]
 pub fn graph(
     attr: proc_macro::TokenStream,

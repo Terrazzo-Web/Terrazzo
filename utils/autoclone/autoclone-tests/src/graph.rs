@@ -9,6 +9,10 @@ fn simple_graph() {
 }
 
 #[allow(unused)]
+/// ```graph
+/// run --> comp1
+/// run --> comp2
+/// ```
 #[graph]
 mod make_app {
 
@@ -45,6 +49,11 @@ fn shared_owned_node() {
     );
 }
 
+/// ```graph
+/// run --> value
+/// run --> wrapped
+/// wrapped --> value
+/// ```
 #[graph]
 mod shared_values {
     pub fn run(value: String, wrapped: String) -> (String, String) {
@@ -65,6 +74,11 @@ fn borrowed_node_and_last_use_need_no_clone() {
     assert_eq!(borrowed_values::run(), 10);
 }
 
+/// ```graph
+/// run --> borrowed
+/// run --> value
+/// borrowed --> value
+/// ```
 #[graph]
 mod borrowed_values {
     struct Value(usize);
@@ -87,6 +101,10 @@ fn shared_input() {
     assert_eq!(shared_inputs::run("value".to_owned()), "valuevalue");
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod shared_inputs {
     pub fn run(first: String, second: String) -> String {
@@ -111,6 +129,11 @@ async fn inferred_result_propagates_errors() {
     );
 }
 
+/// ```graph
+/// run --> value
+/// run --> doubled
+/// doubled --> value
+/// ```
 #[graph]
 mod inferred_result {
     pub fn run(value: usize, doubled: usize) -> usize {
@@ -143,6 +166,10 @@ async fn explicit_result_converts_component_errors() {
     );
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod explicit_result {
     #[derive(Debug, PartialEq)]
@@ -193,6 +220,10 @@ async fn independent_components_are_polled_concurrently() {
     panic!("independent components did not make concurrent progress");
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod parallel_components {
     use std::sync::Arc;
@@ -239,6 +270,10 @@ fn poll_joined<T>(future: impl std::future::Future<Output = T>) -> T {
     panic!("independent components did not make concurrent progress");
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod fallible_parallel {
     use std::sync::Arc;
@@ -283,6 +318,10 @@ fn joined_results_convert_errors_in_component_order() {
     }
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod joined_results {
     use std::sync::Arc;
@@ -325,6 +364,10 @@ fn graph_preserves_impl_trait_inputs() {
     assert_eq!(impl_trait_input::run(&42), "42:42");
 }
 
+/// ```graph
+/// run --> first
+/// run --> second
+/// ```
 #[graph]
 mod impl_trait_input {
     pub fn run(first: String, second: String) -> String {
@@ -379,6 +422,14 @@ fn named_graph_inputs() {
     assert_eq!(named_entries::ArrayLength { values: [1, 2, 3] }.run(), 3);
 }
 
+/// ```graph
+/// make_app
+/// make_label
+/// borrow
+/// borrow_elided
+/// identity
+/// array_length
+/// ```
 #[graph]
 mod named_entries {
     pub fn make_app(name: String, count: usize) -> String {
@@ -421,6 +472,13 @@ fn mutable_graph_nodes_and_inputs() {
     assert_eq!(input, vec![1, 2, 3]);
 }
 
+/// ```graph
+/// run --> second
+/// run --> value
+/// second --> first
+/// second --> value
+/// first --> value
+/// ```
 #[graph]
 mod mutable_values {
     struct Value(Vec<usize>);
@@ -451,6 +509,13 @@ async fn mutable_joined_graph_nodes() {
     assert_eq!(mutable_joined::run().await, Ok(5));
 }
 
+/// ```graph
+/// run --> update
+/// run --> left
+/// run --> right
+/// update --> left
+/// update --> right
+/// ```
 #[graph]
 mod mutable_joined {
     pub fn run(update: (), left: usize, right: usize) -> Result<usize, String> {
@@ -478,6 +543,10 @@ fn iterator_with_internal_lifetime() {
     assert_eq!(internal_iterator::run(), 3);
 }
 
+/// ```graph
+/// run --> iter
+/// iter --> values
+/// ```
 #[graph]
 mod internal_iterator {
     pub fn run<'t>(iter: impl Iterator<Item = &'t usize>) -> usize {

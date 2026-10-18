@@ -149,7 +149,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
                 manager.editor_state.clone(),
                 manager.show_html_preview.clone(),
             ),
-            toggle_editor_diff(
+            editor_diff_controls(
                 manager.editor_state.clone(),
                 manager.show_editor_diff.clone(),
                 manager.show_html_preview.clone(),
@@ -236,7 +236,7 @@ fn toggle_html_preview(
 
 #[html]
 #[template(tag = span)]
-fn toggle_editor_diff(
+fn editor_diff_controls(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
     #[signal] show_html_preview: PreviewMode,

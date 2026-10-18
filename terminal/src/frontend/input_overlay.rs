@@ -13,6 +13,8 @@ use web_sys::KeyboardEvent;
 
 use self::diagnostics::warn;
 use crate::assets::icons;
+use crate::frontend::mousemove::MousemoveManager;
+use crate::frontend::mousemove::Position;
 use crate::frontend::speech_recognition;
 
 terrazzo_css::import_style!(pub style, "input_overlay.scss");
@@ -41,31 +43,33 @@ impl InputOverlay {
 /// External callbacks `send` and `focus_target` are supplied by the caller.
 ///
 /// ```graph
-///                is_open ──→┬──→ state_button ──→┬─→ html ──→┬──→ new
-///           is_recording ──→┤                    │           │
-///                  value ──→┤                    │           │
-///               textarea ──→┤                    │           │
-///     speech_recognition ──→┘                    │           │
-///                                                │           │
-///                is_open ──→┬───→ send_button ──→┤           │
-///           is_recording ──→┤                    │           │
-///                  value ──→┤                    │           │
-///               textarea ──→┤                    │           │
-///     speech_recognition ──→┘                    │           │
-///                                                │           │
-///            is_open ──→┬──→ compose_textarea ──→┤           │
-///       is_recording ──→┤                        │           │
-///              value ──→┤                        │           │
-///           textarea ──→┤                        │           │
-/// speech_recognition ──→┘                        │           │
-///                                                │           │
-///           is_recording ──→┬──→ drop_is_open ──→┤           │
-///     speech_recognition ──→┘                    │           │
-///                                                │           │
-///                                     is_open ──→┘           │
-///                                                            │
-///                                                 is_open ──→┤
-///                                                textarea ──→┘
+///              is_open ──→┬──→ state_button     ──→┬──→ html ──→┬──→ new
+///         is_recording ──→┤                        │            │
+///                value ──→┤                        │            │
+///             textarea ──→┤                        │            │
+///   speech_recognition ──→┘                        │            │
+///                                                  │            │
+///              is_open ──→┬──→ send_button      ──→┤            │
+///         is_recording ──→┤                        │            │
+///                value ──→┤                        │            │
+///             textarea ──→┤                        │            │
+///   speech_recognition ──→┘                        │            │
+///                                                  │            │
+///       resize_manager ──→┬──→ compose_textarea ──→┤            │
+///              is_open ──→┤                        │            │
+///         is_recording ──→┤                        │            │
+///                value ──→┤                        │            │
+///             textarea ──→┤                        │            │
+///   speech_recognition ──→┘                        │            │
+///                                                  │            │
+///         is_recording ──→┬──→ drop_is_open     ──→┤            │
+///   speech_recognition ──→┘                        │            │
+///                                                  │            │
+///                                resize_manager ──→┤            │
+///                                       is_open ──→┘            │
+///                                                               │
+///                                                    is_open ──→┤
+///                                                   textarea ──→┘
 /// ```
 #[terrazzo::graph]
 mod new_graph {
@@ -96,6 +100,8 @@ mod new_graph {
     use crate::frontend::input_overlay::overlay_class;
     use crate::frontend::input_overlay::stop_recording;
     use crate::frontend::input_overlay::style;
+    use crate::frontend::mousemove::MousemoveManager;
+    use crate::frontend::resize_bar::resize_bar_vert;
 
     /// Assembles the overlay and exposes its visibility signal and textarea capture.
     pub fn new(
@@ -118,6 +124,7 @@ mod new_graph {
         state_button: XElement,
         send_button: XElement,
         compose_textarea: XElement,
+        resize_manager: MousemoveManager,
     ) -> XElement {
         div(
             before_render = move |_| {
@@ -132,7 +139,11 @@ mod new_graph {
                 state_button,
                 send_button,
             ),
-            compose_textarea,
+            div(
+                class = style::INPUT_OVERLAY_COMPOSE,
+                resize_bar_vert(resize_manager, Default::default()),
+                compose_textarea,
+            ),
         )
     }
 
@@ -170,6 +181,7 @@ mod new_graph {
 
     /// Builds the textarea with input tracking and keyboard shortcuts.
     fn compose_textarea(
+        resize_manager: MousemoveManager,
         textarea: ElementCapture<HtmlTextAreaElement>,
         value: XSignal<XString>,
         is_open: XSignal<bool>,
@@ -179,6 +191,7 @@ mod new_graph {
         speech_recognition: Rc<RefCell<Option<SpeechRecognitionHandle>>>,
     ) -> XElement {
         input_overlay::compose_textarea(
+            resize_manager,
             textarea,
             value,
             is_open,
@@ -202,6 +215,10 @@ mod new_graph {
                 }
             },
         )
+    }
+
+    fn resize_manager() -> MousemoveManager {
+        MousemoveManager::new()
     }
 
     /// Creates the signal controlling overlay visibility.
@@ -239,6 +256,7 @@ fn overlay_class(#[signal] is_open: bool) -> XAttributeValue {
 #[html]
 #[template(tag = textarea)]
 fn compose_textarea(
+    resize_manager: MousemoveManager,
     textarea: ElementCapture<HtmlTextAreaElement>,
     value: XSignal<XString>,
     is_open: XSignal<bool>,
@@ -250,6 +268,7 @@ fn compose_textarea(
     tag(
         before_render = textarea.capture(),
         class = style::INPUT_OVERLAY_TEXTAREA,
+        style::height %= textarea_height(resize_manager.delta.clone()),
         #[cfg(not(feature = "client-prod"))]
         class = "input-overlay-textarea",
         input = move |_| {
@@ -291,6 +310,11 @@ fn compose_textarea(
             }
         },
     )
+}
+
+#[template(wrap = true)]
+fn textarea_height(#[signal] position: Option<Position>) -> XAttributeValue {
+    position.map(|position| format!("calc(6rem - {}px)", position.y))
 }
 
 #[html]

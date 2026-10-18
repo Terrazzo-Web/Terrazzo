@@ -306,7 +306,6 @@ fn diff_controls(
 }
 
 #[html]
-#[template(tag = span)]
 fn toggle_editor_diff(show_editor_diff: XSignal<bool>) -> XElement {
     #[template(wrap = true)]
     fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {

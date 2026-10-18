@@ -149,7 +149,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
                 manager.editor_state.clone(),
                 manager.show_html_preview.clone(),
             ),
-            toggle_editor_diff(
+            editor_diff_controls(
                 manager.editor_state.clone(),
                 manager.show_editor_diff.clone(),
                 manager.show_html_preview.clone(),
@@ -236,7 +236,7 @@ fn toggle_html_preview(
 
 #[html]
 #[template(tag = span)]
-fn toggle_editor_diff(
+fn editor_diff_controls(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
     #[signal] show_html_preview: PreviewMode,
@@ -298,6 +298,15 @@ fn diff_controls(
     if !has_diff {
         return tag(style::display = "none");
     }
+    tag(
+        class = style::DIFF_CONTROLS,
+        toggle_unchanged_regions(show_editor_diff.clone(), collapse_unchanged),
+        toggle_editor_diff(show_editor_diff),
+    )
+}
+
+#[html]
+fn toggle_editor_diff(show_editor_diff: XSignal<bool>) -> XElement {
     #[template(wrap = true)]
     fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
         show_editor_diff.then_some(style::ACTIVE)
@@ -312,21 +321,14 @@ fn diff_controls(
         }
     }
 
-    tag(
-        class = style::DIFF_CONTROLS,
-        img(
-            class = style::TOGGLE_EDITOR_DIFF,
-            class %= make_class(show_editor_diff.clone()),
-            #[cfg(not(feature = "client-prod"))]
-            class = "toggle-editor-diff",
-            src = icons::diff(),
-            title %= make_title(show_editor_diff.clone()),
-            click = {
-                let show_editor_diff = show_editor_diff.clone();
-                move |_| show_editor_diff.update(|show| Some(!show))
-            },
-        ),
-        toggle_unchanged_regions(show_editor_diff, collapse_unchanged),
+    img(
+        class = style::TOGGLE_EDITOR_DIFF,
+        class %= make_class(show_editor_diff.clone()),
+        #[cfg(not(feature = "client-prod"))]
+        class = "toggle-editor-diff",
+        src = icons::diff(),
+        title %= make_title(show_editor_diff.clone()),
+        click = move |_| show_editor_diff.update(|show| Some(!show)),
     )
 }
 

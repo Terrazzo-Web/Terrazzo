@@ -327,7 +327,7 @@ test.describe('Text editor basic', () => {
         await expect.poll(async () => {
             const diff = await diffToggle.boundingBox();
             const context = await contextToggle.boundingBox();
-            return diff && context && Math.abs(diff.y - context.y) < 2 && context.x >= diff.x + diff.width;
+            return diff && context && Math.abs(diff.y - context.y) < 2 && diff.x >= context.x + context.width;
         }).toBe(true);
         const currentEditor = getCodeMirrorContent(page).nth(1);
         await currentEditor.evaluate((node) => { window.__diffEditor = node; });

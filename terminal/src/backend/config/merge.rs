@@ -49,6 +49,7 @@ impl Config {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
                 terminal_shell: server.terminal_shell.clone(),
+                tiles_file: server.tiles_file.as_ref().map(collapse_tilde),
                 trash: Some(collapse_tilde(&server.trash)),
                 git_trash: server.git_trash.as_ref().map(collapse_tilde),
                 tantivy_cache: Some(server.tantivy_cache.clone()),
@@ -169,6 +170,16 @@ fn merge_server_config(
             .terminal_shell
             .clone()
             .or_else(|| server.terminal_shell.clone()),
+        tiles_file: server
+            .tiles_file
+            .as_deref()
+            .map(expand_tilde)
+            .or_else(|| {
+                cli.config_file
+                    .as_deref()
+                    .map(|path| path.with_file_name("tiles.json"))
+            })
+            .map(Arc::from),
         trash: {
             let trash = cli.trash.as_deref();
             let trash = trash.or(server.trash.as_deref()).map(expand_tilde);
@@ -326,6 +337,7 @@ mod tests {
     use trz_gateway_common::p2p::GOOGLE_STUN;
     use trz_gateway_common::retry_strategy::RetryStrategy;
 
+    use super::Cli;
     use super::Config;
     use super::ConfigFile;
     use super::ConfigImpl;
@@ -334,6 +346,38 @@ mod tests {
     use crate::backend::config::types::RuntimeTypes;
     use crate::backend::home;
     use crate::backend::terrazzo_home;
+
+    #[test]
+    fn tiles_file_defaults_and_override() {
+        let cli = Cli {
+            config_file: Some("/tmp/terrazzo/config.toml".into()),
+            ..Default::default()
+        };
+        let config = ConfigFile::default().merge(&cli);
+        assert_eq!(
+            config.server.tiles_file.as_deref(),
+            Some(Path::new("/tmp/terrazzo/tiles.json"))
+        );
+        assert!(
+            ConfigFile::default()
+                .merge(&Cli::default())
+                .server
+                .tiles_file
+                .is_none()
+        );
+        let file: ConfigFile =
+            toml::from_str("[server]\nports = []\ntiles_file = '/tmp/custom-tiles.json'\n")
+                .unwrap();
+        let config = file.merge(&cli);
+        assert_eq!(
+            config.server.tiles_file.as_deref(),
+            Some(Path::new("/tmp/custom-tiles.json"))
+        );
+        assert_eq!(
+            config.to_config_file().merge(&cli).server.tiles_file,
+            config.server.tiles_file
+        );
+    }
 
     #[test]
     fn expand_tilde() {
@@ -406,6 +450,7 @@ certificate = "PUBLIC CERTIFICATE"
     fn config_file_round_trip_preserves_watcher_and_polling() {
         let config = Config::from(ConfigImpl {
             server: DiffArc::from(ServerConfig::<RuntimeTypes> {
+                tiles_file: None,
                 host: "localhost".into(),
                 ports: vec![3000],
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),

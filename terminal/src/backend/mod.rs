@@ -169,12 +169,18 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
         return Ok(server_config.set_password(cli.password_stdin)?);
     }
 
+    crate::tiles::api::state::initialize(server_config.with(|config| config.tiles_file.clone()))
+        .map_err(RunServerError::Tiles)?;
+
     run_server_graph::Run { cli, config }.run().await
 }
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum RunServerError {
+    #[error("Failed to initialize tile persistence: {0}")]
+    Tiles(crate::tiles::api::state::TilesStateError),
+
     #[error("[{n}] --password-stdin requires --action set-password", n = self.name())]
     PasswordStdinRequiresSetPassword,
 

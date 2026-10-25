@@ -90,6 +90,7 @@ mod tests {
                 Arc::new(Tiles::Tile(Tile {
                     id: tile.id,
                     app: tile.app,
+                    app_config: Default::default(),
                     remote: tile.remote.clone(),
                     title: "Changed".into(),
                 }))
@@ -122,6 +123,7 @@ mod tests {
         Arc::new(Tiles::Tile(Tile {
             id: TileId::for_test(id),
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: Default::default(),
         }))

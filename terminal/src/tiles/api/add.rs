@@ -6,7 +6,7 @@ use super::Direction;
 use super::Side;
 use super::Tile;
 use super::Tiles;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
@@ -16,7 +16,7 @@ pub fn add_node(
     next_to: TileId,
     side: Side,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.clone().unwrap_or_default();
     let mut new_id = Some(TileId::new());
     let tree = add_node_aux(tree, with_direction, next_to, side, &mut new_id)?;
@@ -45,6 +45,7 @@ fn add_node_aux(
                     Direction::Horizontal | Direction::Vertical => node.app,
                     Direction::Tabbed => App::Default,
                 },
+                app_config: Default::default(),
                 remote: node.remote.clone(),
                 title: format!("New tile {new_id}").into(),
             }));

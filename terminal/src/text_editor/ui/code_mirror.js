@@ -92,6 +92,7 @@ class CodeMirrorJsImpl {
                         JsDeps.lintGutter(),
                         JsDeps.oneDark,
                         JsDeps.EditorView.editable.of(false),
+                        JsDeps.EditorView.lineWrapping,
                         ...mergePaneExtensions,
                     ],
                 },
@@ -106,6 +107,9 @@ class CodeMirrorJsImpl {
                         ...mergePaneExtensions,
                     ],
                 },
+                // Keep scattered changes precise in files around 2,000 lines,
+                // while bounding synchronous work for pathological inputs.
+                diffConfig: { scanLimit: 100000, timeout: 1000 },
                 collapseUnchanged: { margin: 3, minSize: 4 },
                 parent: element,
             });

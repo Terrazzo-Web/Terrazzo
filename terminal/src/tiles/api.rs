@@ -160,7 +160,7 @@ pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>,
 }
 
 #[cfg(feature = "text-editor")]
-#[server]
+#[server(protocol = Http<Json, Json>)]
 pub async fn set_editor_path(
     id: TileId,
     remote: ClientAddress,

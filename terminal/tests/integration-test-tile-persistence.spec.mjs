@@ -86,15 +86,8 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         // Omit tiles_file to also exercise the default beside the config file.
         await writeFile(configFile, `[server]\nhost = "localhost"\nports = [0]\nprivate_root_ca = ${JSON.stringify(path.join(dir, 'root-ca'))}\npidfile = ${JSON.stringify(path.join(dir, 'pid'))}\n`);
         server = await startServer(configFile, endpointFile, request);
-        await request.post(`${server.url}/api/login`, { data: null });
-        const asset = await request.get(`${server.url}/static/wasm/terrazzo_terminal_bg.wasm`);
-        const served = await asset.body();
-        const built = await readFile(path.join(process.env.CARGO_MANIFEST_DIR, 'target/assets/wasm/terrazzo_terminal_bg.wasm'));
-        console.log('Asset', served.length, built.length, served.equals(built), served.includes(Buffer.from('set_editor_path')));
         context = await browser.newContext();
         let page = await context.newPage();
-        page.on('console', (message) => { if (/Register persistence|Persist editor|Failed to save editor/.test(message.text())) console.log(message.text()); });
-        page.on('request', (request) => { if (request.url().includes('set_editor_path')) console.log('SAVE', request.postData()); });
         page.setDefaultTimeout(10 * SECOND);
         page.setDefaultNavigationTimeout(10 * SECOND);
         await page.goto(server.url, { waitUntil: 'domcontentloaded' });

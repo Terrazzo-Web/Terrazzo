@@ -174,6 +174,20 @@ playwright_matrix_test(
 
 playwright_matrix_test(
     overrides = {
+        "tile-nesting-integration-test-debug": {
+            "target_server": ":terminal-server-debug",
+        },
+        "tile-nesting-integration-test-release": {
+            "target_server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-tile-nesting.spec.mjs",
+)
+
+playwright_matrix_test(
+    overrides = {
         "tile-move-integration-test-debug": {
             "target_server": ":terminal-server-debug",
         },

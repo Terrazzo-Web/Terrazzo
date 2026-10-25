@@ -132,6 +132,7 @@ fn add_node_flatten(
         floating_nodes,
     } = &*tree
         && *direction == flatten_direction
+        && *direction != Direction::Tabbed
         && floating_nodes.is_empty()
     {
         Ok(nodes.clone())

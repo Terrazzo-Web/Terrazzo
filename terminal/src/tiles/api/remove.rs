@@ -3,19 +3,18 @@
 use std::sync::Arc;
 
 use super::Tiles;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use crate::tiles::id::TileId;
 
 pub fn remove_node(id_to_remove: TileId) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.clone().unwrap_or_default();
     let mut maybe_id_to_remove = Some(id_to_remove);
     let tree = remove_node_aux(tree, &mut maybe_id_to_remove).unwrap_or_default();
     if let Some(id_to_remove) = maybe_id_to_remove {
         return Err(TilesStateError::TileIdNotFound(id_to_remove));
     }
-    super::state::save(&tree)?;
     *lock = tree.clone().into();
     return Ok(tree);
 }

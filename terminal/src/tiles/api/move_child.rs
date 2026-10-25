@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::Direction;
 use super::Tiles;
 use super::float::default_tile;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use super::transform::try_transform_first;
 use crate::tiles::id::TileId;
@@ -15,10 +15,9 @@ pub fn move_child(
     after_child: Option<TileId>,
     moved_child: TileId,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.clone().unwrap_or_default();
     let tree = move_child_in_tree(tree, array_id, after_child, moved_child)?;
-    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }

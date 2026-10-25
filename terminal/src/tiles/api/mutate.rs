@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::Tile;
 use super::Tiles;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use super::transform::try_transform_first;
 use crate::tiles::id::TileId;
@@ -13,7 +13,7 @@ pub fn mutate_node(
     id_to_mutate: TileId,
     mutation: impl FnOnce(&Tile) -> Tile,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.clone().unwrap_or_default();
     let mut maybe_mutation = Some(mutation);
     let tree = try_transform_first(tree, &mut |tree| {
@@ -29,7 +29,6 @@ pub fn mutate_node(
         Ok(Some(Arc::new(Tiles::Tile(mutation(tile)))))
     })?
     .ok_or(TilesStateError::TileIdNotFound(id_to_mutate))?;
-    super::state::save(&tree)?;
     *lock = tree.clone().into();
     Ok(tree)
 }

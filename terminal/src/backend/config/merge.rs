@@ -366,7 +366,8 @@ mod tests {
                 .is_none()
         );
         let file: ConfigFile =
-            toml::from_str("[server]\nports = []\ntiles_file = '/tmp/custom-tiles.json'\n").unwrap();
+            toml::from_str("[server]\nports = []\ntiles_file = '/tmp/custom-tiles.json'\n")
+                .unwrap();
         let config = file.merge(&cli);
         assert_eq!(
             config.server.tiles_file.as_deref(),

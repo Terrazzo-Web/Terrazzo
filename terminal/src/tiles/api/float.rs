@@ -6,13 +6,13 @@ use super::Direction;
 use super::FloatingTile;
 use super::Tile;
 use super::Tiles;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use crate::tiles::app::App;
 use crate::tiles::id::TileId;
 
 pub fn float_node(tile_id: TileId) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.take().unwrap_or_default();
     let (parent_is_float, host_id) = find_nearest_tabbed(&tree, tile_id, None, false)
         .ok_or(TilesStateError::TileIdNotFound(tile_id))?;
@@ -20,7 +20,6 @@ pub fn float_node(tile_id: TileId) -> Result<Arc<Tiles>, TilesStateError> {
         Some(host_id) => float_in_host(tree, host_id, tile_id, parent_is_float)?,
         None => wrap_root(tree, tile_id)?,
     };
-    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }
@@ -29,14 +28,13 @@ pub fn raise_floating(
     array_id: TileId,
     floating_id: TileId,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.take().unwrap_or_default();
     let mut raised = false;
     let tree = raise_floating_aux(tree, array_id, floating_id, &mut raised);
     if !raised {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
-    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }
@@ -74,7 +72,7 @@ fn set_floating_geometry(
     size: Option<(i32, i32)>,
     collapsed: Option<bool>,
 ) -> Result<Arc<Tiles>, TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.take().unwrap_or_default();
     let mut updated = false;
     let tree = set_floating_geometry_aux(
@@ -89,7 +87,6 @@ fn set_floating_geometry(
     if !updated {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
-    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }

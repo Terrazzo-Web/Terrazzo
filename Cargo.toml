@@ -111,7 +111,7 @@ lru = { version = "0.19.0" }
 mime = { version = "0.3.17" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
-notify = { version = "8.2.0" }
+notify = { version = "8.2.1" }
 oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.81" }
 pbkdf2 = { version = "0.13.0" }

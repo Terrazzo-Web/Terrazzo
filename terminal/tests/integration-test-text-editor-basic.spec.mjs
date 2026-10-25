@@ -302,6 +302,42 @@ test.describe('Text editor basic', () => {
         await expect(getMergeViewEditors(page)).toHaveCount(0);
     });
 
+    test('preserves unchanged regions in a complex 2000-line diff and wraps both panes', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const lines = Array.from({ length: 2000 }, (_, index) =>
+            `Line ${index}: ${'unchanged text '.repeat(12)}`);
+        const original = lines.join('\n');
+        const modified = lines.map((line, index) => index % 20 === 10
+            ? `Replacement ${index}: ${'different content '.repeat(40)}`
+            : line).join('\n');
+        const { baseDir, fileName, filePath } = await createCommittedReadme('complex.txt', original);
+        await writeFile(filePath, modified);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        await page.locator('.toggle-editor-diff').click();
+        const editors = getMergeViewEditors(page);
+        await expect(editors).toHaveCount(2);
+        for (let index = 0; index < 2; index++) {
+            await expect(editors.nth(index).locator('.cm-content')).toHaveCSS('white-space', /pre-wrap|break-spaces/);
+        }
+        // Unchanged context should remain collapsible despite the many edits.
+        await expect(page.locator('.code-mirror-editor .cm-collapsedLines').first()).toBeVisible();
+        await page.locator('.toggle-unchanged-regions').click();
+        const current = editors.nth(1).locator('.cm-content');
+        await editors.nth(1).locator('.cm-scroller').evaluate((node) => {
+            node.scrollTop = (node.scrollHeight - node.clientHeight) / 2;
+        });
+        const unchangedMiddle = current.locator('.cm-line').filter({ hasText: /^Line \d+: unchanged text/ }).first();
+        await expect(unchangedMiddle).toBeVisible();
+        await expect(unchangedMiddle).not.toHaveClass(/cm-changedLine/);
+        await current.focus();
+        await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
+        const lastLine = current.locator('.cm-line').filter({ hasText: 'Line 1999:' });
+        await expect(lastLine).toBeVisible();
+        await expect(lastLine).not.toHaveClass(/cm-changedLine/);
+    });
+
     test('toggles unchanged regions with diff controls on the same row', async ({ page }) => {
         test.setTimeout(60 * SECOND);
         const original = Array.from({ length: 60 }, (_, index) => `Original line ${index + 1}`).join('\n');

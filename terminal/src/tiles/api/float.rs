@@ -20,6 +20,7 @@ pub fn float_node(tile_id: TileId) -> Result<Arc<Tiles>, TilesStateError> {
         Some(host_id) => float_in_host(tree, host_id, tile_id, parent_is_float)?,
         None => wrap_root(tree, tile_id)?,
     };
+    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }
@@ -35,6 +36,7 @@ pub fn raise_floating(
     if !raised {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
+    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }
@@ -87,6 +89,7 @@ fn set_floating_geometry(
     if !updated {
         return Err(TilesStateError::TileIdNotFound(floating_id));
     }
+    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }

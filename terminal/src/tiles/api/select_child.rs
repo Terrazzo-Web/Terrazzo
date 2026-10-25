@@ -44,6 +44,7 @@ pub fn select_child(
         })))
     })?
     .ok_or(TilesStateError::TileIdNotFound(array_id))?;
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     Ok(tree)
 }

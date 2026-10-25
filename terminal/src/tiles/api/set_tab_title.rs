@@ -36,6 +36,7 @@ pub fn set_tab_title(array_id: TileId, title: String) -> Result<Arc<Tiles>, Tile
         })))
     })?
     .ok_or(TilesStateError::TileIdNotFound(array_id))?;
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     Ok(tree)
 }

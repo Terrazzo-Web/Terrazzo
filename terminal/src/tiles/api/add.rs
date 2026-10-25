@@ -23,6 +23,7 @@ pub fn add_node(
     if new_id.is_some() {
         return Err(TilesStateError::TileIdNotFound(next_to));
     }
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     return Ok(tree);
 }

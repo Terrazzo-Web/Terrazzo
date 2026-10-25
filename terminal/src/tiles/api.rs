@@ -18,7 +18,7 @@ mod mutate;
 mod remove;
 mod select_child;
 mod set_tab_title;
-mod state;
+pub(crate) mod state;
 mod tests;
 mod transform;
 

@@ -24,6 +24,10 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     #[serde(rename = "terminal-shell", alias = "terminal_shell")]
     pub terminal_shell: Option<String>,
 
+    /// The JSON file storing the tile layout, loaded at startup.
+    /// Defaults to tiles.json beside the CLI config file; None disables persistence.
+    pub tiles_file: T::MaybePath,
+
     /// The folder where deleted text-editor files are moved.
     pub trash: T::Path,
 

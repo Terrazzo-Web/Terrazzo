@@ -18,6 +18,7 @@ pub fn move_child(
     let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
     let tree = lock.clone().unwrap_or_default();
     let tree = move_child_in_tree(tree, array_id, after_child, moved_child)?;
+    super::state::save(&tree)?;
     *lock = Some(tree.clone());
     Ok(tree)
 }
@@ -83,10 +84,10 @@ fn reorder_child(
             floating_nodes,
         } = tree
         else {
-            return Ok(None);
+            return Ok::<_, TilesStateError>(None);
         };
         if *id != array_id || *direction != Direction::Tabbed {
-            return Ok(None);
+            return Ok::<_, TilesStateError>(None);
         }
         let from = nodes
             .iter()
@@ -126,10 +127,10 @@ fn insert_child(
             ..
         } = tree
         else {
-            return Ok(None);
+            return Ok::<_, TilesStateError>(None);
         };
         if *id != array_id || *direction != Direction::Tabbed {
-            return Ok(None);
+            return Ok::<_, TilesStateError>(None);
         }
         let mut nodes = nodes.clone();
         let insert_at = insertion_index(&nodes, after_child)?;

@@ -13,12 +13,22 @@ use nameth::nameth;
 #[nameth]
 pub struct TileId(NonZero<i64>);
 
+#[cfg(feature = "server")]
+static NEXT: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(2);
+
 impl TileId {
     #[cfg(feature = "server")]
+    pub(crate) fn reserve(self) {
+        NEXT.fetch_max(
+            self.0.get().saturating_add(1),
+            std::sync::atomic::Ordering::SeqCst,
+        );
+    }
+
+    #[cfg(feature = "server")]
     pub fn new() -> Self {
-        use std::sync::atomic::AtomicI64;
         use std::sync::atomic::Ordering;
-        static NEXT: AtomicI64 = AtomicI64::new(const { TileId::first_tile_id().0.get() + 1 });
+
         Self(NonZero::new(NEXT.fetch_add(1, Ordering::SeqCst)).unwrap())
     }
 

@@ -59,6 +59,7 @@ pub fn add_tab(
         })))
     })?
     .ok_or(TilesStateError::TileIdNotFound(array_id))?;
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     Ok((tree, new_id))
 }

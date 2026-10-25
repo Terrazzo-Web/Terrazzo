@@ -29,6 +29,7 @@ pub fn mutate_node(
         Ok(Some(Arc::new(Tiles::Tile(mutation(tile)))))
     })?
     .ok_or(TilesStateError::TileIdNotFound(id_to_mutate))?;
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     Ok(tree)
 }

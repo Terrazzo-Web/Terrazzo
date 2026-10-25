@@ -15,6 +15,7 @@ pub fn remove_node(id_to_remove: TileId) -> Result<Arc<Tiles>, TilesStateError> 
     if let Some(id_to_remove) = maybe_id_to_remove {
         return Err(TilesStateError::TileIdNotFound(id_to_remove));
     }
+    super::state::save(&tree)?;
     *lock = tree.clone().into();
     return Ok(tree);
 }

@@ -45,6 +45,7 @@ fn add_node_aux(
                     Direction::Horizontal | Direction::Vertical => node.app,
                     Direction::Tabbed => App::Default,
                 },
+                app_config: Default::default(),
                 remote: node.remote.clone(),
                 title: format!("New tile {new_id}").into(),
             }));

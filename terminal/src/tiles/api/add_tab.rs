@@ -36,6 +36,7 @@ pub fn add_tab(
         let new = Arc::new(Tiles::Tile(Tile {
             id: new_id,
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: format!("New tab {new_id}").into(),
         }));

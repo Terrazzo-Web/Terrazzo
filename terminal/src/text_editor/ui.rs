@@ -1,5 +1,6 @@
 #![cfg(feature = "client")]
 
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::debounce::DoDebounce as _;
 use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
@@ -448,6 +450,7 @@ impl TextEditorManager {
             let registrations = Consumers::default().append(this.make_file_async_view());
             let registrations = guard(registrations, |registrations| {
                 *consumers.lock().unwrap() = registrations
+                    .append(this.save_editor_path_on_change())
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
                     .append(this.save_on_change(
@@ -496,7 +499,14 @@ impl TextEditorManager {
             )
             .await;
             let (get_side_view, get_base_path, get_file_path, get_search) = get_paths;
-            let base_path = get_base_path.as_ref().ok().cloned();
+            let saved_path = this.tile.app_config.get_value_untracked().editor_path;
+            let base_path = saved_path
+                .as_ref()
+                .map(|path| path.base.clone())
+                .or_else(|| get_base_path.as_ref().ok().cloned());
+            let file_path = saved_path
+                .map(|path| path.file)
+                .or_else(|| get_file_path.ok());
             let side_view = if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
                 let base_path = base_path
@@ -525,7 +535,7 @@ impl TextEditorManager {
             if let Some(p) = base_path {
                 this.path.base.force(p);
             }
-            if let Ok(p) = get_file_path {
+            if let Some(p) = file_path {
                 this.path.file.force(p);
             }
             if let Some((base_path, side_view)) = side_view {
@@ -662,6 +672,41 @@ impl TextEditorManager {
                     .unwrap_or_else(|error| warn!("Failed to save: {error}"));
             })
         })
+    }
+
+    fn save_editor_path_on_change(self: &Ptr<Self>) -> Consumers {
+        let tile_id = self.tile.id;
+        let remote = self.remote.clone();
+        // Serialize saves for both selectors so base-path resets and rapid navigation
+        // cannot leave an older file selection on disk.
+        let save = Rc::new(Duration::from_millis(100).async_debounce(move |path| {
+            let remote = remote.clone();
+            async move {
+                if let Err(error) = crate::tiles::api::set_editor_path(tile_id, remote, path).await
+                {
+                    warn!("Failed to save editor path: {error}");
+                }
+            }
+        }));
+        let mut consumers = Consumers::default();
+        for signal in [self.path.base.clone(), self.path.file.clone()] {
+            let this = self.clone();
+            let save = save.clone();
+            consumers = consumers.append(signal.add_subscriber(move |_| {
+                let path = FilePath {
+                    base: this.path.base.get_value_untracked(),
+                    file: this.path.file.get_value_untracked(),
+                };
+                let mut config = this.tile.app_config.get_value_untracked();
+                config.editor_path = Some(path.clone());
+                this.tile.app_config.set(config);
+                let saving = save(path);
+                spawn_local(async move {
+                    saving.await;
+                });
+            }));
+        }
+        consumers
     }
 
     #[autoclone]

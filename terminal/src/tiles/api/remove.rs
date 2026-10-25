@@ -124,6 +124,7 @@ mod tests {
         Arc::new(Tiles::Tile(Tile {
             id,
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: format!("Tile {id}").into(),
         }))

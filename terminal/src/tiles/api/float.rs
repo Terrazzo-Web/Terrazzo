@@ -494,6 +494,7 @@ pub(super) fn default_tile() -> Arc<Tiles> {
     Arc::new(Tiles::Tile(Tile {
         id,
         app: App::Default,
+        app_config: Default::default(),
         remote: Default::default(),
         title: format!("New tile {id}").into(),
     }))
@@ -645,6 +646,7 @@ mod tests {
         Arc::new(Tiles::Tile(Tile {
             id: TileId::for_test(id),
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: format!("Tile {id}").into(),
         }))

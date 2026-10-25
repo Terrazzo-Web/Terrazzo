@@ -370,6 +370,7 @@ mod tests {
         Arc::new(Tiles::Tile(Tile {
             id: TileId::for_test(id),
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: format!("Tile {id}").into(),
         }))

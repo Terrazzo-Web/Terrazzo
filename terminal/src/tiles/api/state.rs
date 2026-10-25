@@ -150,6 +150,35 @@ fn write_tree(path: &std::path::Path, tree: &Tiles) -> Result<(), TilesStateErro
 mod tests {
     use super::*;
 
+    #[cfg(feature = "text-editor")]
+    #[test]
+    fn editor_path_survives_disk_round_trip() {
+        use crate::text_editor::file_path::FilePath;
+        let path =
+            std::env::temp_dir().join(format!("terrazzo-editor-{}.json", uuid::Uuid::new_v4()));
+        let editor_path = FilePath {
+            base: Arc::<Path>::from(Path::new("/workspace/project")),
+            file: Arc::<Path>::from(Path::new("src/main.rs")),
+        };
+        let tree = Tiles::Tile(super::super::Tile {
+            id: TileId::new(),
+            app: crate::tiles::app::App::TextEditor,
+            remote: Default::default(),
+            title: "Editor".into(),
+            app_config: crate::tiles::app::AppConfig {
+                editor_path: Some(editor_path.clone()),
+            },
+        });
+        write_tree(&path, &tree).unwrap();
+        let restored: Tiles = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let Tiles::Tile(tile) = &restored else {
+            panic!("expected editor tile")
+        };
+        assert_eq!(tile.app_config.editor_path.as_ref(), Some(&editor_path));
+        assert_eq!(tree, restored);
+        std::fs::remove_file(path).unwrap();
+    }
+
     #[test]
     fn guard_saves_on_drop() {
         let path =

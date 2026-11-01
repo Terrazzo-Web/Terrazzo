@@ -30,3 +30,13 @@ rust_rules(
     rule = "binary",
     deps = [":integration"],
 )
+
+rust_rules(
+    name = "mouse-tui",
+    all_crate_deps = False,
+    crate_name = "terrazzo_mouse_tui",
+    crate_root = "src/mouse_tui.rs",
+    generate_tests = False,
+    rule = "binary",
+    deps = ["@crates//:libc"],
+)

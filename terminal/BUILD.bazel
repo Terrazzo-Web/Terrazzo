@@ -321,3 +321,22 @@ playwright_matrix_test(
     server = "//terminal/integration:exec",
     test = "tests/integration-test-editor-debounce.spec.mjs",
 )
+
+playwright_matrix_test(
+    extra_data = [
+        "//terminal/integration:mouse-tui",
+        "src/terminal/snapshot.js",
+        "src/terminal/javascript.js",
+    ],
+    overrides = {
+        "terminal-snapshot-integration-test-debug": {
+            "target_server": ":terminal-server-debug",
+        },
+        "terminal-snapshot-integration-test-release": {
+            "target_server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-terminal-snapshot.spec.mjs",
+)

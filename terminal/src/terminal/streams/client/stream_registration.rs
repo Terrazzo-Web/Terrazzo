@@ -12,9 +12,13 @@ use terrazzo::prelude::with_generation_id::WithGenerationId;
 
 use crate::terminal_id::TerminalId;
 
+pub struct RegisteredStream {
+    pub registration: String,
+    pub sender: WithGenerationId<mpsc::UnboundedSender<Result<String, ServerFnError>>>,
+}
+
 pub struct StreamRegistrations {
-    pub map:
-        HashMap<TerminalId, WithGenerationId<mpsc::UnboundedSender<Result<String, ServerFnError>>>>,
+    pub map: HashMap<TerminalId, RegisteredStream>,
     pub ready: Shared<oneshot::Receiver<()>>,
 }
 
@@ -27,6 +31,7 @@ pub struct StreamRegistration {
     pub(super) terminal_id: TerminalId,
     pub(super) rx: mpsc::UnboundedReceiver<Result<String, ServerFnError>>,
     pub(crate) generation_id: usize,
+    pub(super) registration: String,
 }
 
 impl Drop for StreamRegistration {
@@ -36,7 +41,7 @@ impl Drop for StreamRegistration {
             && let hash_map::Entry::Occupied(entry) =
                 stream_registrations.map.entry(self.terminal_id.clone())
         {
-            let generation_id = entry.get().generation_id;
+            let generation_id = entry.get().sender.generation_id;
             if generation_id <= self.generation_id {
                 entry.remove();
             }

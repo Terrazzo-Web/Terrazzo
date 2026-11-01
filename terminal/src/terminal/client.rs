@@ -1,4 +1,3 @@
-use base64::Engine as _;
 use futures::StreamExt as _;
 use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
@@ -7,8 +6,6 @@ use server_fn::ServerFnError;
 use terrazzo::prelude::XSignal;
 use terrazzo::prelude::XString;
 use terrazzo::prelude::diagnostics;
-use wasm_bindgen::JsValue;
-use web_sys::js_sys::Uint8Array;
 
 use self::diagnostics::debug;
 use self::diagnostics::info;
@@ -31,19 +28,28 @@ pub async fn new_id(address: ClientAddress, tile: TileId) -> Result<TerminalDef,
     super::api::new_id(address, tile).await
 }
 
-pub async fn write(terminal: &TerminalAddress, data: String) -> Result<(), ServerFnError> {
-    super::api::write(terminal.clone(), data).await
+pub async fn write(
+    terminal: &TerminalAddress,
+    attachment: Attachment,
+    data: String,
+) -> Result<(), ServerFnError> {
+    super::api::write(
+        terminal.clone(),
+        attachment,
+        vec![TerminalInput::Text(data)],
+    )
+    .await
 }
 
 pub async fn resize(
     terminal: &TerminalAddress,
     size: Size,
-    force: bool,
+    attachment: Attachment,
 ) -> Result<(), ServerFnError> {
     super::api::resize(ResizeRequest {
         terminal: terminal.clone(),
         size,
-        force,
+        attachment,
     })
     .await
 }
@@ -68,89 +74,130 @@ pub async fn stream<F, F0>(
     terminal_def: TerminalDef,
     notify_mouse: watch::WatchRx,
     on_init: impl FnOnce() -> F0,
-    on_data: impl Fn(JsValue) -> F,
+    on_data: impl Fn(String) -> F,
 ) -> Result<(), StreamError>
 where
     F: Future<Output = ()>,
     F0: Future<Output = ()>,
 {
     let terminal_id = terminal_def.address.id.clone();
-    let mut mode = RegisterTerminalMode::Create;
+    let mut resume = None;
     let mut on_init = Some(on_init);
-    loop {
-        let mut stream = super::api::stream(mode, terminal_def.clone())
+    let mut attachment = None;
+    let mut cursor = AppliedCursor {
+        event: "0".into(),
+        end: "0".into(),
+    };
+    let mut allow_create = true;
+    let mut restoring = false;
+    'connect: loop {
+        let request = AttachRequest {
+            version: 1,
+            create_if_missing: allow_create,
+            resume: resume.clone(),
+        };
+        let mut stream = super::api::stream(request, terminal_def.clone())
             .await?
-            .ready_chunks(100);
+            .ready_chunks(64);
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
-        let mut unacked = 0;
-        while let Some(chunks) = stream.next().await {
-            let mut buffer = vec![];
+        'read: while let Some(chunks) = stream.next().await {
+            let mut messages = vec![];
             for chunk in chunks {
-                let messages: Vec<Result<LeaseMessage, serde_json::Error>> =
-                    parser.push_chunk(&chunk.map_err(StreamError::from)?);
-                for message in messages {
-                    match message.map_err(StreamError::Json)? {
-                        LeaseMessage::Init => {
-                            if let Some(on_init) = on_init.take() {
-                                on_init().await;
-                            }
+                let chunk = match chunk {
+                    Ok(chunk) => chunk,
+                    Err(error) if error.to_string().contains("FreshRestoreRequired") => {
+                        resume = None;
+                        continue 'connect;
+                    }
+                    Err(error) => {
+                        let text = error.to_string();
+                        if text.contains("ProcessGone")
+                            || text.contains("UnsupportedProtocol")
+                            || text.contains("InvalidCursor")
+                        {
+                            return Err(error.into());
                         }
-                        LeaseMessage::Eos => {
-                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
-                            state.on_eos(&terminal_id);
+                        if text.contains("StaleAttachment") {
+                            on_data("\"Revoked\"".into()).await;
                             return Ok(());
                         }
-                        LeaseMessage::Error(error) => {
-                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
-                            state.on_eos(&terminal_id);
-                            return Err(StreamError::ServerFn(error));
-                        }
-                        LeaseMessage::Base64(data) => {
-                            let data = base64::engine::general_purpose::STANDARD.decode(data)?;
-                            buffer.extend(data);
-                        }
-                        LeaseMessage::Utf8(data) => {
-                            buffer.extend(data.as_bytes());
-                        }
+                        warn!("Terminal transport interrupted: {error}");
+                        break 'read;
                     }
+                };
+                for message in parser.push_chunk(&chunk) {
+                    messages.push(message?);
                 }
             }
-            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+            on_data(serde_json::to_string(&messages)?).await;
+            let mut acknowledge = false;
+            for message in messages {
+                match message {
+                    LeaseMessage::Init {
+                        attachment: next,
+                        checkpoint,
+                        fresh,
+                        ..
+                    } => {
+                        if fresh {
+                            cursor = AppliedCursor {
+                                event: "0".into(),
+                                end: "0".into(),
+                            };
+                        }
+                        allow_create = false;
+                        restoring = checkpoint.is_some();
+                        attachment = Some(next);
+                        if let Some(checkpoint) = checkpoint {
+                            cursor = checkpoint.cursor;
+                        }
+                        continue;
+                    }
+                    LeaseMessage::SnapshotChunk(_) => continue,
+                    LeaseMessage::SnapshotEnd => {
+                        restoring = false;
+                        continue;
+                    }
+                    LeaseMessage::Output { cursor: next, .. }
+                    | LeaseMessage::Gap { cursor: next, .. } => cursor = next,
+                    LeaseMessage::Resize { cursor: next, .. } => cursor.event = next.event,
+                    LeaseMessage::Ready => {
+                        if let Some(on_init) = on_init.take() {
+                            on_init().await;
+                        }
+                    }
+                    LeaseMessage::Revoked => return Ok(()),
+                    LeaseMessage::Eos => {
+                        state.on_eos(&terminal_id);
+                        return Ok(());
+                    }
+                    LeaseMessage::Error(error) => return Err(StreamError::ServerFn(error)),
+                }
+                acknowledge = true;
+            }
+            if acknowledge && let Some(attachment) = &attachment {
+                super::api::ack(
+                    terminal_def.address.clone(),
+                    attachment.clone(),
+                    cursor.clone(),
+                )
+                .await?;
+            }
         }
+        on_data("\"Disconnected\"".into()).await;
         debug!("Terminal stream disconnected");
         match notify_mouse.notified().await {
             Ok(()) => info!("Terminal stream reopening"),
-            Err(oneshot::Canceled) => {
-                info!("Terminal tab closed, disconnecting");
-                return Err(StreamError::UxClosed);
-            }
+            Err(oneshot::Canceled) => return Err(StreamError::UxClosed),
         }
-        mode = RegisterTerminalMode::Reopen;
+        if restoring {
+            resume = None;
+            continue;
+        }
+        resume = attachment
+            .clone()
+            .map(|attachment| (attachment, cursor.clone()));
     }
-}
-
-async fn process_data<F>(
-    terminal_def: &TerminalDefImpl<TabTitle<String>>,
-    on_data: &impl Fn(JsValue) -> F,
-    unacked: &mut usize,
-    data: Vec<u8>,
-) -> Result<(), StreamError>
-where
-    F: Future<Output = ()>,
-{
-    if data.is_empty() {
-        return Ok(());
-    }
-    *unacked += data.len();
-    let value = Uint8Array::new_with_length(data.len() as u32);
-    value.copy_from(&data);
-    on_data(value.into()).await;
-    if *unacked >= STREAMING_WINDOW_SIZE / 2 {
-        super::api::ack(terminal_def.address.clone(), std::mem::take(unacked))
-            .await
-            .map_err(StreamError::from)?;
-    }
-    Ok(())
 }
 
 pub async fn close(terminal: &TerminalAddress, _correlation_id: Option<String>) {
@@ -167,9 +214,6 @@ pub enum StreamError {
 
     #[error("[{n}] {0}", n = self.name())]
     Json(#[from] serde_json::Error),
-
-    #[error("[{n}] {0}", n = self.name())]
-    DecodeError(#[from] base64::DecodeError),
 
     #[error("[{n}] UX closed", n = self.name())]
     UxClosed,

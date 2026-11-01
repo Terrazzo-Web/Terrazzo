@@ -1,9 +1,8 @@
 #![doc = include_str!("../README.md")]
 
+use std::sync::Arc;
 use std::task::Poll;
-use std::task::ready;
 
-use bytes::Bytes;
 use futures::Stream;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -15,7 +14,9 @@ use self::command::SpawnError;
 use self::pty::OwnedWritePty;
 use self::pty::Pty;
 use self::pty::PtyError;
-use self::tail::TailStream;
+use self::replay::Journal;
+use self::replay::Reader;
+use self::replay::Worker;
 
 mod command;
 pub mod lease;
@@ -23,14 +24,14 @@ pub mod pty;
 mod raw_pts;
 mod raw_pty;
 mod release_on_drop;
+pub mod replay;
 pub mod size;
-mod tail;
 
 pub const TERRAZZO_CLIENT_NAME: &str = "TERRAZZO_CLIENT_NAME";
 
 pub struct ProcessIO {
     input: OwnedWritePty,
-    output: TailStream,
+    output: ProcessOutput,
     #[cfg_attr(not(test), expect(unused))]
     child_process: tokio::process::Child,
 }
@@ -39,7 +40,13 @@ pub struct ProcessIO {
 pub struct ProcessInput(#[pin] pub OwnedWritePty);
 
 #[pin_project]
-pub struct ProcessOutput(#[pin] pub TailStream);
+pub struct ProcessOutput {
+    #[pin]
+    pub reader: Reader,
+    pub journal: Journal,
+    pub worker: Arc<Worker>,
+    pub stopped: Arc<std::sync::atomic::AtomicBool>,
+}
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -74,7 +81,9 @@ impl ProcessIO {
         if let Some(client_name) = client_name {
             command.env(TERRAZZO_CLIENT_NAME, client_name.as_ref());
         }
-        let child = command.spawn(&pty.pts()?)?;
+        let pts = pty.pts()?;
+        pty.resize(size::Size::new(24, 80))?;
+        let child = command.spawn(&pts)?;
 
         // https://forums.developer.apple.com/forums/thread/734230
         pty.set_nonblocking()?;
@@ -85,7 +94,13 @@ impl ProcessIO {
     fn new(pty: Pty, child_process: tokio::process::Child, scrollback: usize) -> Self {
         let (output, input) = pty.into_split();
         let output = ReaderStream::with_capacity(output, scrollback);
-        let output = TailStream::new(output, scrollback);
+        let (journal, worker) = replay::spawn(output, scrollback);
+        let output = ProcessOutput {
+            reader: journal.reader(0),
+            journal,
+            worker,
+            stopped: Arc::default(),
+        };
         Self {
             input,
             output,
@@ -94,7 +109,7 @@ impl ProcessIO {
     }
 
     pub fn split(self) -> (ProcessInput, ProcessOutput) {
-        (ProcessInput(self.input), ProcessOutput(self.output))
+        (ProcessInput(self.input), self.output)
     }
 }
 
@@ -135,18 +150,12 @@ impl tokio::io::AsyncWrite for ProcessInput {
 }
 
 impl Stream for ProcessOutput {
-    type Item = std::io::Result<Bytes>;
-
+    type Item = std::io::Result<replay::Record>;
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match ready!(self.project().0.poll_next(cx)) {
-            Some(Ok(bytes)) if !bytes.is_empty() => Some(Ok(bytes)),
-            Some(Err(error)) => Some(Err(error)),
-            _ => None,
-        }
-        .into()
+        self.project().reader.poll_next(cx)
     }
 }
 

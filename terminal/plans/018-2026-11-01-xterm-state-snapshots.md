@@ -10,6 +10,76 @@
 - Store recovery state in server memory.
 - Add no disk persistence or server-side emulator.
 
+## Primer: ServerFn and RemoteFn
+
+There are two boundaries:
+
+```text
+Browser                 Web-facing server           PTY-owning server
+   |                           |                           |
+   +-- ServerFn over HTTP ----->|                           |
+                               +-- RemoteFn via mesh ----->|
+                               |                           +-- process operation
+                               |<------- result -----------+
+   |<--------- result ---------+
+
+For a local terminal, both server roles are the same process.
+RemoteFn dispatch then invokes the local handler.
+```
+
+ServerFn: browser to server
+
+- Declared with `#[server(...)]` in `terminal/src/terminal/api.rs`.
+- Generates the browser-side request function and server-side handler.
+- Encodes arguments and results for HTTP transport.
+- Uses JSON for ordinary terminal operations.
+- Uses streaming text for the multiplexed output pipe.
+- Keeps PTY access in server-only code.
+- Runs through the application's existing authentication and routing setup.
+- We need it because browser code cannot access server memory or PTYs directly.
+
+RemoteFn: server to the process owner
+
+- Declared with `declare_remote_fn!` in terminal service modules.
+- Registers a named operation with typed inputs and outputs.
+- `.call(address, args)` selects the target through `ClientAddress`.
+- A local target invokes the registered handler locally.
+- A remote target uses the existing mesh routing and RPC transport.
+- Unary RemoteFns return one result.
+- Streaming RemoteFns return a stream of results.
+- We need it because the browser's server may not own the selected terminal.
+- The process map and recovery state live on the owning server.
+
+Existing write example:
+
+```text
+Browser: api::write(terminal, data)
+  -> ServerFn HTTP handler
+  -> service::write
+  -> WRITE_FN.call(terminal.via, ...)
+  -> owning server: processes::write
+  -> PTY input
+```
+
+How this applies to snapshots:
+
+- Add a snapshot-upload ServerFn for browser access.
+- Add a unary RemoteFn to reach the PTY owner.
+- Store the snapshot beside that owner's process entry.
+- Change attach requests at both boundaries.
+- Carry restore events through the existing streaming RemoteFn.
+- Deliver them through the existing browser output pipe.
+- Forward acknowledgement and resize changes through both layers too.
+- Do not add a separate transport or put snapshots in gateway memory.
+
+Naming in this plan:
+
+- `put_checkpoint` is the browser-facing upload operation.
+- Its RemoteFn forwards the request to the PTY owner.
+- `commit_checkpoint` is the internal storage operation.
+- `ack_applied` replaces the existing `ack` semantics.
+- These internal names do not imply extra HTTP endpoints.
+
 ## Current behavior
 
 - `attach.rs` creates a fresh `TerminalJsRc`.
@@ -413,50 +483,212 @@ Primary files:
 
 ## Validation
 
-PTY and protocol tests:
+The names below are proposed tests to implement, not existing coverage.
 
-- Exact replay with an intact suffix.
-- Atomic append, attachment, and checkpoint acceptance.
-- Canceled and concurrent lease handoffs.
-- Startup without a snapshot.
-- Stale tokens, requests, chunks, and acknowledgements.
-- Lost upload responses and idempotent retries.
-- Oversized appends and bounded metadata.
-- Eviction during snapshot transfer and live streaming.
-- Disconnect before apply and after apply but before ack.
-- Process replacement and missing processes.
-- Generation-specific throttle cleanup.
+### PTY journal tests
 
-Browser tests:
+Location: a new `pty/src/replay/tests.rs`, or `tail.rs` tests if extended in place.
+Use synthetic output and tiny capacities. Avoid timing-dependent sleeps.
 
-- Enable SGR mouse once, then exceed the old tail capacity.
-- Accept a snapshot before eviction and verify wheel reports after reattach.
-- Verify mouse disable and alternate-screen exit afterward.
-- Cover page reload, DOM replacement, and warm Resume.
-- Cover resize and remote routing.
-- Drop a mode change and verify explicit best-effort Gap behavior.
-- Test unsafe parser boundaries and split UTF-8.
+- `fresh_attach_replays_checkpoint_and_exact_suffix`
+  - Append events 1 through 6. Commit a checkpoint at 3.
+  - Attach Fresh. Expect checkpoint 3, then events 4, 5, 6.
+  - Append event 7 during replay. Expect it once after the replay boundary.
+- `fresh_attach_without_checkpoint_replays_retained_start`
+  - Attach before any checkpoint exists.
+  - With intact history, expect all events and initial dimensions.
+  - After eviction, expect Gap, retained-start dimensions, and the tail.
+- `capacity_overflow_evicts_oldest_without_stopping_reader`
+  - Feed several times the configured capacity without an attached reader.
+  - Expect the newest suffix and bounded retained bytes.
+  - Assert the producer completes without a reader acknowledgement.
+- `oversized_append_retains_bounded_suffix`
+  - Append a chunk larger than the entire capacity.
+  - Expect no panic, a bounded suffix, and a reported missing range.
+- `resize_only_history_has_bounded_metadata`
+  - Submit many resizes without output.
+  - Expect bounded event storage and correct retained-start dimensions.
+- `eviction_overtakes_reader_emits_gap`
+  - Pause a reader, then overflow the journal.
+  - Resume it. Expect Gap before the available tail.
+  - Repeat eviction while replaying. Expect another Gap, never silent skipping.
+- `checkpoint_commit_does_not_require_retained_suffix`
+  - Capture at N. Evict N+1 before accepting the upload.
+  - Accept the valid checkpoint. Fresh attach must still report Gap.
+- `checkpoint_commit_and_append_preserve_event_order`
+  - Control append, commit, and attach with barriers.
+  - Exercise both orderings at each boundary.
+  - Assert one consistent checkpoint/suffix pair and no duplicate events.
+- `checkpoint_validation_rejects_invalid_metadata`
+  - Table-test stale tokens, wrong incarnation, and unsupported formats.
+  - Include future cursors, unapplied cursors, and size mismatches.
+  - Expect structured rejection and no stored-state change.
+- `checkpoint_retry_is_idempotent`
+  - Accept an upload, lose its response, and retry it.
+  - Expect AlreadyAccepted and unchanged storage.
+- `snapshot_size_limit_preserves_previous_checkpoint`
+  - Install a valid checkpoint, then submit an oversized replacement.
+  - Expect rejection. Keep the previous checkpoint and normal eviction behavior.
 
-Scheduler and memory tests:
+Location: `pty/src/lease.rs` tests.
 
-- Use a controlled clock for triggers and cooldowns.
-- Cover continuous output, pending uploads, and upload failures.
-- Enforce one capture per five seconds.
-- Verify detached writers keep running past buffer capacity.
-- Verify oldest output is dropped and memory stays bounded.
-- Cover slow readers, repeated gaps, and many terminals.
-- Measure snapshot replacement peaks and size rejection.
+- Keep `canceled_handoff_can_be_resumed`.
+- Keep `canceled_handoff_preserves_output_returned_by_drop`.
+- Keep `concurrent_handoffs_are_serialized`.
+- Adapt each test to the new attach request and cursor types.
+- Add `revoked_attachment_cannot_mutate_process`.
+  - Replace attachment A with B.
+  - Reject A's writes, resizes, acknowledgements, and checkpoint commits.
+  - Verify B still works.
 
-Build checks:
+### Server and protocol tests
 
-- Run focused PTY and browser targets first.
-- Follow applicable Cargo/Bazel checks in `terminal/AGENTS.md`.
-- Regenerate the JS bundle through the existing build process.
-- Check client and server feature builds.
+Locations: `terminal/src/processes/stream/tests.rs`, service tests, and throttle tests.
+
+- Keep `canceled_reconnect_preserves_terminal_process`.
+  - Retain its real-shell PID and shell-variable assertions.
+  - Verify the new protocol never opens a replacement shell during handoff.
+- `resume_after_send_before_apply_replays_unapplied_output`
+  - Send N, then disconnect before the browser applies it.
+  - Resume from N-1. Expect N exactly once in the resumed stream.
+- `resume_after_apply_before_ack_does_not_duplicate_output`
+  - Apply N, then disconnect before its acknowledgement reaches the server.
+  - Resume from N. Expect the next event, not N again.
+  - Validate N against the prior attachment's sent prefix.
+- `resume_with_evicted_cursor_reports_gap`
+  - Resume behind the retained start.
+  - Expect Gap and the retained tail. Do not create a new process.
+- `resume_wrong_incarnation_requires_fresh_restore`
+  - Reuse a terminal ID with a new process incarnation.
+  - Expect FreshRestoreRequired. Reject the old snapshot and cursors.
+- `resume_missing_process_returns_process_gone`
+  - Remove the process before Resume.
+  - Expect ProcessGone and zero process-creation calls.
+- `ack_applied_is_monotonic_and_attachment_scoped`
+  - Duplicate acknowledgements must be harmless.
+  - Reject future positions and stale tokens.
+  - Assert transport credit cannot underflow or affect another attachment.
+- `old_throttle_drop_preserves_new_attachment`
+  - Install B's throttle state, then drop A's stream.
+  - Assert B's state and acknowledgements remain valid.
+- `resize_events_follow_successful_ioctl_order`
+  - Interleave output and concurrent resize requests.
+  - Verify journal order and emitted dimensions.
+  - Failed ioctls must not emit successful Resize events.
+- `snapshot_transfer_interruption_can_restart_fresh`
+  - Disconnect after a snapshot chunk but before SnapshotEnd.
+  - Discard the incomplete restore and restart Fresh.
+  - Never expose partial restore as Ready.
+- `remote_checkpoint_is_stored_on_process_owner`
+  - Route upload through the web-facing server to a remote PTY owner.
+  - Verify only the owner stores it.
+  - Reattach through the same route and receive that checkpoint.
+- `protocol_mismatch_returns_explicit_error`
+  - Use incompatible browser and remote protocol versions.
+  - Expect rejection. Do not fall back to implicit rewind.
+
+### Serializer and scheduler tests
+
+Location: focused JS tests beside the new snapshot adapter.
+Use real pinned xterm for round trips. Use a fake clock for scheduling.
+
+- `roundTripPreservesMouseReports`
+  - Table-test supported tracking protocols and encodings.
+  - Serialize, restore, and inject wheel input.
+  - Compare the PTY-bound reports before and after restore.
+- `roundTripPreservesSubsequentTerminalBehavior`
+  - Table-test the state listed under Serializer compatibility.
+  - Feed the same continuation to original and restored terminals.
+  - Compare buffers, cursor, modes, and generated input reports.
+  - Include alternate-screen exit and saved-cursor restoration.
+- `captureWaitsForSafeParserBoundary`
+  - Split UTF-8 and CSI/OSC/DCS sequences at every byte boundary.
+  - Trigger capture while incomplete. Expect no checkpoint yet.
+  - Complete the sequence. Expect a checkpoint at the matching applied cursor.
+- `gapResynchronizationPreservesCheckpointModes`
+  - Restore mouse modes, then replay a tail starting inside a sequence.
+  - Apply the gap adapter. Verify parser recovery and retained mouse modes.
+  - Do not assert recovery of commands inside the missing interval.
+- `captureUsesAppliedCursorAndMatchingDimensions`
+  - Queue output and resize around a pending write callback.
+  - Capture only after the callback and ordered resize application.
+  - Assert snapshot metadata matches the captured state.
+- `captureTriggersAtActivityThreshold`
+  - Test 999 versus 1,000 LFs and just below versus at 256 KiB.
+  - Include TUI output without any LF characters.
+- `captureThrottleKeepsPendingTrigger`
+  - Keep output flowing throughout the five-second cooldown.
+  - Expect capture at eligibility, without debounce starvation.
+  - Assert no two captures occur within five seconds.
+- `singleUploadRetainsPendingCapture`
+  - Hold an upload open while more output crosses the threshold.
+  - Expect one upload in flight and a later eligible capture.
+- `failedUploadRetriesWithoutReplacingAcceptedSnapshot`
+  - Fail an upload and advance the fake clock through backoff.
+  - Verify bounded retries and preservation of the accepted snapshot.
+- `snapshotShrinksScrollbackWithoutTruncatingVt`
+  - Exceed the byte cap with scrollback.
+  - Reduce scrollback and verify a valid round trip.
+  - Reject required visible state that still exceeds the cap.
+- `staleCallbacksCannotUpdateReplacementAttachment`
+  - Replace an attachment with a write or upload pending.
+  - Complete old callbacks. Expect no cursor or state changes in the replacement.
+
+### Browser integration tests
+
+Add `terminal/tests/integration-test-terminal-snapshot.spec.mjs`.
+Use the existing browser test harness and a deterministic PTY fixture.
+The fixture reads mouse reports and prints observable counters.
+Avoid relying on an installed interactive application.
+
+- `fresh_attachment_preserves_tui_wheel_input`
+  - Enable SGR mouse reporting once and accept a snapshot.
+  - Produce enough output to evict initialization bytes.
+  - Reattach through DOM replacement, then through page reload.
+  - Wheel over a panel. Assert the fixture's report counter increases.
+  - Disable mouse reporting and exit the alternate screen afterward.
+  - Verify subsequent behavior matches those changes.
+- `warm_resume_preserves_applied_state`
+  - Interrupt the output pipe while keeping xterm alive.
+  - Reconnect using the applied cursor.
+  - Assert no duplicate text, reset, or lost mouse handling.
+- `overflow_reports_gap_and_keeps_process_running`
+  - Disconnect and write several buffer capacities through the real PTY.
+  - Use a bounded external completion marker to prove the writer finished.
+  - Reconnect. Assert the dropped-output notice and newest retained marker.
+  - Verify the same process PID remains active.
+- `dropped_mode_change_is_explicitly_best_effort`
+  - Snapshot with mouse enabled, then disable it in output that gets evicted.
+  - Restore and verify Gap is visible.
+  - Do not claim the restored mode matches the missing disable command.
+- `restore_resize_and_remote_routing_work_together`
+  - Snapshot at one geometry and reconnect at another.
+  - Verify restore geometry precedes the new Resize event.
+  - Repeat against the configured remote server.
+- `revoked_stream_cannot_feed_replacement_terminal`
+  - Hold old stream chunks, replace the attachment, then release them.
+  - Assert the replacement ignores old chunks and replies.
+
+### Memory checks and execution
+
+- `replay_storage_stays_bounded_across_many_terminals`
+  - Flood multiple disconnected journals.
+  - Assert retained payload and metadata counters stay within configured limits.
+  - Include slow restores and concurrent snapshot replacement.
+  - Account separately for bounded transfer buffers and temporary snapshot copies.
+- Run a real-process memory measurement alongside these assertions.
+- Record steady-state and replacement peaks.
+- Treat allocator RSS as a measurement, not an exact byte assertion.
+- Run focused PTY tests with `cargo test -p terrazzo-pty`.
+- Run new server and browser tests through existing repository targets.
+- Identify exact Bazel/browser targets when wiring the new files into the build.
+- Follow applicable checks in `terminal/AGENTS.md` afterward.
+- Regenerate the JS bundle and check client/server feature builds.
 
 Acceptance:
 
-- Correct input behavior with intact history.
+- Correct input behavior with an intact suffix.
 - Explicit best-effort recovery after eviction.
-- Measured memory use within the planned limits.
-- Documented serializer gaps before default rollout.
+- Detached writers continue at the existing history capacity.
+- Measured memory includes snapshots and transfer overhead.
+- Serializer limitations are documented before default rollout.

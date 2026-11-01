@@ -95,20 +95,23 @@ class TerminalJs {
     scheduleCapture() {
         if (this.disposed || !this.ready || this.uploading || !this.pendingCapture) return;
         clearTimeout(this.captureTimer);
-        this.captureTimer = setTimeout(() => {
-            if (this.disposed || !this.ready || this.uploading || this.applying) return;
-            const payload = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
-            if (!payload) return; // Retry on the next output/parser boundary.
-            this.lastCapture = performance.now();
-            this.lines = this.bytes = 0;
-            this.pendingCapture = false;
-            this.uploading = true;
-            this.capturedEvent = this.cursor.event;
-            this.checkpointCallback?.(JSON.stringify({
-                version: 1, attachment: this.attachment, cursor: this.cursor,
-                size: { r: this.terminal.rows, c: this.terminal.cols }, payload,
-            }));
-        }, Math.max(0, 5000 - (performance.now() - this.lastCapture)));
+        const delay = 5000 - (performance.now() - this.lastCapture);
+        if (delay <= 0) this.captureNow();
+        else this.captureTimer = setTimeout(() => this.captureNow(), delay);
+    }
+    captureNow() {
+        if (this.disposed || !this.ready || this.uploading || this.applying || !this.pendingCapture) return;
+        const payload = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
+        if (!payload) return; // Retry at the next safe output boundary.
+        this.lastCapture = performance.now();
+        this.lines = this.bytes = 0;
+        this.pendingCapture = false;
+        this.uploading = true;
+        this.capturedEvent = this.cursor.event;
+        this.checkpointCallback?.(JSON.stringify({
+            version: 1, attachment: this.attachment, cursor: this.cursor,
+            size: { r: this.terminal.rows, c: this.terminal.cols }, payload,
+        }));
     }
     async send(json) {
         this.applying = true;

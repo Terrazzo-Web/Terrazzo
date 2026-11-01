@@ -318,3 +318,20 @@ test('snapshotShrinksScrollbackWithoutTruncatingVt', async ({ page }) => {
     expect(result.sameVisible).toBe(true);
     expect(result.tooSmall).toBeNull();
 });
+
+test('continuousOutputDoesNotStarveCapture', async ({ page }) => {
+    await loadTerminalJs(page);
+    const result = await page.evaluate(async () => {
+        await fixtureTerminal.checkpointFinished(true);
+        fixtureTerminal.lastCapture = performance.now() - 5001;
+        let capturedDuringOutput = false;
+        for (let i = 1; i <= 8; i++) {
+            await fixtureTerminal.send(JSON.stringify({ Output: { cursor: { event: String(i), end: String(i * 1000) }, base64: btoa('\n'.repeat(1000)) } }));
+            if (i < 8 && captures.length > 1) capturedDuringOutput = true;
+        }
+        const result = { capturedDuringOutput, capturedEvent: captures[1]?.cursor.event };
+        fixtureTerminal.dispose();
+        return result;
+    });
+    expect(result).toEqual({ capturedDuringOutput: true, capturedEvent: '1' });
+});

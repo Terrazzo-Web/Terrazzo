@@ -40,8 +40,19 @@ pub fn ack(terminal_id: &TerminalId, token: u64, event: u64, end: u64) {
     throttling_state.applied_event = throttling_state
         .applied_event
         .max(event.min(throttling_state.sent_event));
+    if throttling_state
+        .sent
+        .saturating_sub(throttling_state.applied)
+        >= STREAMING_WINDOW_SIZE as u64
+        || throttling_state
+            .sent_event
+            .saturating_sub(throttling_state.applied_event)
+            >= 128
+    {
+        return;
+    }
     let Some(signal) = throttling_state.signal.take() else {
-        // Acks are sent at 1/2 window size, so it's possible the acks are sent before the backend is throttled.
+        // Applied acknowledgements can arrive before the backend is throttled.
         debug!("Missing signal to ack");
         return;
     };

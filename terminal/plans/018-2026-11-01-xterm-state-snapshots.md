@@ -481,6 +481,58 @@ Primary files:
 - `terminal/src/backend/throttling_stream.rs`.
 - JS dependency sources, lockfile, and generated bundle.
 
+## Implementation notes
+
+- `pty/src/replay.rs` replaces the old tail implementation.
+- `ProcessIoEntry` owns the journal and process incarnation.
+- `Journal::attach` selects Fresh or Resume state.
+- `Journal::ack` records the applied prefix.
+- `Journal::commit` accepts a checkpoint and compacts covered history.
+- Replay capacity stays at 200,000 / 1,000,000 bytes.
+- A checkpoint has the same payload cap, stored separately.
+- Eviction never pauses the PTY reader.
+
+Concrete API shapes:
+
+- `AttachRequest::resume = None` means Fresh.
+- `Some((attachment, cursor))` means Resume.
+- Requests carry protocol version 1.
+- Init carries attachment identity and checkpoint metadata.
+- Snapshot data follows in 32 KiB base64 chunks.
+- SnapshotEnd completes restoration. Ready completes replay.
+- `put_checkpoint` returns true for acceptance.
+- It returns false for an identical accepted retry.
+- Rejections use RPC status codes and named error messages.
+- `write` accepts text and binary input chunks.
+- Text stays compact. Binary mouse reports retain exact bytes.
+
+Transport details:
+
+- Credit limits both bytes and unacknowledged event count.
+- At most 128 events are sent before event credit is exhausted.
+- Adjacent output events are batched into one XTermJS write.
+- Acknowledgements follow completed browser batches.
+- Pipe registration IDs include a per-registration nonce.
+- Old browser pages cannot reuse another page's registration ID.
+
+Snapshot details:
+
+- XTermJS is pinned to 6.0.0.
+- The serializer addon is pinned to 0.14.0.
+- The adapter lives in the existing JS dependency bundle.
+- It supplements mouse encoding and other missing state.
+- Eligible captures run synchronously between applied batches.
+- This prevents timer starvation under continuous output.
+
+Test targets:
+
+- `//pty:pty-test`
+- `//terminal:terminal-snapshot-integration-test-debug`
+- `//terminal:terminal-snapshot-integration-test-release`
+- Server tests also cover generation-safe throttle cleanup.
+- The snapshot browser spec includes adapter and scheduler tests.
+- The real-PTY fixture is `//terminal/integration:mouse-tui`.
+
 ## Validation
 
 The names below are proposed tests to implement, not existing coverage.

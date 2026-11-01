@@ -222,8 +222,8 @@ impl Journal {
         if state.attachment != token {
             return Err("StaleAttachment");
         }
-        if !(state.applied_point.0 == cursor && state.applied_point.1 == end)
-            && !state.points.iter().any(|p| p.0 == cursor && p.1 == end)
+        if !(state.points.iter().any(|p| p.0 == cursor && p.1 == end)
+            || state.applied_point.0 == cursor && state.applied_point.1 == end)
         {
             return Err("InvalidCursor");
         }

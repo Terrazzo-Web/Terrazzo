@@ -95,6 +95,13 @@ remote_fn_service::streaming::declare_remote_fn!(
                 .ok_or_else(|| Status::not_found("ProcessGone"))?
                 .1
                 .clone();
+            let resume_end = request
+                .resume
+                .as_ref()
+                .map(|(_, cursor)| cursor.end.parse::<u64>())
+                .transpose()
+                .map_err(|_| Status::invalid_argument("InvalidCursor"))?
+                .unwrap_or(0);
             let resume = match request.resume {
                 Some((attachment, cursor)) => {
                     if attachment.incarnation != entry.incarnation {
@@ -154,7 +161,7 @@ remote_fn_service::streaming::declare_remote_fn!(
             });
             let initial_end = checkpoint
                 .as_ref()
-                .map_or(0, |c| c.cursor.end.parse().unwrap_or(0));
+                .map_or(resume_end, |c| c.cursor.end.parse().unwrap_or(0));
             let mut chunks = vec![];
             let checkpoint = checkpoint.map(|mut checkpoint| {
                 for chunk in checkpoint.payload.as_bytes().chunks(32 * 1024) {

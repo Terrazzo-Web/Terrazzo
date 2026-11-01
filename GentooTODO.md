@@ -17,11 +17,13 @@ You can do everything using Azure CLI, SSH, `tar`, `chroot`, and standard Linux 
 
 In Azure, create an Ubuntu 24.04 LTS VM with:
 
-- Architecture: x86-64
-- VM size: `Standard_D2s_v5` or larger
+- Architecture: ARM64 (use an ARM64 Ubuntu image)
+- VM size: `Standard_D2ps_v5` or larger
 - Security type: Standard (simplifies custom bootloaders)
 - OS disk: 30 GiB
 - Authentication: SSH public key
+
+The selected stage3 is ARM64, musl, and OpenRC. The Ubuntu builder and final Gentoo VM must both use ARM64 for this native installation workflow. On Ubuntu, `uname -m` must report `aarch64` before entering the chroot. An x86-64 builder cannot execute this stage3 directly.
 
 ### 2. Attach an empty managed disk
 
@@ -42,42 +44,43 @@ SSH into Ubuntu and inspect the disks:
 lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
 ```
 
-Assume the new disk is `/dev/sdc`. Verify this carefully; Azure may expose it as an NVMe device instead.
+The new disk is `/dev/sdb`. Verify this carefully with `lsblk` before partitioning; the commands below erase that disk.
 
 ### 3. Partition and mount it
 
 ```
-DISK=/dev/sdc
+DISK=/dev/sdb
+
+sudo apt-get update
+sudo apt-get install btrfs-progs dosfstools parted
 
 sudo parted "$DISK" --script \
   mklabel gpt \
   mkpart ESP fat32 1MiB 513MiB \
   set 1 esp on \
-  mkpart root ext4 513MiB 100%
+  mkpart root btrfs 513MiB 100%
 ```
 
-For `/dev/sdc`:
+Format the EFI partition as FAT32 and the root partition as Btrfs:
 
 ```
-sudo mkfs.vfat -F32 /dev/sdc1
-sudo mkfs.ext4 /dev/sdc2
+sudo mkfs.vfat -F32 /dev/sdb1
+sudo mkfs.btrfs -L gentoo-root /dev/sdb2
 
 sudo mkdir -p /mnt/gentoo
-sudo mount /dev/sdc2 /mnt/gentoo
+sudo mount -o compress=zstd /dev/sdb2 /mnt/gentoo
 sudo mkdir -p /mnt/gentoo/efi
-sudo mount /dev/sdc1 /mnt/gentoo/efi
+sudo mount /dev/sdb1 /mnt/gentoo/efi
 ```
 
 ### 4. Install Gentoo stage3
 
-Choose your stage3 from [Gentoo downloads](https://www.gentoo.org/downloads/?utm_source=chatgpt.com).
+Use the selected [ARM64 musl/OpenRC stage3](https://distfiles.gentoo.org/releases/arm64/autobuilds/20261025T234555Z/stage3-arm64-musl-openrc-20261025T234555Z.tar.xz). Keep the stage3’s musl/OpenRC profile.
 
-For example, select amd64, systemd, glibc.
-
-Download it to Ubuntu, then extract:
+After downloading it to Ubuntu and verifying it against Gentoo’s signed DIGESTS, extract it (skip this if already extracted):
 
 ```
-sudo tar xpf stage3-amd64-*.tar.xz \
+sudo tar xpf stage3-arm64-musl-openrc-20261025T234555Z.tar.xz \
   -C /mnt/gentoo \
   --xattrs-include='*.*' \
   --numeric-owner
@@ -111,11 +114,15 @@ Gentoo wiki
 
 Inside the chroot, follow the Gentoo Handbook to initialize Portage and install a kernel.
 
-For example:
+Use the source-built distribution kernel for this musl installation and enable initramfs generation through dracut:
 
 ```
 emerge --sync
-emerge sys-kernel/gentoo-kernel-bin
+mkdir -p /etc/portage/package.use
+echo 'sys-kernel/installkernel dracut' > /etc/portage/package.use/installkernel
+echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
+emerge sys-kernel/installkernel sys-kernel/gentoo-kernel
+emerge sys-fs/btrfs-progs
 emerge sys-boot/grub
 emerge net-misc/openssh
 emerge net-misc/dhcpcd
@@ -124,19 +131,28 @@ emerge net-misc/dhcpcd
 Configure the system:
 
 ```
-echo gentoo-azure > /etc/hostname
+echo 'hostname="gentoo-azure"' > /etc/conf.d/hostname
 
-systemctl enable sshd
-systemctl enable dhcpcd
+rc-update add sshd default
+rc-update add dhcpcd default
 ```
 
-Create your SSH user, install their public key, and configure `/etc/fstab` using filesystem UUIDs.
+Create your SSH user and install their public key.
+
+Find the filesystem UUIDs with `blkid /dev/sdb1 /dev/sdb2` and configure `/etc/fstab` using those values:
+
+```fstab
+UUID=<sdb2-filesystem-uuid> /    btrfs compress=zstd,noatime 0 0
+UUID=<sdb1-filesystem-uuid> /efi vfat  defaults              0 2
+```
+
+This uses the top level of the Btrfs filesystem as `/`, without separate subvolumes. Keep the EFI partition as FAT32 for UEFI boot.
 
 Install GRUB onto the new disk's EFI partition:
 
 ```
 grub-install \
-  --target=x86_64-efi \
+  --target=arm64-efi \
   --efi-directory=/efi \
   --bootloader-id=Gentoo \
   --removable \
@@ -145,7 +161,7 @@ grub-install \
 grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-Ensure the kernel and initramfs include the Hyper-V storage/network drivers, and configure the serial console.
+Ensure the kernel and initramfs include Btrfs support and the Hyper-V storage/network drivers, and configure the serial console. If you change the initramfs configuration, regenerate it before booting Gentoo.
 
 ### 7. Boot Gentoo
 
@@ -160,7 +176,7 @@ az vm disk detach \
   --name gentoo-disk
 ```
 
-Create a new VM:
+Create a new ARM64 VM (the Dpsv5 series uses Arm processors):
 
 ```
 az vm create \
@@ -168,7 +184,7 @@ az vm create \
   -n gentoo-vm \
   --attach-os-disk gentoo-disk \
   --os-type linux \
-  --size Standard_D2s_v5
+  --size Standard_D2ps_v5
 ```
 
 Azure supports creating VMs from existing specialized OS disks.&#x20;
@@ -179,7 +195,7 @@ Microsoft Learn
 
 
 
-Before booting, ensure the VM uses a compatible Gen2/UEFI configuration and that the disk is recognized as a Linux OS disk. If Azure rejects a disk originally created as a data disk, create an OS-disk copy with the appropriate metadata rather than changing the Gentoo filesystem.
+Before booting, ensure the VM uses a compatible Gen2/UEFI configuration and that the disk is recognized as an ARM64 Linux OS disk. If Azure rejects a disk originally created as a data disk, create an OS-disk copy with the appropriate metadata rather than changing the Gentoo filesystem.
 
 ## What about converting Ubuntu in place?
 
@@ -190,3 +206,9 @@ You could extract Gentoo into `/gentoo`, use `pivot_root` or a bootloader entry 
 The second-disk approach also makes it possible to turn the result into a reusable Azure Compute Gallery image later.
 
 One particularly useful option: You can build Gentoo on the Ubuntu VM with a larger, faster VM size, then shut it down and run Gentoo on a smaller, cheaper VM. You only pay for the additional CPU capacity while compiling.
+
+## Reference documentation
+
+- [Azure Dpsv5 ARM VM sizes](https://learn.microsoft.com/azure/virtual-machines/dpsv5-dpdsv5-series)
+- [OpenRC service and runlevel management](https://github.com/OpenRC/openrc/blob/master/user-guide.md)
+- [Gentoo GRUB EFI 64-bit platform support](https://packages.gentoo.org/useflags/grub_platforms_efi-64)

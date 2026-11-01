@@ -1,8 +1,8 @@
-# Xterm state snapshots and bounded replay
+# XTermJS state snapshots and bounded replay
 
 ## Goal
 
-- Preserve TUI state when attaching a fresh xterm.
+- Preserve TUI state when attaching a fresh XTermJS.
 - Restore mouse handling, screen contents, and supported terminal modes.
 - Store a browser-generated snapshot plus a bounded output tail.
 - Drop oldest output when the tail is full.
@@ -83,13 +83,13 @@ Naming in this plan:
 ## Current behavior
 
 - `attach.rs` creates a fresh `TerminalJsRc`.
-- `javascript.js` creates xterm with default modes.
+- `javascript.js` creates XTermJS with default modes.
 - Fresh attachment requests `RegisterTerminalMode::Create`.
 - For an existing process, the server rewinds its output lease.
 - `pty/src/tail.rs` replays only retained byte chunks.
 - Older initialization sequences may already be gone.
 - The screen can look correct while mouse reporting is disabled.
-- Transport reconnect uses `Reopen` and keeps the existing xterm.
+- Transport reconnect uses `Reopen` and keeps the existing XTermJS.
 - It currently relies on the server lease cursor.
 
 Current buffer limits:
@@ -105,7 +105,7 @@ Current buffer limits:
 ```text
 Browser                         PTY-owning server
                                 ProcessIoEntry
- xterm <--- ordered events -----+-- bounded output journal <--- PTY reader
+ XTermJS <--- ordered events -----+-- bounded output journal <--- PTY reader
    |                            |          |
    +--- snapshot upload --------+          +-- evict oldest when full
                                 |
@@ -132,7 +132,7 @@ Rules:
 ## Serializer compatibility
 
 - Add `@xterm/addon-serialize` to `terminal/assets/jsdeps/`.
-- Pin a version compatible with the repo's xterm 6.x.
+- Pin a version compatible with the repo's XTermJS 6.x.
 - Export it through `JsDeps`.
 - Include terminal modes and the alternate screen.
 - Include up to 1,000 normal-buffer scrollback rows.
@@ -145,7 +145,7 @@ The addon is not a complete internal checkpoint:
 - Current upstream restores mouse tracking but omits mouse encoding.
 - SGR mouse encoding (`?1006`) is essential for this bug.
 - Use parser hooks where possible.
-- Isolate any private xterm API behind a version-pinned adapter.
+- Isolate any private XTermJS API behind a version-pinned adapter.
 
 Round-trip fixtures must cover:
 
@@ -162,7 +162,7 @@ Round-trip fixtures must cover:
 
 Snapshot boundaries:
 
-- Capture only after xterm finishes applying an output event.
+- Capture only after XTermJS finishes applying an output event.
 - Require a safe parser and UTF-8 boundary too.
 - A completed write callback alone is insufficient.
 - Defer capture while a sequence is incomplete.
@@ -388,7 +388,7 @@ Authorization and compatibility:
 - Record each successful resize before the next output append.
 - Use that order as the browser's authoritative event order.
 - Do not infer causal timing for bytes already buffered by the OS.
-- Measure desired browser dimensions without immediately resizing xterm.
+- Measure desired browser dimensions without immediately resizing XTermJS.
 - Submit a resize request.
 - Apply the resulting Resize event in the output queue.
 - Serialize concurrent resize requests.
@@ -402,7 +402,7 @@ Application queue:
 
 - Use one queue per attachment.
 - Order output, resize, restore, and snapshot capture together.
-- Advance the applied cursor after xterm's write callback.
+- Advance the applied cursor after XTermJS's write callback.
 - Capture snapshot, cursor, and dimensions in one synchronous step.
 - Require a safe parser boundary.
 - Upload asynchronously while output continues.
@@ -425,7 +425,7 @@ Triggers:
 
 Restore:
 
-- Create or reset xterm for Fresh attachment.
+- Create or reset XTermJS for Fresh attachment.
 - Set the snapshot's original dimensions.
 - Restore VT output and supplemental state in the tested order.
 - Replay retained events and process any Gap.
@@ -437,7 +437,7 @@ Restore:
 ## Reconnect flows
 
 ```text
-Fresh xterm / page reload        Existing xterm / transport reconnect
+Fresh XTermJS / page reload        Existing XTermJS / transport reconnect
 -------------------------       -----------------------------------
 Fresh attach                    Resume(last applied cursor)
   -> Init + optional snapshot     -> new attachment token
@@ -450,7 +450,7 @@ Fresh attach                    Resume(last applied cursor)
 
 - Without a snapshot, replay from process start if retained.
 - Otherwise emit Gap and replay the available tail.
-- Resume keeps the existing xterm state.
+- Resume keeps the existing XTermJS state.
 - Never replay a snapshot onto an already populated Resume terminal.
 - If Resume history was evicted, emit Gap and continue best effort.
 - If the incarnation changed, return `FreshRestoreRequired`.
@@ -590,7 +590,7 @@ Locations: `terminal/src/processes/stream/tests.rs`, service tests, and throttle
 ### Serializer and scheduler tests
 
 Location: focused JS tests beside the new snapshot adapter.
-Use real pinned xterm for round trips. Use a fake clock for scheduling.
+Use real pinned XTermJS for round trips. Use a fake clock for scheduling.
 
 - `roundTripPreservesMouseReports`
   - Table-test supported tracking protocols and encodings.
@@ -681,10 +681,10 @@ Independent observation and control:
 
 Browser interaction:
 
-- Use Playwright's real wheel input over the xterm canvas.
+- Use Playwright's real wheel input over the XTermJS canvas.
 - Derive panel coordinates from terminal geometry and fixture cell boundaries.
 - Move the pointer inside a panel, then call `page.mouse.wheel(...)`.
-- Do not inject encoded reports directly into stdin or call xterm input APIs.
+- Do not inject encoded reports directly into stdin or call XTermJS input APIs.
 - Wait for a matching `mouse_report` on the independent channel.
 - Assert direction and panel. Do not require one report per wheel gesture.
 - Also check that the visible panel counter advances.
@@ -696,7 +696,7 @@ Snapshot regression sequence:
 3. Disconnect the browser output stream.
 4. Command the fixture to emit more bytes than the current replay capacity.
 5. Wait for `output_complete` and confirm initialization bytes were evicted.
-6. Attach a fresh xterm and wait for Ready.
+6. Attach a fresh XTermJS and wait for Ready.
 7. Send wheel input over the same panel.
 8. Assert a new report arrives and the panel counter changes.
 
@@ -721,7 +721,7 @@ Avoid relying on an installed interactive application.
   - Disable mouse reporting and exit the alternate screen afterward.
   - Verify subsequent behavior matches those changes.
 - `warm_resume_preserves_applied_state`
-  - Interrupt the output pipe while keeping xterm alive.
+  - Interrupt the output pipe while keeping XTermJS alive.
   - Reconnect using the applied cursor.
   - Assert no duplicate text, reset, or lost mouse handling.
 - `overflow_reports_gap_and_keeps_process_running`

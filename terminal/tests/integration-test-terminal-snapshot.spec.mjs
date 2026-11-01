@@ -48,6 +48,14 @@ async function wheel(page) {
     ]);
 }
 
+async function wakeTerminal(page) {
+    await active(page).evaluate(element => {
+        for (let node = element; node; node = node.parentElement) {
+            node.dispatchEvent(new MouseEvent('mouseenter'));
+        }
+    });
+}
+
 test('fresh_attachment_preserves_tui_wheel_input', async ({ page, context }) => {
     test.setTimeout(90000);
     const socketPath = `/tmp/trz-mouse-${process.pid}-${Date.now()}.sock`;
@@ -75,7 +83,7 @@ test('fresh_attachment_preserves_tui_wheel_input', async ({ page, context }) => 
             // Activity also exercises Resume if the browser interrupted its stream.
             const box = await active(page).boundingBox();
             if (box) { await page.mouse.move(0, 0); await page.mouse.move(box.x + 10 + (++moves % 2), box.y + 10); }
-            if (await active(page).getAttribute('data-ready') === 'false') await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
+            if (await active(page).getAttribute('data-ready') === 'false') await wakeTerminal(page);
             return active(page).getAttribute('data-checkpoint-event');
         }, { timeout: 30000 }).not.toBe(checkpoint);
         await page.close();
@@ -403,9 +411,7 @@ test('captureByteThresholdFitsReplayCapacity', async ({ page }) => {
 test('warm_transport_resume_preserves_tui_wheel_input', async ({ page, context }) => {
     test.setTimeout(90000);
     const socketPath = `/tmp/trz-resume-${process.pid}-${Date.now()}.sock`;
-    const cdp = await context.newCDPSession(page);
     let control;
-    const conditions = offline => ({ offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     try {
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await page.locator('div.add-tab-icon img[src$="/icons/plus-square.svg"]').click();
@@ -420,24 +426,21 @@ test('warm_transport_resume_preserves_tui_wheel_input', async ({ page, context }
         const before = control.events.filter(e => e.event === 'mouse_report').length;
         const failures = [];
         page.on('requestfailed', request => failures.push(request.url()));
-        await cdp.send('Network.enable');
-        await cdp.send('Network.emulateNetworkConditions', conditions(true));
+        await context.setOffline(true);
         control.socket.write('{"command":"emit_output"}\n');
         await expect(active(page)).toHaveAttribute('data-ready', 'false', { timeout: 15000 });
         const failedBeforeRetry = failures.length;
         const box = await active(page).boundingBox();
         if (!box) throw new Error('Missing terminal during reconnect');
-        await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
+        await wakeTerminal(page);
         await expect.poll(() => failures.length).toBeGreaterThan(failedBeforeRetry);
-        await cdp.send('Network.emulateNetworkConditions', conditions(false));
-        await expect.poll(async () => {
-            await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
-            return active(page).getAttribute('data-ready');
-        }, { timeout: 15000 }).toBe('true');
+        await context.setOffline(false);
+        await page.bringToFront();
+        await expect(active(page)).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
         await wheel(page);
         await expect.poll(() => control.events.filter(e => e.event === 'mouse_report').length).toBeGreaterThan(before);
     } finally {
-        await cdp.send('Network.emulateNetworkConditions', conditions(false)).catch(() => {});
+        await context.setOffline(false).catch(() => {});
         control?.socket.destroy();
         await page.locator('div.terminals div.titles li.title img.close-icon').last().click({ force: true, timeout: 5000 }).catch(() => {});
         await fs.rm(socketPath, { force: true });

@@ -46,6 +46,7 @@ pub struct ProcessOutput {
     pub journal: Journal,
     pub worker: Arc<Worker>,
     pub stopped: Arc<std::sync::atomic::AtomicBool>,
+    pub stop_waker: Arc<futures::task::AtomicWaker>,
 }
 
 #[nameth]
@@ -100,6 +101,7 @@ impl ProcessIO {
             journal,
             worker,
             stopped: Arc::default(),
+            stop_waker: Arc::default(),
         };
         Self {
             input,

@@ -127,6 +127,11 @@ impl Stream for ThrottleProcessOutput {
         let this = self.project();
         let mut state = this.state.lock().expect("throttling state");
 
+        // A throttled stream waits on credit, so revocation needs its own waker.
+        this.stream
+            .as_ref()
+            .get_ref()
+            .register_stop_waker(cx.waker());
         // Lease revocation must be polled even while output credit is exhausted.
         if this.stream.as_ref().get_ref().stop_requested() {
             return this.stream.poll_next(cx);

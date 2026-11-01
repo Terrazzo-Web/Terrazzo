@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "bazel"), allow(unused_crate_dependencies))]
+
 //! Deterministic mouse-aware TUI for browser regressions. Not a production binary.
 use std::io::BufRead;
 use std::io::BufReader;

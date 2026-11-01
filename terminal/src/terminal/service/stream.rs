@@ -12,7 +12,7 @@ use tonic::Status;
 use crate::api::shared::terminal_schema::AppliedCursor;
 use crate::api::shared::terminal_schema::AttachRequest;
 use crate::api::shared::terminal_schema::Attachment;
-use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
+use crate::api::shared::terminal_schema::REPLAY_CAPACITY;
 use crate::api::shared::terminal_schema::Size;
 use crate::api::shared::terminal_schema::TerminalCheckpoint;
 use crate::api::shared::terminal_schema::TerminalDef;
@@ -95,7 +95,7 @@ remote_fn_service::streaming::declare_remote_fn!(
                         .config()
                         .server
                         .with(|config| config.terminal_shell.clone());
-                    ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
+                    ProcessIO::open(None::<String>, REPLAY_CAPACITY, shell).await
                 })
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
@@ -189,7 +189,7 @@ remote_fn_service::streaming::declare_remote_fn!(
                 fresh: resume.is_none(),
                 attachment,
                 checkpoint,
-                capacity: STREAMING_WINDOW_SIZE,
+                capacity: REPLAY_CAPACITY,
             };
             let mut ready = cursor >= high_water;
             let mut initial = vec![init];

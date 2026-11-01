@@ -13,6 +13,13 @@ pub const STREAMING_WINDOW_SIZE: usize = 200 * 1000;
 #[cfg(all(feature = "server", not(feature = "debug")))]
 pub const STREAMING_WINDOW_SIZE: usize = 1000 * 1000;
 
+// Retention and transport credit can be tuned independently.
+#[cfg(all(feature = "server", feature = "debug"))]
+pub const REPLAY_CAPACITY: usize = 200 * 1000;
+
+#[cfg(all(feature = "server", not(feature = "debug")))]
+pub const REPLAY_CAPACITY: usize = 1000 * 1000;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Size {
     #[serde(rename = "r", alias = "rows")]

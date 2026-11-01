@@ -669,11 +669,15 @@ mod tests {
         assert_eq!(journal.high_water(), 0);
     }
 
-    #[test]
-    fn replay_storage_stays_bounded_across_many_terminals() {
+    #[tokio::test]
+    async fn replay_storage_stays_bounded_across_many_terminals() {
         trz_gateway_common::tracing::test_utils::enable_tracing_for_tests();
-        let journals: Vec<_> = (0..32).map(|_| Journal::new(200_000)).collect();
-        for journal in &journals {
+        fn maxrss() -> libc::c_long {
+            let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+            assert_eq!(unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) }, 0);
+            usage.ru_maxrss
+        }
+        fn flood(journal: &Journal) {
             for _ in 0..200 {
                 journal.output(Bytes::from(vec![b'x'; 8192]));
             }
@@ -681,11 +685,49 @@ mod tests {
             assert!(state.bytes <= 200_000);
             assert!(state.records.len() <= 4096);
         }
-        let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
-        assert_eq!(unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) }, 0);
+        async fn snapshot(journal: &Journal) {
+            let (token, _, cursor) = journal.attach(None).unwrap();
+            let through = journal.high_water();
+            let mut reader = journal.reader(cursor);
+            loop {
+                let record = reader.next().await.unwrap().unwrap();
+                assert!(journal.mark_sent(token, &record));
+                journal.ack(token, record.id).unwrap();
+                if record.id == through {
+                    let mut snapshot = checkpoint(&record);
+                    snapshot.payload = Bytes::from(vec![b's'; 200_000]);
+                    assert!(journal.commit(token, snapshot).unwrap());
+                    break;
+                }
+            }
+        }
+        let baseline = maxrss();
+        let journals: Vec<_> = (0..32).map(|_| Journal::new(200_000)).collect();
+        for journal in &journals {
+            flood(journal);
+            snapshot(journal).await;
+            flood(journal);
+        }
+        let steady = maxrss();
+        // Slow restores retain only shared snapshot payloads and one transfer chunk.
+        let transfers: Vec<_> = journals
+            .iter()
+            .map(|journal| {
+                let snapshot = journal.0.lock().unwrap().checkpoint.clone().unwrap();
+                let chunk = Bytes::copy_from_slice(&snapshot.payload[..32 * 1024]);
+                (snapshot, chunk)
+            })
+            .collect();
+        for journal in &journals {
+            snapshot(journal).await;
+            flood(journal);
+            let state = journal.0.lock().unwrap();
+            assert!(state.bytes + state.checkpoint.as_ref().unwrap().payload.len() <= 400_000);
+        }
+        let replacement = maxrss();
+        assert_eq!(transfers.len(), 32);
         eprintln!(
-            "32 flooded terminal journals; getrusage maxrss={}",
-            usage.ru_maxrss
+            "32 flooded terminals; maxrss baseline={baseline}, steady={steady}, replacement_with_slow_restores={replacement}"
         );
     }
     #[tokio::test]

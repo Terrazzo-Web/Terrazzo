@@ -1,5 +1,4 @@
 use futures::StreamExt as _;
-use futures::channel::oneshot;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use server_fn::ServerFnError;
@@ -91,6 +90,7 @@ where
     let mut allow_create = true;
     let mut restoring = false;
     let mut request_id = new_request_id();
+    let mut retry_delay = 1000u64;
     'connect: loop {
         let request = AttachRequest {
             request_id: request_id.clone(),
@@ -119,9 +119,8 @@ where
                 }
                 warn!("Terminal reconnect failed: {error}");
                 on_data("\"Disconnected\"".into()).await;
-                if notify_mouse.notified().await.is_err() {
-                    return Err(StreamError::UxClosed);
-                }
+                wait_reconnect(&notify_mouse, retry_delay).await?;
+                retry_delay = (retry_delay * 2).min(10000);
                 continue;
             }
         };
@@ -174,6 +173,7 @@ where
                             };
                         }
                         request_id = new_request_id();
+                        retry_delay = 1000;
                         allow_create = false;
                         restoring = checkpoint.is_some();
                         attachment = Some(next);
@@ -204,33 +204,32 @@ where
                 }
                 acknowledge = true;
             }
-            if acknowledge && let Some(attachment) = &attachment {
-                if let Err(error) = super::api::ack(
+            if acknowledge
+                && let Some(attachment) = &attachment
+                && let Err(error) = super::api::ack(
                     terminal_def.address.clone(),
                     attachment.clone(),
                     cursor.clone(),
                 )
                 .await
-                {
-                    let text = error.to_string();
-                    if text.contains("StaleAttachment") {
-                        on_data("\"Revoked\"".into()).await;
-                        return Ok(());
-                    }
-                    if text.contains("ProcessGone") || text.contains("InvalidCursor") {
-                        return Err(error.into());
-                    }
-                    warn!("Terminal acknowledgement interrupted: {error}");
-                    break 'read;
+            {
+                let text = error.to_string();
+                if text.contains("StaleAttachment") {
+                    on_data("\"Revoked\"".into()).await;
+                    return Ok(());
                 }
+                if text.contains("ProcessGone") || text.contains("InvalidCursor") {
+                    return Err(error.into());
+                }
+                warn!("Terminal acknowledgement interrupted: {error}");
+                break 'read;
             }
         }
         on_data("\"Disconnected\"".into()).await;
         debug!("Terminal stream disconnected");
-        match notify_mouse.notified().await {
-            Ok(()) => info!("Terminal stream reopening"),
-            Err(oneshot::Canceled) => return Err(StreamError::UxClosed),
-        }
+        wait_reconnect(&notify_mouse, retry_delay).await?;
+        retry_delay = (retry_delay * 2).min(10000);
+        info!("Terminal stream reopening");
         if restoring {
             resume = None;
             continue;
@@ -238,6 +237,17 @@ where
         resume = attachment
             .clone()
             .map(|attachment| (attachment, cursor.clone()));
+    }
+}
+
+async fn wait_reconnect(notify: &watch::WatchRx, delay_ms: u64) -> Result<(), StreamError> {
+    let activity = notify.notified();
+    let timeout = terrazzo::widgets::sleep::sleep(std::time::Duration::from_millis(delay_ms));
+    futures::pin_mut!(activity, timeout);
+    let result = futures::future::select(activity, timeout).await;
+    match result {
+        futures::future::Either::Left((Err(_), _)) => Err(StreamError::UxClosed),
+        _ => Ok(()),
     }
 }
 

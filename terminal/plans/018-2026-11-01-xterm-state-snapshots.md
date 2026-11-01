@@ -553,7 +553,7 @@ Use the concrete targets above to run the implemented tests.
 
 ### PTY journal tests
 
-Location: a new `pty/src/replay/tests.rs`, or `tail.rs` tests if extended in place.
+Location: `pty/src/replay.rs` tests.
 Use synthetic output and tiny capacities. Avoid timing-dependent sleeps.
 
 - `fresh_attach_replays_checkpoint_and_exact_suffix`
@@ -598,6 +598,10 @@ Use synthetic output and tiny capacities. Avoid timing-dependent sleeps.
 
 Location: `pty/src/lease.rs` tests.
 
+- Add `handoff_wakes_consumer_without_output_credit`.
+  - Exhaust transport credit, then request a new lease.
+  - Wake the old consumer independently of output acknowledgements.
+  - Complete the handoff without more PTY output.
 - Keep `canceled_handoff_can_be_resumed`.
 - Keep `canceled_handoff_preserves_output_returned_by_drop`.
 - Keep `concurrent_handoffs_are_serialized`.
@@ -866,3 +870,51 @@ Acceptance:
 - Detached writers continue at the existing history capacity.
 - Measured memory includes snapshots and transfer overhead.
 - Serializer limitations are documented before default rollout.
+
+### Offline transport recovery
+
+- Retry failed connections after 1 second.
+- Double the delay up to 10 seconds.
+- Mouse activity can trigger an earlier retry.
+- Reset the delay after Init.
+- Keep uncertain input delivery out of replay.
+- `warm_transport_resume_preserves_tui_wheel_input` uses a real TUI.
+  - Take the browser context offline.
+  - Produce output until an acknowledgement fails.
+  - Fail a reconnect while offline.
+  - Restore the network and wait for automatic recovery.
+  - Verify wheel reports reach the same TUI process.
+
+### Validation results (2026-11-01)
+
+- Full Bazel build: 572 targets passed.
+- Full Bazel test suite: 288 targets passed.
+- Optimized Bazel suite: 15 targets passed.
+- Buildifier check passed.
+- Snapshot browser suite: 15 scenarios passed in debug and release.
+- Five-second capture throttle: 100/100 repetitions passed in each mode.
+  - Round timer delays upward.
+  - Recheck elapsed time before capture.
+  - Include synchronous upload callback time in the cooldown.
+- Real TUI stress: 100 runs in each build mode.
+  - Release: 100/100 passed.
+  - Debug: 99/100 passed.
+  - One debug run failed before terminal creation.
+  - No snapshot or offline recovery failures occurred.
+- Memory measurement: 32 terminals, 200,000-byte journal capacity each.
+  - Flood each journal beyond capacity.
+  - Store a maximum-size snapshot per terminal.
+  - Retain old snapshots during replacement to simulate slow restores.
+  - Allocate one 32 KiB transfer chunk per restore.
+  - Assert journal payload plus current snapshot stays at or below 400,000 bytes each.
+  - macOS process peak RSS: 8.3 MiB baseline, 21.3 MiB steady state.
+  - Replacement with slow restores peaked at 28.8 MiB.
+  - RSS includes allocator overhead and test infrastructure.
+
+- Cargo merge-validation checks passed after Bazel:
+  - Debug and release binary builds.
+  - Workspace tests with all features.
+  - Debug demo integration: 9/9 browser checks.
+  - Release demo integration: 9/9 browser checks.
+- Cargo fixture builds use the existing harness lint convention.
+- Changes remain uncommitted on `xtermjssnapshots`.

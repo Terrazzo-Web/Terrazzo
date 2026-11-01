@@ -97,10 +97,11 @@ class TerminalJs {
         clearTimeout(this.captureTimer);
         const delay = 5000 - (performance.now() - this.lastCapture);
         if (delay <= 0) this.captureNow();
-        else this.captureTimer = setTimeout(() => this.captureNow(), delay);
+        else this.captureTimer = setTimeout(() => this.captureNow(), Math.ceil(delay));
     }
     captureNow() {
         if (this.disposed || !this.ready || this.uploading || this.applying || !this.pendingCapture) return;
+        if (performance.now() - this.lastCapture < 5000) { this.scheduleCapture(); return; }
         const payload = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
         if (!payload) return; // Retry at the next safe output boundary.
         this.lastCapture = performance.now();
@@ -112,6 +113,8 @@ class TerminalJs {
             version: 1, attachment: this.attachment, cursor: this.cursor,
             size: { r: this.terminal.rows, c: this.terminal.cols }, payload,
         }));
+        // Include synchronous serialization and callback time in the minimum interval.
+        this.lastCapture = performance.now();
     }
     async send(json) {
         this.applying = true;

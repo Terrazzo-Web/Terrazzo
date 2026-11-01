@@ -95,6 +95,7 @@ pub enum LeaseProcessOutputError {
 struct ProcessOutputExchange {
     signal_tx: Option<oneshot::Sender<()>>,
     stopped: Arc<std::sync::atomic::AtomicBool>,
+    stop_waker: Arc<futures::task::AtomicWaker>,
     process_output_rx: oneshot::Receiver<ProcessOutput>,
 }
 
@@ -103,16 +104,19 @@ impl Drop for ProcessOutputExchange {
         // Closing a process must wake a lease even when transport credit is exhausted.
         self.stopped
             .store(true, std::sync::atomic::Ordering::Release);
+        self.stop_waker.wake();
     }
 }
 
 impl ProcessOutputExchange {
     fn new(process_output: ProcessOutput) -> Self {
         let stopped = process_output.stopped.clone();
+        let stop_waker = process_output.stop_waker.clone();
         let (_lease, signal_tx, process_output_rx) = ProcessOutputLease::new(process_output);
         Self {
             signal_tx: Some(signal_tx),
             stopped,
+            stop_waker,
             process_output_rx,
         }
     }
@@ -120,6 +124,7 @@ impl ProcessOutputExchange {
     async fn lease(&mut self, rewind: bool) -> Result<ProcessOutputLease, LeaseError> {
         self.stopped
             .store(true, std::sync::atomic::Ordering::Release);
+        self.stop_waker.wake();
         if let Some(signal_tx) = self.signal_tx.take() {
             match signal_tx.send(()) {
                 Ok(()) => debug!("Current lease was stopped"),
@@ -134,11 +139,14 @@ impl ProcessOutputExchange {
         }
         debug!("Getting new lease: Done");
         process_output.stopped = Arc::default();
+        process_output.stop_waker = Arc::default();
         let stopped = process_output.stopped.clone();
+        let stop_waker = process_output.stop_waker.clone();
         let (lease, signal_tx, process_output_rx) = ProcessOutputLease::new(process_output);
         *self = Self {
             signal_tx: Some(signal_tx),
             stopped,
+            stop_waker,
             process_output_rx,
         };
         Ok(lease)
@@ -173,6 +181,12 @@ impl ProcessOutputLease {
         let process_output = process_output.take_until(signal_rx);
         let lease = Self::Leased(process_output);
         (lease, signal_tx, process_output_rx)
+    }
+
+    pub fn register_stop_waker(&self, waker: &std::task::Waker) {
+        if let Self::Leased(stream) = self {
+            stream.get_ref().as_ref().stop_waker.register(waker);
+        }
     }
 
     pub fn stop_requested(&self) -> bool {
@@ -293,6 +307,7 @@ mod tests {
             journal: journal.clone(),
             worker,
             stopped: Arc::default(),
+            stop_waker: Arc::default(),
         };
         Arc::new(ProcessIoEntry {
             input: Mutex::new(ProcessInput(input)),
@@ -300,6 +315,28 @@ mod tests {
             incarnation: "test".into(),
             output: Mutex::new(Some(ProcessOutputExchange::new(output))),
         })
+    }
+
+    #[tokio::test]
+    async fn handoff_wakes_consumer_without_output_credit() {
+        struct Wake(std::sync::atomic::AtomicBool);
+        impl futures::task::ArcWake for Wake {
+            fn wake_by_ref(this: &Arc<Self>) {
+                this.0.store(true, std::sync::atomic::Ordering::Release);
+            }
+        }
+        let entry = entry();
+        let mut original = entry.lease_output(false).await.unwrap();
+        assert!(matches!(original.next().await, Some(LeaseItem::Data(_))));
+        let wake = Arc::new(Wake(std::sync::atomic::AtomicBool::new(false)));
+        original.register_stop_waker(&futures::task::waker(wake.clone()));
+        // A throttled consumer cannot poll the output receiver for more data.
+        let mut handoff = Box::pin(entry.lease_output(false));
+        assert!(futures::poll!(&mut handoff).is_pending());
+        assert!(wake.0.load(std::sync::atomic::Ordering::Acquire));
+        assert!(original.next().await.is_none());
+        drop(original);
+        assert!(handoff.await.is_ok());
     }
 
     #[tokio::test]

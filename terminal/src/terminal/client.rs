@@ -90,15 +90,42 @@ where
     };
     let mut allow_create = true;
     let mut restoring = false;
+    let mut request_id = new_request_id();
     'connect: loop {
         let request = AttachRequest {
+            request_id: request_id.clone(),
             version: 1,
             create_if_missing: allow_create,
             resume: resume.clone(),
         };
-        let mut stream = super::api::stream(request, terminal_def.clone())
-            .await?
-            .ready_chunks(64);
+        let stream = match super::api::stream(request, terminal_def.clone()).await {
+            Ok(stream) => stream,
+            Err(error) => {
+                let text = error.to_string();
+                if text.contains("FreshRestoreRequired") {
+                    request_id = new_request_id();
+                    resume = None;
+                    continue;
+                }
+                if text.contains("ProcessGone")
+                    || text.contains("UnsupportedProtocol")
+                    || text.contains("InvalidCursor")
+                {
+                    return Err(error.into());
+                }
+                if text.contains("StaleAttachment") {
+                    on_data("\"Revoked\"".into()).await;
+                    return Ok(());
+                }
+                warn!("Terminal reconnect failed: {error}");
+                on_data("\"Disconnected\"".into()).await;
+                if notify_mouse.notified().await.is_err() {
+                    return Err(StreamError::UxClosed);
+                }
+                continue;
+            }
+        };
+        let mut stream = stream.ready_chunks(64);
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         'read: while let Some(chunks) = stream.next().await {
             let mut messages = vec![];
@@ -106,6 +133,7 @@ where
                 let chunk = match chunk {
                     Ok(chunk) => chunk,
                     Err(error) if error.to_string().contains("FreshRestoreRequired") => {
+                        request_id = new_request_id();
                         resume = None;
                         continue 'connect;
                     }
@@ -145,6 +173,7 @@ where
                                 end: "0".into(),
                             };
                         }
+                        request_id = new_request_id();
                         allow_create = false;
                         restoring = checkpoint.is_some();
                         attachment = Some(next);
@@ -176,12 +205,24 @@ where
                 acknowledge = true;
             }
             if acknowledge && let Some(attachment) = &attachment {
-                super::api::ack(
+                if let Err(error) = super::api::ack(
                     terminal_def.address.clone(),
                     attachment.clone(),
                     cursor.clone(),
                 )
-                .await?;
+                .await
+                {
+                    let text = error.to_string();
+                    if text.contains("StaleAttachment") {
+                        on_data("\"Revoked\"".into()).await;
+                        return Ok(());
+                    }
+                    if text.contains("ProcessGone") || text.contains("InvalidCursor") {
+                        return Err(error.into());
+                    }
+                    warn!("Terminal acknowledgement interrupted: {error}");
+                    break 'read;
+                }
             }
         }
         on_data("\"Disconnected\"".into()).await;
@@ -198,6 +239,15 @@ where
             .clone()
             .map(|attachment| (attachment, cursor.clone()));
     }
+}
+
+fn new_request_id() -> String {
+    format!(
+        "{}-{}-{}",
+        web_sys::js_sys::Date::now(),
+        web_sys::js_sys::Math::random(),
+        web_sys::js_sys::Math::random()
+    )
 }
 
 pub async fn close(terminal: &TerminalAddress, _correlation_id: Option<String>) {

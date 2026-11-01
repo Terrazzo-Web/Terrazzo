@@ -325,6 +325,7 @@ playwright_matrix_test(
 playwright_matrix_test(
     extra_data = [
         "//terminal/integration:mouse-tui",
+        "assets/jsdeps/dist/jsdeps.js",
         "src/terminal/snapshot.js",
         "src/terminal/javascript.js",
     ],

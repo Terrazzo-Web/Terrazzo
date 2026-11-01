@@ -52,6 +52,8 @@ pub struct State {
     pub applied: u64,
     points: VecDeque<(u64, u64, (u16, u16))>,
     applied_point: (u64, u64, (u16, u16)),
+    request: Option<String>,
+    request_resume: Option<u64>,
 }
 
 #[derive(Clone)]
@@ -79,6 +81,8 @@ impl Journal {
             applied: 0,
             points: VecDeque::new(),
             applied_point: (0, 0, (24, 80)),
+            request: None,
+            request_resume: None,
         })))
     }
 
@@ -151,6 +155,27 @@ impl Journal {
         &self,
         resume: Option<u64>,
     ) -> Result<(u64, Option<Checkpoint>, u64), &'static str> {
+        self.attach_inner(None, resume)
+    }
+
+    pub fn retry_token(&self, request: &str) -> Option<u64> {
+        let state = self.0.lock().unwrap();
+        (state.request.as_deref() == Some(request)).then_some(state.attachment)
+    }
+
+    pub fn attach_request(
+        &self,
+        request: &str,
+        resume: Option<u64>,
+    ) -> Result<(u64, Option<Checkpoint>, u64), &'static str> {
+        self.attach_inner(Some(request), resume)
+    }
+
+    fn attach_inner(
+        &self,
+        request: Option<&str>,
+        resume: Option<u64>,
+    ) -> Result<(u64, Option<Checkpoint>, u64), &'static str> {
         let mut state = self.0.lock().unwrap();
         if resume.is_some_and(|cursor| cursor >= state.next) {
             return Err("InvalidCursor");
@@ -174,7 +199,15 @@ impl Journal {
                 .as_ref()
                 .map_or((0, 0, (24, 80)), |c| (c.event, c.end, (c.rows, c.cols)))
         };
-        state.attachment += 1;
+        let retry = request.is_some() && state.request.as_deref() == request;
+        if retry && state.request_resume != resume {
+            return Err("InvalidCursor");
+        }
+        if !retry {
+            state.attachment += 1;
+        }
+        state.request = request.map(str::to_owned);
+        state.request_resume = resume;
         state.points.clear();
         state.points.push_back(point);
         state.applied_point = point;
@@ -769,5 +802,21 @@ mod tests {
         }
         journal.validate_end(token, 0, 0).unwrap();
         assert!(journal.attach(Some(0)).is_ok());
+    }
+    #[test]
+    fn attach_retry_recovers_token_after_lost_init() {
+        let journal = Journal::new(64);
+        let (old, _, _) = journal.attach_request("first", None).unwrap();
+        let (next, _, _) = journal.attach_request("reconnect", Some(0)).unwrap();
+        assert_ne!(old, next);
+        assert_eq!(journal.retry_token("reconnect"), Some(next));
+        assert_eq!(
+            journal.attach_request("reconnect", Some(0)).unwrap().0,
+            next
+        );
+        let (other, _, _) = journal.attach_request("other-browser", None).unwrap();
+        assert_ne!(other, next);
+        assert_eq!(journal.retry_token("reconnect"), None);
+        assert_eq!(journal.validate(next), Err("StaleAttachment"));
     }
 }

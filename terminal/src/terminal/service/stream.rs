@@ -46,17 +46,26 @@ remote_fn_service::streaming::declare_remote_fn!(
             if request.version != 1 {
                 return Err(Status::failed_precondition("UnsupportedProtocol"));
             }
+            if request.request_id.is_empty() || request.request_id.len() > 200 {
+                return Err(Status::invalid_argument("InvalidRequestId"));
+            }
             let id = terminal_def.address.id.clone();
             let create = request.create_if_missing;
             if !create && !crate::processes::get_processes().contains_key(&id) {
                 return Err(Status::not_found("ProcessGone"));
             }
             if let Some((attachment, cursor)) = &request.resume {
-                let entry = super::checkpoint::entry(&terminal_def.address, attachment)?;
+                let mut effective = attachment.clone();
+                if let Some(entry) = crate::processes::get_processes().get(&id)
+                    && let Some(token) = entry.1.journal.retry_token(&request.request_id)
+                {
+                    effective.token = token.to_string();
+                }
+                let entry = super::checkpoint::entry(&terminal_def.address, &effective)?;
                 entry
                     .journal
                     .validate_end(
-                        attachment
+                        effective
                             .token
                             .parse()
                             .map_err(|_| Status::invalid_argument("InvalidToken"))?,
@@ -107,9 +116,11 @@ remote_fn_service::streaming::declare_remote_fn!(
                     if attachment.incarnation != entry.incarnation {
                         return Err(Status::failed_precondition("FreshRestoreRequired"));
                     }
-                    let token = attachment
-                        .token
-                        .parse()
+                    let token = entry
+                        .journal
+                        .retry_token(&request.request_id)
+                        .map(Ok)
+                        .unwrap_or_else(|| attachment.token.parse())
                         .map_err(|_| Status::invalid_argument("InvalidToken"))?;
                     entry
                         .journal
@@ -137,7 +148,7 @@ remote_fn_service::streaming::declare_remote_fn!(
             let input_guard = entry.input().await;
             let (token, checkpoint, cursor) = entry
                 .journal
-                .attach(resume)
+                .attach_request(&request.request_id, resume)
                 .map_err(Status::invalid_argument)?;
             drop(input_guard);
             lease.seek(cursor);

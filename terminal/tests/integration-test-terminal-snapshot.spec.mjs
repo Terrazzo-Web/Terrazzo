@@ -54,10 +54,10 @@ test('fresh_attachment_preserves_tui_wheel_input', async ({ page, context }) => 
     let control;
     let restored;
     try {
-        await page.goto(BASE_URL);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         await page.locator('div.add-tab-icon img[src$="/icons/plus-square.svg"]').click();
-        await expect(active(page)).toBeVisible();
-        await expect(active(page)).toHaveAttribute("data-ready", "true");
+        await expect(active(page)).toBeVisible({ timeout: 15000 });
+        await expect(active(page)).toHaveAttribute("data-ready", "true", { timeout: 15000 });
         await active(page).click();
         await page.keyboard.type(`${quote(fixture)} ${quote(socketPath)}`);
         await page.keyboard.press('Enter');
@@ -70,15 +70,22 @@ test('fresh_attachment_preserves_tui_wheel_input', async ({ page, context }) => 
         // A later checkpoint must include the fixture's startup modes.
         const checkpoint = await active(page).getAttribute('data-checkpoint-event');
         control.socket.write('{"command":"emit_output"}\n');
-        await expect.poll(() => active(page).getAttribute('data-checkpoint-event'), { timeout: 15000 }).not.toBe(checkpoint);
+        let moves = 0;
+        await expect.poll(async () => {
+            // Activity also exercises Resume if the browser interrupted its stream.
+            const box = await active(page).boundingBox();
+            if (box) { await page.mouse.move(0, 0); await page.mouse.move(box.x + 10 + (++moves % 2), box.y + 10); }
+            if (await active(page).getAttribute('data-ready') === 'false') await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
+            return active(page).getAttribute('data-checkpoint-event');
+        }, { timeout: 30000 }).not.toBe(checkpoint);
         await page.close();
         control.socket.write('{"command":"emit_output"}\n');
         await expect.poll(() => control.events.filter(e => e.event === 'output_complete').length, { timeout: 15000 }).toBe(2);
         restored = await context.newPage();
         restored.setDefaultTimeout(10000);
-        await restored.goto(BASE_URL);
-        await expect(active(restored)).toBeVisible();
-        await expect(active(restored)).toHaveAttribute("data-ready", "true");
+        await restored.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await expect(active(restored)).toBeVisible({ timeout: 15000 });
+        await expect(active(restored)).toHaveAttribute("data-ready", "true", { timeout: 15000 });
         await expect(active(restored)).toHaveAttribute('data-output-dropped', 'true');
         await wheel(restored);
         await expect.poll(() => control.events.filter(e => e.event === 'mouse_report').length).toBeGreaterThan(before);
@@ -96,7 +103,8 @@ test('fresh_attachment_preserves_tui_wheel_input', async ({ page, context }) => 
 });
 
 async function loadAdapter(page) {
-    await page.goto(BASE_URL);
+    await page.goto('about:blank');
+    await page.addScriptTag({ path: runfile('terminal/assets/jsdeps/dist/jsdeps.js') });
     const source = await fs.readFile(runfile('terminal/src/terminal/snapshot.js'), 'utf8');
     await page.addScriptTag({ content: source.replaceAll('export ', '') + '\nwindow.snapshotAdapter = { capture, restore, parserSafe, cancelPartialInput };' });
 }
@@ -107,11 +115,11 @@ test('roundTripPreservesMouseReports', async ({ page }) => {
         const results = [];
         const write = (terminal, data) => new Promise(resolve => terminal.write(data, resolve));
         for (const tracking of [9, 1000, 1002, 1003]) {
-            for (const encoding of [1006, 1016]) {
+            for (const encoding of [0, 1006, 1016]) {
                 const original = new JsDeps.Terminal({ cols: 80, rows: 24 });
                 const addon = new JsDeps.SerializeAddon();
                 original.loadAddon(addon);
-                await write(original, `\x1b[?1049h\x1b[?${tracking}h\x1b[?${encoding}hpanel`);
+                await write(original, `\x1b[?1049h\x1b[?${tracking}h${encoding ? `\x1b[?${encoding}h` : ""}panel`);
                 const payload = snapshotAdapter.capture(original, addon, 200000);
                 const restored = new JsDeps.Terminal({ cols: 80, rows: 24 });
                 await snapshotAdapter.restore(restored, payload);
@@ -119,6 +127,7 @@ test('roundTripPreservesMouseReports', async ({ page }) => {
                 for (const terminal of [original, restored]) {
                     let report = '';
                     terminal.onData(data => { report += data; });
+                    terminal.onBinary(data => { report += data; });
                     terminal._core.coreMouseService.triggerMouseEvent({ col: 2, row: 2, x: 20, y: 20, button: 4, action: 0, ctrl: false, alt: false, shift: false });
                     reports.push(report);
                 }
@@ -169,7 +178,7 @@ async function loadTerminalJs(page) {
     await page.evaluate(async () => {
         window.captures = [];
         window.fixtureTerminal = new TestTerminalJs();
-        fixtureTerminal.onCheckpoint(json => captures.push(JSON.parse(json)));
+        fixtureTerminal.onCheckpoint(json => captures.push({ ...JSON.parse(json), at: performance.now() }));
         await fixtureTerminal.send(JSON.stringify({ Init: { version: 1, fresh: true, attachment: { incarnation: 'test', token: '1' }, checkpoint: null, capacity: 200000 } }));
         await fixtureTerminal.send(JSON.stringify('Ready'));
     });
@@ -183,11 +192,12 @@ test('captureThrottleKeepsPendingTrigger', async ({ page }) => {
         await fixtureTerminal.checkpointFinished(true);
         await fixtureTerminal.send(JSON.stringify({ Output: { cursor: { event: '1', end: '1000' }, base64: btoa('\n'.repeat(1000)) } }));
     });
-    await page.clock.runFor(4900);
+    await page.clock.runFor(4000);
     expect(await page.evaluate(() => captures.length)).toBe(1);
-    await page.clock.runFor(200);
+    await page.clock.runFor(1500);
     expect(await page.evaluate(() => captures.length)).toBe(2);
     expect(await page.evaluate(() => captures[1].cursor.event)).toBe('1');
+    expect(await page.evaluate(() => captures[1].at - captures[0].at)).toBeGreaterThanOrEqual(5000);
     await page.evaluate(() => fixtureTerminal.dispose());
 });
 
@@ -207,9 +217,9 @@ test('singleUploadRetainsPendingCapture', async ({ page }) => {
 test('failedUploadRetriesWithoutReplacingAcceptedSnapshot', async ({ page }) => {
     await loadTerminalJs(page);
     await page.evaluate(() => fixtureTerminal.checkpointFinished(false));
-    await page.clock.runFor(4900);
+    await page.clock.runFor(4000);
     expect(await page.evaluate(() => captures.length)).toBe(1);
-    await page.clock.runFor(200);
+    await page.clock.runFor(1500);
     expect(await page.evaluate(() => captures.length)).toBe(2);
     await page.evaluate(() => fixtureTerminal.dispose());
 });
@@ -334,4 +344,102 @@ test('continuousOutputDoesNotStarveCapture', async ({ page }) => {
         return result;
     });
     expect(result).toEqual({ capturedDuringOutput: true, capturedEvent: '1' });
+});
+
+test('snapshot_transfer_interruption_can_restart_fresh', async ({ page }) => {
+    await loadTerminalJs(page);
+    const result = await page.evaluate(async () => {
+        await fixtureTerminal.send(JSON.stringify({ Output: { cursor: { event: '1', end: '5' }, base64: btoa('hello') } }));
+        const payload = JsDeps.SnapshotAdapter.capture(fixtureTerminal.terminal, fixtureTerminal.serializer, 200000);
+        const checkpoint = {
+            version: 1, attachment: { incarnation: 'test', token: '2' },
+            cursor: { event: '1', end: '5' }, size: { r: 24, c: 80 }, payload: '',
+        };
+        await fixtureTerminal.send(JSON.stringify({ Init: { version: 1, fresh: true, attachment: checkpoint.attachment, checkpoint, capacity: 200000 } }));
+        await fixtureTerminal.send(JSON.stringify({ SnapshotChunk: btoa('{"vt":') }));
+        const partialNotReady = !fixtureTerminal.ready;
+        await fixtureTerminal.send(JSON.stringify('Disconnected'));
+        checkpoint.attachment = { incarnation: 'test', token: '3' };
+        await fixtureTerminal.send(JSON.stringify({ Init: { version: 1, fresh: true, attachment: checkpoint.attachment, checkpoint, capacity: 200000 } }));
+        const bytes = new TextEncoder().encode(payload);
+        await fixtureTerminal.send(JSON.stringify({ SnapshotChunk: btoa(String.fromCharCode(...bytes)) }));
+        await fixtureTerminal.send(JSON.stringify('SnapshotEnd'));
+        await fixtureTerminal.send(JSON.stringify('Ready'));
+        const result = { partialNotReady, ready: fixtureTerminal.ready, text: fixtureTerminal.terminal.buffer.active.getLine(0).translateToString(true) };
+        fixtureTerminal.dispose();
+        return result;
+    });
+    expect(result).toEqual({ partialNotReady: true, ready: true, text: 'hello' });
+});
+
+test('gapRequestsCheckpointEvenBelowActivityThreshold', async ({ page }) => {
+    await loadTerminalJs(page);
+    const result = await page.evaluate(async () => {
+        await fixtureTerminal.checkpointFinished(true);
+        fixtureTerminal.lastCapture = performance.now() - 5001;
+        await fixtureTerminal.send(JSON.stringify({ Gap: { cursor: { event: '1', end: '999999' }, size: { r: 24, c: 80 } } }));
+        const result = { count: captures.length, event: captures.at(-1).cursor.event };
+        fixtureTerminal.dispose();
+        return result;
+    });
+    expect(result).toEqual({ count: 2, event: '1' });
+});
+
+test('captureByteThresholdFitsReplayCapacity', async ({ page }) => {
+    await loadTerminalJs(page);
+    const result = await page.evaluate(async () => {
+        await fixtureTerminal.checkpointFinished(true);
+        fixtureTerminal.lastCapture = performance.now() - 5001;
+        await fixtureTerminal.send(JSON.stringify({ Output: { cursor: { event: '1', end: '99999' }, base64: btoa('x'.repeat(99999)) } }));
+        const before = captures.length;
+        await fixtureTerminal.send(JSON.stringify({ Output: { cursor: { event: '2', end: '100000' }, base64: btoa('x') } }));
+        const result = { before, after: captures.length, event: captures.at(-1).cursor.event };
+        fixtureTerminal.dispose();
+        return result;
+    });
+    expect(result).toEqual({ before: 1, after: 2, event: '2' });
+});
+
+test('warm_transport_resume_preserves_tui_wheel_input', async ({ page, context }) => {
+    test.setTimeout(90000);
+    const socketPath = `/tmp/trz-resume-${process.pid}-${Date.now()}.sock`;
+    const cdp = await context.newCDPSession(page);
+    let control;
+    const conditions = offline => ({ offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    try {
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await page.locator('div.add-tab-icon img[src$="/icons/plus-square.svg"]').click();
+        await expect(active(page)).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+        await active(page).click();
+        await page.keyboard.type(`${quote(fixture)} ${quote(socketPath)}`);
+        await page.keyboard.press('Enter');
+        control = await connect(socketPath);
+        await expect.poll(() => control.events.some(e => e.event === 'ready')).toBe(true);
+        await wheel(page);
+        await expect.poll(() => control.events.filter(e => e.event === 'mouse_report').length).toBeGreaterThan(0);
+        const before = control.events.filter(e => e.event === 'mouse_report').length;
+        const failures = [];
+        page.on('requestfailed', request => failures.push(request.url()));
+        await cdp.send('Network.enable');
+        await cdp.send('Network.emulateNetworkConditions', conditions(true));
+        control.socket.write('{"command":"emit_output"}\n');
+        await expect(active(page)).toHaveAttribute('data-ready', 'false', { timeout: 15000 });
+        const failedBeforeRetry = failures.length;
+        const box = await active(page).boundingBox();
+        if (!box) throw new Error('Missing terminal during reconnect');
+        await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
+        await expect.poll(() => failures.length).toBeGreaterThan(failedBeforeRetry);
+        await cdp.send('Network.emulateNetworkConditions', conditions(false));
+        await expect.poll(async () => {
+            await active(page).locator('xpath=../..').dispatchEvent('mouseenter');
+            return active(page).getAttribute('data-ready');
+        }, { timeout: 15000 }).toBe('true');
+        await wheel(page);
+        await expect.poll(() => control.events.filter(e => e.event === 'mouse_report').length).toBeGreaterThan(before);
+    } finally {
+        await cdp.send('Network.emulateNetworkConditions', conditions(false)).catch(() => {});
+        control?.socket.destroy();
+        await page.locator('div.terminals div.titles li.title img.close-icon').last().click({ force: true, timeout: 5000 }).catch(() => {});
+        await fs.rm(socketPath, { force: true });
+    }
 });

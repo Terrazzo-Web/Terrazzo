@@ -86,7 +86,6 @@ pub fn attach(
         if selected {
             xtermjs.focus();
         }
-        // TODO: If write fails, we should not close the tab
         select! {
             () = stream_loop.fuse() => info!("Stream loop closed"),
             () = write_loop.fuse() => info!("Write loop closed"),
@@ -290,8 +289,8 @@ async fn write_loop(
             if let Err(error) =
                 crate::terminal::api::write(terminal.clone(), attachment, data).await
             {
+                // Delivery is uncertain. Keep the terminal, but never replay input.
                 error!("Failed to write to the terminal: {error}");
-                return;
             }
         }
     }

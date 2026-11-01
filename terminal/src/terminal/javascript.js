@@ -129,7 +129,7 @@ class TerminalJs {
                 this.cursor = outputs.at(-1).cursor;
                 this.bytes += bytes.length;
                 for (const byte of bytes) if (byte === 10) this.lines++;
-                if (this.lines >= 1000 || this.bytes >= 256 * 1024) this.pendingCapture = true;
+                if (this.lines >= 1000 || this.bytes >= Math.min(256 * 1024, Math.max(1, Math.floor(this.capacity / 2)))) this.pendingCapture = true;
                 outputs = [];
             };
             for (const message of messages) {
@@ -179,6 +179,7 @@ class TerminalJs {
         } else if (message.Resize || message.Gap) {
             const event = message.Resize ?? message.Gap;
             if (message.Gap) {
+                this.pendingCapture = true;
                 JsDeps.SnapshotAdapter.cancelPartialInput(this.terminal);
                 this.terminal.element?.setAttribute('data-output-dropped', 'true');
                 if (this.terminal.element) this.terminal.element.title = 'Some terminal output was dropped';

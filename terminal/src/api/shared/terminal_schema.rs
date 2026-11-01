@@ -93,6 +93,7 @@ pub struct AppliedCursor {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AttachRequest {
+    pub request_id: String,
     pub version: u32,
     pub create_if_missing: bool,
     pub resume: Option<(Attachment, AppliedCursor)>,

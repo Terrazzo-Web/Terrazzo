@@ -98,6 +98,14 @@ struct ProcessOutputExchange {
     process_output_rx: oneshot::Receiver<ProcessOutput>,
 }
 
+impl Drop for ProcessOutputExchange {
+    fn drop(&mut self) {
+        // Closing a process must wake a lease even when transport credit is exhausted.
+        self.stopped
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+}
+
 impl ProcessOutputExchange {
     fn new(process_output: ProcessOutput) -> Self {
         let stopped = process_output.stopped.clone();
@@ -350,5 +358,14 @@ mod tests {
         assert!(first.next().await.is_none());
         let mut second = second.await.unwrap();
         assert!(matches!(second.next().await, Some(LeaseItem::Data(_))));
+    }
+    #[tokio::test]
+    async fn closing_entry_revokes_output_lease() {
+        let entry = entry();
+        let mut lease = entry.lease_output(false).await.unwrap();
+        assert!(matches!(lease.next().await, Some(LeaseItem::Data(_))));
+        drop(entry);
+        assert!(lease.stop_requested());
+        assert!(matches!(lease.next().await, Some(LeaseItem::EOS)));
     }
 }

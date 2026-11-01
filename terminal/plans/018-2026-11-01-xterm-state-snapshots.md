@@ -323,6 +323,7 @@ Replace `RegisterTerminalMode::{Create, Reopen}`:
 
 ```text
 AttachRequest
+  request_id
   protocol_version
   terminal_def
   create_if_missing
@@ -351,6 +352,10 @@ Stream rules:
 - Capture the replay high-water point during lease creation.
 - `Ready` marks completion through that point.
 - Report later eviction even during snapshot transfer.
+- Keep the request ID until Init has been applied.
+- Retry a lost attach response with that same ID.
+- Return the same attachment token for an identical retry.
+- A different browser's attachment invalidates that retry ID.
 
 Snapshot upload:
 
@@ -411,7 +416,9 @@ Application queue:
 
 Triggers:
 
-- Trigger after 1,000 processed LF characters or 256 KiB of output.
+- Trigger after 1,000 processed LF characters or a byte threshold.
+- Use the smaller of 256 KiB and half the replay capacity.
+- Also request capture after a reported gap.
 - LF count measures activity, not rendered rows.
 - The byte trigger covers TUI redraws without line feeds.
 - Throttle captures to once per five seconds.
@@ -457,6 +464,9 @@ Fresh attach                    Resume(last applied cursor)
 - If the process is gone, return `ProcessGone`.
 - Do not silently start a shell under an existing terminal display.
 - Settle queued writes before selecting the Resume cursor.
+- Keep XTermJS after transient acknowledgement or reconnect failures.
+- Retry on terminal mouse-enter activity.
+- Do not replay input whose delivery is uncertain.
 - Generation-check asynchronous callbacks after replacement.
 - Revoked ownership must not trigger automatic reacquisition.
 
@@ -486,6 +496,7 @@ Primary files:
 - `pty/src/replay.rs` replaces the old tail implementation.
 - `ProcessIoEntry` owns the journal and process incarnation.
 - `Journal::attach` selects Fresh or Resume state.
+- `Journal::attach_request` makes lost-response retries idempotent.
 - `Journal::ack` records the applied prefix.
 - `Journal::commit` accepts a checkpoint and compacts covered history.
 - Replay capacity stays at 200,000 / 1,000,000 bytes.
@@ -521,6 +532,8 @@ Snapshot details:
 - The serializer addon is pinned to 0.14.0.
 - The adapter lives in the existing JS dependency bundle.
 - It supplements mouse encoding and other missing state.
+- The byte trigger fits inside both debug and release replay capacities.
+- Gap events also request a new checkpoint.
 - Eligible captures run synchronously between applied batches.
 - This prevents timer starvation under continuous output.
 
@@ -535,7 +548,8 @@ Test targets:
 
 ## Validation
 
-The names below are proposed tests to implement, not existing coverage.
+The names below describe the planned regression scenarios.
+Use the concrete targets above to run the implemented tests.
 
 ### PTY journal tests
 
@@ -587,6 +601,13 @@ Location: `pty/src/lease.rs` tests.
 - Keep `canceled_handoff_can_be_resumed`.
 - Keep `canceled_handoff_preserves_output_returned_by_drop`.
 - Keep `concurrent_handoffs_are_serialized`.
+- Add `closing_entry_revokes_output_lease`.
+  - Close the owning entry while a lease remains active.
+  - Verify revocation is visible without waiting for transport credit.
+- Add `attach_retry_recovers_token_after_lost_init`.
+  - Lose Init after the server rotates the token.
+  - Retry with the same request ID and recover that token.
+  - Attach another browser and reject the old retry.
 - Adapt each test to the new attach request and cursor types.
 - Add `revoked_attachment_cannot_mutate_process`.
   - Replace attachment A with B.

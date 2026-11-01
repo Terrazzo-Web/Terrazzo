@@ -636,6 +636,78 @@ Use real pinned xterm for round trips. Use a fake clock for scheduling.
 
 ### Browser integration tests
 
+#### Mouse-aware TUI fixture
+
+- Add a small Rust fixture binary for terminal integration tests.
+- Launch it through the real PTY process path.
+- Use the harness's terminal-shell configuration to select the fixture.
+- Do not require an installed TUI application.
+
+Fixture startup:
+
+- Set stdin to raw mode. Disable echo and canonical line buffering.
+- Enter the alternate screen with `ESC[?1049h`.
+- Enable mouse tracking with `ESC[?1000h`.
+- Enable SGR mouse encoding with `ESC[?1006h`.
+- Draw two panels with fixed, reported cell boundaries.
+- Show a scroll counter in each panel.
+- Emit a startup-ready event on the test channel.
+- Enable mouse modes only once, during startup.
+- Never re-enable them during redraw, resize, or reattachment.
+
+Fixture input loop:
+
+- Parse stdin incrementally. Reports may span multiple reads.
+- Recognize SGR reports: `ESC[<button;column;rowM`.
+- Button 64 means wheel up. Button 65 means wheel down.
+- Map the reported cell to its panel.
+- Update that panel's counter and redraw it.
+- Ignore unrelated keyboard and mouse input.
+- Restore termios and leave the alternate screen on normal exit.
+
+Independent observation and control:
+
+- Use a test-only Unix socket on the PTY-owning test server.
+- Give each fixture instance a unique socket path and instance ID.
+- Have the harness connect through a test helper on that server.
+- Send commands and events as newline-delimited JSON.
+- Commands include `emit_output`, `disable_mouse`, and `exit`.
+- Events include `ready`, `mouse_report`, and `output_complete`.
+- Mouse events include raw report bytes, panel ID, and resulting counter.
+- Output completion includes a command ID and emitted byte count.
+- Keep this channel separate from PTY output and application endpoints.
+- Expose it only in the integration-test setup.
+- Clean up sockets and processes after each test.
+
+Browser interaction:
+
+- Use Playwright's real wheel input over the xterm canvas.
+- Derive panel coordinates from terminal geometry and fixture cell boundaries.
+- Move the pointer inside a panel, then call `page.mouse.wheel(...)`.
+- Do not inject encoded reports directly into stdin or call xterm input APIs.
+- Wait for a matching `mouse_report` on the independent channel.
+- Assert direction and panel. Do not require one report per wheel gesture.
+- Also check that the visible panel counter advances.
+
+Snapshot regression sequence:
+
+1. Start the fixture and verify wheel reports before reattachment.
+2. Wait for an accepted checkpoint containing the enabled mouse modes.
+3. Disconnect the browser output stream.
+4. Command the fixture to emit more bytes than the current replay capacity.
+5. Wait for `output_complete` and confirm initialization bytes were evicted.
+6. Attach a fresh xterm and wait for Ready.
+7. Send wheel input over the same panel.
+8. Assert a new report arrives and the panel counter changes.
+
+- Emit overflow traffic as panel redraws without mode changes.
+- This isolates recovery of the checkpoint's mouse state.
+- Run a separate case for mode changes lost during overflow.
+- Observe checkpoint acceptance through a test hook, not a fixed sleep.
+- Keep production snapshot behavior unchanged by that hook.
+
+#### Browser test cases
+
 Add `terminal/tests/integration-test-terminal-snapshot.spec.mjs`.
 Use the existing browser test harness and a deterministic PTY fixture.
 The fixture reads mouse reports and prints observable counters.
@@ -679,11 +751,40 @@ Avoid relying on an installed interactive application.
 - Run a real-process memory measurement alongside these assertions.
 - Record steady-state and replacement peaks.
 - Treat allocator RSS as a measurement, not an exact byte assertion.
-- Run focused PTY tests with `cargo test -p terrazzo-pty`.
-- Run new server and browser tests through existing repository targets.
-- Identify exact Bazel/browser targets when wiring the new files into the build.
-- Follow applicable checks in `terminal/AGENTS.md` afterward.
+- Use Bazel for focused testing and the full test suite first.
+- Wire PTY, server, JS, and browser tests into Bazel targets.
+- Identify exact target labels when adding the tests.
+- Run focused targets first with `--test_output=errors --verbose_failures`.
+- Run release browser targets with `-c opt`.
+- Follow applicable Bazel checks in `terminal/AGENTS.md` afterward.
 - Regenerate the JS bundle and check client/server feature builds.
+
+Final validation follows `.github/workflows/merge-validation.yml`:
+
+- Run the full Bazel build and tests.
+- Include optimized tests tagged `opt_mode`.
+- Once all Bazel tests pass, run the Cargo checks below.
+- Cargo tests provide an additional compatibility check.
+- The workflow has separate Bazel and Cargo jobs.
+- This plan runs them sequentially, with Bazel first.
+
+```sh
+export PROTOC=$(which protoc)
+bazel build --action_env=PROTOC //...
+bazel test --action_env=PROTOC --test_output=errors --verbose_failures --flaky_test_attempts=3 //...
+bazel test --action_env=PROTOC --test_output=errors --verbose_failures --flaky_test_attempts=3 -c opt $(bazel query 'attr("tags", "opt_mode", //...)')
+bazel run //bazel:buildifier_check
+```
+
+Then run the Cargo job's build and test commands:
+
+```sh
+cargo build --bins --features=server,server-all,max_level_debug,debug,diagnostics
+cargo build --bins --features=server,server-all,max_level_info --release
+RUSTFLAGS="-A unused-crate-dependencies" cargo test --workspace --all-features
+./demo/scripts/integration-test.sh target/debug/demo-server
+./demo/scripts/integration-test.sh target/release/demo-server
+```
 
 Acceptance:
 

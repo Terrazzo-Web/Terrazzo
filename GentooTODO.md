@@ -88,6 +88,27 @@ sudo tar xpf stage3-arm64-musl-openrc-20261025T234555Z.tar.xz \
 
 ### 5. Enter Gentoo
 
+Start tmux on the Ubuntu builder before entering the chroot so compilation continues if SSH disconnects:
+
+```bash
+sudo apt-get install -y tmux
+tmux new -s gentoo-install
+```
+
+Run the following commands inside tmux. Detach with **Ctrl-b**, then **d**. After reconnecting over SSH to Ubuntu, run `tmux attach -t gentoo-install` to recover the session; the chroot and any running emerge command remain inside it. Do not enter another chroot when reattaching.
+
+If you already entered the chroot without tmux, wait for the current emerge command to finish (or interrupt it with Ctrl-C), then run this sequence to return to Ubuntu, start tmux, and re-enter Gentoo:
+
+```bash
+exit
+sudo apt-get install -y tmux
+tmux new -s gentoo-install
+sudo chroot /mnt/gentoo /bin/bash
+source /etc/profile
+```
+
+Keep the existing mounts; do not repeat the mount commands below in that case. Rerun the interrupted emerge command inside tmux. Already installed packages remain installed, but an interrupted package build may need to restart. Starting tmux does not protect a command already running outside it.
+
 ```
 sudo cp -L /etc/resolv.conf /mnt/gentoo/etc/
 
@@ -121,21 +142,27 @@ emerge --sync
 mkdir -p /etc/portage/package.use
 echo 'sys-kernel/installkernel dracut' > /etc/portage/package.use/installkernel
 echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
-emerge sys-kernel/installkernel sys-kernel/gentoo-kernel
-emerge sys-fs/btrfs-progs
-emerge sys-boot/grub
-emerge net-misc/openssh
-emerge net-misc/dhcpcd
+emerge --ask=n sys-kernel/installkernel sys-kernel/gentoo-kernel sys-fs/btrfs-progs sys-boot/grub net-misc/openssh net-misc/dhcpcd
 ```
+
+`--ask=n` disables emerge's confirmation prompt, including when `--ask` is set in `EMERGE_DEFAULT_OPTS`; emerge does not use apt's `-y` option. It will still stop for build errors, unmet configuration requirements, or license restrictions. Building the kernel and its dependencies from source can take a long time; tmux keeps the session available across SSH disconnects.
 
 Configure the system:
 
 ```
-echo 'hostname="gentoo-azure"' > /etc/conf.d/hostname
+echo 'hostname="terrazzo-vm"' > /etc/conf.d/hostname
 
 rc-update add sshd default
 rc-update add dhcpcd default
 ```
+
+After booting Gentoo, apply the hostname to the running system if needed:
+
+```
+hostname terrazzo-vm
+```
+
+Skip this command inside the installation chroot, where it would change the Ubuntu builder's running hostname.
 
 Create your SSH user and install their public key.
 

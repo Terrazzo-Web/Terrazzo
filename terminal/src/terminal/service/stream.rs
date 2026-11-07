@@ -46,12 +46,20 @@ remote_fn_service::streaming::declare_remote_fn!(
         let server = server.to_owned();
         let terminal_id = terminal_def.address.id.clone();
         let create = mode == RegisterTerminalMode::Create;
+        let base_path = terminal_def.base_path.clone();
         let stream = processes::stream::open_stream(terminal_def, create, move |_| async move {
             if !create {
                 return Err(OpenProcessError::NotFound);
             }
             let server_config = &server.config().server;
-            let shell = server_config.with(|config| config.terminal_shell.clone());
+            let shell = server_config.with(|config| {
+                startup_shell(
+                    // TODO: instead, pass the entire config which is cheap to clone (it is an Arc) and this way there is only one parameter to pass for the whole config
+                    config.terminal_shell.clone(),
+                    config.terminal_cd.as_deref(),
+                    base_path.as_deref(),
+                )
+            });
             ProcessIO::open(None::<String>, STREAMING_WINDOW_SIZE, shell).await
         });
         let stream = {
@@ -146,5 +154,71 @@ impl From<LeaseItem> for LeaseMessage {
             LeaseItem::EOS => Self::Eos,
             LeaseItem::Error(error) => Self::Error(error.to_string()),
         }
+    }
+}
+
+/// Run the configured directory command before the interactive shell, once per PTY.
+fn startup_shell(
+    shell: Option<String>,
+    cd: Option<&str>,
+    base_path: Option<&str>,
+) -> Option<String> {
+    let Some(base_path) = base_path else {
+        return shell;
+    };
+    let path = format!("'{}'", base_path.replace('\'', "'\"'\"'"));
+    let command = cd.unwrap_or("cd -- {path}").replace("{path}", &path);
+    let shell = shell.unwrap_or_else(|| "exec \"${SHELL:-/bin/bash}\" -i".into());
+    Some(format!("{command} && {{ {shell}\n}}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::startup_shell;
+
+    #[test]
+    fn ordinary_terminals_keep_their_shell() {
+        assert_eq!(startup_shell(None, None, None), None);
+        assert_eq!(
+            startup_shell(Some("custom".into()), None, None),
+            Some("custom".into())
+        );
+    }
+
+    #[test]
+    fn editor_shell_starts_in_the_literal_directory() {
+        let path =
+            std::env::temp_dir().join(format!("editor's $(printf WRONG) {}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&path).unwrap();
+        let shell = startup_shell(
+            Some("printf '%s' \"$PWD\"".into()),
+            None,
+            Some(path.to_str().unwrap()),
+        )
+        .unwrap();
+        let output = std::process::Command::new("/bin/bash")
+            .arg("-lc")
+            .arg(shell)
+            .output()
+            .unwrap();
+        let expected = path.canonicalize().unwrap();
+        let actual = String::from_utf8(output.stdout.clone()).unwrap();
+        let actual = std::fs::canonicalize(actual).unwrap();
+        std::fs::remove_dir(&path).unwrap();
+        assert!(output.status.success(), "{:?}", output);
+        // macOS may canonicalize /var to /private/var in shell startup.
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn editor_path_is_quoted_and_template_is_used() {
+        assert_eq!(
+            startup_shell(
+                Some("exec /bin/bash -i".into()),
+                Some("builtin cd -- {path}"),
+                Some("/a'b $(whoami)")
+            ),
+            Some("builtin cd -- '/a'\"'\"'b $(whoami)' && { exec /bin/bash -i\n}".into()),
+        );
     }
 }

@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed for review. Implementation has not started.
+Implemented using the existing tile terminal state and lifecycle. An early close
+may be ignored while creation completes; the terminal remains visible and can be
+closed normally afterward.
 
 ## Goal
 
@@ -67,6 +69,10 @@ or a replacement terminal lifecycle.
   must never be interpreted as a request to create a replacement terminal.
 - Repeated clicks while the terminal still exists may request closure again.
   Treat an already-closed terminal as harmless; no pending flag is needed.
+- A close before PTY creation may be ignored. Leave the optimistic tab intact
+  after a failed close so creation can finish and the terminal remains visible.
+  Remove it only through closure/EOS or startup-failure cleanup. Either eventual
+  closure or a visible running terminal is acceptable; no refresh is required.
 - Reuse the existing add-tab path to create and display a terminal. Its allocated
   definition is needed to mount the stream and start the PTY; do not build a second
   confirmed-process collection. On startup failure, remove the failed tab through
@@ -116,8 +122,8 @@ server:
    a focused editor terminal module. Ignore stale asynchronous results after a
    remote change or unmount. Add the tab synchronously on enable so the next click
    sees the enabled state; use the existing terminal ID allocation path as needed.
-   If closure is requested before startup completes, ensure late startup cannot
-   recreate a terminal that was already closed, without adding pending UI state.
+   Reuse the existing close request and EOS handling. Do not add initialization
+   waits, polling, or special cancellation machinery for rapid toggle clicks.
 5. Insert the toggle before refresh in `text_editor/ui.rs`; add active
    styling, accessible labels, and the terminal panel using existing layout and
    resize helpers.

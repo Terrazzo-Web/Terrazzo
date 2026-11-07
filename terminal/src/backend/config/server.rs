@@ -24,6 +24,15 @@ pub struct ServerConfig<T: ConfigTypes = RuntimeTypes> {
     #[serde(rename = "terminal-shell", alias = "terminal_shell")]
     pub terminal_shell: Option<String>,
 
+    /// Command template for a text editor terminal. `{path}` is POSIX-shell quoted.
+    #[serde(
+        default,
+        rename = "terminal-cd",
+        alias = "terminal_cd",
+        deserialize_with = "deserialize_terminal_cd"
+    )]
+    pub terminal_cd: Option<String>,
+
     /// The JSON file storing the tile layout, loaded at startup.
     /// Defaults to tiles.json beside the CLI config file; None disables persistence.
     pub tiles_file: T::MaybePath,
@@ -97,5 +106,48 @@ impl Deref for DynamicServerConfig {
 impl From<Arc<DynamicConfig<DiffArc<ServerConfig>>>> for DynamicServerConfig {
     fn from(value: Arc<DynamicConfig<DiffArc<ServerConfig>>>) -> Self {
         Self(value)
+    }
+}
+
+fn deserialize_terminal_cd<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let template = Option::<String>::deserialize(deserializer)?;
+    if template
+        .as_ref()
+        .is_some_and(|template| !template.contains("{path}"))
+    {
+        return Err(serde::de::Error::custom("terminal-cd must contain {path}"));
+    }
+    Ok(template)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServerConfig;
+    use crate::backend::config::types::ConfigFileTypes;
+
+    #[test]
+    fn terminal_cd_default_alias_and_validation() {
+        let defaults = toml::to_string(&ServerConfig::<ConfigFileTypes>::default()).unwrap();
+        let parse = |prefix: &str| {
+            toml::from_str::<ServerConfig<ConfigFileTypes>>(&format!("{prefix}\n{defaults}"))
+        };
+        assert!(parse("").unwrap().terminal_cd.is_none());
+        for key in ["terminal-cd", "terminal_cd"] {
+            assert_eq!(
+                parse(&format!("{key} = 'builtin cd -- {{path}}'"))
+                    .unwrap()
+                    .terminal_cd
+                    .as_deref(),
+                Some("builtin cd -- {path}")
+            );
+        }
+        assert!(
+            parse("terminal-cd = 'cd /tmp'")
+                .unwrap_err()
+                .to_string()
+                .contains("must contain {path}")
+        );
     }
 }

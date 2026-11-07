@@ -210,14 +210,20 @@ impl TerminalJs {
         let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {
             debug!("Start");
-            let on_init = |process, capacity, snapshot| async move {
-                self.initialize(process, capacity, serde_json::to_string(&snapshot).unwrap())
-                    .await;
-                self.fit();
-                let _ = initialized.send(());
+            let did_initialize = std::cell::Cell::new(false);
+            let on_init = |process, capacity, snapshot| {
+                did_initialize.set(true);
+                async move {
+                    self.initialize(process, capacity, serde_json::to_string(&snapshot).unwrap())
+                        .await;
+                    self.fit();
+                    let _ = initialized.send(());
+                }
             };
+            let editor_terminal = terminal_def.base_path.is_some();
+            let terminal_id = terminal_def.address.id.clone();
             let eos = terminal_api::stream(
-                state,
+                state.clone(),
                 terminal_def,
                 notify_mouse,
                 on_init,
@@ -226,7 +232,12 @@ impl TerminalJs {
             .await;
             match eos {
                 Ok(()) => info!("End"),
-                Err(error) => warn!("Failed: {error}"),
+                Err(error) => {
+                    warn!("Failed: {error}");
+                    if editor_terminal && !did_initialize.get() {
+                        state.on_eos(&terminal_id);
+                    }
+                }
             }
         }
         .instrument(span)

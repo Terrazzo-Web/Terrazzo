@@ -50,6 +50,7 @@ impl TextEditorManager {
     }
 }
 
+#[autoclone]
 #[html]
 #[template(tag = div)]
 fn path_selector_impl(
@@ -60,7 +61,6 @@ fn path_selector_impl(
     #[signal] mut force_edit_path: bool,
 ) -> XElement {
     let show_input = kind == PathSelector::FilePath || force_edit_path;
-    let copy_path = manager.clone();
     tag(
         class = style::PATH_SELECTOR,
         style = (!show_input).then_some("width: auto;"),
@@ -72,7 +72,8 @@ fn path_selector_impl(
                 PathSelector::FilePath => "Copy relative path",
             },
             click = move |_| {
-                let path = copy_path
+                autoclone!(manager);
+                let path = manager
                     .path
                     .as_ref()
                     .map(|path| path.get_value_untracked());

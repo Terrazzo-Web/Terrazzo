@@ -34,6 +34,68 @@ test.describe('Text editor basic', () => {
         expect(response?.ok()).toBeTruthy();
     });
 
+    test('copies full and relative paths from the path icons', async ({ page, context }) => {
+        test.setTimeout(60 * SECOND);
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+        const { baseDir, filePath } = await createTempFile('copy path.txt');
+        await writeFile(path.join(baseDir, 'second.txt'), '');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'copy path.txt');
+        await openFolderFile(page, 'copy path.txt');
+
+        const expectCopiedPath = async (title, expected) => {
+            await page.getByTitle(title, { exact: true }).click();
+            await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+        };
+        await expectCopiedPath('Copy full path', filePath);
+        await expectCopiedPath('Copy relative path', 'copy path.txt');
+
+        // The handlers must read the current path after navigating to another file.
+        await reopenFolderFile(page, 'second.txt');
+        await expect(page.locator('.file-path-selector-field')).toHaveValue(/second\.txt$/);
+        await expectCopiedPath('Copy full path', path.join(baseDir, 'second.txt'));
+        await expectCopiedPath('Copy relative path', 'second.txt');
+    });
+
+    test('flashes a border on focus without moving editor content', async ({ page }) => {
+        const { baseDir } = await createTempFile('focus.txt');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'focus.txt');
+        await openFolderFile(page, 'focus.txt');
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible();
+        const result = await editor.evaluate((node) => {
+            document.activeElement?.blur();
+            const app = node.closest('.text-editor-app');
+            const rect = () => {
+                const { x, y, width, height } = node.getBoundingClientRect();
+                return { x, y, width, height };
+            };
+            const before = rect();
+            node.focus();
+            const animation = app.getAnimations({ subtree: true }).find((animation) => animation.animationName === 'trz-focus-flash');
+            if (!animation) throw new Error('Missing focus border animation');
+            animation.pause();
+            animation.currentTime = 0;
+            const border = getComputedStyle(app, '::after');
+            const flash = { opacity: border.opacity, background: border.backgroundImage, size: border.backgroundSize, sizing: border.boxSizing };
+            const during = rect();
+            const duration = animation.effect.getTiming().duration;
+            animation.finish();
+            return { before, during, after: rect(), flash, duration, opacity: getComputedStyle(app, '::after').opacity };
+        });
+        expect(result.flash.opacity).toBe('1');
+        expect(result.flash.sizing).toBe('border-box');
+        expect(result.flash.background.match(/linear-gradient/g)).toHaveLength(4);
+        expect(result.flash.background).toContain('rgb(0, 128, 0)');
+        expect(result.flash.background).toContain('rgba(0, 0, 0, 0)');
+        expect(result.flash.size).toBe('100% 10px, 100% 10px, 10px 100%, 10px 100%');
+        expect(result.duration).toBe(1500);
+        expect(result.opacity).toBe('0');
+        expect(result.during).toEqual(result.before);
+        expect(result.after).toEqual(result.before);
+    });
+
     test('edits a file', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

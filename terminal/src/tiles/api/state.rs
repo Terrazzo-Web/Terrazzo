@@ -17,7 +17,56 @@ pub static STATE: Mutex<Option<HashMap<TileId, Vec<Box<dyn Fn(TileId) + Send + S
     Mutex::new(None);
 
 pub static TREE: Mutex<Option<Arc<Tiles>>> = Mutex::new(None);
-static FILE: Mutex<Option<Arc<std::path::Path>>> = Mutex::new(None);
+static PERSISTENCE_QUEUE: Mutex<
+    Option<tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>>,
+> = Mutex::new(None);
+
+enum TilePersistenceCommand {
+    SaveLayout(Arc<Tiles>),
+    WaitForPendingSaves(tokio::sync::oneshot::Sender<()>),
+}
+
+fn spawn_tile_persistence_worker(
+    path: Arc<Path>,
+) -> tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand> {
+    let (save_queue, mut pending_saves) = tokio::sync::mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        while let Some(command) = pending_saves.recv().await {
+            match command {
+                TilePersistenceCommand::SaveLayout(tree) => {
+                    if let Err(error) = write_tree(&path, &tree).await {
+                        tracing::warn!(?path, %error, "Failed to save tiles");
+                    }
+                }
+                TilePersistenceCommand::WaitForPendingSaves(reply) => {
+                    let _ = reply.send(());
+                }
+            }
+            tokio::task::yield_now().await;
+        }
+    });
+    save_queue
+}
+
+async fn wait_for_queued_saves(
+    save_queue: &tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>,
+) {
+    let (reply, response) = tokio::sync::oneshot::channel();
+    if save_queue
+        .send(TilePersistenceCommand::WaitForPendingSaves(reply))
+        .is_ok()
+    {
+        let _ = response.await;
+    }
+}
+
+/// Wait for queued saves before shutting down the Tokio runtime.
+pub(crate) async fn wait_for_pending_tile_saves() {
+    let save_queue = PERSISTENCE_QUEUE.lock().unwrap().clone();
+    if let Some(save_queue) = save_queue {
+        wait_for_queued_saves(&save_queue).await;
+    }
+}
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -45,20 +94,26 @@ pub enum TilesStateError {
 }
 
 /// Load before serving requests; missing files start with the default layout.
-pub(crate) fn initialize(path: Option<Arc<std::path::Path>>) -> Result<(), TilesStateError> {
-    let mut tree = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+pub(crate) async fn initialize(path: Option<Arc<std::path::Path>>) -> Result<(), TilesStateError> {
+    let mut loaded_tree = None;
     if let Some(path) = path.as_deref() {
-        match std::fs::read(path) {
+        match tokio::fs::read(path).await {
             Ok(bytes) => {
                 let loaded: Arc<Tiles> = serde_json::from_slice(&bytes)?;
                 reserve_ids(&loaded);
-                *tree = Some(loaded);
+                loaded_tree = Some(loaded);
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
             Err(error) => return Err(error.into()),
         }
     }
-    *FILE.lock().map_err(|_| TilesStateError::PoisonError)? = path;
+    let mut tree = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    if let Some(loaded) = loaded_tree {
+        *tree = Some(loaded);
+    }
+    *PERSISTENCE_QUEUE
+        .lock()
+        .map_err(|_| TilesStateError::PoisonError)? = path.map(spawn_tile_persistence_worker);
     Ok(())
 }
 
@@ -79,24 +134,24 @@ fn reserve_ids(tree: &Tiles) {
     }
 }
 
-/// Saves changed layouts before releasing the tree lock.
+/// Queues changed layouts in mutation order before releasing the tree lock.
 pub(super) struct TilesLockGuard<'a> {
     guard: MutexGuard<'a, Option<Arc<Tiles>>>,
     original: Option<Arc<Tiles>>,
-    file: Option<Arc<Path>>,
+    save_queue: Option<tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>>,
 }
 
 impl TilesLockGuard<'static> {
     pub(super) fn new() -> Result<Self, TilesStateError> {
         let guard = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
-        let file = FILE
+        let save_queue = PERSISTENCE_QUEUE
             .lock()
             .map_err(|_| TilesStateError::PoisonError)?
             .clone();
         Ok(Self {
             original: guard.clone(),
             guard,
-            file,
+            save_queue,
         })
     }
 }
@@ -117,7 +172,7 @@ impl DerefMut for TilesLockGuard<'_> {
 
 impl Drop for TilesLockGuard<'_> {
     fn drop(&mut self) {
-        let (Some(path), Some(tree)) = (self.file.as_deref(), self.guard.as_ref()) else {
+        let (Some(save_queue), Some(tree)) = (self.save_queue.as_ref(), self.guard.as_ref()) else {
             return;
         };
         if self
@@ -127,22 +182,28 @@ impl Drop for TilesLockGuard<'_> {
         {
             return;
         }
-        // Drop cannot return an error; retain the in-memory layout and report failures.
-        if let Err(error) = write_tree(path, tree) {
-            tracing::warn!(?path, %error, "Failed to save tiles");
+        // Enqueue while locked so newer layouts can never be overwritten by older saves.
+        if save_queue
+            .send(TilePersistenceCommand::SaveLayout(tree.clone()))
+            .is_err()
+        {
+            tracing::warn!("Tile persistence worker stopped");
         }
     }
 }
 
-fn write_tree(path: &std::path::Path, tree: &Tiles) -> Result<(), TilesStateError> {
+async fn write_tree(path: &std::path::Path, tree: &Tiles) -> Result<(), TilesStateError> {
     let bytes = serde_json::to_vec_pretty(tree)?;
     let temporary = path.with_file_name(format!(
         ".{}.{}.tmp",
         path.file_name().unwrap_or_default().to_string_lossy(),
         uuid::Uuid::new_v4().simple()
     ));
-    std::fs::write(&temporary, bytes)?;
-    std::fs::rename(&temporary, path)?;
+    tokio::fs::write(&temporary, bytes).await?;
+    if let Err(error) = tokio::fs::rename(&temporary, path).await {
+        let _ = tokio::fs::remove_file(&temporary).await;
+        return Err(error.into());
+    }
     Ok(())
 }
 
@@ -151,8 +212,8 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "text-editor")]
-    #[test]
-    fn editor_path_survives_disk_round_trip() {
+    #[tokio::test]
+    async fn editor_path_survives_disk_round_trip() {
         use crate::text_editor::file_path::FilePath;
         let path =
             std::env::temp_dir().join(format!("terrazzo-editor-{}.json", uuid::Uuid::new_v4()));
@@ -169,54 +230,72 @@ mod tests {
                 editor_path: Some(editor_path.clone()),
             },
         });
-        write_tree(&path, &tree).unwrap();
-        let restored: Tiles = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        write_tree(&path, &tree).await.unwrap();
+        let restored: Tiles =
+            serde_json::from_slice(&tokio::fs::read(&path).await.unwrap()).unwrap();
         let Tiles::Tile(tile) = &restored else {
             panic!("expected editor tile")
         };
         assert_eq!(tile.app_config.editor_path.as_ref(), Some(&editor_path));
         assert_eq!(tree, restored);
-        std::fs::remove_file(path).unwrap();
+        tokio::fs::remove_file(path).await.unwrap();
     }
 
-    #[test]
-    fn guard_saves_on_drop() {
+    #[tokio::test]
+    async fn guard_queues_changed_layouts_in_order() {
         let path =
             std::env::temp_dir().join(format!("terrazzo-guard-{}.json", uuid::Uuid::new_v4()));
         let tree = Mutex::new(None);
+        let save_queue = spawn_tile_persistence_worker(path.clone().into());
         {
             let mut guard = TilesLockGuard {
                 guard: tree.lock().unwrap(),
                 original: None,
-                file: Some(path.clone().into()),
+                save_queue: Some(save_queue.clone()),
             };
             *guard = Some(Arc::new(Tiles::default()));
-            assert!(!path.exists());
         }
-        let restored: Tiles = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        // Queue a second mutation before waiting for either write.
+        {
+            let guard = tree.lock().unwrap();
+            let mut guard = TilesLockGuard {
+                original: guard.clone(),
+                guard,
+                save_queue: Some(save_queue.clone()),
+            };
+            *guard = Some(Arc::new(Tiles::default()));
+        }
+        wait_for_queued_saves(&save_queue).await;
+        let restored: Tiles =
+            serde_json::from_slice(&tokio::fs::read(&path).await.unwrap()).unwrap();
         assert_eq!(**tree.lock().unwrap().as_ref().unwrap(), restored);
-        std::fs::remove_file(&path).unwrap();
+        tokio::fs::remove_file(&path).await.unwrap();
         {
             let guard = tree.lock().unwrap();
             let _guard = TilesLockGuard {
                 original: guard.clone(),
                 guard,
-                file: Some(path.clone().into()),
+                save_queue: Some(save_queue.clone()),
             };
         }
-        assert!(!path.exists(), "unchanged trees should not be saved");
+        wait_for_queued_saves(&save_queue).await;
+        assert!(
+            !tokio::fs::try_exists(&path).await.unwrap(),
+            "unchanged trees should not be saved"
+        );
     }
 
-    #[test]
-    fn disk_round_trip_and_replace() {
+    #[tokio::test]
+    async fn disk_round_trip_and_replace() {
         let path = std::env::temp_dir().join(format!(
             "terrazzo-tiles-{}-{}.json",
             std::process::id(),
             TileId::new()
         ));
         let tree = Tiles::default();
-        write_tree(&path, &tree).unwrap();
-        let restored: Tiles = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        write_tree(&path, &tree).await.unwrap();
+        let restored: Tiles =
+            serde_json::from_slice(&tokio::fs::read(&path).await.unwrap()).unwrap();
         assert_eq!(tree, restored);
         let tree = Tiles::Array {
             id: TileId::new(),
@@ -226,11 +305,12 @@ mod tests {
             nodes: vec![Arc::new(tree)],
             floating_nodes: vec![],
         };
-        write_tree(&path, &tree).unwrap();
-        let restored: Tiles = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        write_tree(&path, &tree).await.unwrap();
+        let restored: Tiles =
+            serde_json::from_slice(&tokio::fs::read(&path).await.unwrap()).unwrap();
         assert_eq!(tree, restored);
         reserve_ids(&restored);
         assert!(i64::from(TileId::new()) > i64::from(restored.id()));
-        std::fs::remove_file(path).unwrap();
+        tokio::fs::remove_file(path).await.unwrap();
     }
 }

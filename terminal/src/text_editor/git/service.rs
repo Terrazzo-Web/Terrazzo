@@ -78,21 +78,25 @@ mod git_diff_ls {
         Ok(files)
     }
 
-    fn files(base: &Path, paths: HashSet<PathBuf>) -> Vec<FileMetadata> {
+    async fn files(base: &Path, paths: HashSet<PathBuf>) -> Vec<FileMetadata> {
         let mut gids = HashMap::new();
         let mut uids = HashMap::new();
-        let mut files = paths
-            .into_iter()
-            .map(|path| {
-                let metadata = std::fs::symlink_metadata(base.join(&path));
+        let mut files = Vec::with_capacity(paths.len());
+        for (index, path) in paths.into_iter().enumerate() {
+            let metadata = tokio::fs::symlink_metadata(base.join(&path)).await;
+            files.push(
                 FileMetadata::make(
                     path.display().to_string().into(),
                     metadata.as_ref(),
                     &mut gids,
                     &mut uids,
                 )
-            })
-            .collect::<Vec<_>>();
+                .await,
+            );
+            if index % 64 == 0 {
+                tokio::task::yield_now().await;
+            }
+        }
         files.sort_by(|left, right| left.name.cmp(&right.name));
         files
     }
@@ -156,8 +160,8 @@ mod git_diff_ls {
         Ok(output)
     }
 
-    fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitDiffLsError> {
-        let repo_root = git_repo_root(base).ok_or(GitDiffLsError::NotGit)?;
+    async fn base_from_root(base: &Path) -> Result<(Arc<Path>, PathBuf), GitDiffLsError> {
+        let repo_root = git_repo_root(base).await.ok_or(GitDiffLsError::NotGit)?;
         debug!("Found repo root:{repo_root:?} of base:{base:?}");
         let relative = base
             .strip_prefix(repo_root.as_ref())

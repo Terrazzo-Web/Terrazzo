@@ -102,8 +102,10 @@ pub struct RepositoryIndex {
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     refresh_interval: Duration,
     stale_after: Duration,
-    git_files: Arc<RwLock<HashSet<PathBuf>>>,
+    git_files: Arc<RwLock<Arc<HashSet<PathBuf>>>>,
     watcher: Mutex<Option<WatcherState>>,
+    query_concurrency_limit: Arc<tokio::sync::Semaphore>,
+    watcher_update_lock: tokio::sync::Mutex<()>,
 }
 
 struct WatcherState {
@@ -114,6 +116,9 @@ struct WatcherState {
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum SearchIndexError {
+    #[error("Search index blocking task failed: {0}")]
+    BlockingTask(#[from] tokio::task::JoinError),
+
     #[error("[{n}] Failed to access the Tantivy cache: {0}", n = self.name())]
     Io(#[from] std::io::Error),
 
@@ -177,8 +182,8 @@ fn path_query(
     tantivy::query::RegexQuery::from_pattern(&pattern, field)
 }
 
-pub fn reconcile_touched_path(path: &Path) {
-    let Some(root) = fsio::git::git_repo_root(path) else {
+pub async fn reconcile_touched_path(path: &Path) {
+    let Some(root) = fsio::git::git_repo_root(path).await else {
         return;
     };
     let index = ACTIVE_INDEXES
@@ -199,19 +204,25 @@ pub enum ReconcileKind {
 }
 
 impl RepositoryIndex {
-    async fn initialize(
+    async fn open_index_and_start_writer(
         root: Arc<Path>,
         settings: IndexSettings,
     ) -> Result<Arc<Self>, SearchIndexError> {
         let cache_dir: Arc<Path> = root.join(&settings.cache_dir).into();
         tokio::fs::create_dir_all(&cache_dir).await?;
 
-        let (schema, fields) = make_schema();
-        let directory = MmapDirectory::open(&cache_dir)?;
-        let index = Index::open_or_create(directory, schema)?;
-        let reader = index.reader()?;
-        let fingerprints = load_fingerprints(&reader, fields)?;
-        let writer = index.writer(INDEX_WRITER_MEMORY_BUDGET)?;
+        let index_directory = cache_dir.clone();
+        let (index, reader, fields, writer, fingerprints) =
+            tokio::task::spawn_blocking(move || {
+                let (schema, fields) = make_schema();
+                let directory = MmapDirectory::open(&index_directory)?;
+                let index = Index::open_or_create(directory, schema)?;
+                let reader = index.reader()?;
+                let fingerprints = load_fingerprints(&reader, fields)?;
+                let writer = index.writer(INDEX_WRITER_MEMORY_BUDGET)?;
+                Ok::<_, SearchIndexError>((index, reader, fields, writer, fingerprints))
+            })
+            .await??;
         let (tx, rx) = mpsc::unbounded_channel();
         let last_full_reconcile = Arc::new(Mutex::new(None));
 
@@ -225,11 +236,13 @@ impl RepositoryIndex {
             last_full_reconcile: last_full_reconcile.clone(),
             refresh_interval: settings.refresh_interval,
             stale_after: settings.stale_after,
-            git_files: Arc::new(RwLock::new(HashSet::new())),
+            git_files: Arc::new(RwLock::new(Arc::new(HashSet::new()))),
             watcher: Mutex::new(None),
+            query_concurrency_limit: Arc::new(tokio::sync::Semaphore::new(2)),
+            watcher_update_lock: tokio::sync::Mutex::new(()),
         });
 
-        tokio::spawn(writer_loop(
+        tokio::spawn(forward_commands_to_blocking_writer(
             root.clone(),
             repository.cache_dir.clone(),
             fields,
@@ -239,7 +252,16 @@ impl RepositoryIndex {
             last_full_reconcile,
             rx,
         ));
-        repository.install_watcher()?;
+        Ok(repository)
+    }
+
+    async fn initialize(
+        root: Arc<Path>,
+        settings: IndexSettings,
+    ) -> Result<Arc<Self>, SearchIndexError> {
+        let repository = Self::open_index_and_start_writer(root.clone(), settings).await?;
+        let index_to_watch = repository.clone();
+        tokio::task::spawn_blocking(move || index_to_watch.install_watcher()).await??;
         repository.full_reconcile(ReconcileKind::First).await?;
         ACTIVE_INDEXES
             .lock()
@@ -249,7 +271,31 @@ impl RepositoryIndex {
         Ok(repository)
     }
 
-    pub fn search(&self, input: &str, limit: usize) -> Result<Vec<PathBuf>, SearchIndexError> {
+    pub async fn search(
+        self: &Arc<Self>,
+        input: &str,
+        limit: usize,
+    ) -> Result<Vec<PathBuf>, SearchIndexError> {
+        let permit = self
+            .query_concurrency_limit
+            .clone()
+            .acquire_owned()
+            .await
+            .expect("query semaphore closed");
+        let repository = self.clone();
+        let input = input.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            repository.search_contents_blocking(&input, limit)
+        })
+        .await?
+    }
+
+    fn search_contents_blocking(
+        &self,
+        input: &str,
+        limit: usize,
+    ) -> Result<Vec<PathBuf>, SearchIndexError> {
         let searcher = self.reader.searcher();
         let mut parser = QueryParser::for_index(&self.index, vec![self.fields.body]);
         parser.set_conjunction_by_default();
@@ -276,7 +322,29 @@ impl RepositoryIndex {
             .collect()
     }
 
-    pub fn search_paths(
+    pub async fn search_paths(
+        self: &Arc<Self>,
+        input: &str,
+        base: &Path,
+        limit: usize,
+    ) -> Result<Vec<PathBuf>, SearchIndexError> {
+        let permit = self
+            .query_concurrency_limit
+            .clone()
+            .acquire_owned()
+            .await
+            .expect("query semaphore closed");
+        let repository = self.clone();
+        let input = input.to_owned();
+        let base = base.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            repository.search_paths_blocking(&input, &base, limit)
+        })
+        .await?
+    }
+
+    fn search_paths_blocking(
         &self,
         input: &str,
         base: &Path,
@@ -332,7 +400,10 @@ impl RepositoryIndex {
         });
     }
 
-    async fn full_reconcile(&self, reconcile_kind: ReconcileKind) -> Result<(), SearchIndexError> {
+    async fn full_reconcile(
+        self: &Arc<Self>,
+        reconcile_kind: ReconcileKind,
+    ) -> Result<(), SearchIndexError> {
         let (reply, response) = oneshot::channel();
         self.tx
             .send(WriterCommand::FullReconcile {
@@ -344,8 +415,7 @@ impl RepositoryIndex {
             .await
             .map_err(|_| SearchIndexError::WriterStopped)?
             .map_err(|error| SearchIndexError::Io(std::io::Error::other(error.to_string())))?;
-        *self.git_files.write().unwrap() = git_files.clone();
-        self.update_watcher(&git_files)?;
+        self.update_watcher(Arc::new(git_files)).await?;
         Ok(())
     }
 
@@ -406,41 +476,61 @@ impl RepositoryIndex {
         Ok(())
     }
 
-    fn update_watcher(&self, git_files: &HashSet<PathBuf>) -> Result<(), SearchIndexError> {
-        let directories = watch_directories(&self.root, git_files);
-        let mut state = self.watcher.lock().unwrap();
-        let Some(state) = state.as_mut() else {
-            return Ok(());
-        };
-
-        for directory in directories
-            .difference(&state.directories)
-            .cloned()
-            .collect::<Vec<_>>()
-        {
-            let Ok(metadata) = std::fs::symlink_metadata(&directory) else {
+    async fn update_watcher(
+        self: &Arc<Self>,
+        git_files: Arc<HashSet<PathBuf>>,
+    ) -> Result<(), SearchIndexError> {
+        let _watcher_update_guard = self.watcher_update_lock.lock().await;
+        *self.git_files.write().unwrap() = git_files.clone();
+        let directories = watch_directories(&self.root, &git_files).await;
+        let watched_directories = self
+            .watcher
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|state| state.directories.clone())
+            .unwrap_or_default();
+        let mut directories_to_watch = vec![];
+        for (index, directory) in directories.difference(&watched_directories).enumerate() {
+            if index % 64 == 0 {
+                tokio::task::yield_now().await;
+            }
+            let Ok(metadata) = tokio::fs::symlink_metadata(directory).await else {
                 continue;
             };
-            if !metadata.is_dir() || metadata.file_type().is_symlink() {
-                continue;
+            if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                directories_to_watch.push(directory.clone());
             }
-            state
-                .watcher
-                .watch(&directory, RecursiveMode::NonRecursive)?;
-            state.directories.insert(directory);
         }
-        for directory in state
-            .directories
-            .difference(&directories)
-            .cloned()
-            .collect::<Vec<_>>()
-        {
-            if let Err(error) = state.watcher.unwatch(&directory) {
-                debug!(%error, ?directory, "Failed to remove stale search index watch");
+        let repository = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut state = repository.watcher.lock().unwrap();
+            let Some(state) = state.as_mut() else {
+                return Ok(());
+            };
+            for directory in directories_to_watch {
+                if state.directories.contains(&directory) {
+                    continue;
+                }
+                state
+                    .watcher
+                    .watch(&directory, RecursiveMode::NonRecursive)?;
+                state.directories.insert(directory);
             }
-            state.directories.remove(&directory);
-        }
-        Ok(())
+            for directory in state
+                .directories
+                .difference(&directories)
+                .cloned()
+                .collect::<Vec<_>>()
+            {
+                if let Err(error) = state.watcher.unwatch(&directory) {
+                    debug!(%error, ?directory, "Failed to remove stale search index watch");
+                }
+                state.directories.remove(&directory);
+            }
+            Ok::<_, SearchIndexError>(())
+        })
+        .await?
     }
 
     fn spawn_periodic_refresh(self: &Arc<Self>) {
@@ -462,9 +552,12 @@ impl RepositoryIndex {
     }
 }
 
-fn watch_directories(root: &Path, git_files: &HashSet<PathBuf>) -> HashSet<PathBuf> {
+async fn watch_directories(root: &Path, git_files: &HashSet<PathBuf>) -> HashSet<PathBuf> {
     let mut directories = HashSet::from([root.to_path_buf()]);
-    for path in git_files {
+    for (index, path) in git_files.iter().enumerate() {
+        if index % 64 == 0 {
+            tokio::task::yield_now().await;
+        }
         let Some(parent) = path.parent() else {
             continue;
         };
@@ -529,7 +622,46 @@ fn load_fingerprints(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn writer_loop(
+async fn forward_commands_to_blocking_writer(
+    root: Arc<Path>,
+    cache_dir: Arc<Path>,
+    fields: IndexFields,
+    writer: IndexWriter,
+    reader: IndexReader,
+    fingerprints: HashMap<PathBuf, Fingerprint>,
+    last_full_reconcile: Arc<Mutex<Option<Instant>>>,
+    mut incoming_commands: mpsc::UnboundedReceiver<WriterCommand>,
+) {
+    // The async task owns the blocking writer's input, so shutdown closes it even
+    // when a cached RepositoryIndex still holds a sender to this task.
+    let (writer_commands, pending_writer_commands) = mpsc::unbounded_channel();
+    let runtime_handle = tokio::runtime::Handle::current();
+    let blocking_writer = tokio::task::spawn_blocking(move || {
+        run_blocking_index_writer(
+            root,
+            cache_dir,
+            fields,
+            writer,
+            reader,
+            fingerprints,
+            last_full_reconcile,
+            pending_writer_commands,
+            runtime_handle,
+        );
+    });
+    while let Some(command) = incoming_commands.recv().await {
+        if writer_commands.send(command).is_err() {
+            break;
+        }
+    }
+    drop(writer_commands);
+    if let Err(error) = blocking_writer.await {
+        warn!(%error, "Search index writer failed");
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_blocking_index_writer(
     root: Arc<Path>,
     cache_dir: Arc<Path>,
     fields: IndexFields,
@@ -538,14 +670,16 @@ async fn writer_loop(
     mut fingerprints: HashMap<PathBuf, Fingerprint>,
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     mut rx: mpsc::UnboundedReceiver<WriterCommand>,
+    runtime: tokio::runtime::Handle,
 ) {
-    async {
-        while let Some(command) = rx.recv().await {
-            match command {
-                WriterCommand::FullReconcile {
-                    reconcile_kind,
-                    reply,
-                } => {
+    let _span = info_span!("Tantivy Index").entered();
+    while let Some(command) = rx.blocking_recv() {
+        match command {
+            WriterCommand::FullReconcile {
+                reconcile_kind,
+                reply,
+            } => {
+                runtime.block_on(
                     full_reconcile(
                         &root,
                         &cache_dir,
@@ -557,31 +691,26 @@ async fn writer_loop(
                         reconcile_kind,
                         reply,
                     )
-                    .instrument(info_span!("Full reconcile", ?reconcile_kind))
-                    .await;
-                }
-                WriterCommand::Reconcile {
+                    .instrument(info_span!("Full reconcile", ?reconcile_kind)),
+                );
+            }
+            WriterCommand::Reconcile {
+                path,
+                add_if_missing,
+            } => {
+                let _span = info_span!("Reconcile", ?path).entered();
+                reconcile(
+                    &root,
+                    fields,
+                    &mut writer,
+                    &reader,
+                    &mut fingerprints,
                     path,
                     add_if_missing,
-                } => {
-                    let span = info_span!("Reconcile", ?path);
-                    reconcile(
-                        &root,
-                        fields,
-                        &mut writer,
-                        &reader,
-                        &mut fingerprints,
-                        path,
-                        add_if_missing,
-                    )
-                    .instrument(span)
-                    .await;
-                }
+                );
             }
         }
     }
-    .instrument(info_span!("Tantivy Index"))
-    .await
 }
 
 async fn full_reconcile(
@@ -620,11 +749,17 @@ async fn full_reconcile(
             }
         };
         info!("Found {} git files", paths.len());
-        let paths: HashSet<_> = paths
-            .into_iter()
-            .filter(|path| !root.join(path).starts_with(cache_dir.as_ref()))
-            .collect();
-        reconcile_all(root, fields, writer, reader, fingerprints, &paths).await?;
+        let mut indexable_paths = HashSet::with_capacity(paths.len());
+        for (index, path) in paths.into_iter().enumerate() {
+            if index % 64 == 0 {
+                tokio::task::yield_now().await;
+            }
+            if !root.join(&path).starts_with(cache_dir.as_ref()) {
+                indexable_paths.insert(path);
+            }
+        }
+        let paths = indexable_paths;
+        reconcile_all(root, fields, writer, reader, fingerprints, &paths)?;
         Ok(paths)
     }
     .await
@@ -636,7 +771,7 @@ async fn full_reconcile(
     info!("Elapsed: {}", humantime::format_duration(start.elapsed()))
 }
 
-async fn reconcile(
+fn reconcile(
     root: &Arc<Path>,
     fields: IndexFields,
     writer: &mut IndexWriter,
@@ -647,9 +782,8 @@ async fn reconcile(
 ) {
     debug!("Start");
     defer!(debug!("End"));
-    let result = reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing)
-        .await
-        .and_then(|changed| {
+    let result = reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing).and_then(
+        |changed| {
             if changed {
                 debug!("Updated index");
                 writer.commit()?;
@@ -658,7 +792,8 @@ async fn reconcile(
                 debug!("Ignored");
             }
             Ok(())
-        });
+        },
+    );
     if let Err(error) = result {
         warn!(%error, ?path, "Failed to reconcile search index file");
     }
@@ -667,13 +802,24 @@ async fn reconcile(
 async fn collect_paths(
     paths: impl Stream<Item = Result<PathBuf, super::SearchError>>,
 ) -> Result<Vec<PathBuf>, SearchIndexError> {
+    let mut path_count = 0usize;
     paths
+        .then(move |path| {
+            path_count += 1;
+            let should_yield = path_count.is_multiple_of(64);
+            async move {
+                if should_yield {
+                    tokio::task::yield_now().await;
+                }
+                path
+            }
+        })
         .try_collect::<Vec<_>>()
         .await
         .map_err(|error| SearchIndexError::GitFiles(error.to_string()))
 }
 
-async fn reconcile_all(
+fn reconcile_all(
     root: &Path,
     fields: IndexFields,
     writer: &mut IndexWriter,
@@ -683,7 +829,7 @@ async fn reconcile_all(
 ) -> Result<(), SearchIndexError> {
     let mut changed = false;
     for path in paths {
-        changed |= reconcile_one(root, fields, writer, fingerprints, path, true).await?;
+        changed |= reconcile_one(root, fields, writer, fingerprints, path, true)?;
     }
     let deleted: Vec<_> = fingerprints
         .keys()
@@ -702,7 +848,7 @@ async fn reconcile_all(
     Ok(())
 }
 
-async fn reconcile_one(
+fn reconcile_one(
     root: &Path,
     fields: IndexFields,
     writer: &mut IndexWriter,
@@ -714,9 +860,8 @@ async fn reconcile_one(
     if previous.is_none() && !add_if_missing {
         return Ok(false);
     }
-
     let full_path = root.join(path);
-    let metadata = match tokio::fs::metadata(&full_path).await {
+    let metadata = match std::fs::metadata(&full_path) {
         Ok(metadata) if metadata.is_file() => metadata,
         Ok(_) => return remove_document(writer, fields, fingerprints, path),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -731,8 +876,7 @@ async fn reconcile_one(
     if previous == Some(fingerprint) {
         return Ok(false);
     }
-
-    let body = match tokio::fs::read_to_string(&full_path).await {
+    let body = match std::fs::read_to_string(&full_path) {
         Ok(body) => body,
         Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
             return remove_document(writer, fields, fingerprints, path);
@@ -780,6 +924,113 @@ mod tests {
     use super::watch_directories;
 
     #[test]
+    fn runtime_shutdown_releases_the_writer_even_with_a_cached_repository() {
+        let directory = tempfile::tempdir().unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let repository = runtime.block_on(async {
+            let root = tokio::fs::canonicalize(directory.path()).await.unwrap();
+            let output = tokio::process::Command::new("git")
+                .arg("init")
+                .current_dir(&root)
+                .output()
+                .await
+                .unwrap();
+            assert!(output.status.success());
+            let repository = super::RepositoryIndex::open_index_and_start_writer(
+                root.into(),
+                super::IndexSettings {
+                    cache_dir: Path::new(".git/terrazzo-test-index").into(),
+                    refresh_interval: std::time::Duration::from_secs(3600),
+                    stale_after: std::time::Duration::from_secs(3600),
+                },
+            )
+            .await
+            .unwrap();
+            repository
+                .full_reconcile(super::ReconcileKind::First)
+                .await
+                .unwrap();
+            repository
+        });
+        runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+        // A live cached sender must not keep the old writer's file lock held.
+        let _writer: tantivy::IndexWriter = repository.index.writer(50_000_000).unwrap();
+    }
+
+    #[tokio::test]
+    async fn disk_index_queries_and_reconciliation_stay_consistent() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = tokio::fs::canonicalize(directory.path()).await.unwrap();
+        let output = tokio::process::Command::new("git")
+            .arg("init")
+            .current_dir(&root)
+            .output()
+            .await
+            .unwrap();
+        assert!(output.status.success());
+        tokio::fs::write(root.join("first.txt"), "originalword")
+            .await
+            .unwrap();
+        let repository = super::RepositoryIndex::open_index_and_start_writer(
+            root.clone().into(),
+            super::IndexSettings {
+                cache_dir: Path::new(".git/terrazzo-test-index").into(),
+                refresh_interval: std::time::Duration::from_secs(3600),
+                stale_after: std::time::Duration::from_secs(3600),
+            },
+        )
+        .await
+        .unwrap();
+        repository
+            .full_reconcile(super::ReconcileKind::First)
+            .await
+            .unwrap();
+        assert_eq!(
+            repository.search("originalword", 10).await.unwrap(),
+            vec![PathBuf::from("first.txt")]
+        );
+        assert_eq!(
+            repository
+                .search_paths("FIRST", Path::new(""), 10)
+                .await
+                .unwrap(),
+            vec![PathBuf::from("first.txt")]
+        );
+        tokio::fs::write(root.join("first.txt"), "replacementword")
+            .await
+            .unwrap();
+        repository
+            .full_reconcile(super::ReconcileKind::First)
+            .await
+            .unwrap();
+        assert!(
+            repository
+                .search("originalword", 10)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            repository.search("replacementword", 10).await.unwrap(),
+            vec![PathBuf::from("first.txt")]
+        );
+        tokio::fs::remove_file(root.join("first.txt"))
+            .await
+            .unwrap();
+        repository
+            .full_reconcile(super::ReconcileKind::First)
+            .await
+            .unwrap();
+        assert!(
+            repository
+                .search("replacementword", 10)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn autocomplete_searches_paths_only_and_treats_input_literally() {
         let (schema, fields) = super::make_schema();
         let index = tantivy::Index::create_in_ram(schema);
@@ -814,8 +1065,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn watch_only_directories_containing_git_files() {
+    #[tokio::test]
+    async fn watch_only_directories_containing_git_files() {
         let git_files = HashSet::from([
             PathBuf::from("README.md"),
             PathBuf::from("src/main.rs"),
@@ -828,7 +1079,7 @@ mod tests {
                 PathBuf::from("/repo/src"),
                 PathBuf::from("/repo/src/nested"),
             ]),
-            watch_directories(Path::new("/repo"), &git_files),
+            watch_directories(Path::new("/repo"), &git_files).await,
         );
     }
 }

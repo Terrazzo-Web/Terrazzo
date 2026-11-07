@@ -1,4 +1,6 @@
 //! Bounded PTY replay. The reader keeps running when consumers disconnect.
+
+// TODO: use intention-revealing names. Names like 'Event', 'State', 'Journal' are ambiguous.
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -56,6 +58,7 @@ pub struct State {
     request_resume: Option<u64>,
 }
 
+// TODO: add a doc-comment
 #[derive(Clone)]
 pub struct Journal(pub Arc<Mutex<State>>);
 

@@ -22,6 +22,7 @@ pub const REPLAY_CAPACITY: usize = 1000 * 1000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Size {
+    // TODO: what is the purpose of alias = "rows" since the field is alreadu 'rows'. Ditto for 'cols' below.
     #[serde(rename = "r", alias = "rows")]
     pub rows: i32,
     #[serde(rename = "c", alias = "cols")]

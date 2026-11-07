@@ -45,6 +45,7 @@ pub struct ProcessOutput {
     pub reader: Reader,
     pub journal: Journal,
     pub worker: Arc<Worker>,
+    // TODO: I dispute the solution using atomics and AtomicWaker. Prefer using higer-level abstractions such as tokio watch, notify, oneshot or mpsc, see https://docs.rs/tokio/latest/tokio/sync/index.html
     pub stopped: Arc<std::sync::atomic::AtomicBool>,
     pub stop_waker: Arc<futures::task::AtomicWaker>,
 }

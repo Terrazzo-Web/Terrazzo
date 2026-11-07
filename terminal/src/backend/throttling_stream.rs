@@ -33,6 +33,7 @@ pub fn ack(terminal_id: &TerminalId, token: u64, event: u64, end: u64) {
         return;
     };
     let mut throttling_state = throttling_state.lock().expect("throttling_state");
+    // TODO: I don't understand why there are any changes to throttling. The PR should be more focused on periodic xtermjs snapshots without changing the throttling behavior. The focused change is that when the browser uploads a snapshot, it gets recorded and re-opening a terminal serves snapshot + data stream since the snapshot.
     if throttling_state.token != token || end > throttling_state.sent {
         return;
     }

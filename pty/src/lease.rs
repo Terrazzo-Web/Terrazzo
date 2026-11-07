@@ -37,6 +37,7 @@ impl ProcessIoEntry {
         info!("Create {}", Self::type_name());
         let (input, output) = process_io.split();
         Arc::new(Self {
+            // TODO: why use the pid + timestamp and not a static atomic integer?
             incarnation: format!(
                 "{}-{}",
                 std::process::id(),
@@ -249,6 +250,7 @@ impl Stream for ProcessOutputLease {
 
         Some(match next {
             Some(Ok(data)) => {
+                // TODO: why did you remove the previous trace? it is always safe to log verbosely at trace level, this is abstracted out in release mode
                 trace!(event = data.id, "Reading PTY event");
                 LeaseItem::Data(data)
             }

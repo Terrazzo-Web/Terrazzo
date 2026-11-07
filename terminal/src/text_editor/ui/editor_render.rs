@@ -84,18 +84,10 @@ impl EditorBodyContext<'_> {
         if self.editor_type == EditorType::Pdf {
             return None;
         }
-        let original = if self.show_editor_diff
-            && original
-                .as_ref()
-                .is_some_and(|original| original != content)
-        {
-            original
-                .as_deref()
-                .map(JsValue::from)
-                .unwrap_or(JsValue::null())
-        } else {
-            JsValue::null()
-        };
+        let original = original
+            .as_deref()
+            .map(JsValue::from)
+            .unwrap_or(JsValue::null());
         let document = SourceDocument {
             original,
             content: content.as_ref().into(),
@@ -142,6 +134,7 @@ impl EditorBodyContext<'_> {
             document.cursor_position,
             document.base_path,
             document.full_path,
+            self.show_editor_diff,
             self.show_html_preview == PreviewMode::Editor,
         ))
     }
@@ -176,6 +169,7 @@ impl EditorBodyContext<'_> {
             document.cursor_position,
             document.base_path,
             document.full_path,
+            self.show_editor_diff,
         );
         if let Some(preview) = preview {
             Box::new(HtmlEditorBody { source, preview })

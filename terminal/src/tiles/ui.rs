@@ -11,6 +11,7 @@ use terrazzo::prelude::diagnostics::warn;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::resize_event::ResizeEvent;
+use wasm_bindgen::JsCast as _;
 use wasm_bindgen_futures::spawn_local;
 
 use super::api::Direction;
@@ -19,6 +20,7 @@ use super::api::set_app;
 use super::api::set_remote;
 use super::api::set_title;
 use super::app::App;
+use super::maximize;
 use super::signals::TilePtr;
 use super::signals::Tiles;
 use super::signals::TilesCmp;
@@ -30,7 +32,7 @@ use crate::frontend::resize_bar::resize_bar_horz;
 use crate::frontend::resize_bar::resize_bar_vert;
 use crate::tiles::tabs::show_tabbed_tiles;
 
-terrazzo_css::import_style!(style, "ui.scss");
+terrazzo_css::import_style!(pub(super) style, "ui.scss");
 
 pub struct RootTree(XSignal<TilesCmp<Rc<Tiles>>>);
 
@@ -96,23 +98,33 @@ impl std::ops::Deref for RootTree {
 
 pub fn show_tiles() -> XElement {
     spawn_local(async move { RootTree::update(super::api::get().await) });
-    show_tiles_tree(ROOT_TREE.clone())
+    show_tiles_tree(ROOT_TREE.clone(), Rc::new(maximize::Session))
 }
 
 #[template(tag = div)]
 #[html]
-fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
+fn show_tiles_tree(
+    #[signal] tiles: TilesCmp<Rc<Tiles>>,
+    session: Rc<maximize::Session>,
+) -> XElement {
     let tile_tab_dragging = XSignal::new("tile-tab-dragging", false);
-    tag(show_tiles_rec(
-        &tiles,
-        1,
-        MousemoveManager::new(),
-        XSignal::new("direction0", Direction::Horizontal),
-        RcSlice::new(Rc::default(), 0..0),
-        None,
-        tile_tab_dragging,
-        None,
-    ))
+    tag(
+        before_render = move |_| {
+            let _ = &session;
+            maximize::before_render();
+        },
+        after_render = move |_| maximize::after_render(),
+        show_tiles_rec(
+            &tiles,
+            1,
+            MousemoveManager::new(),
+            XSignal::new("direction0", Direction::Horizontal),
+            RcSlice::new(Rc::default(), 0..0),
+            None,
+            tile_tab_dragging,
+            None,
+        ),
+    )
 }
 
 #[html]
@@ -128,8 +140,23 @@ pub(crate) fn show_tiles_rec(
 ) -> XElement {
     match tiles {
         Tiles::Tile(tile) => {
+            let floating = drag_handle.is_some();
             *tile.menu.drag_handle.borrow_mut() = drag_handle;
-            *tile.menu.dblclick_handle.borrow_mut() = dblclick_handle;
+            *tile.menu.dblclick_handle.borrow_mut() = Some(dblclick_handle.unwrap_or_else(|| {
+                Rc::new(move |ev| {
+                    let element = ev
+                        .target()
+                        .and_then(|target| target.dyn_into::<web_sys::Element>().ok());
+                    if let Some(element) = element.and_then(|element| {
+                        element
+                            .closest(&format!(".{}", style::APP_TILE))
+                            .ok()
+                            .flatten()
+                    }) {
+                        maximize::toggle(element);
+                    }
+                })
+            }));
             let tile_id = tile.id;
             let update_app = tile.app.add_subscriber(move |app| {
                 spawn_local(async move { RootTree::update(set_app(tile_id, app).await) })
@@ -146,6 +173,11 @@ pub(crate) fn show_tiles_rec(
                     let _ = &update_app;
                     let _ = &update_remote;
                     let _ = &update_title;
+                },
+                after_render = move |element| {
+                    if floating {
+                        maximize::release(element);
+                    }
                 },
                 class = style::APP_TILE,
                 #[cfg(not(feature = "client-prod"))]

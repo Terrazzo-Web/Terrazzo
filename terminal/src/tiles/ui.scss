@@ -79,3 +79,17 @@ div.default-header {
     box-sizing: border-box;
     flex: 0 0 auto;
 }
+
+// Attached directly to body so split/tab overflow and stacking contexts cannot clip it.
+div.maximized-tile {
+    position: fixed;
+    inset: 5%;
+    z-index: 1000;
+    display: flex;
+    background: var(--background-color);
+    box-shadow: 0 4px 16px color-mix(in srgb, black 35%, transparent);
+
+    > div {
+        flex: 1 1 0 !important;
+    }
+}

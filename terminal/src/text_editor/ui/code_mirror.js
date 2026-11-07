@@ -15,6 +15,7 @@ class CodeMirrorJsImpl {
         cursorPosition,
         basePath,
         fullPath,
+        showDiff,
     ) {
         this.onchange = onchange;
         this.onflush = onflush;
@@ -70,6 +71,9 @@ class CodeMirrorJsImpl {
                     ".cm-content": {
                         minWidth: "0",
                     },
+                    ".cm-mergeSpacer": {
+                        display: showDiff ? "block" : "none",
+                    },
                     "&.cm-merge-a .cm-changedLine": {
                         backgroundColor: "rgba(255, 0, 0, 0.20)",
                     },
@@ -110,9 +114,13 @@ class CodeMirrorJsImpl {
                 // Keep scattered changes precise in files around 2,000 lines,
                 // while bounding synchronous work for pathological inputs.
                 diffConfig: { scanLimit: 100000, timeout: 1000 },
-                collapseUnchanged: { margin: 3, minSize: 4 },
+                collapseUnchanged: showDiff ? { margin: 3, minSize: 4 } : undefined,
                 parent: element,
             });
+            this.showDiff = showDiff;
+            if (!showDiff) {
+                this.rootView.a.dom.parentElement.style.display = "none";
+            }
             this.rootView.dom.style.overflowX = "auto";
             this.rootView.dom
                 .querySelectorAll(".cm-mergeViewEditor")
@@ -145,7 +153,7 @@ class CodeMirrorJsImpl {
     }
 
     set_collapse_unchanged(collapse) {
-        if (this.rootView instanceof JsDeps.MergeView) {
+        if (this.showDiff && this.rootView instanceof JsDeps.MergeView) {
             this.rootView.reconfigure({
                 collapseUnchanged: collapse ? { margin: 3, minSize: 4 } : undefined,
             });

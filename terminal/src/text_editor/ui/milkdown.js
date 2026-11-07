@@ -25,6 +25,7 @@ class MilkdownJsImpl {
         cursorPosition,
         basePath,
         fullPath,
+        showDiff,
         focusSource,
     ) {
         this.ready = false;
@@ -69,6 +70,7 @@ class MilkdownJsImpl {
             cursorPosition,
             basePath,
             fullPath,
+            showDiff,
         );
         // CodeMirror focuses itself during construction. Restore the mode's
         // intended focus target after its focusin handler has run.

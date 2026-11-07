@@ -24,9 +24,9 @@ import '@milkdown/crepe/theme/common/diff.css';
 import '@milkdown/crepe/theme/frame-dark.css';
 
 import { basicSetup } from "codemirror";
-import { EditorState, StateEffect } from '@codemirror/state';
+import { EditorState } from '@codemirror/state';
 import { EditorView, tooltips } from "@codemirror/view";
-import { MergeView, diff, Change } from "@codemirror/merge";
+import { MergeView } from "@codemirror/merge";
 import { search } from "@codemirror/search";
 
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -81,11 +81,8 @@ export {
 
     basicSetup,
     EditorState,
-    StateEffect,
     EditorView,
     MergeView,
-    diff,
-    Change,
     search,
     tooltips,
 

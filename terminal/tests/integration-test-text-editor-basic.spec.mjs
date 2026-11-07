@@ -253,14 +253,6 @@ test.describe('Text editor basic', () => {
 
         const diffToggle = page.locator('.toggle-editor-diff');
         await expect(diffToggle).toBeHidden();
-        await replaceEditorText(page, plainEditor, '  Hello,   World!\n');
-        await expect.poll(async () => readFile(filePath, 'utf8')).toBe('  Hello,   World!\n');
-        await expect(diffToggle).toBeVisible();
-        await expect(page.locator('.cm-changedLine:visible')).not.toHaveCount(0);
-        await diffToggle.click();
-        await expect(getMergeViewEditors(page)).toHaveCount(2);
-        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
-        await diffToggle.click();
         await plainEditor.evaluate((node) => { window.__originalEditor = node; });
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
@@ -278,9 +270,6 @@ test.describe('Text editor basic', () => {
         await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 10 * SECOND });
         await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 10 * SECOND });
 
-        await replaceEditorText(page, diffEditors.nth(1), '  Bonjour,   Monde!\n');
-        await expect.poll(async () => readFile(filePath, 'utf8')).toBe('  Bonjour,   Monde!\n');
-        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 

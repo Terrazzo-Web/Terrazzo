@@ -13,6 +13,7 @@ use tracing::debug;
 use crate::api::shared::terminal_schema::RegisterTerminalMode;
 use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
 use crate::api::shared::terminal_schema::TerminalDef;
+use crate::api::shared::terminal_schema::TerminalSnapshot;
 use crate::backend::client_service::remote_fn_service;
 use crate::backend::throttling_stream::ThrottleProcessOutput;
 use crate::processes;
@@ -57,7 +58,32 @@ remote_fn_service::streaming::declare_remote_fn!(
             let terminal_id = terminal_id.clone();
             async move {
                 match stream.await {
-                    Ok(stream) => Ok(ThrottleProcessOutput::new(terminal_id, stream)),
+                    Ok(mut stream) => {
+                        let process = get_processes()
+                            .get(&terminal_id)
+                            .ok_or_else(|| Status::not_found("ProcessGone"))?
+                            .1
+                            .process_id;
+                        let snapshot = if create {
+                            stream.restore_snapshot()
+                        } else {
+                            None
+                        };
+                        let snapshot = snapshot.map(|snapshot| TerminalSnapshot {
+                            process,
+                            position: snapshot.position,
+                            data: String::from_utf8(snapshot.data.to_vec())
+                                .expect("snapshot is UTF-8"),
+                        });
+                        Ok((
+                            ThrottleProcessOutput::new(terminal_id, stream),
+                            LeaseMessage::Init {
+                                process,
+                                capacity: STREAMING_WINDOW_SIZE,
+                                snapshot,
+                            },
+                        ))
+                    }
                     Err(error) => Err(Status::internal(error.to_string())),
                 }
             }
@@ -66,14 +92,14 @@ remote_fn_service::streaming::declare_remote_fn!(
         use futures::future::ready;
         use futures::stream::once;
         let stream = async move {
-            let stream = stream.await?;
+            let (stream, init) = stream.await?;
             let stream = stream.inspect(move |next| {
                 if let LeaseItem::EOS = next {
                     let _removed = get_processes().remove(&terminal_id);
                 }
             });
             let stream = stream.map(LeaseMessage::from);
-            Ok(once(ready(LeaseMessage::Init)).chain(stream).map(Ok))
+            Ok(once(ready(init)).chain(stream).map(Ok))
         };
 
         let stream = helpers::is_future_stream(stream);
@@ -108,12 +134,13 @@ impl From<LeaseItem> for LeaseMessage {
     fn from(item: LeaseItem) -> Self {
         match item {
             LeaseItem::Data(data) => {
-                let vec = Vec::from(data);
-                match String::from_utf8(vec) {
-                    Ok(utf8) => Self::Utf8(utf8),
-                    Err(error) => Self::Base64(
-                        base64::engine::general_purpose::STANDARD.encode(error.into_bytes()),
-                    ),
+                let position = data.position;
+                match String::from_utf8(Vec::from(data.bytes)) {
+                    Ok(data) => Self::Utf8 { position, data },
+                    Err(error) => Self::Base64 {
+                        position,
+                        data: base64::engine::general_purpose::STANDARD.encode(error.into_bytes()),
+                    },
                 }
             }
             LeaseItem::EOS => Self::Eos,

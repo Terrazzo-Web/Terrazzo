@@ -1,5 +1,6 @@
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::task::Poll;
 use std::task::ready;
 
@@ -25,6 +26,9 @@ use crate::release_on_drop::ReleaseOnDrop;
 
 #[nameth]
 pub struct ProcessIoEntry {
+    /// Identifies this process within the server's lifetime.
+    pub process_id: usize,
+    pub output_buffer: crate::TerminalOutputBuffer,
     input: Mutex<ProcessInput>,
     output: Mutex<Option<ProcessOutputExchange>>,
 }
@@ -33,7 +37,11 @@ impl ProcessIoEntry {
     pub fn new(process_io: ProcessIO) -> Arc<Self> {
         info!("Create {}", Self::type_name());
         let (input, output) = process_io.split();
+        static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(1);
+        let output_buffer = output.0.buffer();
         Arc::new(Self {
+            process_id: NEXT_PROCESS_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            output_buffer,
             input: Mutex::new(input),
             output: Mutex::new(Some(ProcessOutputExchange::new(output))),
         })
@@ -136,6 +144,13 @@ impl ProcessOutputLease {
         (lease, signal_tx, process_output_rx)
     }
 
+    pub fn restore_snapshot(&mut self) -> Option<crate::OutputSnapshot> {
+        match self {
+            Self::Leased(stream) => stream.get_mut().as_mut().0.restore_snapshot(),
+            _ => None,
+        }
+    }
+
     fn revoke(&mut self) {
         let _span = debug_span!("Revoking").entered();
         debug!("Start");
@@ -180,7 +195,14 @@ impl Stream for ProcessOutputLease {
             Some(Ok(data)) => {
                 debug_assert!(!data.is_empty(), "Unexpected empty buffer");
                 trace! { "Reading {}", String::from_utf8_lossy(&data).escape_default() }
-                LeaseItem::Data(data)
+                let position = match &*self {
+                    Self::Leased(stream) => stream.get_ref().as_ref().0.position(),
+                    _ => unreachable!(),
+                };
+                LeaseItem::Data(TerminalOutput {
+                    position,
+                    bytes: data,
+                })
             }
             Some(Err(error)) => {
                 trace!("Reading failed: {error}");
@@ -200,8 +222,23 @@ impl Stream for ProcessOutputLease {
 #[derive(Debug)]
 pub enum LeaseItem {
     EOS,
-    Data(Bytes),
+    Data(TerminalOutput),
     Error(std::io::Error),
+}
+
+/// A PTY chunk and its position in the retained output stream.
+#[derive(Debug)]
+pub struct TerminalOutput {
+    pub position: usize,
+    pub bytes: Bytes,
+}
+
+impl std::ops::Deref for TerminalOutput {
+    type Target = Bytes;
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
 }
 
 impl Stream for ReleaseOnDrop<ProcessOutput> {
@@ -230,7 +267,10 @@ mod tests {
             stream::once(async { Ok(Bytes::from_static(b"output")) }).chain(stream::pending()),
             1024,
         );
+        let output_buffer = output.buffer();
         Arc::new(ProcessIoEntry {
+            process_id: 0,
+            output_buffer,
             input: Mutex::new(ProcessInput(input)),
             output: Mutex::new(Some(ProcessOutputExchange::new(ProcessOutput(output)))),
         })
@@ -255,7 +295,7 @@ mod tests {
 
         let mut replacement = entry.lease_output(true).await.unwrap();
         match replacement.next().await {
-            Some(LeaseItem::Data(data)) => assert_eq!(data, Bytes::from_static(b"output")),
+            Some(LeaseItem::Data(data)) => assert_eq!(data.bytes, Bytes::from_static(b"output")),
             item => panic!("Expected the original process output, got {item:?}"),
         }
     }

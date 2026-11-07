@@ -551,7 +551,7 @@
           "FILE:@@//utils/fixture/Cargo.toml fdaa2c65393c52c7d1ec69082da7fbe15f732a711a57bc713219e79ead57848c",
           "FILE:@@//remote/server/Cargo.toml 1daceaf232bcd0167fe00fa42456a3f3209b854e1aeaa4376cb22050dde8c15b",
           "FILE:@@//terminal/Cargo.toml 46dccf6a3421feef7cca50ba61ef6224694482081a4254cba6e987fea0a05428",
-          "FILE:@@//terminal/integration/Cargo.toml e70e9dea0179319a2632255b54b56eee44449d165e7dc297286f0afc6f6bc60c",
+          "FILE:@@//terminal/integration/Cargo.toml c1e85439e151648d474e4eb2627287ecb7a35db4a63dedeeeeec093d1d684075",
           "FILE:@@//utils/autoclone/autoclone-tests/Cargo.toml 6d241357284900e7f20b9d59e39bd6cf4fc366b456636be25383421373f58a87",
           "FILE:@@//utils/css/cli/Cargo.toml 81cafb8df18ae40742d54f2dddf340628d2cb8c7672fd014debe5c1e517e0e6b",
           "FILE:@@//utils/nameth/nameth-tests/Cargo.toml 946b72cba7a6a0e526ff612693422d230ebcc918c00265bb8a0047866d3a5f81",

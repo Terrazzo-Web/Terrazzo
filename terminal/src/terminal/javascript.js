@@ -4,6 +4,9 @@ class TerminalJs {
     webLinksAddon;
     constructor() {
         this.terminal = new JsDeps.Terminal({});
+        this.serializer = new JsDeps.SerializeAddon();
+        this.terminal.loadAddon(this.serializer);
+        this.position = this.snapshotPosition = 0;
         this.fitAddon = new JsDeps.FitAddon();
         this.webLinksAddon = new JsDeps.WebLinksAddon();
         this.terminal.attachCustomKeyEventHandler((event) => this.handleClipboardShortcut(event));
@@ -70,15 +73,40 @@ class TerminalJs {
     onTitleChange(callback) {
         this.terminal.onTitleChange(callback);
     }
-    async send(data) {
-        let terminalJs = this;
-        return new Promise(function (resolve, reject) {
-            terminalJs.terminal.write(data, function () {
-                resolve(true);
-            });
-        })
+    async initialize(process, capacity, snapshot) {
+        this.process = process;
+        this.capacity = capacity;
+        snapshot = JSON.parse(snapshot);
+        if (snapshot) {
+            await JsDeps.SnapshotAdapter.restore(this.terminal, snapshot.data);
+            this.position = this.snapshotPosition = snapshot.position;
+        }
+    }
+    onSnapshot(callback) {
+        const capture = async () => {
+            try {
+                if (this.process && !this.writing && this.position !== this.snapshotPosition) {
+                    const position = this.position;
+                    const data = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
+                    if (data) {
+                        await callback(JSON.stringify({ process: this.process, position, data }));
+                        this.snapshotPosition = position;
+                    }
+                }
+            } catch (error) { console.warn("Snapshot upload failed", error); }
+            finally { if (!this.disposed) this.snapshotTimer = setTimeout(capture, 5000); }
+        };
+        this.snapshotTimer = setTimeout(capture, 5000);
+    }
+    async send(data, position) {
+        this.writing = true;
+        await new Promise(resolve => this.terminal.write(data, resolve));
+        this.position = position;
+        this.writing = false;
     }
     dispose() {
+        this.disposed = true;
+        clearTimeout(this.snapshotTimer);
         this.terminal.dispose();
         this.webLinksAddon.dispose();
         this.fitAddon.dispose();

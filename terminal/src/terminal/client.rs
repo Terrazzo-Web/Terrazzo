@@ -67,8 +67,8 @@ pub async fn stream<F, F0>(
     state: TerminalsState,
     terminal_def: TerminalDef,
     notify_mouse: watch::WatchRx,
-    on_init: impl FnOnce() -> F0,
-    on_data: impl Fn(JsValue) -> F,
+    on_init: impl FnOnce(usize, usize, Option<TerminalSnapshot>) -> F0,
+    on_data: impl Fn(JsValue, usize) -> F,
 ) -> Result<(), StreamError>
 where
     F: Future<Output = ()>,
@@ -83,6 +83,7 @@ where
             .ready_chunks(100);
         let mut parser = NdjsonBuffer::<LeaseMessage>::default();
         let mut unacked = 0;
+        let mut position = 0;
         while let Some(chunks) = stream.next().await {
             let mut buffer = vec![];
             for chunk in chunks {
@@ -90,32 +91,46 @@ where
                     parser.push_chunk(&chunk.map_err(StreamError::from)?);
                 for message in messages {
                     match message.map_err(StreamError::Json)? {
-                        LeaseMessage::Init => {
+                        LeaseMessage::Init {
+                            process,
+                            capacity,
+                            snapshot,
+                        } => {
                             if let Some(on_init) = on_init.take() {
-                                on_init().await;
+                                on_init(process, capacity, snapshot).await;
                             }
                         }
                         LeaseMessage::Eos => {
-                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+                            process_data(&terminal_def, &on_data, &mut unacked, buffer, position)
+                                .await?;
                             state.on_eos(&terminal_id);
                             return Ok(());
                         }
                         LeaseMessage::Error(error) => {
-                            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+                            process_data(&terminal_def, &on_data, &mut unacked, buffer, position)
+                                .await?;
                             state.on_eos(&terminal_id);
                             return Err(StreamError::ServerFn(error));
                         }
-                        LeaseMessage::Base64(data) => {
+                        LeaseMessage::Base64 {
+                            data,
+                            position: next,
+                        } => {
+                            position = next;
                             let data = base64::engine::general_purpose::STANDARD.decode(data)?;
                             buffer.extend(data);
                         }
-                        LeaseMessage::Utf8(data) => {
+                        LeaseMessage::Utf8 {
+                            data,
+                            position: next,
+                        } => {
+                            position = next;
                             buffer.extend(data.as_bytes());
                         }
                     }
                 }
             }
-            process_data(&terminal_def, &on_data, &mut unacked, buffer).await?;
+            process_data(&terminal_def, &on_data, &mut unacked, buffer, position).await?;
         }
         debug!("Terminal stream disconnected");
         match notify_mouse.notified().await {
@@ -131,9 +146,10 @@ where
 
 async fn process_data<F>(
     terminal_def: &TerminalDefImpl<TabTitle<String>>,
-    on_data: &impl Fn(JsValue) -> F,
+    on_data: &impl Fn(JsValue, usize) -> F,
     unacked: &mut usize,
     data: Vec<u8>,
+    position: usize,
 ) -> Result<(), StreamError>
 where
     F: Future<Output = ()>,
@@ -144,7 +160,7 @@ where
     *unacked += data.len();
     let value = Uint8Array::new_with_length(data.len() as u32);
     value.copy_from(&data);
-    on_data(value.into()).await;
+    on_data(value.into(), position).await;
     if *unacked >= STREAMING_WINDOW_SIZE / 2 {
         super::api::ack(terminal_def.address.clone(), std::mem::take(unacked))
             .await

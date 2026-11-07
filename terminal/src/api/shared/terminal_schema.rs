@@ -96,3 +96,11 @@ pub struct SetTitleRequest<T = TerminalAddress> {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "v"))]
     pub title: TabTitle<String>,
 }
+
+/// XTermJS state after the browser applied output through `position`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TerminalSnapshot {
+    pub process: usize,
+    pub position: usize,
+    pub data: String,
+}

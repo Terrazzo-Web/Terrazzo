@@ -35,3 +35,7 @@ bazel = []
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "terrazzo-terminal-mouse-tui"
+path = "src/mouse_tui.rs"

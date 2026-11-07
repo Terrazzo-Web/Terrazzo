@@ -1,5 +1,3 @@
-use std::future::ready;
-
 use futures::FutureExt as _;
 use futures::SinkExt as _;
 use futures::StreamExt as _;
@@ -64,7 +62,7 @@ pub fn attach(
         .set_attribute(XTERMJS_ATTR, IS_ATTACHED)
         .or_throw(XTERMJS_ATTR);
 
-    info!("Attaching XtermJS");
+    info!("Attaching XTermJS");
     let xtermjs = WithGenerationId::from(TerminalJsRc::new());
     *terminal_tab.xtermjs.lock().or_throw("xtermjs") = Some(xtermjs.clone());
     let attachment_cancel = make_attachment_cancel(&terminal_tab);
@@ -72,6 +70,7 @@ pub fn attach(
     let (input_tx, input_rx) = mpsc::unbounded();
     let on_data = xtermjs.do_on_data(input_tx);
     let on_resize = xtermjs.do_on_resize(terminal_address.clone());
+    let on_snapshot = xtermjs.do_on_snapshot(terminal_address.clone());
     let on_title_change = xtermjs.do_on_title_change(terminal_tab.title.clone());
     let selected = terminal_tab.selected.get_value_untracked();
     let io = async move {
@@ -100,11 +99,12 @@ pub fn attach(
             }
         }
         drop(unsubscribe_resize_event);
+        drop(on_snapshot);
         drop(on_title_change);
         drop(on_resize);
         drop(on_data);
         drop(xtermjs);
-        info!("Detached XtermJS");
+        info!("Detached XTermJS");
     };
     spawn_local(io.in_current_span());
     return Consumers::default();
@@ -165,6 +165,25 @@ impl TerminalJs {
         }
     }
 
+    fn do_on_snapshot(
+        &self,
+        terminal: TerminalAddress,
+    ) -> Closure<dyn FnMut(JsValue) -> web_sys::js_sys::Promise> {
+        let callback = Closure::new(move |data: JsValue| {
+            let terminal = terminal.clone();
+            wasm_bindgen_futures::future_to_promise(async move {
+                let snapshot = serde_json::from_str(&data.as_string().or_throw("snapshot"))
+                    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+                super::api::put_snapshot(terminal, snapshot)
+                    .await
+                    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+                Ok(JsValue::NULL)
+            })
+        });
+        self.on_snapshot(&callback);
+        callback
+    }
+
     fn do_on_title_change(&self, title: XSignal<TabTitle<XString>>) -> Closure<dyn FnMut(JsValue)> {
         let span = Span::current();
         let on_title_change: Closure<dyn FnMut(JsValue)> = Closure::new(move |data: JsValue| {
@@ -191,14 +210,19 @@ impl TerminalJs {
         let span = debug_span!("StreamLoop", terminal_address = %terminal_def.address);
         async {
             debug!("Start");
-            let on_init = || {
+            let on_init = |process, capacity, snapshot| async move {
+                self.initialize(process, capacity, serde_json::to_string(&snapshot).unwrap())
+                    .await;
                 self.fit();
                 let _ = initialized.send(());
-                ready(())
             };
-            let eos = terminal_api::stream(state, terminal_def, notify_mouse, on_init, |data| {
-                self.send(data)
-            })
+            let eos = terminal_api::stream(
+                state,
+                terminal_def,
+                notify_mouse,
+                on_init,
+                |data, position| self.send(data, position),
+            )
             .await;
             match eos {
                 Ok(()) => info!("End"),

@@ -3,6 +3,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use nameth::nameth;
@@ -253,7 +254,7 @@ fn editor_diff_controls(
     }
     let file = editor.data.get_value_untracked();
     let has_diff = XSignal::new("diff-available", file_has_diff(&file));
-    let generation = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let generation = Arc::new(AtomicU32::new(0));
     let registration = editor.data.add_subscriber({
         let has_diff = has_diff.clone();
         let data = editor.data.clone();

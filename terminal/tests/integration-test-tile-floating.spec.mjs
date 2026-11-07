@@ -21,6 +21,44 @@ test.describe('Floating terminal tile', () => {
         await page.locator('.app-tile').first().waitFor({ timeout: 10 * SECOND });
     });
 
+    test('closing a maximized tile removes the overlay and restores the remaining layout', async ({ page }) => {
+        const tiles = page.locator('.app-tile');
+        await expect(tiles).toHaveCount(1);
+        const originalBounds = await tiles.first().boundingBox();
+        await tiles.first().locator('.app-menu-trigger').hover();
+        await tiles.first().locator('.split-horizontal').click();
+        await expect(tiles).toHaveCount(2);
+        await tiles.evaluateAll((nodes) => {
+            window.__closingTile = nodes[1];
+        });
+
+        await tiles.nth(1).locator('.app-menu-trigger img').first().dblclick();
+        const maximized = page.locator('body > .maximized-tile');
+        await expect(maximized).toBeVisible();
+        await maximized.locator('.app-menu-trigger').hover();
+        await maximized.locator('.tile-close').click();
+
+        await expect(maximized).toHaveCount(0);
+        await expect(tiles).toHaveCount(1);
+        await expect(tiles.first()).toBeVisible();
+        await expect.poll(() => page.evaluate(() => (
+            !window.__closingTile.isConnected
+        ))).toBe(true);
+        await expect.poll(async () => {
+            const bounds = await tiles.first().boundingBox();
+            return Math.max(...['x', 'y', 'width', 'height'].map(
+                (key) => Math.abs(bounds[key] - originalBounds[key]),
+            ));
+        }).toBeLessThan(1);
+
+        // Closing the old tile must also clear the state used by subsequent toggles.
+        await tiles.first().locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toBeVisible();
+        await maximized.locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toHaveCount(0);
+        await expect(tiles).toHaveCount(1);
+    });
+
     test('preserves populated tiles when splitting and floating', async ({ page }) => {
         const tiles = page.locator('.app-tile');
         const initialTile = tiles.first();

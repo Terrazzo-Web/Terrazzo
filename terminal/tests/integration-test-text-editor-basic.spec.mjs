@@ -247,12 +247,20 @@ test.describe('Text editor basic', () => {
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(1, { timeout: 10 * SECOND });
         const plainEditor = getCodeMirrorContent(page).first();
         await expect(plainEditor).toContainText('Hello, World!', { timeout: 10 * SECOND });
 
         const diffToggle = page.locator('.toggle-editor-diff');
         await expect(diffToggle).toBeHidden();
+        await replaceEditorText(page, plainEditor, '  Hello,   World!\n');
+        await expect.poll(async () => readFile(filePath, 'utf8')).toBe('  Hello,   World!\n');
+        await expect(diffToggle).toBeVisible();
+        await expect(page.locator('.cm-changedLine:visible')).not.toHaveCount(0);
+        await diffToggle.click();
+        await expect(getMergeViewEditors(page)).toHaveCount(2);
+        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
+        await diffToggle.click();
         await plainEditor.evaluate((node) => { window.__originalEditor = node; });
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
@@ -261,6 +269,7 @@ test.describe('Text editor basic', () => {
         await expect.poll(() => plainEditor.evaluate((node) => node === window.__originalEditor)).toBe(true);
         await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
         await expect(diffToggle).toHaveAttribute('title', 'Show diff');
+        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
         await diffToggle.click();
         await expect(diffToggle).toHaveAttribute('title', 'Hide diff');
 
@@ -269,13 +278,16 @@ test.describe('Text editor basic', () => {
         await expect(diffEditors.nth(0)).toContainText('Hello, World!', { timeout: 10 * SECOND });
         await expect(diffEditors.nth(1)).toContainText('Bonjour, Monde!', { timeout: 10 * SECOND });
 
+        await replaceEditorText(page, diffEditors.nth(1), '  Bonjour,   Monde!\n');
+        await expect.poll(async () => readFile(filePath, 'utf8')).toBe('  Bonjour,   Monde!\n');
+        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
         await expect(diffToggle).toBeHidden({ timeout: 10 * SECOND });
         await reopenFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(1, { timeout: 10 * SECOND });
         await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 10 * SECOND });
         await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 10 * SECOND });
     });
@@ -299,7 +311,7 @@ test.describe('Text editor basic', () => {
         await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
         await expect.poll(() => editor.evaluate((node) => node === window.__largeEditor)).toBe(true);
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(modified);
-        await expect(getMergeViewEditors(page)).toHaveCount(0);
+        await expect(getMergeViewEditors(page)).toHaveCount(1);
     });
 
     test('preserves unchanged regions in a complex 2000-line diff and wraps both panes', async ({ page }) => {
@@ -380,7 +392,7 @@ test.describe('Text editor basic', () => {
         await expect.poll(async () => readFile(filePath, 'utf8')).toBe(modified);
         await diffToggle.click();
         await expect(contextToggle).toBeHidden();
-        await expect(getMergeViewEditors(page)).toHaveCount(0);
+        await expect(getMergeViewEditors(page)).toHaveCount(1);
         await expect(getCodeMirrorContent(page)).toContainText('Modified line 30');
     });
 

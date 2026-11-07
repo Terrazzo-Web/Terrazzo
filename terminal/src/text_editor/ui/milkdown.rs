@@ -43,6 +43,7 @@ impl MilkdownJs {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
+        show_diff: bool,
         focus_source: bool,
     ) -> Self {
         Self {
@@ -58,6 +59,7 @@ impl MilkdownJs {
                 cursor_position,
                 base_path,
                 full_path,
+                show_diff,
                 focus_source,
             ),
             _onchange: onchange,
@@ -133,6 +135,7 @@ extern "C" {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
+        show_diff: bool,
         focus_source: bool,
     ) -> MilkdownJsImpl;
 

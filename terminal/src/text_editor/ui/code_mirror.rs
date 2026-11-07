@@ -39,6 +39,7 @@ impl CodeMirrorJs {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
+        show_diff: bool,
     ) -> Self {
         Self {
             inner: CodeMirrorJsImpl::new(
@@ -52,6 +53,7 @@ impl CodeMirrorJs {
                 cursor_position,
                 base_path,
                 full_path,
+                show_diff,
             ),
             _onchange: onchange,
             _oncursor: oncursor,
@@ -124,6 +126,7 @@ extern "C" {
         cursor_position: JsValue,
         base_path: String,
         full_path: String,
+        show_diff: bool,
     ) -> CodeMirrorJsImpl;
 
     #[wasm_bindgen(method)]

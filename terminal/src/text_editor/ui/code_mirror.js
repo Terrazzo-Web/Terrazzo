@@ -15,6 +15,7 @@ class CodeMirrorJsImpl {
         cursorPosition,
         basePath,
         fullPath,
+        showDiff,
     ) {
         this.onchange = onchange;
         this.onflush = onflush;
@@ -25,7 +26,25 @@ class CodeMirrorJsImpl {
         this.basePath = basePath;
         this.fullPath = fullPath;
         this.reloadFromDisk = true;
+        this.whitespaceOnly = original != null &&
+            original.replace(/\s/g, "") === content.replace(/\s/g, "");
         const updateListener = JsDeps.EditorView.updateListener.of((update) => {
+            if (update.docChanged && this.rootView instanceof JsDeps.MergeView) {
+                const before = this.rootView.a.state.doc.toString();
+                const after = update.state.doc.toString();
+                const whitespaceOnly = before.replace(/\s/g, "") === after.replace(/\s/g, "");
+                if (whitespaceOnly !== this.whitespaceOnly) {
+                    this.whitespaceOnly = whitespaceOnly;
+                    // Recompute all chunks when the policy changes, including
+                    // whitespace changes outside the incremental edit range.
+                    queueMicrotask(() => {
+                        if (this.destroyed) return;
+                        this.rootView.a.dispatch({ changes: {
+                            from: 0, to: before.length, insert: before,
+                        } });
+                    });
+                }
+            }
             if (!this.reloadFromDisk && update.docChanged) {
                 if (!this.dirty) {
                     this.dirty = true;
@@ -109,10 +128,18 @@ class CodeMirrorJsImpl {
                 },
                 // Keep scattered changes precise in files around 2,000 lines,
                 // while bounding synchronous work for pathological inputs.
-                diffConfig: { scanLimit: 100000, timeout: 1000 },
-                collapseUnchanged: { margin: 3, minSize: 4 },
+                diffConfig: { override: (a, b) =>
+                    diffIgnoringWhitespace(a, b, this.whitespaceOnly) },
+                collapseUnchanged: showDiff ? { margin: 3, minSize: 4 } : undefined,
                 parent: element,
             });
+            this.showDiff = showDiff;
+            if (!showDiff) {
+                this.rootView.a.dom.parentElement.style.display = "none";
+                this.rootView.b.dispatch({ effects: JsDeps.StateEffect.appendConfig.of(
+                    JsDeps.EditorView.theme({ ".cm-mergeSpacer": { display: "none" } })
+                ) });
+            }
             this.rootView.dom.style.overflowX = "auto";
             this.rootView.dom
                 .querySelectorAll(".cm-mergeViewEditor")
@@ -145,7 +172,7 @@ class CodeMirrorJsImpl {
     }
 
     set_collapse_unchanged(collapse) {
-        if (this.rootView instanceof JsDeps.MergeView) {
+        if (this.showDiff && this.rootView instanceof JsDeps.MergeView) {
             this.rootView.reconfigure({
                 collapseUnchanged: collapse ? { margin: 3, minSize: 4 } : undefined,
             });
@@ -249,6 +276,34 @@ class CodeMirrorJsImpl {
         const setLintsTransaction = JsDeps.setDiagnostics(this.editorView.state, lints);
         this.editorView.dispatch(setLintsTransaction);
     }
+}
+
+// Compare non-whitespace characters, then map changes back to the real documents.
+// Never normalize the editor contents themselves.
+function diffIgnoringWhitespace(a, b, showWhitespace) {
+    if (showWhitespace) {
+        return JsDeps.diff(a, b, { scanLimit: 100000, timeout: 1000 });
+    }
+    function strip(text) {
+        const offsets = [];
+        let content = "";
+        for (let i = 0; i < text.length; i++) {
+            if (!/\s/.test(text[i])) {
+                offsets.push(i);
+                content += text[i];
+            }
+        }
+        offsets.push(text.length);
+        return { content, offsets };
+    }
+    const left = strip(a), right = strip(b);
+    return JsDeps.diff(left.content, right.content, { scanLimit: 100000, timeout: 1000 })
+        .map(change => new JsDeps.Change(
+            left.offsets[change.fromA],
+            change.toA === change.fromA ? left.offsets[change.fromA] : left.offsets[change.toA - 1] + 1,
+            right.offsets[change.fromB],
+            change.toB === change.fromB ? right.offsets[change.fromB] : right.offsets[change.toB - 1] + 1,
+        ));
 }
 
 function getLanguage(fileName) {

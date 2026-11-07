@@ -141,6 +141,7 @@ mod diff_tests {
             content: Arc::from("original"),
         };
         assert!(!file.has_diff("original"));
+        assert!(file.has_diff("  ori ginal\n\t"));
         assert!(file.has_diff("edited"));
         assert!(!file.has_diff("original"));
         let file = File::TextFile {

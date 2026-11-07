@@ -284,12 +284,11 @@ impl RepositoryIndex {
             .expect("query semaphore closed");
         let repository = self.clone();
         let input = input.to_owned();
-        let result = tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             let _permit = permit;
             repository.search_contents_blocking(&input, limit)
         })
-        .await?;
-        result
+        .await?
     }
 
     fn search_contents_blocking(
@@ -807,7 +806,7 @@ async fn collect_paths(
     paths
         .then(move |path| {
             path_count += 1;
-            let should_yield = path_count % 64 == 0;
+            let should_yield = path_count.is_multiple_of(64);
             async move {
                 if should_yield {
                     tokio::task::yield_now().await;

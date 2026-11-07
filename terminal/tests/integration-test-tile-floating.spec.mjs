@@ -60,6 +60,9 @@ test.describe('Floating terminal tile', () => {
     });
 
     test('preserves populated tiles when splitting and floating', async ({ page }) => {
+        // This covers several layout transitions and a reload; debug CI exceeds 30s.
+        // Keep individual action/assertion timeouts short so a stuck transition still fails.
+        test.setTimeout(90 * SECOND);
         const tiles = page.locator('.app-tile');
         const initialTile = tiles.first();
 

@@ -90,7 +90,7 @@ test.describe('Text editor basic', () => {
         expect(result.flash.background).toContain('rgb(0, 128, 0)');
         expect(result.flash.background).toContain('rgba(0, 0, 0, 0)');
         expect(result.flash.size).toBe('100% 10px, 100% 10px, 10px 100%, 10px 100%');
-        expect(result.duration).toBe(2000);
+        expect(result.duration).toBe(1500);
         expect(result.opacity).toBe('0');
         expect(result.during).toEqual(result.before);
         expect(result.after).toEqual(result.before);

@@ -36,7 +36,7 @@ static MAX_QUERY_TIME: Duration = Duration::from_secs(10);
 
 mod filenames;
 mod highlights;
-mod tantivy;
+pub mod tantivy;
 mod utils;
 
 pub use self::highlights::get_highlight_ranges;
@@ -242,4 +242,27 @@ async fn process_index_path(
         &mut HashMap::new(),
     );
     Ok(Some(result))
+}
+
+/// Search only indexed paths, keeping suggestions within the editor base directory.
+pub async fn autocomplete_paths(
+    base: &Path,
+    input: &str,
+    settings: IndexSettings,
+    limit: usize,
+) -> Result<Vec<PathBuf>, Arc<SearchIndexError>> {
+    let Some(root) = git_repo_root(base) else {
+        return Ok(vec![]);
+    };
+    let index = tantivy::repository_index(root.clone(), settings).await?;
+    let relative_base = base.strip_prefix(&root).unwrap_or(base);
+    let paths = index
+        .search_paths(input, relative_base, limit)
+        .map_err(Arc::new)?;
+    index.refresh_if_stale();
+    Ok(paths
+        .into_iter()
+        .map(|path| root.join(path))
+        .filter(|path| path.starts_with(base))
+        .collect())
 }

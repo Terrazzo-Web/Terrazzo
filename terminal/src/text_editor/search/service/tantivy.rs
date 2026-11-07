@@ -157,6 +157,26 @@ pub async fn repository_index(
     return future_repository_index.await;
 }
 
+fn path_query(
+    field: Field,
+    input: &str,
+) -> Result<tantivy::query::RegexQuery, tantivy::TantivyError> {
+    let mut pattern = String::from(".*");
+    for character in input.chars() {
+        if character.is_ascii_alphabetic() {
+            pattern.push_str(&format!(
+                "[{}{}]",
+                character.to_ascii_lowercase(),
+                character.to_ascii_uppercase()
+            ));
+        } else {
+            pattern.push_str(&regex::escape(&character.to_string()));
+        }
+    }
+    pattern.push_str(".*");
+    tantivy::query::RegexQuery::from_pattern(&pattern, field)
+}
+
 pub fn reconcile_touched_path(path: &Path) {
     let Some(root) = fsio::git::git_repo_root(path) else {
         return;
@@ -251,6 +271,45 @@ impl RepositoryIndex {
                             std::io::ErrorKind::InvalidData,
                             "Indexed document has no path",
                         ))
+                    })
+            })
+            .collect()
+    }
+
+    pub fn search_paths(
+        &self,
+        input: &str,
+        base: &Path,
+        limit: usize,
+    ) -> Result<Vec<PathBuf>, SearchIndexError> {
+        let query = path_query(self.fields.path, input)?;
+        let scope = tantivy::query::RegexQuery::from_pattern(
+            &format!(
+                "{}.*",
+                regex::escape(&if base.as_os_str().is_empty() {
+                    String::new()
+                } else {
+                    format!("{}/", base.display())
+                })
+            ),
+            self.fields.path,
+        )?;
+        let query = tantivy::query::BooleanQuery::intersection(vec![
+            Box::new(query) as Box<dyn tantivy::query::Query>,
+            Box::new(scope),
+        ]);
+        let searcher = self.reader.searcher();
+        searcher
+            .search(&query, &TopDocs::with_limit(limit).order_by_score())?
+            .into_iter()
+            .map(|(_, address)| {
+                let document: TantivyDocument = searcher.doc(address)?;
+                document
+                    .get_first(self.fields.path)
+                    .and_then(|value| value.as_str())
+                    .map(PathBuf::from)
+                    .ok_or_else(|| {
+                        SearchIndexError::Io(std::io::Error::other("Indexed document has no path"))
                     })
             })
             .collect()
@@ -719,6 +778,41 @@ mod tests {
     use std::path::PathBuf;
 
     use super::watch_directories;
+
+    #[test]
+    fn autocomplete_searches_paths_only_and_treats_input_literally() {
+        let (schema, fields) = super::make_schema();
+        let index = tantivy::Index::create_in_ram(schema);
+        let mut writer = index.writer(50_000_000).unwrap();
+        writer
+            .add_document(
+                tantivy::doc!(fields.path => "src/Nested/File.rs", fields.body => "unrelated"),
+            )
+            .unwrap();
+        writer
+            .add_document(tantivy::doc!(fields.path => "other.txt", fields.body => "file.rs"))
+            .unwrap();
+        writer
+            .add_document(tantivy::doc!(fields.path => "src/fileXrs", fields.body => "unrelated"))
+            .unwrap();
+        writer.commit().unwrap();
+        let reader = index.reader().unwrap();
+        let searcher = reader.searcher();
+        let query = super::path_query(fields.path, "file.rs").unwrap();
+        let docs = searcher
+            .search(
+                &query,
+                &tantivy::collector::TopDocs::with_limit(30).order_by_score(),
+            )
+            .unwrap();
+        assert_eq!(docs.len(), 1);
+        let document: tantivy::TantivyDocument = searcher.doc(docs[0].1).unwrap();
+        use tantivy::schema::Value as _;
+        assert_eq!(
+            document.get_first(fields.path).unwrap().as_str(),
+            Some("src/Nested/File.rs")
+        );
+    }
 
     #[test]
     fn watch_only_directories_containing_git_files() {

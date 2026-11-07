@@ -174,7 +174,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
         .map_err(RunServerError::Tiles)?;
 
     let result = run_server_graph::Run { cli, config }.run().await;
-    crate::tiles::api::state::flush().await;
+    crate::tiles::api::state::wait_for_pending_tile_saves().await;
     result
 }
 

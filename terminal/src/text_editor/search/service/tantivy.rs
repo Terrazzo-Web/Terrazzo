@@ -104,8 +104,8 @@ pub struct RepositoryIndex {
     stale_after: Duration,
     git_files: Arc<RwLock<Arc<HashSet<PathBuf>>>>,
     watcher: Mutex<Option<WatcherState>>,
-    queries: Arc<tokio::sync::Semaphore>,
-    watcher_updates: tokio::sync::Mutex<()>,
+    query_concurrency_limit: Arc<tokio::sync::Semaphore>,
+    watcher_update_lock: tokio::sync::Mutex<()>,
 }
 
 struct WatcherState {
@@ -117,7 +117,7 @@ struct WatcherState {
 #[derive(thiserror::Error, Debug)]
 pub enum SearchIndexError {
     #[error("Search index blocking task failed: {0}")]
-    Task(#[from] tokio::task::JoinError),
+    BlockingTask(#[from] tokio::task::JoinError),
 
     #[error("[{n}] Failed to access the Tantivy cache: {0}", n = self.name())]
     Io(#[from] std::io::Error),
@@ -204,15 +204,18 @@ pub enum ReconcileKind {
 }
 
 impl RepositoryIndex {
-    async fn open(root: Arc<Path>, settings: IndexSettings) -> Result<Arc<Self>, SearchIndexError> {
+    async fn open_index_and_start_writer(
+        root: Arc<Path>,
+        settings: IndexSettings,
+    ) -> Result<Arc<Self>, SearchIndexError> {
         let cache_dir: Arc<Path> = root.join(&settings.cache_dir).into();
         tokio::fs::create_dir_all(&cache_dir).await?;
 
-        let directory_path = cache_dir.clone();
+        let index_directory = cache_dir.clone();
         let (index, reader, fields, writer, fingerprints) =
             tokio::task::spawn_blocking(move || {
                 let (schema, fields) = make_schema();
-                let directory = MmapDirectory::open(&directory_path)?;
+                let directory = MmapDirectory::open(&index_directory)?;
                 let index = Index::open_or_create(directory, schema)?;
                 let reader = index.reader()?;
                 let fingerprints = load_fingerprints(&reader, fields)?;
@@ -235,11 +238,11 @@ impl RepositoryIndex {
             stale_after: settings.stale_after,
             git_files: Arc::new(RwLock::new(Arc::new(HashSet::new()))),
             watcher: Mutex::new(None),
-            queries: Arc::new(tokio::sync::Semaphore::new(2)),
-            watcher_updates: tokio::sync::Mutex::new(()),
+            query_concurrency_limit: Arc::new(tokio::sync::Semaphore::new(2)),
+            watcher_update_lock: tokio::sync::Mutex::new(()),
         });
 
-        tokio::spawn(writer_task(
+        tokio::spawn(forward_commands_to_blocking_writer(
             root.clone(),
             repository.cache_dir.clone(),
             fields,
@@ -256,9 +259,9 @@ impl RepositoryIndex {
         root: Arc<Path>,
         settings: IndexSettings,
     ) -> Result<Arc<Self>, SearchIndexError> {
-        let repository = Self::open(root.clone(), settings).await?;
-        let watcher_repository = repository.clone();
-        tokio::task::spawn_blocking(move || watcher_repository.install_watcher()).await??;
+        let repository = Self::open_index_and_start_writer(root.clone(), settings).await?;
+        let index_to_watch = repository.clone();
+        tokio::task::spawn_blocking(move || index_to_watch.install_watcher()).await??;
         repository.full_reconcile(ReconcileKind::First).await?;
         ACTIVE_INDEXES
             .lock()
@@ -274,7 +277,7 @@ impl RepositoryIndex {
         limit: usize,
     ) -> Result<Vec<PathBuf>, SearchIndexError> {
         let permit = self
-            .queries
+            .query_concurrency_limit
             .clone()
             .acquire_owned()
             .await
@@ -283,13 +286,17 @@ impl RepositoryIndex {
         let input = input.to_owned();
         let result = tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            repository.search_sync(&input, limit)
+            repository.search_contents_blocking(&input, limit)
         })
         .await?;
         result
     }
 
-    fn search_sync(&self, input: &str, limit: usize) -> Result<Vec<PathBuf>, SearchIndexError> {
+    fn search_contents_blocking(
+        &self,
+        input: &str,
+        limit: usize,
+    ) -> Result<Vec<PathBuf>, SearchIndexError> {
         let searcher = self.reader.searcher();
         let mut parser = QueryParser::for_index(&self.index, vec![self.fields.body]);
         parser.set_conjunction_by_default();
@@ -323,7 +330,7 @@ impl RepositoryIndex {
         limit: usize,
     ) -> Result<Vec<PathBuf>, SearchIndexError> {
         let permit = self
-            .queries
+            .query_concurrency_limit
             .clone()
             .acquire_owned()
             .await
@@ -333,12 +340,12 @@ impl RepositoryIndex {
         let base = base.to_owned();
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            repository.search_paths_sync(&input, &base, limit)
+            repository.search_paths_blocking(&input, &base, limit)
         })
         .await?
     }
 
-    fn search_paths_sync(
+    fn search_paths_blocking(
         &self,
         input: &str,
         base: &Path,
@@ -474,18 +481,18 @@ impl RepositoryIndex {
         self: &Arc<Self>,
         git_files: Arc<HashSet<PathBuf>>,
     ) -> Result<(), SearchIndexError> {
-        let _update = self.watcher_updates.lock().await;
+        let _watcher_update_guard = self.watcher_update_lock.lock().await;
         *self.git_files.write().unwrap() = git_files.clone();
         let directories = watch_directories(&self.root, &git_files).await;
-        let existing = self
+        let watched_directories = self
             .watcher
             .lock()
             .unwrap()
             .as_ref()
             .map(|state| state.directories.clone())
             .unwrap_or_default();
-        let mut additions = vec![];
-        for (index, directory) in directories.difference(&existing).enumerate() {
+        let mut directories_to_watch = vec![];
+        for (index, directory) in directories.difference(&watched_directories).enumerate() {
             if index % 64 == 0 {
                 tokio::task::yield_now().await;
             }
@@ -493,7 +500,7 @@ impl RepositoryIndex {
                 continue;
             };
             if metadata.is_dir() && !metadata.file_type().is_symlink() {
-                additions.push(directory.clone());
+                directories_to_watch.push(directory.clone());
             }
         }
         let repository = self.clone();
@@ -502,7 +509,7 @@ impl RepositoryIndex {
             let Some(state) = state.as_mut() else {
                 return Ok(());
             };
-            for directory in additions {
+            for directory in directories_to_watch {
                 if state.directories.contains(&directory) {
                     continue;
                 }
@@ -616,7 +623,7 @@ fn load_fingerprints(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn writer_task(
+async fn forward_commands_to_blocking_writer(
     root: Arc<Path>,
     cache_dir: Arc<Path>,
     fields: IndexFields,
@@ -624,14 +631,14 @@ async fn writer_task(
     reader: IndexReader,
     fingerprints: HashMap<PathBuf, Fingerprint>,
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
-    mut rx: mpsc::UnboundedReceiver<WriterCommand>,
+    mut incoming_commands: mpsc::UnboundedReceiver<WriterCommand>,
 ) {
-    // The async task owns the worker's input, so runtime shutdown closes it even
+    // The async task owns the blocking writer's input, so shutdown closes it even
     // when a cached RepositoryIndex still holds a sender to this task.
-    let (tx, worker_rx) = mpsc::unbounded_channel();
-    let runtime = tokio::runtime::Handle::current();
-    let worker = tokio::task::spawn_blocking(move || {
-        writer_loop(
+    let (writer_commands, pending_writer_commands) = mpsc::unbounded_channel();
+    let runtime_handle = tokio::runtime::Handle::current();
+    let blocking_writer = tokio::task::spawn_blocking(move || {
+        run_blocking_index_writer(
             root,
             cache_dir,
             fields,
@@ -639,23 +646,23 @@ async fn writer_task(
             reader,
             fingerprints,
             last_full_reconcile,
-            worker_rx,
-            runtime,
+            pending_writer_commands,
+            runtime_handle,
         );
     });
-    while let Some(command) = rx.recv().await {
-        if tx.send(command).is_err() {
+    while let Some(command) = incoming_commands.recv().await {
+        if writer_commands.send(command).is_err() {
             break;
         }
     }
-    drop(tx);
-    if let Err(error) = worker.await {
+    drop(writer_commands);
+    if let Err(error) = blocking_writer.await {
         warn!(%error, "Search index writer failed");
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-fn writer_loop(
+fn run_blocking_index_writer(
     root: Arc<Path>,
     cache_dir: Arc<Path>,
     fields: IndexFields,
@@ -743,16 +750,16 @@ async fn full_reconcile(
             }
         };
         info!("Found {} git files", paths.len());
-        let mut filtered = HashSet::with_capacity(paths.len());
+        let mut indexable_paths = HashSet::with_capacity(paths.len());
         for (index, path) in paths.into_iter().enumerate() {
             if index % 64 == 0 {
                 tokio::task::yield_now().await;
             }
             if !root.join(&path).starts_with(cache_dir.as_ref()) {
-                filtered.insert(path);
+                indexable_paths.insert(path);
             }
         }
-        let paths = filtered;
+        let paths = indexable_paths;
         reconcile_all(root, fields, writer, reader, fingerprints, &paths)?;
         Ok(paths)
     }
@@ -796,11 +803,11 @@ fn reconcile(
 async fn collect_paths(
     paths: impl Stream<Item = Result<PathBuf, super::SearchError>>,
 ) -> Result<Vec<PathBuf>, SearchIndexError> {
-    let mut count = 0usize;
+    let mut path_count = 0usize;
     paths
         .then(move |path| {
-            count += 1;
-            let should_yield = count % 64 == 0;
+            path_count += 1;
+            let should_yield = path_count % 64 == 0;
             async move {
                 if should_yield {
                     tokio::task::yield_now().await;
@@ -930,7 +937,7 @@ mod tests {
                 .await
                 .unwrap();
             assert!(output.status.success());
-            let repository = super::RepositoryIndex::open(
+            let repository = super::RepositoryIndex::open_index_and_start_writer(
                 root.into(),
                 super::IndexSettings {
                     cache_dir: Path::new(".git/terrazzo-test-index").into(),
@@ -965,7 +972,7 @@ mod tests {
         tokio::fs::write(root.join("first.txt"), "originalword")
             .await
             .unwrap();
-        let repository = super::RepositoryIndex::open(
+        let repository = super::RepositoryIndex::open_index_and_start_writer(
             root.clone().into(),
             super::IndexSettings {
                 cache_dir: Path::new(".git/terrazzo-test-index").into(),

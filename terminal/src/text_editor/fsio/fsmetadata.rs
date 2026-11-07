@@ -52,23 +52,25 @@ impl FileMetadata {
             let uid = metadata.uid();
             let gid = metadata.gid();
             if !uids.contains_key(&uid) || !gids.contains_key(&gid) {
-                let lookup_user = !uids.contains_key(&uid);
-                let lookup_group = !gids.contains_key(&gid);
+                let needs_username_lookup = !uids.contains_key(&uid);
+                let needs_group_lookup = !gids.contains_key(&gid);
                 let (user, group) = tokio::task::spawn_blocking(move || {
                     // These libc APIs return shared storage. Copy it while serialized.
-                    static LOOKUPS: std::sync::Mutex<()> = std::sync::Mutex::new(());
-                    let _guard = LOOKUPS.lock().unwrap();
+                    static ACCOUNT_LOOKUP_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+                    let _account_lookup_guard = ACCOUNT_LOOKUP_LOCK.lock().unwrap();
                     (
-                        lookup_user.then(|| uid_to_username(uid)).flatten(),
-                        lookup_group.then(|| gid_to_groupname(gid)).flatten(),
+                        needs_username_lookup
+                            .then(|| uid_to_username(uid))
+                            .flatten(),
+                        needs_group_lookup.then(|| gid_to_groupname(gid)).flatten(),
                     )
                 })
                 .await
                 .expect("account lookup task panicked");
-                if lookup_user {
+                if needs_username_lookup {
                     uids.insert(uid, user);
                 }
-                if lookup_group {
+                if needs_group_lookup {
                     gids.insert(gid, group);
                 }
             }

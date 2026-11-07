@@ -17,46 +17,54 @@ pub static STATE: Mutex<Option<HashMap<TileId, Vec<Box<dyn Fn(TileId) + Send + S
     Mutex::new(None);
 
 pub static TREE: Mutex<Option<Arc<Tiles>>> = Mutex::new(None);
-static PERSISTENCE: Mutex<Option<tokio::sync::mpsc::UnboundedSender<SaveCommand>>> =
-    Mutex::new(None);
+static PERSISTENCE_QUEUE: Mutex<
+    Option<tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>>,
+> = Mutex::new(None);
 
-enum SaveCommand {
-    Save(Arc<Tiles>),
-    Flush(tokio::sync::oneshot::Sender<()>),
+enum TilePersistenceCommand {
+    SaveLayout(Arc<Tiles>),
+    WaitForPendingSaves(tokio::sync::oneshot::Sender<()>),
 }
 
-fn persistence_worker(path: Arc<Path>) -> tokio::sync::mpsc::UnboundedSender<SaveCommand> {
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+fn spawn_tile_persistence_worker(
+    path: Arc<Path>,
+) -> tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand> {
+    let (save_queue, mut pending_saves) = tokio::sync::mpsc::unbounded_channel();
     tokio::spawn(async move {
-        while let Some(command) = rx.recv().await {
+        while let Some(command) = pending_saves.recv().await {
             match command {
-                SaveCommand::Save(tree) => {
+                TilePersistenceCommand::SaveLayout(tree) => {
                     if let Err(error) = write_tree(&path, &tree).await {
                         tracing::warn!(?path, %error, "Failed to save tiles");
                     }
                 }
-                SaveCommand::Flush(reply) => {
+                TilePersistenceCommand::WaitForPendingSaves(reply) => {
                     let _ = reply.send(());
                 }
             }
             tokio::task::yield_now().await;
         }
     });
-    tx
+    save_queue
 }
 
-async fn flush_writer(writer: &tokio::sync::mpsc::UnboundedSender<SaveCommand>) {
+async fn wait_for_queued_saves(
+    save_queue: &tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>,
+) {
     let (reply, response) = tokio::sync::oneshot::channel();
-    if writer.send(SaveCommand::Flush(reply)).is_ok() {
+    if save_queue
+        .send(TilePersistenceCommand::WaitForPendingSaves(reply))
+        .is_ok()
+    {
         let _ = response.await;
     }
 }
 
 /// Wait for queued saves before shutting down the Tokio runtime.
-pub(crate) async fn flush() {
-    let writer = PERSISTENCE.lock().unwrap().clone();
-    if let Some(writer) = writer {
-        flush_writer(&writer).await;
+pub(crate) async fn wait_for_pending_tile_saves() {
+    let save_queue = PERSISTENCE_QUEUE.lock().unwrap().clone();
+    if let Some(save_queue) = save_queue {
+        wait_for_queued_saves(&save_queue).await;
     }
 }
 
@@ -103,9 +111,9 @@ pub(crate) async fn initialize(path: Option<Arc<std::path::Path>>) -> Result<(),
     if let Some(loaded) = loaded_tree {
         *tree = Some(loaded);
     }
-    *PERSISTENCE
+    *PERSISTENCE_QUEUE
         .lock()
-        .map_err(|_| TilesStateError::PoisonError)? = path.map(persistence_worker);
+        .map_err(|_| TilesStateError::PoisonError)? = path.map(spawn_tile_persistence_worker);
     Ok(())
 }
 
@@ -130,20 +138,20 @@ fn reserve_ids(tree: &Tiles) {
 pub(super) struct TilesLockGuard<'a> {
     guard: MutexGuard<'a, Option<Arc<Tiles>>>,
     original: Option<Arc<Tiles>>,
-    writer: Option<tokio::sync::mpsc::UnboundedSender<SaveCommand>>,
+    save_queue: Option<tokio::sync::mpsc::UnboundedSender<TilePersistenceCommand>>,
 }
 
 impl TilesLockGuard<'static> {
     pub(super) fn new() -> Result<Self, TilesStateError> {
         let guard = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
-        let writer = PERSISTENCE
+        let save_queue = PERSISTENCE_QUEUE
             .lock()
             .map_err(|_| TilesStateError::PoisonError)?
             .clone();
         Ok(Self {
             original: guard.clone(),
             guard,
-            writer,
+            save_queue,
         })
     }
 }
@@ -164,7 +172,7 @@ impl DerefMut for TilesLockGuard<'_> {
 
 impl Drop for TilesLockGuard<'_> {
     fn drop(&mut self) {
-        let (Some(writer), Some(tree)) = (self.writer.as_ref(), self.guard.as_ref()) else {
+        let (Some(save_queue), Some(tree)) = (self.save_queue.as_ref(), self.guard.as_ref()) else {
             return;
         };
         if self
@@ -175,7 +183,10 @@ impl Drop for TilesLockGuard<'_> {
             return;
         }
         // Enqueue while locked so newer layouts can never be overwritten by older saves.
-        if writer.send(SaveCommand::Save(tree.clone())).is_err() {
+        if save_queue
+            .send(TilePersistenceCommand::SaveLayout(tree.clone()))
+            .is_err()
+        {
             tracing::warn!("Tile persistence worker stopped");
         }
     }
@@ -235,12 +246,12 @@ mod tests {
         let path =
             std::env::temp_dir().join(format!("terrazzo-guard-{}.json", uuid::Uuid::new_v4()));
         let tree = Mutex::new(None);
-        let writer = persistence_worker(path.clone().into());
+        let save_queue = spawn_tile_persistence_worker(path.clone().into());
         {
             let mut guard = TilesLockGuard {
                 guard: tree.lock().unwrap(),
                 original: None,
-                writer: Some(writer.clone()),
+                save_queue: Some(save_queue.clone()),
             };
             *guard = Some(Arc::new(Tiles::default()));
         }
@@ -250,11 +261,11 @@ mod tests {
             let mut guard = TilesLockGuard {
                 original: guard.clone(),
                 guard,
-                writer: Some(writer.clone()),
+                save_queue: Some(save_queue.clone()),
             };
             *guard = Some(Arc::new(Tiles::default()));
         }
-        flush_writer(&writer).await;
+        wait_for_queued_saves(&save_queue).await;
         let restored: Tiles =
             serde_json::from_slice(&tokio::fs::read(&path).await.unwrap()).unwrap();
         assert_eq!(**tree.lock().unwrap().as_ref().unwrap(), restored);
@@ -264,10 +275,10 @@ mod tests {
             let _guard = TilesLockGuard {
                 original: guard.clone(),
                 guard,
-                writer: Some(writer.clone()),
+                save_queue: Some(save_queue.clone()),
             };
         }
-        flush_writer(&writer).await;
+        wait_for_queued_saves(&save_queue).await;
         assert!(
             !tokio::fs::try_exists(&path).await.unwrap(),
             "unchanged trees should not be saved"

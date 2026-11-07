@@ -4,9 +4,8 @@ pub mod list;
 pub mod new_id;
 pub mod order;
 pub mod resize;
+pub mod snapshot;
 pub mod stream;
 pub mod tile_id;
 pub mod title;
 pub mod write;
-
-pub mod checkpoint;

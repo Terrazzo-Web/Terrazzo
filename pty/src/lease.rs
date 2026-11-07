@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::task::ready;
 
+use bytes::Bytes;
 use futures::Stream;
 use futures::StreamExt as _;
 use futures::channel::oneshot;
@@ -21,32 +22,26 @@ use crate::ProcessIO;
 use crate::ProcessInput;
 use crate::ProcessOutput;
 use crate::release_on_drop::ReleaseOnDrop;
-use crate::replay::Journal;
-use crate::replay::Record;
 
 #[nameth]
 pub struct ProcessIoEntry {
+    /// Identifies this process within the server's lifetime.
+    pub process_id: usize,
+    pub output_buffer: crate::TerminalOutputBuffer,
     input: Mutex<ProcessInput>,
     output: Mutex<Option<ProcessOutputExchange>>,
-    pub journal: Journal,
-    pub incarnation: String,
 }
 
 impl ProcessIoEntry {
     pub fn new(process_io: ProcessIO) -> Arc<Self> {
         info!("Create {}", Self::type_name());
         let (input, output) = process_io.split();
+        static NEXT_PROCESS_ID: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(1);
+        let output_buffer = output.0.buffer();
         Arc::new(Self {
-            // TODO: why use the pid + timestamp and not a static atomic integer?
-            incarnation: format!(
-                "{}-{}",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ),
-            journal: output.journal.clone(),
+            process_id: NEXT_PROCESS_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            output_buffer,
             input: Mutex::new(input),
             output: Mutex::new(Some(ProcessOutputExchange::new(output))),
         })
@@ -59,17 +54,6 @@ impl ProcessIoEntry {
         let mut lock = self.output.lock().await;
         let exchange = lock.as_mut().ok_or(LeaseProcessOutputError::OutputNotSet)?;
         return Ok(exchange.lease(rewind).await?);
-    }
-
-    pub async fn lease_from(
-        self: &Arc<Self>,
-        cursor: u64,
-    ) -> Result<ProcessOutputLease, LeaseProcessOutputError> {
-        let mut lease = self.lease_output(false).await?;
-        if let ProcessOutputLease::Leased(stream) = &mut lease {
-            stream.get_mut().as_mut().reader = self.journal.reader(cursor);
-        }
-        Ok(lease)
     }
 
     pub async fn input(&self) -> futures::lock::MutexGuard<'_, ProcessInput> {
@@ -95,37 +79,19 @@ pub enum LeaseProcessOutputError {
 
 struct ProcessOutputExchange {
     signal_tx: Option<oneshot::Sender<()>>,
-    stopped: Arc<std::sync::atomic::AtomicBool>,
-    stop_waker: Arc<futures::task::AtomicWaker>,
     process_output_rx: oneshot::Receiver<ProcessOutput>,
-}
-
-impl Drop for ProcessOutputExchange {
-    fn drop(&mut self) {
-        // Closing a process must wake a lease even when transport credit is exhausted.
-        self.stopped
-            .store(true, std::sync::atomic::Ordering::Release);
-        self.stop_waker.wake();
-    }
 }
 
 impl ProcessOutputExchange {
     fn new(process_output: ProcessOutput) -> Self {
-        let stopped = process_output.stopped.clone();
-        let stop_waker = process_output.stop_waker.clone();
         let (_lease, signal_tx, process_output_rx) = ProcessOutputLease::new(process_output);
         Self {
             signal_tx: Some(signal_tx),
-            stopped,
-            stop_waker,
             process_output_rx,
         }
     }
 
     async fn lease(&mut self, rewind: bool) -> Result<ProcessOutputLease, LeaseError> {
-        self.stopped
-            .store(true, std::sync::atomic::Ordering::Release);
-        self.stop_waker.wake();
         if let Some(signal_tx) = self.signal_tx.take() {
             match signal_tx.send(()) {
                 Ok(()) => debug!("Current lease was stopped"),
@@ -136,18 +102,12 @@ impl ProcessOutputExchange {
         // Keep the receiver in the entry so a canceled handoff can be resumed.
         let mut process_output = (&mut self.process_output_rx).await?;
         if rewind {
-            process_output.reader = process_output.journal.reader(0);
+            process_output.0.rewind();
         }
         debug!("Getting new lease: Done");
-        process_output.stopped = Arc::default();
-        process_output.stop_waker = Arc::default();
-        let stopped = process_output.stopped.clone();
-        let stop_waker = process_output.stop_waker.clone();
         let (lease, signal_tx, process_output_rx) = ProcessOutputLease::new(process_output);
         *self = Self {
             signal_tx: Some(signal_tx),
-            stopped,
-            stop_waker,
             process_output_rx,
         };
         Ok(lease)
@@ -184,27 +144,10 @@ impl ProcessOutputLease {
         (lease, signal_tx, process_output_rx)
     }
 
-    pub fn register_stop_waker(&self, waker: &std::task::Waker) {
-        if let Self::Leased(stream) = self {
-            stream.get_ref().as_ref().stop_waker.register(waker);
-        }
-    }
-
-    pub fn stop_requested(&self) -> bool {
+    pub fn restore_snapshot(&mut self) -> Option<crate::OutputSnapshot> {
         match self {
-            Self::Leased(stream) => stream
-                .get_ref()
-                .as_ref()
-                .stopped
-                .load(std::sync::atomic::Ordering::Acquire),
-            _ => true,
-        }
-    }
-
-    pub fn seek(&mut self, cursor: u64) {
-        if let Self::Leased(stream) = self {
-            let output = stream.get_mut().as_mut();
-            output.reader = output.journal.reader(cursor);
+            Self::Leased(stream) => stream.get_mut().as_mut().0.restore_snapshot(),
+            _ => None,
         }
     }
 
@@ -250,9 +193,16 @@ impl Stream for ProcessOutputLease {
 
         Some(match next {
             Some(Ok(data)) => {
-                // TODO: why did you remove the previous trace? it is always safe to log verbosely at trace level, this is abstracted out in release mode
-                trace!(event = data.id, "Reading PTY event");
-                LeaseItem::Data(data)
+                debug_assert!(!data.is_empty(), "Unexpected empty buffer");
+                trace! { "Reading {}", String::from_utf8_lossy(&data).escape_default() }
+                let position = match &*self {
+                    Self::Leased(stream) => stream.get_ref().as_ref().0.position(),
+                    _ => unreachable!(),
+                };
+                LeaseItem::Data(TerminalOutput {
+                    position,
+                    bytes: data,
+                })
             }
             Some(Err(error)) => {
                 trace!("Reading failed: {error}");
@@ -272,8 +222,23 @@ impl Stream for ProcessOutputLease {
 #[derive(Debug)]
 pub enum LeaseItem {
     EOS,
-    Data(Record),
+    Data(TerminalOutput),
     Error(std::io::Error),
+}
+
+/// A PTY chunk and its position in the retained output stream.
+#[derive(Debug)]
+pub struct TerminalOutput {
+    pub position: usize,
+    pub bytes: Bytes,
+}
+
+impl std::ops::Deref for TerminalOutput {
+    type Target = Bytes;
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
 }
 
 impl Stream for ReleaseOnDrop<ProcessOutput> {
@@ -289,56 +254,26 @@ impl Stream for ReleaseOnDrop<ProcessOutput> {
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes;
     use futures::StreamExt as _;
     use futures::stream;
 
     use super::*;
     use crate::pty::Pty;
-    use crate::replay::Event;
-    use crate::replay::{self};
+    use crate::tail::TailStream;
 
     fn entry() -> Arc<ProcessIoEntry> {
         let (_, input) = Pty::new().unwrap().into_split();
-        let (journal, worker) = replay::spawn(
+        let output = TailStream::new(
             stream::once(async { Ok(Bytes::from_static(b"output")) }).chain(stream::pending()),
             1024,
         );
-        let output = ProcessOutput {
-            reader: journal.reader(0),
-            journal: journal.clone(),
-            worker,
-            stopped: Arc::default(),
-            stop_waker: Arc::default(),
-        };
+        let output_buffer = output.buffer();
         Arc::new(ProcessIoEntry {
+            process_id: 0,
+            output_buffer,
             input: Mutex::new(ProcessInput(input)),
-            journal,
-            incarnation: "test".into(),
-            output: Mutex::new(Some(ProcessOutputExchange::new(output))),
+            output: Mutex::new(Some(ProcessOutputExchange::new(ProcessOutput(output)))),
         })
-    }
-
-    #[tokio::test]
-    async fn handoff_wakes_consumer_without_output_credit() {
-        struct Wake(std::sync::atomic::AtomicBool);
-        impl futures::task::ArcWake for Wake {
-            fn wake_by_ref(this: &Arc<Self>) {
-                this.0.store(true, std::sync::atomic::Ordering::Release);
-            }
-        }
-        let entry = entry();
-        let mut original = entry.lease_output(false).await.unwrap();
-        assert!(matches!(original.next().await, Some(LeaseItem::Data(_))));
-        let wake = Arc::new(Wake(std::sync::atomic::AtomicBool::new(false)));
-        original.register_stop_waker(&futures::task::waker(wake.clone()));
-        // A throttled consumer cannot poll the output receiver for more data.
-        let mut handoff = Box::pin(entry.lease_output(false));
-        assert!(futures::poll!(&mut handoff).is_pending());
-        assert!(wake.0.load(std::sync::atomic::Ordering::Acquire));
-        assert!(original.next().await.is_none());
-        drop(original);
-        assert!(handoff.await.is_ok());
     }
 
     #[tokio::test]
@@ -360,10 +295,7 @@ mod tests {
 
         let mut replacement = entry.lease_output(true).await.unwrap();
         match replacement.next().await {
-            Some(LeaseItem::Data(data)) => match data.event {
-                Event::Output { bytes, .. } => assert_eq!(bytes, Bytes::from_static(b"output")),
-                _ => panic!("expected output"),
-            },
+            Some(LeaseItem::Data(data)) => assert_eq!(data.bytes, Bytes::from_static(b"output")),
             item => panic!("Expected the original process output, got {item:?}"),
         }
     }
@@ -397,14 +329,5 @@ mod tests {
         assert!(first.next().await.is_none());
         let mut second = second.await.unwrap();
         assert!(matches!(second.next().await, Some(LeaseItem::Data(_))));
-    }
-    #[tokio::test]
-    async fn closing_entry_revokes_output_lease() {
-        let entry = entry();
-        let mut lease = entry.lease_output(false).await.unwrap();
-        assert!(matches!(lease.next().await, Some(LeaseItem::Data(_))));
-        drop(entry);
-        assert!(lease.stop_requested());
-        assert!(matches!(lease.next().await, Some(LeaseItem::EOS)));
     }
 }

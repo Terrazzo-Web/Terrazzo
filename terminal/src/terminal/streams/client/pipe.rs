@@ -85,16 +85,9 @@ fn process_messages(
         return Err(PipeError::StreamRegistrationsClosed);
     };
     for message in messages {
-        let PipeMessage {
-            terminal_id,
-            chunk,
-            registration,
-        } = message.map_err(PipeError::PipeJsonError)?;
+        let PipeMessage { terminal_id, chunk } = message.map_err(PipeError::PipeJsonError)?;
         if let Some(tx) = stream_registrations.map.get_mut(&terminal_id) {
-            if tx.registration != registration {
-                continue;
-            }
-            match tx.sender.unbounded_send(chunk) {
+            match tx.unbounded_send(chunk) {
                 Ok(()) => (),
                 Err(error) => {
                     warn!(%terminal_id, "Failed to send: {error}");

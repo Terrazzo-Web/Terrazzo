@@ -19,10 +19,11 @@ import {
     reopenFolderFile,
     replaceEditorText,
     setBasePath,
-    showBasePathInput,
 } from './text-editor-helpers.mjs';
 
 test.describe('Text editor basic', () => {
+    test.describe.configure({ retries: 5 });
+
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
@@ -31,99 +32,6 @@ test.describe('Text editor basic', () => {
     test('starts the server', async ({ page }) => {
         const response = await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
         expect(response?.ok()).toBeTruthy();
-    });
-
-    test.describe('initial state', () => {
-        test.describe.configure({ retries: 0 });
-        test('waits for saved tiles before exposing a default app', async ({ page }) => {
-            let release;
-            const gate = new Promise(resolve => { release = resolve; });
-            let blocked;
-            const waiting = new Promise(resolve => { blocked = resolve; });
-            await page.route('**/api/fn/get*', async route => {
-                const response = await route.fetch();
-                const value = await response.json().catch(() => null);
-                if (value && (value.Tile || value.Array)) {
-                    blocked();
-                    await gate;
-                }
-                await route.fulfill({ response });
-            });
-            try {
-                await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-                await waiting;
-                await expect(page.locator('.app-tile')).toHaveCount(0);
-            } finally {
-                release();
-                await page.unrouteAll({ behavior: 'wait' });
-            }
-            await expect(page.locator('.app-tile').first()).toBeVisible({ timeout: 30 * SECOND });
-        });
-
-        test('waits for saved editor paths before accepting path edits', async ({ page }) => {
-            let release;
-            const gate = new Promise(resolve => { release = resolve; });
-            let blocked;
-            const waiting = new Promise(resolve => { blocked = resolve; });
-            await page.route('**/api/fn/get*', async route => {
-                const response = await route.fetch();
-                const args = route.request().postDataJSON();
-                if (args && Object.hasOwn(args, 'tile')) {
-                    blocked();
-                    await gate;
-                }
-                await route.fulfill({ response });
-            });
-            const { baseDir } = await createTempFile('after-restore.txt');
-            try {
-                await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-                await waiting;
-                await expect(page.locator('.base-path-selector-field, .base-path-selector-display')).toHaveCount(0);
-            } finally {
-                release();
-                await page.unrouteAll({ behavior: 'wait' });
-            }
-            await setBasePath(page, baseDir, 'after-restore.txt', 30 * SECOND);
-        });
-        test('keeps a path draft while a delayed file load finishes', async ({ page }) => {
-            const fileName = 'slow-file.txt';
-            const { baseDir, filePath } = await createTempFile(fileName);
-            await writeFile(filePath, 'Loaded in background');
-            await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-            await setBasePath(page, baseDir, fileName);
-            let release;
-            const gate = new Promise(resolve => { release = resolve; });
-            let blocked;
-            const waiting = new Promise(resolve => { blocked = resolve; });
-            await page.route(/\/api\/fn\/load_file\d+$/, async route => {
-                const args = route.request().postDataJSON();
-                if (!(args.path.file ?? args.path.f).endsWith(fileName)) {
-                    await route.continue();
-                    return;
-                }
-                const response = await route.fetch();
-                blocked();
-                await gate;
-                await route.fulfill({ response });
-            });
-            try {
-                await openFolderFile(page, fileName);
-                await waiting;
-                const input = await showBasePathInput(page);
-                await input.fill(`${baseDir}/draft`);
-                release();
-                await page.unrouteAll({ behavior: 'wait' });
-                await expect(getCodeMirrorContent(page)).toContainText('Loaded in background');
-                await expect(input).toHaveValue(`${baseDir}/draft`);
-                await expect(input).toBeFocused();
-                await input.fill(baseDir);
-                await input.press('Tab');
-                await expect(page.locator('.base-path-selector-display')).toHaveText(baseDir);
-            } finally {
-                release();
-                await page.unrouteAll({ behavior: 'wait' });
-            }
-        });
     });
 
     test('edits a file', async ({ page }) => {

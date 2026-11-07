@@ -219,7 +219,7 @@ export async function showBasePathInput(page, timeout = 10 * SECOND) {
     await page
         .locator('.base-path-selector-field, .base-path-selector-display')
         .first()
-        .waitFor({ state: 'visible', timeout: 30 * SECOND });
+        .waitFor({ state: 'visible', timeout });
     if (!(await basePathInput.isVisible().catch(() => false))) {
         await getBasePathDisplay(page).dblclick({ timeout });
     }
@@ -235,9 +235,11 @@ export async function setBasePath(page, baseDir, expectedFileName, timeout = 10 
     ).toBe(true);
 
     try {
+        await page.waitForTimeout(SECOND);
         const basePathInput = await showBasePathInput(page, timeout);
         await basePathInput.fill(baseDir);
         await page.keyboard.press('Tab');
+        await page.waitForTimeout(SECOND);
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [

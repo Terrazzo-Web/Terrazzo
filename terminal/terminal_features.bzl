@@ -39,6 +39,7 @@ PORT_FORWARD_CLIENT_FEATURES = CLIENT_FEATURES + PORT_FORWARD_FEATURES + REMOTES
 TERMINAL_DEPS = []
 TERMINAL_FEATURES = ["terminal"]
 TERMINAL_CLIENT_DEPS = CLIENT_DEPS + TERMINAL_DEPS + TILES_STATE_CLIENT_DEPS + [
+    "@crates//:base64",
     "@crates//:futures",
     "@crates//:scopeguard",
     "@crates//:web-sys",
@@ -131,7 +132,6 @@ PORT_FORWARD_SERVER_DEPS = PORT_FORWARD_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEP
 PORT_FORWARD_SERVER_FEATURES = PORT_FORWARD_FEATURES + REMOTE_FN_UNARY_FEATURES + SERVER_FEATURES + ["port-forward-server"]
 TERMINAL_SERVER_DEPS = REMOTE_FN_STREAMING_DEPS + REMOTE_FN_UNARY_DEPS + SERVER_DEPS + TERMINAL_DEPS + TILES_STATE_SERVER_DEPS + [
     "//pty",
-    "@crates//:base64",
     "@crates//:dashmap",
     "@crates//:pin-project",
     "@crates//:tracing-futures",

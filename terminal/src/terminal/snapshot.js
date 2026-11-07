@@ -4,13 +4,6 @@ export function parserSafe(terminal) {
     return input._parser.currentState === 0 && !input._utf8Decoder.interim.some(Boolean);
 }
 
-export function cancelPartialInput(terminal) {
-    const input = terminal._core._inputHandler;
-    input._parser.reset();
-    input._utf8Decoder.clear();
-    input._stringDecoder.clear();
-}
-
 function bufferState(buffer, keptScrollback) {
     return {
         x: buffer.x, y: buffer.y,
@@ -27,6 +20,7 @@ export function capture(terminal, serializer, capacity) {
     const core = terminal._core;
     for (let scrollback = 1000; ; scrollback = Math.floor(scrollback / 2)) {
         const payload = JSON.stringify({
+            rows: terminal.rows, cols: terminal.cols,
             vt: serializer.serialize({ scrollback }),
             extra: {
                 encoding: core.coreMouseService.activeEncoding,
@@ -45,6 +39,7 @@ export function capture(terminal, serializer, capacity) {
 
 export async function restore(terminal, payload) {
     const state = JSON.parse(payload);
+    terminal.resize(state.cols, state.rows);
     await new Promise(resolve => terminal.write(state.vt, resolve));
     const core = terminal._core;
     core.coreMouseService.activeEncoding = state.extra.encoding;

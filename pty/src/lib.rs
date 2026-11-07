@@ -1,8 +1,9 @@
 #![doc = include_str!("../README.md")]
 
-use std::sync::Arc;
 use std::task::Poll;
+use std::task::ready;
 
+use bytes::Bytes;
 use futures::Stream;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
@@ -14,9 +15,7 @@ use self::command::SpawnError;
 use self::pty::OwnedWritePty;
 use self::pty::Pty;
 use self::pty::PtyError;
-use self::replay::Journal;
-use self::replay::Reader;
-use self::replay::Worker;
+use self::tail::TailStream;
 
 mod command;
 pub mod lease;
@@ -24,14 +23,17 @@ pub mod pty;
 mod raw_pts;
 mod raw_pty;
 mod release_on_drop;
-pub mod replay;
 pub mod size;
+mod tail;
+
+pub use self::tail::OutputSnapshot;
+pub use self::tail::TerminalOutputBuffer;
 
 pub const TERRAZZO_CLIENT_NAME: &str = "TERRAZZO_CLIENT_NAME";
 
 pub struct ProcessIO {
     input: OwnedWritePty,
-    output: ProcessOutput,
+    output: TailStream,
     #[cfg_attr(not(test), expect(unused))]
     child_process: tokio::process::Child,
 }
@@ -40,15 +42,7 @@ pub struct ProcessIO {
 pub struct ProcessInput(#[pin] pub OwnedWritePty);
 
 #[pin_project]
-pub struct ProcessOutput {
-    #[pin]
-    pub reader: Reader,
-    pub journal: Journal,
-    pub worker: Arc<Worker>,
-    // TODO: I dispute the solution using atomics and AtomicWaker. Prefer using higer-level abstractions such as tokio watch, notify, oneshot or mpsc, see https://docs.rs/tokio/latest/tokio/sync/index.html
-    pub stopped: Arc<std::sync::atomic::AtomicBool>,
-    pub stop_waker: Arc<futures::task::AtomicWaker>,
-}
+pub struct ProcessOutput(#[pin] pub TailStream);
 
 #[nameth]
 #[derive(thiserror::Error, Debug)]
@@ -83,9 +77,7 @@ impl ProcessIO {
         if let Some(client_name) = client_name {
             command.env(TERRAZZO_CLIENT_NAME, client_name.as_ref());
         }
-        let pts = pty.pts()?;
-        pty.resize(size::Size::new(24, 80))?;
-        let child = command.spawn(&pts)?;
+        let child = command.spawn(&pty.pts()?)?;
 
         // https://forums.developer.apple.com/forums/thread/734230
         pty.set_nonblocking()?;
@@ -96,14 +88,7 @@ impl ProcessIO {
     fn new(pty: Pty, child_process: tokio::process::Child, scrollback: usize) -> Self {
         let (output, input) = pty.into_split();
         let output = ReaderStream::with_capacity(output, scrollback);
-        let (journal, worker) = replay::spawn(output, scrollback);
-        let output = ProcessOutput {
-            reader: journal.reader(0),
-            journal,
-            worker,
-            stopped: Arc::default(),
-            stop_waker: Arc::default(),
-        };
+        let output = TailStream::new(output, scrollback);
         Self {
             input,
             output,
@@ -112,7 +97,7 @@ impl ProcessIO {
     }
 
     pub fn split(self) -> (ProcessInput, ProcessOutput) {
-        (ProcessInput(self.input), self.output)
+        (ProcessInput(self.input), ProcessOutput(self.output))
     }
 }
 
@@ -153,12 +138,18 @@ impl tokio::io::AsyncWrite for ProcessInput {
 }
 
 impl Stream for ProcessOutput {
-    type Item = std::io::Result<replay::Record>;
+    type Item = std::io::Result<Bytes>;
+
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.project().reader.poll_next(cx)
+        match ready!(self.project().0.poll_next(cx)) {
+            Some(Ok(bytes)) if !bytes.is_empty() => Some(Ok(bytes)),
+            Some(Err(error)) => Some(Err(error)),
+            _ => None,
+        }
+        .into()
     }
 }
 

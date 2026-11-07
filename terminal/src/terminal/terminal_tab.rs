@@ -210,26 +210,12 @@ fn terminal_item2(this: TerminalTab, state: TerminalsState, generation: usize) -
     let send_to_terminal: Ptr<dyn Fn(String)> = Ptr::new(move |data| {
         autoclone!(this);
         let terminal = this.address.clone();
-        let session = this
-            .xtermjs
-            .lock()
-            .or_throw("xtermjs")
-            .as_ref()
-            .and_then(|xtermjs| xtermjs.session().as_string());
-        let Some(session) = session else {
-            return;
-        };
-        let Ok(attachment) =
-            serde_json::from_str::<crate::api::shared::terminal_schema::Attachment>(&session)
-        else {
-            return;
-        };
         spawn_local(async move {
-            if let Err(error) = terminal_api::write(&terminal, attachment.clone(), data).await {
+            if let Err(error) = terminal_api::write(&terminal, data).await {
                 warn!("Failed to write input overlay text to the terminal: {error}");
             }
             let _ = sleep(Duration::from_millis(50)).await;
-            if let Err(error) = terminal_api::write(&terminal, attachment, "\n".into()).await {
+            if let Err(error) = terminal_api::write(&terminal, "\n".into()).await {
                 warn!("Failed to write input overlay text to the terminal: {error}");
             }
         });

@@ -59,16 +59,16 @@ extern "C" {
     pub fn on_title_change(this: &TerminalJs, callback: &Closure<dyn FnMut(JsValue)>);
 
     #[wasm_bindgen(method)]
-    pub async fn send(this: &TerminalJs, data: String);
+    pub async fn send(this: &TerminalJs, data: JsValue, position: usize);
 
     #[wasm_bindgen(method)]
-    pub fn session(this: &TerminalJs) -> JsValue;
+    pub async fn initialize(this: &TerminalJs, process: usize, capacity: usize, snapshot: String);
 
-    #[wasm_bindgen(method, js_name = "onCheckpoint")]
-    pub fn on_checkpoint(this: &TerminalJs, callback: &Closure<dyn FnMut(JsValue)>);
-
-    #[wasm_bindgen(method, js_name = "checkpointFinished")]
-    pub async fn checkpoint_finished(this: &TerminalJs, success: bool);
+    #[wasm_bindgen(method, js_name = "onSnapshot")]
+    pub fn on_snapshot(
+        this: &TerminalJs,
+        callback: &Closure<dyn FnMut(JsValue) -> web_sys::js_sys::Promise>,
+    );
 
     #[wasm_bindgen(method)]
     pub fn dispose(this: &TerminalJs);

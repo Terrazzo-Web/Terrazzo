@@ -6,14 +6,7 @@ class TerminalJs {
         this.terminal = new JsDeps.Terminal({});
         this.serializer = new JsDeps.SerializeAddon();
         this.terminal.loadAddon(this.serializer);
-        this.ready = false;
-        this.disposed = false;
-        this.cursor = { event: '0', end: '0' };
-        this.lines = 0;
-        this.bytes = 0;
-        this.lastCapture = -Infinity;
-        this.pendingCapture = false;
-        this.uploading = false;
+        this.position = this.snapshotPosition = 0;
         this.fitAddon = new JsDeps.FitAddon();
         this.webLinksAddon = new JsDeps.WebLinksAddon();
         this.terminal.attachCustomKeyEventHandler((event) => this.handleClipboardShortcut(event));
@@ -46,10 +39,7 @@ class TerminalJs {
         this.terminal.open(node);
     }
     fit() {
-        const size = this.fitAddon.proposeDimensions();
-        if (size && this.ready && (size.rows !== this.terminal.rows || size.cols !== this.terminal.cols)) {
-            this.resizeCallback?.(JSON.stringify(size));
-        }
+        this.fitAddon.fit();
     }
     focus() {
         this.terminal.focus();
@@ -68,7 +58,6 @@ class TerminalJs {
     async pasteClipboard() {
         this.terminal.paste(await navigator.clipboard.readText());
     }
-    session() { return this.ready && this.attachment ? JSON.stringify(this.attachment) : null; }
     rows() {
         return this.terminal.rows;
     }
@@ -76,134 +65,48 @@ class TerminalJs {
         return this.terminal.cols;
     }
     onData(callback) {
-        this.terminal.onData(data => { if (this.ready) callback(data); });
-        this.terminal.onBinary(data => { if (this.ready) callback(Uint8Array.from(data, c => c.charCodeAt(0))); });
+        this.terminal.onData(callback);
     }
     onResize(callback) {
-        this.resizeCallback = callback;
+        this.terminal.onResize(callback);
     }
     onTitleChange(callback) {
         this.terminal.onTitleChange(callback);
     }
-    onCheckpoint(callback) { this.checkpointCallback = callback; }
-    async checkpointFinished(success) {
-        this.uploading = false;
-        if (success) this.terminal.element?.setAttribute('data-checkpoint-event', this.capturedEvent);
-        else this.pendingCapture = true;
-        this.scheduleCapture();
-    }
-    scheduleCapture() {
-        if (this.disposed || !this.ready || this.uploading || !this.pendingCapture) return;
-        clearTimeout(this.captureTimer);
-        const delay = 5000 - (performance.now() - this.lastCapture);
-        if (delay <= 0) this.captureNow();
-        else this.captureTimer = setTimeout(() => this.captureNow(), Math.ceil(delay));
-    }
-    captureNow() {
-        if (this.disposed || !this.ready || this.uploading || this.applying || !this.pendingCapture) return;
-        if (performance.now() - this.lastCapture < 5000) { this.scheduleCapture(); return; }
-        const payload = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
-        if (!payload) return; // Retry at the next safe output boundary.
-        this.lastCapture = performance.now();
-        this.lines = this.bytes = 0;
-        this.pendingCapture = false;
-        this.uploading = true;
-        this.capturedEvent = this.cursor.event;
-        this.checkpointCallback?.(JSON.stringify({
-            version: 1, attachment: this.attachment, cursor: this.cursor,
-            size: { r: this.terminal.rows, c: this.terminal.cols }, payload,
-        }));
-        // Include synchronous serialization and callback time in the minimum interval.
-        this.lastCapture = performance.now();
-    }
-    async send(json) {
-        this.applying = true;
-        try {
-            const parsed = JSON.parse(json);
-            const messages = Array.isArray(parsed) ? parsed : [parsed];
-            let outputs = [];
-            const flush = async () => {
-                if (!outputs.length) return;
-                const chunks = outputs.map(output => Uint8Array.from(atob(output.base64), c => c.charCodeAt(0)));
-                const bytes = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0));
-                let offset = 0;
-                for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-                await new Promise(resolve => this.terminal.write(bytes, resolve));
-                this.cursor = outputs.at(-1).cursor;
-                this.bytes += bytes.length;
-                for (const byte of bytes) if (byte === 10) this.lines++;
-                if (this.lines >= 1000 || this.bytes >= Math.min(256 * 1024, Math.max(1, Math.floor(this.capacity / 2)))) this.pendingCapture = true;
-                outputs = [];
-            };
-            for (const message of messages) {
-                if (message.Output) outputs.push(message.Output);
-                else { await flush(); await this.applyMessage(JSON.stringify(message)); }
-            }
-            await flush();
-        } finally { this.applying = false; this.scheduleCapture(); }
-    }
-    async applyMessage(json) {
-        const message = JSON.parse(json);
-        if (message.Init) {
-            const init = message.Init;
-            if (init.version !== 1) throw new Error('Unsupported terminal protocol');
-            this.ready = false;
-            this.uploading = false;
-            clearTimeout(this.captureTimer);
-            this.terminal.element?.setAttribute('data-ready', 'false');
-            this.attachment = init.attachment;
-            this.capacity = init.capacity;
-            this.restoring = null;
-            this.snapshotChunks = [];
-            if (init.fresh) { this.terminal.reset(); this.terminal.resize(80, 24); this.cursor = { event: "0", end: "0" }; }
-            if (init.checkpoint) {
-                const c = init.checkpoint;
-                this.terminal.reset();
-                this.terminal.resize(c.size.c ?? c.size.cols, c.size.r ?? c.size.rows);
-                this.restoring = c;
-                this.snapshotChunks = [];
-                this.snapshotBytes = 0;
-            }
-        } else if (message.SnapshotChunk !== undefined) {
-            if (!this.restoring) throw new Error('Unexpected snapshot chunk');
-            const bytes = Uint8Array.from(atob(message.SnapshotChunk), c => c.charCodeAt(0));
-            this.snapshotBytes += bytes.length;
-            if (this.snapshotBytes > this.capacity) throw new Error('Snapshot exceeds capacity');
-            this.snapshotChunks.push(bytes);
-        } else if (message === 'SnapshotEnd') {
-            if (!this.restoring) throw new Error('Unexpected snapshot end');
-            const bytes = new Uint8Array(this.snapshotBytes);
-            let offset = 0;
-            for (const chunk of this.snapshotChunks) { bytes.set(chunk, offset); offset += chunk.length; }
-            await JsDeps.SnapshotAdapter.restore(this.terminal, new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-            this.cursor = this.restoring.cursor;
-            this.restoring = null;
-            this.snapshotChunks = [];
-        } else if (message.Resize || message.Gap) {
-            const event = message.Resize ?? message.Gap;
-            if (message.Gap) {
-                this.pendingCapture = true;
-                JsDeps.SnapshotAdapter.cancelPartialInput(this.terminal);
-                this.terminal.element?.setAttribute('data-output-dropped', 'true');
-                if (this.terminal.element) this.terminal.element.title = 'Some terminal output was dropped';
-            }
-            this.terminal.resize(event.size.c ?? event.size.cols, event.size.r ?? event.size.rows);
-            this.cursor = { event: event.cursor.event, end: event.cursor.end || this.cursor.end };
-        } else if (message === 'Ready') {
-            this.ready = true;
-            this.terminal.element?.setAttribute('data-ready', 'true');
-            this.pendingCapture = true;
-            this.fit();
-        } else if (message === 'Revoked' || message === 'Eos' || message === 'Disconnected') {
-            this.ready = false;
-            this.terminal.element?.setAttribute('data-ready', 'false');
-            clearTimeout(this.captureTimer);
+    async initialize(process, capacity, snapshot) {
+        this.process = process;
+        this.capacity = capacity;
+        snapshot = JSON.parse(snapshot);
+        if (snapshot) {
+            await JsDeps.SnapshotAdapter.restore(this.terminal, snapshot.data);
+            this.position = this.snapshotPosition = snapshot.position;
         }
-        this.scheduleCapture();
+    }
+    onSnapshot(callback) {
+        const capture = async () => {
+            try {
+                if (this.process && !this.writing && this.position !== this.snapshotPosition) {
+                    const position = this.position;
+                    const data = JsDeps.SnapshotAdapter.capture(this.terminal, this.serializer, this.capacity);
+                    if (data) {
+                        await callback(JSON.stringify({ process: this.process, position, data }));
+                        this.snapshotPosition = position;
+                    }
+                }
+            } catch (error) { console.warn("Snapshot upload failed", error); }
+            finally { if (!this.disposed) this.snapshotTimer = setTimeout(capture, 5000); }
+        };
+        this.snapshotTimer = setTimeout(capture, 5000);
+    }
+    async send(data, position) {
+        this.writing = true;
+        await new Promise(resolve => this.terminal.write(data, resolve));
+        this.position = position;
+        this.writing = false;
     }
     dispose() {
         this.disposed = true;
-        clearTimeout(this.captureTimer);
+        clearTimeout(this.snapshotTimer);
         this.terminal.dispose();
         this.webLinksAddon.dispose();
         this.fitAddon.dispose();

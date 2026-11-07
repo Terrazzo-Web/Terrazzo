@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use terrazzo::http::StatusCode;
@@ -14,8 +16,7 @@ pub async fn resize(
     terminal_id: &TerminalId,
     rows: i32,
     cols: i32,
-    token: u64,
-    incarnation: &str,
+    force: bool,
 ) -> Result<(), ResizeError> {
     debug!(rows, cols, "Size");
     let processes = get_processes();
@@ -28,23 +29,17 @@ pub async fn resize(
         entry.value().1.clone()
     };
     let input = entry.input().await;
-    if entry.incarnation != incarnation {
-        return Err(ResizeError::StaleAttachment);
-    }
-    entry
-        .journal
-        .validate(token)
-        .map_err(|_| ResizeError::StaleAttachment)?;
     let ProcessInput(input) = &*input;
-    let applied = entry
-        .journal
-        .resize_with(token, rows as u16, cols as u16, || {
-            input.resize(Size::new(rows as u16, cols as u16))
-        })
-        .map_err(ResizeError::Resize)?;
-    if !applied {
-        return Err(ResizeError::StaleAttachment);
+    if force {
+        debug!("Forcing resize");
+        let () = input
+            .resize(Size::new(rows as u16 - 1, cols as u16 - 1))
+            .map_err(ResizeError::Resize)?;
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
+    let () = input
+        .resize(Size::new(rows as u16, cols as u16))
+        .map_err(ResizeError::Resize)?;
     debug!("Done");
     Ok(())
 }
@@ -52,8 +47,6 @@ pub async fn resize(
 #[nameth]
 #[derive(thiserror::Error, Debug)]
 pub enum ResizeError {
-    #[error("StaleAttachment")]
-    StaleAttachment,
     #[error("[{n}] Failed to resize: {0}", n = self.name())]
     Resize(PtyError),
 
@@ -64,7 +57,6 @@ pub enum ResizeError {
 impl IsHttpError for ResizeError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::StaleAttachment => StatusCode::CONFLICT,
             Self::Resize { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::TerminalNotFound { .. } => StatusCode::NOT_FOUND,
         }

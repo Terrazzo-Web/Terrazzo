@@ -1,5 +1,6 @@
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::task::Poll;
 use std::task::ready;
 
@@ -36,8 +37,7 @@ impl ProcessIoEntry {
     pub fn new(process_io: ProcessIO) -> Arc<Self> {
         info!("Create {}", Self::type_name());
         let (input, output) = process_io.split();
-        static NEXT_PROCESS_ID: std::sync::atomic::AtomicUsize =
-            std::sync::atomic::AtomicUsize::new(1);
+        static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(1);
         let output_buffer = output.0.buffer();
         Arc::new(Self {
             process_id: NEXT_PROCESS_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),

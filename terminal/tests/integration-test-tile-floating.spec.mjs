@@ -10,6 +10,8 @@ test.describe('Floating terminal tile', () => {
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
+        const layout = page.waitForResponse((response) =>
+            /\/api\/fn\/get\d+$/.test(response.url()) && !response.request().postData());
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         const password = page.locator('input[type="password"]');
@@ -18,6 +20,7 @@ test.describe('Floating terminal tile', () => {
             await password.dispatchEvent('change');
         }
 
+        await (await layout).finished();
         await page.locator('.app-tile').first().waitFor({ timeout: 10 * SECOND });
     });
 
@@ -208,6 +211,13 @@ test.describe('Floating terminal tile', () => {
         const signpost = floatingTile.locator(
             '.app-menu-trigger img[src*="signpost-split.svg"]',
         ).first();
+        const geometryRequests = [];
+        const trackGeometry = (request) => {
+            if (/\/api\/fn\/(raise_floating|set_floating_position)/.test(request.url())) {
+                geometryRequests.push(request.url());
+            }
+        };
+        page.on('request', trackGeometry);
         await signpost.dblclick();
 
         await expect(floatingTile).toHaveCSS('height', '32px');
@@ -219,6 +229,9 @@ test.describe('Floating terminal tile', () => {
         await signpost.dblclick();
         await expect(floatingTile).toHaveCSS('height', '600px');
         await expect(floatingTile.locator('.xterm')).toBeVisible();
+
+        page.off('request', trackGeometry);
+        expect(geometryRequests).toEqual([]);
 
         // A docked tile under the tabbed floating host can maximize independently.
         const dockedTile = page.locator('.app-tile:not(.floating-tile .app-tile)').first();

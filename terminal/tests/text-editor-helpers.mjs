@@ -15,6 +15,13 @@ const TEXT_EDITOR_FSIO_URL = `${BASE_URL}/api/text_editor/fsio`;
 const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
 export const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 
+export async function openTextEditor(page, url = BASE_URL) {
+    const layout = page.waitForResponse((response) =>
+        /\/api\/fn\/get\d+$/.test(response.url()) && !response.request().postData());
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await (await layout).finished();
+}
+
 export async function createTempFile(name) {
     const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-'));
     const filePath = path.join(baseDir, name);
@@ -235,11 +242,11 @@ export async function setBasePath(page, baseDir, expectedFileName, timeout = 10 
     ).toBe(true);
 
     try {
-        await page.waitForTimeout(SECOND);
+        // Wait for the restored document/folder, rather than editing during restoration.
+        await page.locator('.editor-container > *').first().waitFor({ state: 'attached', timeout });
         const basePathInput = await showBasePathInput(page, timeout);
         await basePathInput.fill(baseDir);
         await page.keyboard.press('Tab');
-        await page.waitForTimeout(SECOND);
         await expect(getFolderFile(page, expectedFileName)).toBeVisible({ timeout });
     } catch (error) {
         const displayedEntries = await listDisplayedFolderEntries(page).catch((listError) => [
@@ -285,21 +292,7 @@ export async function refreshUntilFolderFileVisible(page, baseDir, expectedFileN
 }
 
 export async function openFolderFile(page, name, timeout = 10 * SECOND) {
-    await expect
-        .poll(
-            async () => {
-                try {
-                    await getFolderFile(page, name).evaluate((node) => node.click(), {
-                        timeout: SECOND,
-                    });
-                    return true;
-                } catch {
-                    return false;
-                }
-            },
-            { timeout },
-        )
-        .toBe(true);
+    await getFolderFile(page, name).locator('.folder-name').click({ timeout });
 }
 
 export async function reopenFolderFile(page, fileName) {

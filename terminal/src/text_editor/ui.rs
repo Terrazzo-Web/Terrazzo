@@ -625,6 +625,7 @@ impl TextEditorManager {
                 ) = data.as_deref()
                 {
                     let metadata = metadata.clone();
+                    this.force_edit_path.set(false);
                     this.add_to_side_view(&path, |_| {
                         Some(SideViewNode {
                             properties: SvnProperties {

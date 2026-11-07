@@ -49,6 +49,9 @@ pub struct TerminalDefImpl<T> {
     pub order: i32,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "i"))]
     pub tile: TileId,
+    /// Only applied when creating a new PTY, never when attaching to an existing one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_path: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

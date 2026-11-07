@@ -25,6 +25,27 @@ editing, conversion tools, and port-forward management.
 - **Remotes and persisted state**: selected remotes, tile state, editor paths,
   converter input, and related UI state are kept through the app's state layer.
 
+## Text editor terminal
+
+The terminal button in the editor header opens a terminal in the current base
+folder on the editor's remote. Closing its tab or exiting the shell turns the
+button off. Turning the button off closes its terminals. Reopening the editor
+restores existing terminals without changing their working directory.
+
+Configure the directory command beside `terminal-shell` in the server config (currently TOML):
+
+```toml
+[server]
+terminal-cd = "cd -- {path}"
+```
+
+This is the default when omitted. `{path}` is an absolute path already quoted for
+a POSIX shell; do not add quotes around the placeholder. The command runs before
+`terminal-shell` (or the default interactive shell), only when creating a new
+editor terminal. A custom command must be compatible with the startup Bash shell.
+Config changes affect new terminals. Changing the editor base folder leaves
+existing shells in their current directory.
+
 ## Running with Cargo
 
 Prerequisites:

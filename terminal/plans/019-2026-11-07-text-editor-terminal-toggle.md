@@ -15,8 +15,8 @@ tile already owns a terminal restores that terminal and shows the toggle as on.
 
 - Render the terminal below the editor with a resize bar, reusing the existing
   terminal UI and tile-owned terminal state.
-- On load, list existing terminals and find terminals with the editor's exact tile
-  ID and remote. Restore matching terminals without creating a shell or sending
+- On load, reuse existing terminal-list loading and find terminals with the
+  editor's exact tile ID and remote. Restore matching terminals without creating a shell or sending
   another `cd` command. Leave the toggle off when none exist.
 - Derive the toggle from actual terminal existence; do not persist a separate
   enabled flag that can disagree with the process registry.
@@ -25,8 +25,9 @@ tile already owns a terminal restores that terminal and shows the toggle as on.
 - On disable, close the matching terminal processes and remove the panel. If
   historical state contains multiple matching terminals, restore them using the
   existing tab UI and close all of them when disabling.
-- Show pending state and suppress repeated clicks during creation or closure.
-  Report failures and reconcile state instead of leaving a misleading toggle.
+- Enable immediately through the existing tab signal when creation is requested.
+  If creation fails, remove the tab so the toggle becomes disabled again. Do not
+  introduce pending-operation state.
 - Reconcile after shell exit, terminal closure, or ownership changes.
 - Preserve the shell when the editor UI unmounts, so reopening can restore it.
 
@@ -47,6 +48,32 @@ filtering rather than a random reassignment of the stored tile ID.
   change the editor's remote. The normal terminal UI currently updates its tile's
   remote from the selected terminal.
 - Refresh both normal and embedded terminal views when ownership changes.
+
+## Reuse existing state and lifecycle
+
+Keep this change local to the existing terminal and editor integration. Do not
+introduce a global terminal registry, store revisions, a new notification protocol,
+or a replacement terminal lifecycle.
+
+- Reuse `tile.terminal_ui`, `TerminalsState`, terminal rendering, and the existing
+  terminal-list loading/refresh path for the editor. Share the fetched definitions
+  between the two app types wherever that path already loads them; do not add an
+  independent editor discovery service or require a browser-wide store refactor.
+- Derive the toggle from the tile's existing `terminal_tabs` signal being nonempty.
+  The existing `on_eos` removes a tab from that signal, so closing a terminal tab or
+  exiting the shell also updates the toggle without a second enabled flag.
+- Turning off requests closure and leaves the tabs and active state intact until
+  the existing closure/EOS path removes them. A second click while still active
+  must never be interpreted as a request to create a replacement terminal.
+- Repeated clicks while the terminal still exists may request closure again.
+  Treat an already-closed terminal as harmless; no pending flag is needed.
+- Reuse the existing add-tab path to create and display a terminal. Its allocated
+  definition is needed to mount the stream and start the PTY; do not build a second
+  confirmed-process collection. On startup failure, remove the failed tab through
+  the existing cleanup path so the toggle returns off.
+- Preserve existing reconnect behavior. Limit lifecycle changes to those necessary
+  for the editor toggle; do not redesign stream error handling in this feature.
+- Keep the existing stale-list safeguard when reusing refresh logic.
 
 ## Configuration and shell initialization
 
@@ -82,13 +109,18 @@ server:
    existing ServerFn and RemoteFn routing through `terminal/api.rs`,
    `terminal/client.rs`, and `terminal/service/`. Inspect the stream creation path
    to keep initialization bound to actual process creation.
-3. Extract shared terminal state/rendering hooks from `terminal/ui.rs` as needed.
-   Add exact-owner discovery and correct normal-terminal orphan filtering.
+3. Reuse the existing tile terminal state, loading, and rendering for the editor,
+   extracting only the small hooks needed. Recognize editor ownership in normal
+   terminal orphan filtering and use exact-owner filtering for the editor.
 4. Add editor terminal state/lifecycle integration in `text_editor/manager.rs` and
    a focused editor terminal module. Ignore stale asynchronous results after a
-   remote change or unmount, and prevent duplicate local creation requests.
-5. Insert the toggle before refresh in `text_editor/ui.rs`; add active/pending
-   styling, accessible labels, the terminal panel, and its resize control.
+   remote change or unmount. Add the tab synchronously on enable so the next click
+   sees the enabled state; use the existing terminal ID allocation path as needed.
+   If closure is requested before startup completes, ensure late startup cannot
+   recreate a terminal that was already closed, without adding pending UI state.
+5. Insert the toggle before refresh in `text_editor/ui.rs`; add active
+   styling, accessible labels, and the terminal panel using existing layout and
+   resize helpers.
 6. Add focused regression coverage and run relevant validation.
 
 ## Validation
@@ -99,12 +131,15 @@ server:
   creating another PTY or repeating initialization; unrelated terminals do not.
 - Lifecycle: enable, disable, rapid repeated clicks, shell exit, failed creation,
   failed closure, editor reload, and remote changes keep the UI consistent.
+- Signal: the toggle stays active until the closure path removes the terminal,
+  repeated clicks while closing never create a replacement, and EOS updates the
+  toggle through the existing tab signal. Failed startup returns the toggle off.
 - Initialization: verify the remote shell's working directory, including paths
   containing spaces, quotes, and shell metacharacters. Reconnect must preserve a
   manually changed working directory.
 - Config: cover omission/default, custom template, alias, invalid placeholders,
   round-trip serialization, merge behavior, and live updates for new terminals.
-- Browser: verify placement before refresh, active/pending state, resizing, and
+- Browser: verify placement before refresh, active state, resizing, and
   coexistence with a normal Terminal tile.
 - Run focused Rust and browser integration targets for the changed paths, then
   relevant client/server builds and required checks from `terminal/AGENTS.md`.

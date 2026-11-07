@@ -400,15 +400,15 @@ fn show_floating_tiles(
                 class %= collapsed_class(floating.collapsed.clone()),
                 style::z_index %= integer(floating.z_index.clone()),
                 mousedown = move |_| {
-                    let top = z_indices
+                    let highest_z_index = z_indices
                         .iter()
                         .map(XSignal::get_value_untracked)
                         .max()
                         .unwrap_or_default();
-                    if floating.z_index.get_value_untracked() == top {
+                    if floating.z_index.get_value_untracked() == highest_z_index {
                         return;
                     }
-                    floating.z_index.set(top + 1);
+                    floating.z_index.set(highest_z_index + 1);
                     spawn_local(async move {
                         RootTree::update(super::api::raise_floating(array_id, floating_id).await)
                     });

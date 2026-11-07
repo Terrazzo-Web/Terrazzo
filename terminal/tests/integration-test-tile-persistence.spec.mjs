@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { SECOND, getCodeMirrorContent, openFolderFile, openTextEditor, setBasePath } from './text-editor-helpers.mjs';
+import { SECOND, getCodeMirrorContent, openFolderFile, openTextEditorAndWaitForRestore, setBasePath } from './text-editor-helpers.mjs';
 
 // Own the process and config so restarting cannot disrupt the harness or other tests.
 async function startServer(configFile, endpointFile, request) {
@@ -90,7 +90,7 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         let page = await context.newPage();
         page.setDefaultTimeout(10 * SECOND);
         page.setDefaultNavigationTimeout(10 * SECOND);
-        await openTextEditor(page, server.url);
+        await openTextEditorAndWaitForRestore(page, server.url);
         const editorTile = page.locator('.app-tile').first();
         await editorTile.locator('.app-menu-trigger').hover();
         await editorTile.locator('.split-tabbed').click();
@@ -124,7 +124,7 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         page = await context.newPage();
         page.setDefaultTimeout(10 * SECOND);
         page.setDefaultNavigationTimeout(10 * SECOND);
-        await openTextEditor(page, server.url);
+        await openTextEditorAndWaitForRestore(page, server.url);
         await expect(page.locator('.tile-tab-title')).toHaveText(titles);
         await expect(getCodeMirrorContent(page)).toContainText('Restored editor file');
         await expect(page.locator('.base-path-selector-display')).toHaveText(updatedBase);

@@ -15,11 +15,11 @@ const TEXT_EDITOR_FSIO_URL = `${BASE_URL}/api/text_editor/fsio`;
 const WORKSPACE_ROOT = path.join(process.env.TEST_SRCDIR ?? '.', process.env.TEST_WORKSPACE ?? '.');
 export const PLANTUML_PDF = path.join(WORKSPACE_ROOT, 'terminal/tests/PlantUML.pdf');
 
-export async function openTextEditor(page, url = BASE_URL) {
-    const layout = page.waitForResponse((response) =>
+export async function openTextEditorAndWaitForRestore(page, editorUrl = BASE_URL) {
+    const initialTileLayoutResponse = page.waitForResponse((response) =>
         /\/api\/fn\/get\d+$/.test(response.url()) && !response.request().postData());
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await (await layout).finished();
+    await page.goto(editorUrl, { waitUntil: 'domcontentloaded' });
+    await (await initialTileLayoutResponse).finished();
     await page.locator('.editor-container > *').first().waitFor({ state: 'attached' });
 }
 

@@ -4,7 +4,7 @@ div.text_editor {
     display: flex;
     flex-direction: column;
 
-    .is_focusable {
+    &.is_focusable {
         @include trz-focusable;
     }
 

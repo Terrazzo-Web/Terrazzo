@@ -136,11 +136,38 @@ body {
 }
 
 @mixin trz-focusable {
+    position: relative;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        border: 2px solid green;
+        pointer-events: none;
+        z-index: 10;
+        opacity: 0;
+    }
+
+    &:focus-within::after {
+        animation: trz-focus-flash 2s ease;
+    }
+
     &:not(:focus-within) {
-        opacity: 0.8;
+        opacity: 0.7;
     }
 
     transition: opacity 0.3s ease;
+}
+
+@keyframes trz-focus-flash {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
 }
 
 @mixin trz-bg-transition {

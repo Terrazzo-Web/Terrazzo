@@ -57,6 +57,40 @@ test.describe('Text editor basic', () => {
         await expectCopiedPath('Copy relative path', 'second.txt');
     });
 
+    test('flashes a border on focus without moving editor content', async ({ page }) => {
+        const { baseDir } = await createTempFile('focus.txt');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'focus.txt');
+        await openFolderFile(page, 'focus.txt');
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible();
+        const result = await editor.evaluate((node) => {
+            document.activeElement?.blur();
+            const app = node.closest('.text-editor-app');
+            const rect = () => {
+                const { x, y, width, height } = node.getBoundingClientRect();
+                return { x, y, width, height };
+            };
+            const before = rect();
+            node.focus();
+            const animation = app.getAnimations({ subtree: true }).find((animation) => animation.animationName === 'trz-focus-flash');
+            if (!animation) throw new Error('Missing focus border animation');
+            animation.pause();
+            animation.currentTime = 0;
+            const border = getComputedStyle(app, '::after');
+            const flash = { opacity: border.opacity, color: border.borderTopColor, sizing: border.boxSizing };
+            const during = rect();
+            const duration = animation.effect.getTiming().duration;
+            animation.finish();
+            return { before, during, after: rect(), flash, duration, opacity: getComputedStyle(app, '::after').opacity };
+        });
+        expect(result.flash).toEqual({ opacity: '1', color: 'rgb(255, 0, 0)', sizing: 'border-box' });
+        expect(result.duration).toBe(2000);
+        expect(result.opacity).toBe('0');
+        expect(result.during).toEqual(result.before);
+        expect(result.after).toEqual(result.before);
+    });
+
     test('edits a file', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

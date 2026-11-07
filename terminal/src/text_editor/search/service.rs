@@ -123,7 +123,9 @@ async fn search_impl(
     input: String,
     settings: IndexSettings,
 ) -> Result<impl Stream<Item = Result<FileMetadata, SearchError>>, SearchError> {
-    let repo_root = git_repo_root(base.clone()).ok_or_else(|| SearchError::NotGit(base.clone()))?;
+    let repo_root = git_repo_root(base.clone())
+        .await
+        .ok_or_else(|| SearchError::NotGit(base.clone()))?;
 
     let mut tantivy_search = futures::stream::once(tantivy_search(
         base.clone(),
@@ -192,11 +194,13 @@ async fn tantivy_search(
         .map_err(SearchError::SearchIndex)?;
     let content_paths = match index
         .search(&escape(&input), MAX_RESULTS)
+        .await
         .map_err(|error| SearchError::SearchIndex(Arc::new(error)))
     {
         Ok(content_paths) if !content_paths.is_empty() => content_paths,
         _ => index
             .search(&input, MAX_RESULTS)
+            .await
             .map_err(|error| SearchError::SearchIndex(Arc::new(error)))?,
     };
     index.refresh_if_stale();
@@ -232,7 +236,7 @@ async fn process_index_path(
     };
     let full_path = repo_root.join(&path);
     let Some(metadata) = tokio::fs::symlink_metadata(&full_path).await.ok() else {
-        reconcile_touched_path(&full_path);
+        reconcile_touched_path(&full_path).await;
         return Ok(None);
     };
     let result = FileMetadata::make(
@@ -240,7 +244,8 @@ async fn process_index_path(
         Ok(&metadata),
         &mut HashMap::new(),
         &mut HashMap::new(),
-    );
+    )
+    .await;
     Ok(Some(result))
 }
 
@@ -251,13 +256,14 @@ pub async fn autocomplete_paths(
     settings: IndexSettings,
     limit: usize,
 ) -> Result<Vec<PathBuf>, Arc<SearchIndexError>> {
-    let Some(root) = git_repo_root(base) else {
+    let Some(root) = git_repo_root(base).await else {
         return Ok(vec![]);
     };
     let index = tantivy::repository_index(root.clone(), settings).await?;
     let relative_base = base.strip_prefix(&root).unwrap_or(base);
     let paths = index
         .search_paths(input, relative_base, limit)
+        .await
         .map_err(Arc::new)?;
     index.refresh_if_stale();
     Ok(paths

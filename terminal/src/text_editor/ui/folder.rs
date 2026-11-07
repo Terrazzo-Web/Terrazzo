@@ -32,6 +32,8 @@ use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::tiles::app::App;
 
+mod file_icon;
+
 terrazzo_css::import_style!(style, "folder.scss");
 
 #[autoclone]
@@ -86,6 +88,15 @@ pub fn folder(
                 autoclone!(manager, file_path);
                 manager.path.file.force(file_path.file.clone())
             },
+            td(
+                class = style::FILE_TYPE,
+                img(
+                    src = file_icon::file_icon(name, is_dir),
+                    alt = "",
+                    width = "20",
+                    height = "20",
+                ),
+            ),
             td(
                 draggable = (name.as_ref() != "..").then_some("true"),
                 dragstart = on_move_dragstart(&file_path),
@@ -142,6 +153,7 @@ pub fn folder(
         class %= get_dragover_class(dragover_class.clone()),
         table(
             thead(tr(
+                th(class = style::FILE_TYPE, ""),
                 th("Name"),
                 th("Size"),
                 th("Modified"),

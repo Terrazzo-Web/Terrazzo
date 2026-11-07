@@ -11,7 +11,7 @@
 ```text
 PTY -> existing bounded TailStream -> existing throttled stream -> XTermJS
                    ^                                            |
-                   |          snapshot upload every 5s           |
+                   |          snapshot upload every 5s          |
                    +--------------------------------------------+
 
 Fresh opening: snapshot -> retained delta -> live output

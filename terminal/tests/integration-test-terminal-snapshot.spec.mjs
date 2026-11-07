@@ -49,14 +49,23 @@ async function wheel(page) {
 }
 
 async function openPage(page) {
+    // Wait for the restored terminal tile to request its own selected-tab state.
+    const initialized = new Set();
+    const onRequest = request => {
+        if (/\/api\/fn\/get\d+$/.test(request.url())) {
+            const tile = request.postDataJSON()?.tile;
+            if (tile !== undefined) initialized.add(tile);
+        }
+    };
+    page.on('request', onRequest);
     const tiles = page.waitForResponse(async response => {
         if (!/\/api\/fn\/get\d+$/.test(response.url())) return false;
-        const value = await response.json().catch(() => null);
-        return !!(value?.Tile || value?.Array);
+        return !!(await response.json().catch(() => null))?.Tile;
     });
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-    await tiles;
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const tree = await (await tiles).json();
+    await expect.poll(() => initialized.has(tree.Tile.id)).toBe(true);
+    page.off('request', onRequest);
 }
 
 function nextSnapshot(page, predicate) {

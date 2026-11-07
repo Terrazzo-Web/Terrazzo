@@ -79,10 +79,9 @@ impl MousemoveManager {
                 // Avoid saving unchanged geometry and racing other layout updates.
                 if this.delta.get_value_untracked().unwrap_or_default()
                     != drag_delta_at_mousedown.unwrap_or_default()
+                    && let Some(mouseup) = &this.mouseup
                 {
-                    if let Some(mouseup) = &this.mouseup {
-                        mouseup()
-                    }
+                    mouseup()
                 }
             });
             let mouseup = RegisteredEvent::register(window.clone(), "mouseup", mouseup);

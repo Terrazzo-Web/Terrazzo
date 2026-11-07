@@ -8,3 +8,5 @@ pub mod stream;
 pub mod tile_id;
 pub mod title;
 pub mod write;
+
+pub mod checkpoint;

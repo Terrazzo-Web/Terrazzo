@@ -185,7 +185,6 @@ remotes-ui = []
 terminal = []
 terminal-client = [
   "client",
-  "dep:base64",
   "dep:futures",
   "dep:scopeguard",
   "dep:web-sys",
@@ -196,6 +195,7 @@ terminal-client = [
   "web-sys/KeyboardEvent",
 ]
 terminal-server = [
+  "dep:base64",
   "dep:dashmap",
   "dep:pin-project",
   "dep:terrazzo-pty",

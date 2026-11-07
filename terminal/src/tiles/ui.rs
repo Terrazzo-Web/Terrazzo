@@ -95,13 +95,22 @@ impl std::ops::Deref for RootTree {
 }
 
 pub fn show_tiles() -> XElement {
-    spawn_local(async move { RootTree::update(super::api::get().await) });
-    show_tiles_tree(ROOT_TREE.clone())
+    let ready = XSignal::new("tiles-ready", false);
+    let initialized = ready.clone();
+    spawn_local(async move {
+        RootTree::update(super::api::get().await);
+        initialized.set(true);
+    });
+    show_tiles_tree(ROOT_TREE.clone(), ready)
 }
 
 #[template(tag = div)]
 #[html]
-fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
+fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>, #[signal] ready: bool) -> XElement {
+    // The default tree is temporary. User actions must target the restored IDs.
+    if !ready {
+        return tag("Loading…");
+    }
     let tile_tab_dragging = XSignal::new("tile-tab-dragging", false);
     tag(show_tiles_rec(
         &tiles,

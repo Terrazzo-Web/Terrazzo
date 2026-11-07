@@ -1,6 +1,8 @@
 // JsDeps
+import * as SnapshotAdapter from "../../../src/terminal/snapshot.js";
 
 import { Terminal } from '@xterm/xterm';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
@@ -69,6 +71,8 @@ const Milkdown = {
 export {
     Terminal,
     FitAddon,
+    SerializeAddon,
+    SnapshotAdapter,
     WebLinksAddon,
 
     Milkdown,

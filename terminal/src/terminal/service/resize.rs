@@ -17,11 +17,27 @@ remote_fn_service::unary::declare_remote_fn!(
     ResizeRequest,
     (),
     |_server, request: ResizeRequest| async move {
+        let entry = super::checkpoint::entry(&request.terminal, &request.attachment)?;
+        let rows = u16::try_from(request.size.rows)
+            .ok()
+            .filter(|n| *n > 0)
+            .ok_or_else(|| Status::invalid_argument("InvalidSize"))?;
+        let cols = u16::try_from(request.size.cols)
+            .ok()
+            .filter(|n| *n > 0)
+            .ok_or_else(|| Status::invalid_argument("InvalidSize"))?;
+        drop(entry);
+        let token = request
+            .attachment
+            .token
+            .parse()
+            .map_err(|_| Status::invalid_argument("InvalidToken"))?;
         processes::resize::resize(
             &request.terminal.id,
-            request.size.rows,
-            request.size.cols,
-            request.force,
+            rows.into(),
+            cols.into(),
+            token,
+            &request.attachment.incarnation,
         )
         .await
         .map_err(|e| Status::internal(e.to_string()))

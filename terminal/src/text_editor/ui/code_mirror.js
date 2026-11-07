@@ -140,7 +140,8 @@ class CodeMirrorJsImpl {
             selection,
             scrollIntoView: true,
         });
-        this.editorView.focus();
+        // A delayed file load must not take focus from an active path draft.
+        if (!document.activeElement?.matches('input, textarea')) this.editorView.focus();
         this.reloadFromDisk = false;
     }
 

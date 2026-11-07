@@ -19,7 +19,12 @@ use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::processes::get_processes;
 use crate::processes::next_terminal_id;
-use crate::processes::write::write;
+async fn write(
+    id: &crate::terminal_id::TerminalId,
+    data: &[u8],
+) -> Result<(), crate::processes::write::WriteError> {
+    crate::processes::write::write(id, data, None).await
+}
 use crate::tiles::id::TileId;
 
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -45,7 +50,10 @@ async fn read_line(lease: &mut ProcessOutputLease, prefix: &str) -> String {
         let mut output = String::new();
         loop {
             match lease.next().await {
-                Some(LeaseItem::Data(bytes)) => {
+                Some(LeaseItem::Data(record)) => {
+                    let terrazzo_pty::replay::Event::Output { bytes, .. } = record.event else {
+                        continue;
+                    };
                     output.push_str(std::str::from_utf8(&bytes).unwrap());
                     while let Some((line, rest)) = output.split_once('\n') {
                         if line.starts_with(prefix) {

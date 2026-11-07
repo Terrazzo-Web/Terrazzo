@@ -7,17 +7,24 @@ use crate::api::client_address::ClientAddress;
 use crate::terminal_id::TerminalId;
 use crate::tiles::id::TileId;
 
-#[cfg(feature = "debug")]
+#[cfg(all(feature = "server", feature = "debug"))]
 pub const STREAMING_WINDOW_SIZE: usize = 200 * 1000;
 
-#[cfg(not(feature = "debug"))]
+#[cfg(all(feature = "server", not(feature = "debug")))]
 pub const STREAMING_WINDOW_SIZE: usize = 1000 * 1000;
+
+// Retention and transport credit can be tuned independently.
+#[cfg(all(feature = "server", feature = "debug"))]
+pub const REPLAY_CAPACITY: usize = 200 * 1000;
+
+#[cfg(all(feature = "server", not(feature = "debug")))]
+pub const REPLAY_CAPACITY: usize = 1000 * 1000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Size {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "r"))]
+    #[serde(rename = "r", alias = "rows")]
     pub rows: i32,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "c"))]
+    #[serde(rename = "c", alias = "cols")]
     pub cols: i32,
 }
 
@@ -71,12 +78,41 @@ impl<T> TabTitle<T> {
 
 pub type TerminalDef = TerminalDefImpl<TabTitle<String>>;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RegisterTerminalMode {
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "C"))]
-    Create,
-    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "R"))]
-    Reopen,
+/// Text stays compact on the wire; binary mouse reports retain their exact bytes.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum TerminalInput {
+    Text(String),
+    Binary(Vec<u8>),
+}
+
+/// All cursor integers use strings on the wire to preserve 64-bit precision.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Attachment {
+    pub incarnation: String,
+    pub token: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AppliedCursor {
+    pub event: String,
+    pub end: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AttachRequest {
+    pub request_id: String,
+    pub version: u32,
+    pub create_if_missing: bool,
+    pub resume: Option<(Attachment, AppliedCursor)>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TerminalCheckpoint {
+    pub version: u32,
+    pub attachment: Attachment,
+    pub cursor: AppliedCursor,
+    pub size: Size,
+    pub payload: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -86,7 +122,7 @@ pub struct ResizeRequest<T = TerminalAddress> {
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "s"))]
     pub size: Size,
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "f"))]
-    pub force: bool,
+    pub attachment: Attachment,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

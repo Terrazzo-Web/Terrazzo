@@ -11,7 +11,7 @@ use server_fn::ServerFnError;
 use server_fn::codec::TextStream;
 use tracing::warn;
 
-use crate::api::shared::terminal_schema::RegisterTerminalMode;
+use crate::api::shared::terminal_schema::AttachRequest;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal::api::PipeMessage;
 use crate::terminal_id::TerminalId;
@@ -29,6 +29,7 @@ struct Pipe {
 pub struct PipedStream {
     terminal_id: TerminalId,
     stream: TextStream,
+    registration: String,
 }
 
 pub async fn pipe() -> TextStream {
@@ -43,10 +44,12 @@ pub async fn pipe() -> TextStream {
         |PipedStream {
              terminal_id,
              stream,
+             registration,
          }| {
             stream.into_inner().map(move |chunk| PipeMessage {
                 terminal_id: terminal_id.clone(),
                 chunk,
+                registration: registration.clone(),
             })
         },
     );
@@ -71,11 +74,12 @@ pub async fn pipe() -> TextStream {
 }
 
 pub async fn add_stream(
-    mode: RegisterTerminalMode,
+    request: AttachRequest,
     terminal_def: TerminalDef,
+    registration: String,
 ) -> Result<(), AddStreamError> {
     let terminal_id = terminal_def.address.id.clone();
-    let stream = crate::terminal::service::stream::stream(mode, terminal_def)
+    let stream = crate::terminal::service::stream::stream(request, terminal_def)
         .await
         .map_err(AddStreamError::OpenStreamError)?;
     let mut pipe = PIPE
@@ -87,6 +91,7 @@ pub async fn add_stream(
     pipe.send(PipedStream {
         terminal_id,
         stream,
+        registration,
     })
     .await
     .map_err(AddStreamError::SendError)

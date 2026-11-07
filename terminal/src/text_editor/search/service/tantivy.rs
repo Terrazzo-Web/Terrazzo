@@ -220,7 +220,6 @@ impl RepositoryIndex {
                 Ok::<_, SearchIndexError>((index, reader, fields, writer, fingerprints))
             })
             .await??;
-        let writer = AsyncIndexWriter(Some(writer));
         let (tx, rx) = mpsc::unbounded_channel();
         let last_full_reconcile = Arc::new(Mutex::new(None));
 
@@ -240,7 +239,7 @@ impl RepositoryIndex {
             watcher_updates: tokio::sync::Mutex::new(()),
         });
 
-        tokio::spawn(writer_loop(
+        tokio::spawn(writer_task(
             root.clone(),
             repository.cache_dir.clone(),
             fields,
@@ -616,61 +615,65 @@ fn load_fingerprints(
     Ok(fingerprints)
 }
 
-/// Keep Tantivy's synchronous writes, commit waits, and destructor off runtime workers.
-struct AsyncIndexWriter(Option<IndexWriter>);
-
-impl AsyncIndexWriter {
-    async fn run<T: Send + 'static>(
-        &mut self,
-        operation: impl FnOnce(&mut IndexWriter) -> Result<T, SearchIndexError> + Send + 'static,
-    ) -> Result<T, SearchIndexError> {
-        let mut writer = self.0.take().expect("index writer unavailable");
-        let (writer, result) = tokio::task::spawn_blocking(move || {
-            let result = operation(&mut writer);
-            (writer, result)
-        })
-        .await?;
-        self.0 = Some(writer);
-        result
-    }
-
-    async fn commit(&mut self, reader: &IndexReader) -> Result<(), SearchIndexError> {
-        let reader = reader.clone();
-        self.run(move |writer| {
-            writer.commit()?;
-            reader.reload()?;
-            Ok(())
-        })
-        .await
-    }
-}
-
-impl Drop for AsyncIndexWriter {
-    fn drop(&mut self) {
-        if let Some(writer) = self.0.take() {
-            tokio::task::spawn_blocking(move || drop(writer));
+#[allow(clippy::too_many_arguments)]
+async fn writer_task(
+    root: Arc<Path>,
+    cache_dir: Arc<Path>,
+    fields: IndexFields,
+    writer: IndexWriter,
+    reader: IndexReader,
+    fingerprints: HashMap<PathBuf, Fingerprint>,
+    last_full_reconcile: Arc<Mutex<Option<Instant>>>,
+    mut rx: mpsc::UnboundedReceiver<WriterCommand>,
+) {
+    // The async task owns the worker's input, so runtime shutdown closes it even
+    // when a cached RepositoryIndex still holds a sender to this task.
+    let (tx, worker_rx) = mpsc::unbounded_channel();
+    let runtime = tokio::runtime::Handle::current();
+    let worker = tokio::task::spawn_blocking(move || {
+        writer_loop(
+            root,
+            cache_dir,
+            fields,
+            writer,
+            reader,
+            fingerprints,
+            last_full_reconcile,
+            worker_rx,
+            runtime,
+        );
+    });
+    while let Some(command) = rx.recv().await {
+        if tx.send(command).is_err() {
+            break;
         }
+    }
+    drop(tx);
+    if let Err(error) = worker.await {
+        warn!(%error, "Search index writer failed");
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn writer_loop(
+fn writer_loop(
     root: Arc<Path>,
     cache_dir: Arc<Path>,
     fields: IndexFields,
-    mut writer: AsyncIndexWriter,
+    mut writer: IndexWriter,
     reader: IndexReader,
     mut fingerprints: HashMap<PathBuf, Fingerprint>,
     last_full_reconcile: Arc<Mutex<Option<Instant>>>,
     mut rx: mpsc::UnboundedReceiver<WriterCommand>,
+    runtime: tokio::runtime::Handle,
 ) {
-    async {
-        while let Some(command) = rx.recv().await {
-            match command {
-                WriterCommand::FullReconcile {
-                    reconcile_kind,
-                    reply,
-                } => {
+    let _span = info_span!("Tantivy Index").entered();
+    while let Some(command) = rx.blocking_recv() {
+        match command {
+            WriterCommand::FullReconcile {
+                reconcile_kind,
+                reply,
+            } => {
+                runtime.block_on(
                     full_reconcile(
                         &root,
                         &cache_dir,
@@ -682,38 +685,33 @@ async fn writer_loop(
                         reconcile_kind,
                         reply,
                     )
-                    .instrument(info_span!("Full reconcile", ?reconcile_kind))
-                    .await;
-                }
-                WriterCommand::Reconcile {
+                    .instrument(info_span!("Full reconcile", ?reconcile_kind)),
+                );
+            }
+            WriterCommand::Reconcile {
+                path,
+                add_if_missing,
+            } => {
+                let _span = info_span!("Reconcile", ?path).entered();
+                reconcile(
+                    &root,
+                    fields,
+                    &mut writer,
+                    &reader,
+                    &mut fingerprints,
                     path,
                     add_if_missing,
-                } => {
-                    let span = info_span!("Reconcile", ?path);
-                    reconcile(
-                        &root,
-                        fields,
-                        &mut writer,
-                        &reader,
-                        &mut fingerprints,
-                        path,
-                        add_if_missing,
-                    )
-                    .instrument(span)
-                    .await;
-                }
+                );
             }
         }
     }
-    .instrument(info_span!("Tantivy Index"))
-    .await
 }
 
 async fn full_reconcile(
     root: &Arc<Path>,
     cache_dir: &Arc<Path>,
     fields: IndexFields,
-    writer: &mut AsyncIndexWriter,
+    writer: &mut IndexWriter,
     reader: &IndexReader,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     last_full_reconcile: &Arc<Mutex<Option<Instant>>>,
@@ -755,7 +753,7 @@ async fn full_reconcile(
             }
         }
         let paths = filtered;
-        reconcile_all(root, fields, writer, reader, fingerprints, &paths).await?;
+        reconcile_all(root, fields, writer, reader, fingerprints, &paths)?;
         Ok(paths)
     }
     .await
@@ -767,10 +765,10 @@ async fn full_reconcile(
     info!("Elapsed: {}", humantime::format_duration(start.elapsed()))
 }
 
-async fn reconcile(
+fn reconcile(
     root: &Arc<Path>,
     fields: IndexFields,
-    writer: &mut AsyncIndexWriter,
+    writer: &mut IndexWriter,
     reader: &IndexReader,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     path: PathBuf,
@@ -778,16 +776,18 @@ async fn reconcile(
 ) {
     debug!("Start");
     defer!(debug!("End"));
-    let result = async {
-        if reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing).await? {
-            debug!("Updated index");
-            writer.commit(reader).await?;
-        } else {
-            debug!("Ignored");
-        }
-        Ok::<_, SearchIndexError>(())
-    }
-    .await;
+    let result = reconcile_one(root, fields, writer, fingerprints, &path, add_if_missing).and_then(
+        |changed| {
+            if changed {
+                debug!("Updated index");
+                writer.commit()?;
+                reader.reload()?;
+            } else {
+                debug!("Ignored");
+            }
+            Ok(())
+        },
+    );
     if let Err(error) = result {
         warn!(%error, ?path, "Failed to reconcile search index file");
     }
@@ -813,57 +813,39 @@ async fn collect_paths(
         .map_err(|error| SearchIndexError::GitFiles(error.to_string()))
 }
 
-async fn reconcile_all(
+fn reconcile_all(
     root: &Path,
     fields: IndexFields,
-    writer: &mut AsyncIndexWriter,
+    writer: &mut IndexWriter,
     reader: &IndexReader,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     paths: &HashSet<PathBuf>,
 ) -> Result<(), SearchIndexError> {
     let mut changed = false;
-    for (index, path) in paths.iter().enumerate() {
-        if index % 64 == 0 {
-            tokio::task::yield_now().await;
-        }
-        changed |= reconcile_one(root, fields, writer, fingerprints, path, true).await?;
+    for path in paths {
+        changed |= reconcile_one(root, fields, writer, fingerprints, path, true)?;
     }
-    let mut deleted = vec![];
-    for (index, path) in fingerprints.keys().enumerate() {
-        if index % 64 == 0 {
-            tokio::task::yield_now().await;
-        }
-        if !paths.contains(path) {
-            deleted.push(path.clone());
-        }
-    }
-    if !deleted.is_empty() {
-        for (index, path) in deleted.iter().enumerate() {
-            if index % 64 == 0 {
-                tokio::task::yield_now().await;
-            }
-            fingerprints.remove(path);
-        }
-        writer
-            .run(move |writer| {
-                for path in deleted {
-                    writer.delete_term(Term::from_field_text(fields.path, &path.to_string_lossy()));
-                }
-                Ok(())
-            })
-            .await?;
+    let deleted: Vec<_> = fingerprints
+        .keys()
+        .filter(|path| !paths.contains(*path))
+        .cloned()
+        .collect();
+    for path in deleted {
+        writer.delete_term(Term::from_field_text(fields.path, &path.to_string_lossy()));
+        fingerprints.remove(&path);
         changed = true;
     }
     if changed {
-        writer.commit(reader).await?;
+        writer.commit()?;
+        reader.reload()?;
     }
     Ok(())
 }
 
-async fn reconcile_one(
+fn reconcile_one(
     root: &Path,
     fields: IndexFields,
-    writer: &mut AsyncIndexWriter,
+    writer: &mut IndexWriter,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     path: &Path,
     add_if_missing: bool,
@@ -872,13 +854,12 @@ async fn reconcile_one(
     if previous.is_none() && !add_if_missing {
         return Ok(false);
     }
-
     let full_path = root.join(path);
-    let metadata = match tokio::fs::metadata(&full_path).await {
+    let metadata = match std::fs::metadata(&full_path) {
         Ok(metadata) if metadata.is_file() => metadata,
-        Ok(_) => return remove_document(writer, fields, fingerprints, path).await,
+        Ok(_) => return remove_document(writer, fields, fingerprints, path),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return remove_document(writer, fields, fingerprints, path).await;
+            return remove_document(writer, fields, fingerprints, path);
         }
         Err(error) => return Err(error.into()),
     };
@@ -889,33 +870,26 @@ async fn reconcile_one(
     if previous == Some(fingerprint) {
         return Ok(false);
     }
-
-    let body = match tokio::fs::read_to_string(&full_path).await {
+    let body = match std::fs::read_to_string(&full_path) {
         Ok(body) => body,
         Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
-            return remove_document(writer, fields, fingerprints, path).await;
+            return remove_document(writer, fields, fingerprints, path);
         }
         Err(error) => return Err(error.into()),
     };
-    let document_path = path.to_string_lossy().into_owned();
-    writer
-        .run(move |writer| {
-            writer.delete_term(Term::from_field_text(fields.path, &document_path));
-            writer.add_document(tantivy::doc!(
-                fields.path => document_path,
-                fields.body => body,
-                fields.size => fingerprint.size,
-                fields.modified => fingerprint.modified,
-            ))?;
-            Ok(())
-        })
-        .await?;
+    writer.delete_term(Term::from_field_text(fields.path, &path.to_string_lossy()));
+    writer.add_document(tantivy::doc!(
+        fields.path => path.to_string_lossy().into_owned(),
+        fields.body => body,
+        fields.size => fingerprint.size,
+        fields.modified => fingerprint.modified,
+    ))?;
     fingerprints.insert(path.to_owned(), fingerprint);
     Ok(true)
 }
 
-async fn remove_document(
-    writer: &mut AsyncIndexWriter,
+fn remove_document(
+    writer: &IndexWriter,
     fields: IndexFields,
     fingerprints: &mut HashMap<PathBuf, Fingerprint>,
     path: &Path,
@@ -923,13 +897,7 @@ async fn remove_document(
     if fingerprints.remove(path).is_none() {
         return Ok(false);
     }
-    let path = path.to_string_lossy().into_owned();
-    writer
-        .run(move |writer| {
-            writer.delete_term(Term::from_field_text(fields.path, &path));
-            Ok(())
-        })
-        .await?;
+    writer.delete_term(Term::from_field_text(fields.path, &path.to_string_lossy()));
     Ok(true)
 }
 
@@ -949,33 +917,38 @@ mod tests {
 
     use super::watch_directories;
 
-    #[tokio::test]
-    async fn writer_waits_do_not_block_the_async_thread() {
-        let writer = tokio::task::spawn_blocking(|| {
-            let (schema, _) = super::make_schema();
-            tantivy::Index::create_in_ram(schema)
-                .writer(50_000_000)
-                .unwrap()
-        })
-        .await
-        .unwrap();
-        let mut writer = super::AsyncIndexWriter(Some(writer));
-        let (started, waiting) = tokio::sync::oneshot::channel();
-        let (release, released) = std::sync::mpsc::channel();
-        let operation = writer.run(move |_| {
-            started.send(()).unwrap();
-            released
-                .recv_timeout(std::time::Duration::from_secs(5))
-                .expect("the async thread must run while the writer waits");
-            Ok(())
+    #[test]
+    fn runtime_shutdown_releases_the_writer_even_with_a_cached_repository() {
+        let directory = tempfile::tempdir().unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let repository = runtime.block_on(async {
+            let root = tokio::fs::canonicalize(directory.path()).await.unwrap();
+            let output = tokio::process::Command::new("git")
+                .arg("init")
+                .current_dir(&root)
+                .output()
+                .await
+                .unwrap();
+            assert!(output.status.success());
+            let repository = super::RepositoryIndex::open(
+                root.into(),
+                super::IndexSettings {
+                    cache_dir: Path::new(".git/terrazzo-test-index").into(),
+                    refresh_interval: std::time::Duration::from_secs(3600),
+                    stale_after: std::time::Duration::from_secs(3600),
+                },
+            )
+            .await
+            .unwrap();
+            repository
+                .full_reconcile(super::ReconcileKind::First)
+                .await
+                .unwrap();
+            repository
         });
-        let progress = async move {
-            waiting.await.unwrap();
-            tokio::task::yield_now().await;
-            release.send(()).unwrap();
-        };
-        let (result, ()) = tokio::join!(operation, progress);
-        result.unwrap();
+        runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+        // A live cached sender must not keep the old writer's file lock held.
+        let _writer: tantivy::IndexWriter = repository.index.writer(50_000_000).unwrap();
     }
 
     #[tokio::test]

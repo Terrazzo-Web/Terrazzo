@@ -99,14 +99,8 @@ impl<F: GitRepoFs> GitReposCache<F> {
         let mut backfill = vec![];
         let mut result = None;
         for ancestor in path.as_ref().ancestors() {
-            let cached = self.cache.lock().unwrap().get(ancestor).cloned();
-            if let Some(root) = cached {
+            if let Some(root) = self.maybe_git_repo_root(ancestor, &mut backfill).await {
                 result = root;
-                break;
-            }
-            backfill.push(ancestor.to_owned());
-            if self.fs.is_dir(&ancestor.join(".git")).await {
-                result = Some(Arc::from(ancestor.to_owned()));
                 break;
             }
             tokio::task::yield_now().await;
@@ -116,6 +110,22 @@ impl<F: GitRepoFs> GitReposCache<F> {
             cache.push(ancestor, result.clone());
         }
         result
+    }
+
+    async fn maybe_git_repo_root(
+        &self,
+        path: &Path,
+        backfill: &mut Vec<PathBuf>,
+    ) -> Option<Option<Arc<Path>>> {
+        let cached = self.cache.lock().unwrap().get(path).cloned();
+        if let Some(root) = cached {
+            return Some(root);
+        }
+        backfill.push(path.to_owned());
+        self.fs
+            .is_dir(&path.join(".git"))
+            .await
+            .then(|| Some(Arc::from(path.to_owned())))
     }
 }
 

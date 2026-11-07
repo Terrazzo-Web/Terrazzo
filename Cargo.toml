@@ -85,7 +85,7 @@ axum-server = { version = "0.8.0" }
 base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.2" }
 bytes = { version = "1.12.1" }
-cc = { version = "1.10.0" }
+cc = { version = "1.11.1" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.7", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -108,12 +108,12 @@ inventory = { version = "0.3.25" }
 jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
 libc = { version = "0.2.191" }
 lru = { version = "0.19.0" }
-mime = { version = "0.3.17" }
+mime = { version = "0.3.18" }
 mime_guess = { version = "2.0.5" }
 nix = { version = "0.31.3" }
 notify = { version = "8.2.1" }
 oid-registry = { version = "0.8.1" }
-openssl = { version = "0.10.81" }
+openssl = { version = "0.10.82" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "4.0.0" }
 pin-project = { version = "1.1.13" }
@@ -138,7 +138,7 @@ rustls = { version = "0.23.46" }
 rustls-native-certs = { version = "0.8.5" }
 scopeguard = { version = "1.2.0" }
 serde = { version = "1.0.229", features = ["derive", "rc"] }
-serde-saphyr = { version = "2.0.0" }
+serde-saphyr = { version = "2.1.1" }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.154" }
 serde_urlencoded = { version = "0.7.1" }
@@ -158,7 +158,7 @@ tokio-rustls = { version = "0.26.6" }
 tokio-stream = { version = "0.1.19", features = ["io-util"] }
 tokio-tungstenite = { version = "0.30.0" }
 tokio-util = { version = "0.7.20" }
-toml = { version = "1.1.8" }
+toml = { version = "1.2.1" }
 tonic = { version = "0.14.9" }
 tonic-prost = { version = "0.14.9" }
 tonic-prost-build = { version = "0.14.9" }
@@ -172,7 +172,7 @@ tracing-subscriber-wasm = { version = "0.1.0" }
 typed-builder = { version = "0.23.2" }
 unescaper = { version = "0.2.0" }
 url = { version = "2.5.8" }
-uuid = { version = "1.29.0", features = ["fast-rng", "serde", "v4"] }
+uuid = { version = "1.29.1", features = ["fast-rng", "serde", "v4"] }
 walkdir = { version = "2.5.0" }
 wasm-bindgen = { version = "0.2.130" }
 wasm-bindgen-cli = { version = "0.2.130" }
@@ -184,7 +184,7 @@ webrtc = { version = "0.21.1", default-features = false, features = [
   "crypto-ring",
   "runtime-tokio",
 ] }
-winnow = { version = "1.0.4" }
+winnow = { version = "1.0.5" }
 x509-parser = { version = "0.18.1" }
 
 [workspace.lints.rust]

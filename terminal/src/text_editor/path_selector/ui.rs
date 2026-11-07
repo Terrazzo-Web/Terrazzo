@@ -93,6 +93,10 @@ fn path_selector_input(
             .try_with(|i| i.set_value(&new.display().to_string()))
             .unwrap_or_else(|| debug!("input was not set"));
     });
+    let stop_autocomplete =
+        stop_autocomplete(kind, path.clone(), input.clone(), autocomplete.clone());
+    let force_edit_path = manager.force_edit_path.clone();
+    let committed_path = path.clone();
     div(
         class = style::PATH_SELECTOR_WIDGET,
         class = style::PATH_SELECTOR_INPUT,
@@ -117,7 +121,15 @@ fn path_selector_input(
                 input.clone(),
                 autocomplete.clone(),
             ),
-            blur = stop_autocomplete(kind, path.clone(), input.clone(), autocomplete.clone()),
+            blur = move |event| {
+                let _batch = Batch::use_batch("Commit path input");
+                stop_autocomplete(event);
+                if kind == PathSelector::BasePath
+                    && !committed_path.get_value_untracked().as_os_str().is_empty()
+                {
+                    force_edit_path.set(false);
+                }
+            },
             keydown = move |_| {
                 autoclone!(do_autocomplete);
                 do_autocomplete(())

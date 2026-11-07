@@ -918,3 +918,59 @@ Acceptance:
   - Release demo integration: 9/9 browser checks.
 - Cargo fixture builds use the existing harness lint convention.
 - Changes remain uncommitted on `xtermjssnapshots`.
+
+## Merge-validation follow-up (2026-11-07)
+
+- Integrate `origin/main` at `d3fd44a3` without committing.
+- Remote run `41341615391` passed Cargo and formatting.
+- Its Bazel job failed in debug editor and tile-persistence browser tests.
+- A snapshot browser test also retried after losing a new terminal tab.
+- Initial UI controls belonged to temporary state.
+  - Loading saved tiles could replace a newly clicked terminal.
+  - Loading editor paths could replace an active path input.
+- Render tiles only after the initial tree request completes.
+- Render editor controls only after path restoration completes.
+- Keep app and remote menus available while paths load.
+- Wait for restored path controls in browser helpers.
+- Remove fixed sleeps around path editing.
+- Allow 30 seconds for cold debug startup after the persistence-test restart.
+- Add deterministic delayed-response regressions:
+  - `waits for saved tiles before exposing a default app`.
+  - `waits for saved editor paths before accepting path edits`.
+- Both regressions failed before the fix.
+- The full focused editor, persistence, and snapshot suites pass after it.
+
+- Stress testing exposed another path-input race.
+  - Background file loads and notifications closed the path widget.
+  - CodeMirror creation could also take focus from its draft.
+- Close base-path editing on explicit blur, not on side-view updates.
+- Keep focus in active inputs when a delayed editor is created.
+- Add `keeps a path draft while a delayed file load finishes`.
+  - Hold a real file-load response.
+  - Type an uncommitted path draft.
+  - Release the response and verify draft and focus survive.
+  - Verify explicit blur still finishes path editing.
+- This regression failed before the fix and passes afterward.
+- Remove the editor suite's five hidden retries.
+
+Local stress results after both fixes:
+
+- Editor: 100/100 runs passed, six scenarios each.
+  - Includes all three deterministic delayed-response regressions.
+  - Includes the three editor scenarios that failed remotely.
+  - No internal retries or flakes.
+- Tile persistence: 100/100 restart scenarios passed.
+
+Final local validation after merging upstream:
+
+- Optimized snapshot reconnect: 100/100 runs passed.
+- Full Bazel build: 572 targets passed.
+- Full Bazel tests: 288 targets passed without retries.
+- Optimized Bazel tests: 15 targets passed without retries.
+- Buildifier check passed.
+- JS bundle regenerated with the focus-preservation fix.
+- Cargo debug and release binary builds passed.
+- Cargo workspace tests with all features passed.
+- Debug and release demo integration runs passed 9/9 checks each.
+- Staged and unstaged whitespace checks passed.
+- Upstream merge and fixes remain uncommitted on `xtermjssnapshots`.

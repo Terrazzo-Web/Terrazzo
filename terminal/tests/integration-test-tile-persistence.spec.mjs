@@ -123,7 +123,7 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         context = await browser.newContext();
         page = await context.newPage();
         await page.goto(server.url, { waitUntil: 'domcontentloaded' });
-        await expect(page.locator('.tile-tab-title')).toHaveText(titles);
+        await expect(page.locator('.tile-tab-title')).toHaveText(titles, { timeout: 30 * SECOND });
         await expect(getCodeMirrorContent(page)).toContainText('Restored editor file');
         await expect(page.locator('.base-path-selector-display')).toHaveText(updatedBase);
         await expect(page.locator('.file-path-selector-field')).toHaveValue(/(^|\/)second\.txt$/);

@@ -82,7 +82,6 @@ pub fn text_editor(tile: TilePtr) -> XElement {
     )
 }
 
-#[autoclone]
 #[html]
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
@@ -111,7 +110,31 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
     });
 
     let consumers = Arc::default();
-    manager.restore_paths(&consumers);
+    let ready = XSignal::new("editor-ready", false);
+    manager.restore_paths(&consumers, ready.clone());
+    restored_text_editor(manager, consumers, ready)
+}
+
+#[autoclone]
+#[html]
+#[template(tag = div)]
+fn restored_text_editor(
+    manager: Ptr<TextEditorManager>,
+    consumers: Arc<Mutex<Consumers>>,
+    #[signal] ready: bool,
+) -> XElement {
+    // Restoring paths can replace the path widget and its current input.
+    if !ready {
+        return tag(
+            class = style::TEXT_EDITOR,
+            div(
+                class = style::HEADER,
+                menu(manager.tile.clone()),
+                show_remote(manager.tile.remote.clone()),
+            ),
+            "Loading…",
+        );
+    }
     let search_input: ElementCapture<HtmlInputElement> = ElementCapture::default();
     let search_shortcut = move |event: KeyboardEvent| {
         autoclone!(manager);
@@ -443,7 +466,7 @@ impl TextEditorManager {
     /// Restores the paths
     #[autoclone]
     #[nameth]
-    fn restore_paths(self: &Ptr<Self>, consumers: &Arc<Mutex<Consumers>>) {
+    fn restore_paths(self: &Ptr<Self>, consumers: &Arc<Mutex<Consumers>>, ready: XSignal<bool>) {
         let this = self;
         spawn_local(async move {
             autoclone!(this, consumers);
@@ -560,6 +583,7 @@ impl TextEditorManager {
 
             drop(batch);
             drop(registrations);
+            ready.set(true);
         });
     }
 

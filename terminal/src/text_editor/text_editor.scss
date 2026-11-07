@@ -39,6 +39,7 @@ div.text_editor {
                 margin-right: var(--padding);
                 padding: 3px;
 
+                &.path-selector-icon:hover,
                 &.search-icon:hover {
                     filter: invert(0);
                     background-color: var(--link-color);

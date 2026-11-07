@@ -9,10 +9,13 @@ use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::element_capture::ElementCapture;
+use wasm_bindgen_futures::JsFuture;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
 
 use self::diagnostics::debug;
 use self::diagnostics::info;
+use self::diagnostics::warn;
 use super::schema::PathSelector;
 use crate::assets::icons;
 use crate::text_editor::autocomplete::server_fn::AutocompleteItem;
@@ -23,6 +26,7 @@ use crate::text_editor::autocomplete::ui::stop_autocomplete;
 use crate::text_editor::manager::TextEditorManager;
 use crate::text_editor::style;
 use crate::utils::more_path::MorePath as _;
+use crate::utils::more_path::MorePathRef as _;
 
 impl TextEditorManager {
     pub fn base_path_selector(self: &Ptr<Self>) -> XElement {
@@ -56,10 +60,35 @@ fn path_selector_impl(
     #[signal] mut force_edit_path: bool,
 ) -> XElement {
     let show_input = kind == PathSelector::FilePath || force_edit_path;
+    let copy_path = manager.clone();
     tag(
         class = style::PATH_SELECTOR,
         style = (!show_input).then_some("width: auto;"),
-        img(class = style::PATH_SELECTOR_ICON, src = kind.icon()),
+        img(
+            class = style::PATH_SELECTOR_ICON,
+            src = kind.icon(),
+            title = match kind {
+                PathSelector::BasePath => "Copy full path",
+                PathSelector::FilePath => "Copy relative path",
+            },
+            click = move |_| {
+                let path = copy_path
+                    .path
+                    .as_ref()
+                    .map(|path| path.get_value_untracked());
+                let text = match kind {
+                    PathSelector::BasePath => path.full_path().to_owned_string(),
+                    PathSelector::FilePath => path.file.make_relative().to_owned_string(),
+                };
+                let clipboard = web_sys::window().or_throw("window").navigator().clipboard();
+                let promise = clipboard.write_text(&text);
+                spawn_local(async move {
+                    if let Err(error) = JsFuture::from(promise).await {
+                        warn!("Failed to copy path to clipboard: {error:?}");
+                    }
+                });
+            },
+        ),
         if show_input {
             path_selector_input(manager, kind, prefix, path)
         } else {

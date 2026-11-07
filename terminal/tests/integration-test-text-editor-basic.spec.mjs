@@ -34,6 +34,29 @@ test.describe('Text editor basic', () => {
         expect(response?.ok()).toBeTruthy();
     });
 
+    test('copies full and relative paths from the path icons', async ({ page, context }) => {
+        test.setTimeout(60 * SECOND);
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+        const { baseDir, filePath } = await createTempFile('copy path.txt');
+        await writeFile(path.join(baseDir, 'second.txt'), '');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'copy path.txt');
+        await openFolderFile(page, 'copy path.txt');
+
+        const expectCopiedPath = async (title, expected) => {
+            await page.getByTitle(title, { exact: true }).click();
+            await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+        };
+        await expectCopiedPath('Copy full path', filePath);
+        await expectCopiedPath('Copy relative path', 'copy path.txt');
+
+        // The handlers must read the current path after navigating to another file.
+        await reopenFolderFile(page, 'second.txt');
+        await expect(page.locator('.file-path-selector-field')).toHaveValue(/second\.txt$/);
+        await expectCopiedPath('Copy full path', path.join(baseDir, 'second.txt'));
+        await expectCopiedPath('Copy relative path', 'second.txt');
+    });
+
     test('edits a file', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

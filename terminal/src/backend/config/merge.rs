@@ -49,6 +49,7 @@ impl Config {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
                 terminal_shell: server.terminal_shell.clone(),
+                terminal_cd: server.terminal_cd.clone(),
                 tiles_file: server.tiles_file.as_ref().map(collapse_tilde),
                 trash: Some(collapse_tilde(&server.trash)),
                 git_trash: server.git_trash.as_ref().map(collapse_tilde),
@@ -170,6 +171,7 @@ fn merge_server_config(
             .terminal_shell
             .clone()
             .or_else(|| server.terminal_shell.clone()),
+        terminal_cd: server.terminal_cd.clone(),
         tiles_file: server
             .tiles_file
             .as_deref()
@@ -454,6 +456,7 @@ certificate = "PUBLIC CERTIFICATE"
                 host: "localhost".into(),
                 ports: vec![3000],
                 terminal_shell: Some("echo test; exec /bin/bash -i".into()),
+                terminal_cd: Some("cd -- {path}".into()),
                 trash: terrazzo_home().join("trash").into(),
                 git_trash: Some(Path::new(".trash").into()),
                 tantivy_cache: Path::new(".search-cache").into(),
@@ -479,6 +482,10 @@ certificate = "PUBLIC CERTIFICATE"
         assert_eq!(
             round_trip.server.terminal_shell.as_deref(),
             Some("echo test; exec /bin/bash -i")
+        );
+        assert_eq!(
+            round_trip.server.terminal_cd.as_deref(),
+            Some("cd -- {path}")
         );
         assert_eq!(&*round_trip.server.trash, terrazzo_home().join("trash"));
         assert_eq!(

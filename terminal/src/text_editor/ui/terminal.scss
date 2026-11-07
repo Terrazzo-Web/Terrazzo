@@ -1,0 +1,27 @@
+.toggle-terminal {
+    @include trz-icon;
+    margin-left: var(--padding);
+    margin-right: var(--padding);
+    padding: 3px;
+
+    &:hover,
+    &.active {
+        filter: invert(0);
+        background-color: var(--link-color);
+        cursor: pointer;
+    }
+
+    @include trz-bg-transition;
+}
+
+.editor-terminal {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-terminal-content {
+    flex: 1 1 auto;
+    min-height: 0;
+}

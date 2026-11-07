@@ -341,3 +341,31 @@ playwright_matrix_test(
     server = "//terminal/integration:exec",
     test = "tests/integration-test-terminal-snapshot.spec.mjs",
 )
+
+# Exercise the editor/terminal integration with development DOM selectors enabled.
+terminal_rules(
+    client_deps = ["//utils/nameth/nameth"] + TERMINAL_CLIENT_DEPS + TEXT_EDITOR_CLIENT_DEPS,
+    client_features = TERMINAL_CLIENT_FEATURES + TEXT_EDITOR_CLIENT_FEATURES,
+    prefix = "editor-terminal",
+    server_deps = [
+        ":protos",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+    ] + TERMINAL_SERVER_DEPS + TEXT_EDITOR_SERVER_DEPS,
+    server_features = TERMINAL_SERVER_FEATURES + TEXT_EDITOR_SERVER_FEATURES,
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "editor-terminal-integration-test-debug": {
+            "target_server": ":editor-terminal-server-debug",
+        },
+        "editor-terminal-integration-test-release": {
+            "target_server": ":editor-terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-editor-terminal.spec.mjs",
+)

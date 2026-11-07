@@ -15,6 +15,7 @@ use crate::frontend::menu::menu;
 use crate::frontend::remotes::RemotesState;
 use crate::terminal::terminal_tabs::add_tab::create_terminal;
 use crate::terminal_id::TerminalId;
+use crate::tiles::app::App;
 
 mod add_tab;
 mod move_tab;
@@ -42,15 +43,18 @@ impl TabsDescriptor for TerminalTabs {
 
     #[html]
     fn before_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
-        Some(menu(state.tile.clone()))
+        (state.tile.app.get_value_untracked() == App::Terminal).then(|| menu(state.tile.clone()))
     }
 
     #[autoclone]
     #[html]
     fn after_titles(&self, state: &TerminalsState) -> impl IntoIterator<Item = impl Into<XNode>> {
+        if state.tile.app.get_value_untracked() != App::Terminal {
+            return None;
+        }
         let selected_tab = state.selected_tab.clone();
         let remotes_state = RemotesState::new();
-        [div(
+        Some(div(
             key = "add-tab-icon",
             class = style::ADD_TAB_ICON,
             #[cfg(not(feature = "client-prod"))]
@@ -92,7 +96,7 @@ impl TabsDescriptor for TerminalTabs {
                     create_terminal(state.clone(), remote)
                 },
             ),
-        )]
+        ))
     }
 }
 

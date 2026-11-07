@@ -7,7 +7,6 @@ use self::diagnostics::warn;
 use crate::api::client_address::ClientAddress;
 use crate::frontend::remotes::Remotes;
 use crate::terminal::client as terminal_api;
-use crate::terminal::terminal_tab::TerminalTab;
 use crate::terminal::ui::TerminalsState;
 
 #[template(wrap = true)]
@@ -30,12 +29,7 @@ pub fn create_terminal(state: TerminalsState, client_address: ClientAddress) {
                 return;
             }
         };
-        let new_tab = TerminalTab::new(terminal_def, &state.selected_tab);
-        let _batch = Batch::use_batch("add-tab");
-        state.selected_tab.set(new_tab.address.id.clone());
-        state
-            .terminal_tabs
-            .update(|tabs| Some(tabs.clone().add_tab(new_tab)));
+        state.add_terminal(terminal_def);
     };
     wasm_bindgen_futures::spawn_local(task.in_current_span());
 }

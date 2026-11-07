@@ -66,6 +66,8 @@ mod html_viewer;
 mod milkdown;
 mod pdf_viewer;
 pub(super) mod side_view;
+#[cfg(feature = "terminal")]
+mod terminal;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -158,11 +160,15 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
                 manager.show_html_preview.clone(),
                 manager.collapse_unchanged.clone(),
             ),
+            #[cfg(feature = "terminal")]
+            manager.terminal_toggle(),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
-        editor_body(manager),
+        editor_body(manager.clone()),
+        #[cfg(feature = "terminal")]
+        manager.terminal_panel(),
         after_render = move |_| {
             let _moved = &consumers;
         },

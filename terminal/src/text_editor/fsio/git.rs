@@ -1,34 +1,37 @@
 use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
 use lru::LruCache;
+use tokio::process::Command;
 
 const LRU_CACHE_SIZE: NonZero<usize> = NonZero::new(10_000).expect("LRU_CACHE_SIZE");
 
-static GIT_REPOS: LazyLock<GitReposCache<StdFs>> = LazyLock::new(|| GitReposCache::new(StdFs));
+static GIT_REPOS: LazyLock<GitReposCache<TokioFs>> = LazyLock::new(|| GitReposCache::new(TokioFs));
 
-pub fn git_repo_root(path: impl AsRef<Path>) -> Option<Arc<Path>> {
+pub async fn git_repo_root(path: impl AsRef<Path>) -> Option<Arc<Path>> {
     let path = path.as_ref();
     if path.as_os_str().is_empty() {
         return None;
     }
-    GIT_REPOS.git_repo_root(path)
+    GIT_REPOS.git_repo_root(path).await
 }
 
-pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::Result<String> {
-    let path = path.as_ref().canonicalize()?;
+pub async fn file_content_at_commit(
+    path: impl AsRef<Path>,
+    commit: &str,
+) -> std::io::Result<String> {
+    let path = tokio::fs::canonicalize(path).await?;
     let parent = path.parent().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             format!("path has no parent: {}", path.display()),
         )
     })?;
-    let repo_root = git_output(parent, ["rev-parse", "--show-toplevel"])?;
+    let repo_root = git_output(parent, ["rev-parse", "--show-toplevel"]).await?;
     let repo_root = PathBuf::from(repo_root.trim_end());
     let relative_path = path.strip_prefix(&repo_root).map_err(|error| {
         std::io::Error::new(
@@ -41,11 +44,16 @@ pub fn file_content_at_commit(path: impl AsRef<Path>, commit: &str) -> std::io::
         )
     })?;
     let object = format!("{}:{}", commit, relative_path.display());
-    git_output(&repo_root, ["show", object.as_str()])
+    git_output(&repo_root, ["show", object.as_str()]).await
 }
 
-fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<String> {
-    let output = Command::new("git").args(args).current_dir(cwd).output()?;
+async fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .kill_on_drop(true)
+        .output()
+        .await?;
     if !output.status.success() {
         return Err(std::io::Error::other(format!(
             "git failed: {}",
@@ -57,14 +65,15 @@ fn git_output<const N: usize>(cwd: &Path, args: [&str; N]) -> std::io::Result<St
 }
 
 trait GitRepoFs {
-    fn is_dir(&self, path: &Path) -> bool;
+    fn is_dir(&self, path: &Path) -> impl Future<Output = bool> + Send;
 }
 
-struct StdFs;
+struct TokioFs;
 
-impl GitRepoFs for StdFs {
-    fn is_dir(&self, path: &Path) -> bool {
-        std::fs::metadata(path)
+impl GitRepoFs for TokioFs {
+    async fn is_dir(&self, path: &Path) -> bool {
+        tokio::fs::metadata(path)
+            .await
             .map(|metadata| metadata.is_dir())
             .unwrap_or(false)
     }
@@ -86,53 +95,40 @@ impl<F> GitReposCache<F> {
 }
 
 impl<F: GitRepoFs> GitReposCache<F> {
-    fn git_repo_root(&self, path: impl AsRef<Path>) -> Option<Arc<Path>> {
-        let mut cache = self.cache.lock().unwrap();
-
-        let ancestors = path.as_ref().ancestors();
+    async fn git_repo_root(&self, path: impl AsRef<Path>) -> Option<Arc<Path>> {
         let mut backfill = vec![];
         let mut result = None;
-        for ancestor in ancestors {
-            if let Some(root) = self.maybe_git_repo_root(ancestor, &mut cache, &mut backfill) {
+        for ancestor in path.as_ref().ancestors() {
+            let cached = self.cache.lock().unwrap().get(ancestor).cloned();
+            if let Some(root) = cached {
                 result = root;
                 break;
             }
+            backfill.push(ancestor.to_owned());
+            if self.fs.is_dir(&ancestor.join(".git")).await {
+                result = Some(Arc::from(ancestor.to_owned()));
+                break;
+            }
+            tokio::task::yield_now().await;
         }
+        let mut cache = self.cache.lock().unwrap();
         for ancestor in backfill {
-            cache.push(ancestor.to_owned(), result.clone());
+            cache.push(ancestor, result.clone());
         }
-        return result;
-    }
-
-    fn maybe_git_repo_root<'l>(
-        &self,
-        path: &'l Path,
-        cache: &mut LruCache<PathBuf, Option<Arc<Path>>>,
-        backfill: &mut Vec<&'l Path>,
-    ) -> Option<Option<Arc<Path>>> {
-        if let Some(root) = cache.get(path) {
-            return Some(root.clone());
-        }
-        backfill.push(path);
-        return self
-            .fs
-            .is_dir(&path.join(".git"))
-            .then(|| Some(Arc::from(path.to_owned())));
+        result
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
     use std::collections::HashSet;
-    use std::process::Command;
 
     use super::*;
 
     #[derive(Default)]
     struct MockFs {
         dirs: HashSet<PathBuf>,
-        calls: RefCell<Vec<PathBuf>>,
+        calls: Mutex<Vec<PathBuf>>,
     }
 
     impl MockFs {
@@ -143,19 +139,19 @@ mod tests {
     }
 
     impl GitRepoFs for MockFs {
-        fn is_dir(&self, path: &Path) -> bool {
-            self.calls.borrow_mut().push(path.to_owned());
+        async fn is_dir(&self, path: &Path) -> bool {
+            self.calls.lock().unwrap().push(path.to_owned());
             self.dirs.contains(path)
         }
     }
 
-    #[test]
-    fn empty_path_has_no_repo_root() {
-        assert!(git_repo_root("").is_none());
+    #[tokio::test]
+    async fn empty_path_has_no_repo_root() {
+        assert!(git_repo_root("").await.is_none());
     }
 
-    #[test]
-    fn file_uses_cached_repo_root() {
+    #[tokio::test]
+    async fn file_uses_cached_repo_root() {
         let fs = MockFs::default()
             .with_dir("/repo")
             .with_dir("/repo/src")
@@ -164,40 +160,48 @@ mod tests {
 
         assert_eq!(
             Path::new("/repo"),
-            cache.git_repo_root("/repo/src").unwrap().as_ref()
+            cache.git_repo_root("/repo/src").await.unwrap().as_ref()
         );
         assert_eq!(
             &["/repo/src/.git", "/repo/.git"].map(PathBuf::from),
-            cache.fs.calls.borrow().as_slice()
+            cache.fs.calls.lock().unwrap().as_slice()
         );
-        cache.fs.calls.borrow_mut().clear();
+        cache.fs.calls.lock().unwrap().clear();
 
         assert_eq!(
             Path::new("/repo"),
-            cache.git_repo_root("/repo/src/main.rs").unwrap().as_ref()
+            cache
+                .git_repo_root("/repo/src/main.rs")
+                .await
+                .unwrap()
+                .as_ref()
         );
         assert_eq!(
             &["/repo/src/main.rs/.git"].map(PathBuf::from),
-            cache.fs.calls.borrow().as_slice()
+            cache.fs.calls.lock().unwrap().as_slice()
         );
-        cache.fs.calls.borrow_mut().clear();
+        cache.fs.calls.lock().unwrap().clear();
 
         assert_eq!(
             Path::new("/repo"),
-            cache.git_repo_root("/repo/src/main.rs").unwrap().as_ref()
+            cache
+                .git_repo_root("/repo/src/main.rs")
+                .await
+                .unwrap()
+                .as_ref()
         );
-        assert!(cache.fs.calls.borrow().is_empty());
-        cache.fs.calls.borrow_mut().clear();
+        assert!(cache.fs.calls.lock().unwrap().is_empty());
+        cache.fs.calls.lock().unwrap().clear();
     }
 
-    #[test]
-    fn caches_negative_results() {
+    #[tokio::test]
+    async fn caches_negative_results() {
         let fs = MockFs::default()
             .with_dir("/workspace")
             .with_dir("/workspace/src");
         let cache = GitReposCache::new(fs);
 
-        assert!(cache.git_repo_root("/workspace/src/lib.rs").is_none());
+        assert!(cache.git_repo_root("/workspace/src/lib.rs").await.is_none());
         assert_eq!(
             &[
                 "/workspace/src/lib.rs/.git",
@@ -206,84 +210,108 @@ mod tests {
                 "/.git"
             ]
             .map(PathBuf::from),
-            cache.fs.calls.borrow().as_slice()
+            cache.fs.calls.lock().unwrap().as_slice()
         );
-        cache.fs.calls.borrow_mut().clear();
+        cache.fs.calls.lock().unwrap().clear();
 
-        assert!(cache.git_repo_root("/workspace/src/main.rs").is_none());
+        assert!(
+            cache
+                .git_repo_root("/workspace/src/main.rs")
+                .await
+                .is_none()
+        );
         assert_eq!(
             &["/workspace/src/main.rs/.git"].map(PathBuf::from),
-            cache.fs.calls.borrow().as_slice()
+            cache.fs.calls.lock().unwrap().as_slice()
         );
-        cache.fs.calls.borrow_mut().clear();
+        cache.fs.calls.lock().unwrap().clear();
 
-        assert!(cache.git_repo_root("/workspace/src/main.rs").is_none());
-        assert!(cache.fs.calls.borrow().is_empty());
-        cache.fs.calls.borrow_mut().clear();
+        assert!(
+            cache
+                .git_repo_root("/workspace/src/main.rs")
+                .await
+                .is_none()
+        );
+        assert!(cache.fs.calls.lock().unwrap().is_empty());
+        cache.fs.calls.lock().unwrap().clear();
     }
 
-    #[test]
-    fn reads_file_content_at_git_commit() {
+    #[tokio::test]
+    async fn reads_file_content_at_git_commit() {
         let tempdir = tempfile::tempdir().unwrap();
         let repo = tempdir.path();
         let file = repo.join("dummy.txt");
 
-        git(repo, &["init"]);
-        git(repo, &["config", "user.email", "test@example.com"]);
-        git(repo, &["config", "user.name", "Test User"]);
+        git(repo, &["init"]).await;
+        git(repo, &["config", "user.email", "test@example.com"]).await;
+        git(repo, &["config", "user.name", "Test User"]).await;
 
-        std::fs::write(&file, "init").unwrap();
-        commit_file(repo, "init");
+        tokio::fs::write(&file, "init").await.unwrap();
+        commit_file(repo, "init").await;
 
-        std::fs::write(&file, "commit 1").unwrap();
-        commit_file(repo, "commit 1");
-        let commit1 = git(repo, &["rev-parse", "HEAD"]);
+        tokio::fs::write(&file, "commit 1").await.unwrap();
+        commit_file(repo, "commit 1").await;
+        let commit1 = git(repo, &["rev-parse", "HEAD"]).await;
 
-        std::fs::write(&file, "commit 2").unwrap();
-        commit_file(repo, "commit 2");
-        let commit2 = git(repo, &["rev-parse", "HEAD"]);
+        tokio::fs::write(&file, "commit 2").await.unwrap();
+        commit_file(repo, "commit 2").await;
+        let commit2 = git(repo, &["rev-parse", "HEAD"]).await;
 
-        git(repo, &["checkout", "-b", "test_branch"]);
-        std::fs::write(&file, "branched").unwrap();
-        commit_file(repo, "branched");
+        git(repo, &["checkout", "-b", "test_branch"]).await;
+        tokio::fs::write(&file, "branched").await.unwrap();
+        commit_file(repo, "branched").await;
 
-        git(repo, &["checkout", "-b", "test_branch2"]);
-        std::fs::write(&file, "tagged").unwrap();
-        commit_file(repo, "tagged");
-        git(repo, &["tag", "test_tag"]);
+        git(repo, &["checkout", "-b", "test_branch2"]).await;
+        tokio::fs::write(&file, "tagged").await.unwrap();
+        commit_file(repo, "tagged").await;
+        git(repo, &["tag", "test_tag"]).await;
 
-        std::fs::write(&file, "final").unwrap();
-        commit_file(repo, "final");
+        tokio::fs::write(&file, "final").await.unwrap();
+        commit_file(repo, "final").await;
 
-        std::fs::write(&file, "current").unwrap();
+        tokio::fs::write(&file, "current").await.unwrap();
 
-        assert_eq!("final", file_content_at_commit(&file, "HEAD").unwrap());
-        assert_eq!("tagged", file_content_at_commit(&file, "HEAD^").unwrap());
+        assert_eq!(
+            "final",
+            file_content_at_commit(&file, "HEAD").await.unwrap()
+        );
+        assert_eq!(
+            "tagged",
+            file_content_at_commit(&file, "HEAD^").await.unwrap()
+        );
         assert_eq!(
             "branched",
-            file_content_at_commit(&file, "test_branch").unwrap()
+            file_content_at_commit(&file, "test_branch").await.unwrap()
         );
-        assert_eq!("tagged", file_content_at_commit(&file, "test_tag").unwrap());
+        assert_eq!(
+            "tagged",
+            file_content_at_commit(&file, "test_tag").await.unwrap()
+        );
         assert_eq!(
             "commit 1",
-            file_content_at_commit(&file, commit1.trim_end()).unwrap()
+            file_content_at_commit(&file, commit1.trim_end())
+                .await
+                .unwrap()
         );
         assert_eq!(
             "commit 2",
-            file_content_at_commit(&file, commit2.trim_end()).unwrap()
+            file_content_at_commit(&file, commit2.trim_end())
+                .await
+                .unwrap()
         );
     }
 
-    fn commit_file(repo: &Path, message: &str) {
-        git(repo, &["add", "dummy.txt"]);
-        git(repo, &["commit", "-m", message]);
+    async fn commit_file(repo: &Path, message: &str) {
+        git(repo, &["add", "dummy.txt"]).await;
+        git(repo, &["commit", "-m", message]).await;
     }
 
-    fn git(repo: &Path, args: &[&str]) -> String {
+    async fn git(repo: &Path, args: &[&str]) -> String {
         let output = Command::new("git")
             .args(args)
             .current_dir(repo)
             .output()
+            .await
             .unwrap();
         assert!(
             output.status.success(),

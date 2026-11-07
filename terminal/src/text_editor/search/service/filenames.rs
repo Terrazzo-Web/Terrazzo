@@ -30,6 +30,7 @@ pub async fn process_path(
         Ok(&metadata),
         &mut HashMap::new(),
         &mut HashMap::new(),
-    );
+    )
+    .await;
     Ok(Some(result))
 }

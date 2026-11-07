@@ -13,7 +13,7 @@ use crate::text_editor::fsio::FileMetadata;
 use crate::utils::more_path::MorePath as _;
 
 impl FileMetadata {
-    pub fn single(path: &Path, metadata: &Metadata) -> Self {
+    pub async fn single(path: &Path, metadata: &Metadata) -> Self {
         Self::make(
             path.file_name()
                 .map(|n| n.to_owned_string().into())
@@ -22,22 +22,24 @@ impl FileMetadata {
             &mut HashMap::new(),
             &mut HashMap::new(),
         )
+        .await
     }
 
-    pub fn of(
-        file: std::fs::DirEntry,
+    pub async fn of(
+        file: tokio::fs::DirEntry,
         gids: &mut HashMap<u32, Option<Arc<str>>>,
         uids: &mut HashMap<u32, Option<Arc<str>>>,
     ) -> Self {
         Self::make(
             file.file_name().to_string_lossy().to_string().into(),
-            file.metadata().as_ref(),
+            file.metadata().await.as_ref(),
             gids,
             uids,
         )
+        .await
     }
 
-    pub fn make(
+    pub async fn make(
         name: Arc<str>,
         metadata: Result<&Metadata, &std::io::Error>,
         gids: &mut HashMap<u32, Option<Arc<str>>>,
@@ -46,6 +48,37 @@ impl FileMetadata {
         let metadata = metadata.ok();
         let size = metadata.map(|m| m.len());
 
+        let (user, group) = if let Some(metadata) = metadata {
+            let uid = metadata.uid();
+            let gid = metadata.gid();
+            if !uids.contains_key(&uid) || !gids.contains_key(&gid) {
+                let lookup_user = !uids.contains_key(&uid);
+                let lookup_group = !gids.contains_key(&gid);
+                let (user, group) = tokio::task::spawn_blocking(move || {
+                    // These libc APIs return shared storage. Copy it while serialized.
+                    static LOOKUPS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+                    let _guard = LOOKUPS.lock().unwrap();
+                    (
+                        lookup_user.then(|| uid_to_username(uid)).flatten(),
+                        lookup_group.then(|| gid_to_groupname(gid)).flatten(),
+                    )
+                })
+                .await
+                .expect("account lookup task panicked");
+                if lookup_user {
+                    uids.insert(uid, user);
+                }
+                if lookup_group {
+                    gids.insert(gid, group);
+                }
+            }
+            (
+                uids.get(&uid).cloned().flatten(),
+                gids.get(&gid).cloned().flatten(),
+            )
+        } else {
+            (None, None)
+        };
         FileMetadata {
             name,
             size,
@@ -54,16 +87,8 @@ impl FileMetadata {
             accessed: get_date_since_epoch(|m| m.accessed(), metadata),
             modified: get_date_since_epoch(|m| m.modified(), metadata),
             mode: metadata.map(|m| m.mode()),
-            user: metadata.and_then(|m| {
-                uids.entry(m.uid())
-                    .or_insert_with(|| uid_to_username(m.uid()))
-                    .clone()
-            }),
-            group: metadata.and_then(|m| {
-                gids.entry(m.gid())
-                    .or_insert_with(|| gid_to_groupname(m.gid()))
-                    .clone()
-            }),
+            user,
+            group,
         }
     }
 }

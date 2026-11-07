@@ -20,6 +20,7 @@ export async function openTextEditor(page, url = BASE_URL) {
         /\/api\/fn\/get\d+$/.test(response.url()) && !response.request().postData());
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await (await layout).finished();
+    await page.locator('.editor-container > *').first().waitFor({ state: 'attached' });
 }
 
 export async function createTempFile(name) {
@@ -242,8 +243,7 @@ export async function setBasePath(page, baseDir, expectedFileName, timeout = 10 
     ).toBe(true);
 
     try {
-        // Wait for the restored document/folder, rather than editing during restoration.
-        await page.locator('.editor-container > *').first().waitFor({ state: 'attached', timeout });
+        await page.waitForTimeout(SECOND);
         const basePathInput = await showBasePathInput(page, timeout);
         await basePathInput.fill(baseDir);
         await page.keyboard.press('Tab');

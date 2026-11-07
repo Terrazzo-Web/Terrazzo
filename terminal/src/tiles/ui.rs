@@ -11,6 +11,7 @@ use terrazzo::prelude::diagnostics::warn;
 use terrazzo::prelude::*;
 use terrazzo::template;
 use terrazzo::widgets::resize_event::ResizeEvent;
+use wasm_bindgen::JsCast as _;
 use wasm_bindgen_futures::spawn_local;
 
 use super::api::Direction;
@@ -31,6 +32,123 @@ use crate::frontend::resize_bar::resize_bar_vert;
 use crate::tiles::tabs::show_tabbed_tiles;
 
 terrazzo_css::import_style!(style, "ui.scss");
+
+mod maximize {
+    //! Temporary DOM relocation. The saved tile tree and the live app instance stay intact.
+    use std::cell::RefCell;
+
+    use terrazzo::prelude::OrElseLog as _;
+    use terrazzo::widgets::resize_event::ResizeEvent;
+    use wasm_bindgen::JsCast as _;
+    use web_sys::Element;
+
+    thread_local! {
+        static MAXIMIZED: RefCell<Option<Maximized>> = const { RefCell::new(None) };
+    }
+
+    pub(super) struct Session;
+
+    impl Drop for Session {
+        fn drop(&mut self) {
+            MAXIMIZED.with_borrow_mut(|active| *active = None);
+        }
+    }
+
+    struct Maximized {
+        tile: Element,
+        slot: Element,
+        host: Element,
+    }
+
+    pub(super) fn toggle(tile: Element) {
+        MAXIMIZED.with_borrow_mut(|active| {
+            let previous = active.take();
+            let restoring = previous.as_ref().is_some_and(|old| old.tile == tile);
+            drop(previous);
+            if !restoring {
+                let document = tile.owner_document().or_throw("tile document");
+                // A shallow clone preserves flex sizing and renderer keys, but creates no app.
+                let slot: Element = tile
+                    .clone_node_with_deep(false)
+                    .or_throw("clone tile slot")
+                    .unchecked_into();
+                slot.set_class_name(super::style::APP_TILE);
+                let host = document.create_element("div").or_throw("maximize host");
+                host.set_class_name(super::style::MAXIMIZED_TILE);
+                #[cfg(not(feature = "client-prod"))]
+                host.set_class_name(&format!("{} maximized-tile", super::style::MAXIMIZED_TILE));
+                document
+                    .body()
+                    .or_throw("body")
+                    .append_child(&host)
+                    .or_throw("attach maximize host");
+                *active = Some(Maximized { tile, slot, host });
+                active.as_ref().unwrap().lift();
+            }
+        });
+        ResizeEvent::signal().force(());
+    }
+
+    /// Return the real node to the renderer before it reconciles the saved layout.
+    pub(super) fn before_render() {
+        MAXIMIZED.with_borrow(|active| {
+            if let Some(active) = active {
+                active.restore();
+            }
+        });
+    }
+
+    pub(super) fn release(tile: &Element) {
+        MAXIMIZED.with_borrow_mut(|active| {
+            if active.as_ref().is_some_and(|active| active.tile == *tile) {
+                *active = None;
+            }
+        });
+    }
+
+    pub(super) fn after_render() {
+        MAXIMIZED.with_borrow_mut(|active| {
+            if let Some(current) = active {
+                if current.tile.is_connected() {
+                    current.lift();
+                } else {
+                    // Closing/replacing the tile must not leave an orphan overlay.
+                    *active = None;
+                }
+                ResizeEvent::signal().force(());
+            }
+        });
+    }
+
+    impl Maximized {
+        fn restore(&self) {
+            if let Some(parent) = self.slot.parent_node() {
+                parent
+                    .replace_child(&self.tile, &self.slot)
+                    .or_throw("restore tile");
+            }
+        }
+
+        fn lift(&self) {
+            if self.tile.parent_element().as_ref() == Some(&self.host) {
+                return;
+            }
+            if let Some(parent) = self.tile.parent_node() {
+                parent
+                    .replace_child(&self.slot, &self.tile)
+                    .or_throw("reserve tile slot");
+                self.host.append_child(&self.tile).or_throw("maximize tile");
+            }
+        }
+    }
+
+    impl Drop for Maximized {
+        fn drop(&mut self) {
+            self.restore();
+            self.host.remove();
+        }
+    }
+}
 
 pub struct RootTree(XSignal<TilesCmp<Rc<Tiles>>>);
 
@@ -96,23 +214,33 @@ impl std::ops::Deref for RootTree {
 
 pub fn show_tiles() -> XElement {
     spawn_local(async move { RootTree::update(super::api::get().await) });
-    show_tiles_tree(ROOT_TREE.clone())
+    show_tiles_tree(ROOT_TREE.clone(), Rc::new(maximize::Session))
 }
 
 #[template(tag = div)]
 #[html]
-fn show_tiles_tree(#[signal] tiles: TilesCmp<Rc<Tiles>>) -> XElement {
+fn show_tiles_tree(
+    #[signal] tiles: TilesCmp<Rc<Tiles>>,
+    session: Rc<maximize::Session>,
+) -> XElement {
     let tile_tab_dragging = XSignal::new("tile-tab-dragging", false);
-    tag(show_tiles_rec(
-        &tiles,
-        1,
-        MousemoveManager::new(),
-        XSignal::new("direction0", Direction::Horizontal),
-        RcSlice::new(Rc::default(), 0..0),
-        None,
-        tile_tab_dragging,
-        None,
-    ))
+    tag(
+        before_render = move |_| {
+            let _ = &session;
+            maximize::before_render();
+        },
+        after_render = move |_| maximize::after_render(),
+        show_tiles_rec(
+            &tiles,
+            1,
+            MousemoveManager::new(),
+            XSignal::new("direction0", Direction::Horizontal),
+            RcSlice::new(Rc::default(), 0..0),
+            None,
+            tile_tab_dragging,
+            None,
+        ),
+    )
 }
 
 #[html]
@@ -128,8 +256,23 @@ pub(crate) fn show_tiles_rec(
 ) -> XElement {
     match tiles {
         Tiles::Tile(tile) => {
+            let floating = drag_handle.is_some();
             *tile.menu.drag_handle.borrow_mut() = drag_handle;
-            *tile.menu.dblclick_handle.borrow_mut() = dblclick_handle;
+            *tile.menu.dblclick_handle.borrow_mut() = Some(dblclick_handle.unwrap_or_else(|| {
+                Rc::new(move |ev| {
+                    let element = ev
+                        .target()
+                        .and_then(|target| target.dyn_into::<web_sys::Element>().ok());
+                    if let Some(element) = element.and_then(|element| {
+                        element
+                            .closest(&format!(".{}", style::APP_TILE))
+                            .ok()
+                            .flatten()
+                    }) {
+                        maximize::toggle(element);
+                    }
+                })
+            }));
             let tile_id = tile.id;
             let update_app = tile.app.add_subscriber(move |app| {
                 spawn_local(async move { RootTree::update(set_app(tile_id, app).await) })
@@ -146,6 +289,11 @@ pub(crate) fn show_tiles_rec(
                     let _ = &update_app;
                     let _ = &update_remote;
                     let _ = &update_title;
+                },
+                after_render = move |element| {
+                    if floating {
+                        maximize::release(element);
+                    }
                 },
                 class = style::APP_TILE,
                 #[cfg(not(feature = "client-prod"))]

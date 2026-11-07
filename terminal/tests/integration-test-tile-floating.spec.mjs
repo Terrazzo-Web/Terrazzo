@@ -71,13 +71,90 @@ test.describe('Floating terminal tile', () => {
             && nodes.every((node) => window.__xtermsBeforeSplit.includes(node))
         ))).toBe(true);
 
-        const newTile = tiles.nth(2);
-        await newTile.locator('.app-menu-trigger').hover();
-        await newTile.locator('.tile-close').click();
+        // The right tile is nested inside another split. Maximizing must escape both.
+        const signpostInTile = rightTile.locator(
+            '.app-menu-trigger img[src*="signpost-split.svg"]',
+        ).first();
+        const originalViewport = page.viewportSize();
+        const originalBounds = await rightTile.boundingBox();
+        await rightTile.evaluate((node) => { window.__maximizedTile = node; });
+        await signpostInTile.dblclick();
+        const maximized = page.locator('body > .maximized-tile');
+        await expect(maximized).toBeVisible();
+        await expect(tiles).toHaveCount(3);
+        const expectMargins = async () => {
+            const viewport = page.viewportSize();
+            await expect.poll(async () => {
+                const bounds = await maximized.boundingBox();
+                return bounds && Math.max(
+                    Math.abs(bounds.x - viewport.width * 0.05),
+                    Math.abs(bounds.y - viewport.height * 0.05),
+                    Math.abs(bounds.width - viewport.width * 0.9),
+                    Math.abs(bounds.height - viewport.height * 0.9),
+                );
+            }).toBeLessThan(1);
+        };
+        await expectMargins();
+        await expect(maximized.locator('.xterm')).toBeVisible();
+        await expect.poll(() => maximized.locator('.app-tile').evaluate(
+            (node) => node === window.__maximizedTile,
+        )).toBe(true);
+        await page.setViewportSize({ width: 1100, height: 800 });
+        await expectMargins();
+        await maximized.locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toHaveCount(0);
+        await expect.poll(() => xterms.evaluateAll((nodes) => (
+            nodes.every((node) => window.__xtermsBeforeSplit.includes(node))
+        ))).toBe(true);
+        await expect(rightTile).toBeVisible();
+        await page.setViewportSize(originalViewport);
+        await expect.poll(async () => {
+            const bounds = await rightTile.boundingBox();
+            return Math.max(...['x', 'y', 'width', 'height'].map(
+                (key) => Math.abs(bounds[key] - originalBounds[key]),
+            ));
+        }).toBeLessThan(1);
+
+        const newTile = tiles.filter({ hasNot: page.locator('.xterm') });
+        await signpostInTile.dblclick();
+        await newTile.locator('.app-menu-trigger').dispatchEvent('mouseover');
+        await newTile.locator('.tile-close').dispatchEvent('click');
         await expect(tiles).toHaveCount(2);
+        await expect(maximized.locator('.xterm')).toBeVisible();
+        await maximized.locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toHaveCount(0);
 
         await rightTile.locator('.app-menu-trigger').hover();
-        await rightTile.locator('.float-tile').dispatchEvent('click');
+        await signpostInTile.dblclick();
+        await expect(maximized).toBeVisible();
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(maximized).toHaveCount(0);
+        await expect(tiles).toHaveCount(2);
+        await expect(rightTile.locator('.xterm')).toBeVisible();
+        // Add the other split direction to exercise clipping by mixed nested ancestors.
+        await rightTile.locator('.app-menu-trigger').hover();
+        await rightTile.locator('.split-vertical').click();
+        await expect(tiles).toHaveCount(3);
+        await rightTile.locator('.xterm').evaluate((node) => {
+            window.__nestedXterm = node;
+        });
+        await signpostInTile.dblclick();
+        await expectMargins();
+        await expect(maximized.locator('.xterm')).toBeVisible();
+        await maximized.locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toHaveCount(0);
+        await expect.poll(() => rightTile.locator('.xterm').evaluate(
+            (node) => node === window.__nestedXterm,
+        )).toBe(true);
+        await tiles.filter({ hasNot: page.locator('.xterm') })
+            .locator('.app-menu-trigger').hover();
+        await tiles.filter({ hasNot: page.locator('.xterm') })
+            .locator('.tile-close').click();
+        await expect(tiles).toHaveCount(2);
+        await signpostInTile.dblclick();
+        await maximized.locator('.app-menu-trigger').hover();
+        await maximized.locator('.float-tile').dispatchEvent('click');
+        await expect(maximized).toHaveCount(0);
 
         const floatingTile = page.locator('.floating-tile');
         await expect(floatingTile).toBeVisible({ timeout: 10 * SECOND });
@@ -101,5 +178,13 @@ test.describe('Floating terminal tile', () => {
         await signpost.dblclick();
         await expect(floatingTile).toHaveCSS('height', '600px');
         await expect(floatingTile.locator('.xterm')).toBeVisible();
+
+        // A docked tile under the tabbed floating host can maximize independently.
+        const dockedTile = page.locator('.app-tile:not(.floating-tile .app-tile)').first();
+        await dockedTile.locator('.app-menu-trigger img').first().dispatchEvent('dblclick');
+        await expectMargins();
+        await maximized.locator('.app-menu-trigger img').first().dblclick();
+        await expect(maximized).toHaveCount(0);
+        await expect(floatingTile).toHaveCSS('height', '600px');
     });
 });

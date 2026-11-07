@@ -143,14 +143,20 @@ body {
         position: absolute;
         inset: 0;
         box-sizing: border-box;
-        border: 1px solid green;
+        // Paint inside the overlay so the gradient never changes content geometry.
+        background:
+            linear-gradient(to bottom, green, transparent) top / 100% 10px,
+            linear-gradient(to top, green, transparent) bottom / 100% 10px,
+            linear-gradient(to right, green, transparent) left / 10px 100%,
+            linear-gradient(to left, green, transparent) right / 10px 100%;
+        background-repeat: no-repeat;
         pointer-events: none;
         z-index: 10;
         opacity: 0;
     }
 
     &:focus-within::after {
-        animation: trz-focus-flash 2s ease;
+        animation: trz-focus-flash 1.5s ease;
     }
 
     &:not(:focus-within) {

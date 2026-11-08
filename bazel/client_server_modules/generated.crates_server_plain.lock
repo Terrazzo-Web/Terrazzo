@@ -137,9 +137,9 @@ checksum = "d301b3b94cb4b2f23d7917810addbbaff90738e0ca2be692bd027e70d7e0330c"
 
 [[package]]
 name = "arc-swap"
-version = "1.9.3"
+version = "1.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "380962b3d93b99642e50b9febf72c071e97e8b32d86eae9cf4ef582bb960ae6e"
+checksum = "db4c94f57a570fce5d381be3289b3f79aef6332d72948fe82ab5772e423ccf92"
 dependencies = [
  "rustversion",
 ]
@@ -272,7 +272,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "autoclone"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clone-macro",
  "darling",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "autoclone-tests"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "autoclone",
  "tokio",
@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "crate_universe_deps"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -1129,37 +1129,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11c0bd7d22989969a619bae09147b992a6aa7f31dd4f9d9af6345f533744781f"
 
 [[package]]
-name = "defmt"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4a0795ac740cb54d7b3775c9c17345f6aaecf884c01733b39d6017738e0e3e1"
-dependencies = [
- "bitflags 1.3.2",
- "defmt-macros",
-]
-
-[[package]]
-name = "defmt-macros"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "840bb056bd99c495c9188198a258ab787c79f306d864db3e6e8451442d6d8366"
-dependencies = [
- "defmt-parser",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
-]
-
-[[package]]
-name = "defmt-parser"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71958f69fb2de856c5dd51ac9377e986ca1aa5919f931bf5395a807277f889a0"
-dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1403,7 +1372,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feature-deps"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clap",
  "heck",
@@ -1626,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "game"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "scopeguard",
  "terrazzo",
@@ -2488,11 +2457,10 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jiff"
-version = "0.2.39"
+version = "0.2.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ac703058abac89e5c39b0b879dce2b6b14a4ba36600c7e7e3d0c60a6883ef3c"
+checksum = "14ed8250fe4472173a765b89fea4b46f2c4aa12adc12a3e310f1dc6c108e041b"
 dependencies = [
- "defmt",
  "jiff-core",
  "jiff-static",
  "log",
@@ -2503,19 +2471,18 @@ dependencies = [
 
 [[package]]
 name = "jiff-core"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aee43309eb53bafb8c36d35d6e444769c8f8e6206a9fbf7546f5db9d7d4a0e93"
+checksum = "ecfc96f3a325d3a9b0ee6db9a81a83b40b94e781021c044a0a7f4c4630a1e482"
 dependencies = [
- "defmt",
  "log",
 ]
 
 [[package]]
 name = "jiff-static"
-version = "0.2.39"
+version = "0.2.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dc32470c67eb7d0e9ccb74303fa925313dc04cecb1aa048beaa6f391e36a93d"
+checksum = "e9522de39a5298859d9e844b660eb7d5e6fd1b63b9953f51535408a62f2d31b3"
 dependencies = [
  "jiff-core",
  "proc-macro2",
@@ -2910,14 +2877,14 @@ checksum = "a8afc6df942f4c022d70c5725e18df1a705773870e5b7f96fde94ca0334ce77a"
 
 [[package]]
 name = "nameth"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "nameth-macro",
 ]
 
 [[package]]
 name = "nameth-macro"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2927,7 +2894,7 @@ dependencies = [
 
 [[package]]
 name = "nameth-tests"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "nameth",
 ]
@@ -5203,7 +5170,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "autoclone",
  "axum",
@@ -5230,7 +5197,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-build"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "nameth",
  "thiserror 2.0.21",
@@ -5238,7 +5205,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-client"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "autoclone",
  "nameth",
@@ -5254,14 +5221,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "terrazzo-css-macro",
 ]
 
 [[package]]
 name = "terrazzo-css-cli"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clap",
  "nameth",
@@ -5273,7 +5240,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-macro"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "heck",
  "nameth",
@@ -5286,7 +5253,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-css-shared"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "nameth",
  "serde",
@@ -5298,7 +5265,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-demo"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clap",
  "nameth",
@@ -5319,11 +5286,11 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-fixture"
-version = "0.2.23"
+version = "0.2.24"
 
 [[package]]
 name = "terrazzo-integration-tests"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clap",
  "libc",
@@ -5339,7 +5306,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-macro"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "darling",
  "prettyplease 0.3.0",
@@ -5351,7 +5318,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-pty"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "bytes",
  "futures",
@@ -5370,7 +5337,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "nameth",
  "runfiles",
@@ -5381,7 +5348,7 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-cli"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "clap",
  "nameth",
@@ -5392,14 +5359,14 @@ dependencies = [
 
 [[package]]
 name = "terrazzo-synctex-sys"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "terrazzo-terminal"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "axum-extra",
  "base64 0.23.1",
@@ -5991,7 +5958,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trz-gateway-client"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "autoclone",
  "bytes",
@@ -6030,7 +5997,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-common"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "async-trait",
  "axum",
@@ -6066,7 +6033,7 @@ dependencies = [
 
 [[package]]
 name = "trz-gateway-server"
-version = "0.2.23"
+version = "0.2.24"
 dependencies = [
  "autoclone",
  "axum",

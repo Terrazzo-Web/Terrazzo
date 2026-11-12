@@ -16,14 +16,14 @@ import {
     getSideViewFile,
     getSideViewFolder,
     openFolderFile,
+    openTextEditorAndWaitForRestore,
     reopenFolderFile,
     replaceEditorText,
     setBasePath,
+    showBasePathInput,
 } from './text-editor-helpers.mjs';
 
 test.describe('Text editor basic', () => {
-    test.describe.configure({ retries: 5 });
-
     test.beforeEach(async ({ page }) => {
         page.setDefaultTimeout(5 * SECOND);
         page.setDefaultNavigationTimeout(5 * SECOND);
@@ -34,12 +34,35 @@ test.describe('Text editor basic', () => {
         expect(response?.ok()).toBeTruthy();
     });
 
+    test('keeps a base-path draft when a folder notification arrives', async ({ page }) => {
+        const { baseDir, filePath } = await createTempFile('opened-file.txt');
+        await writeFile(filePath, 'Editor contents');
+        await writeFile(path.join(baseDir, 'existing.txt'), 'Existing sibling');
+        await openTextEditorAndWaitForRestore(page);
+        await setBasePath(page, baseDir, 'opened-file.txt');
+        await openFolderFile(page, 'opened-file.txt');
+        await expect(getCodeMirrorContent(page)).toContainText('Editor contents');
+        const rootFolderRow = getSideViewFolder(page, '');
+        await rootFolderRow.hover();
+        await rootFolderRow.locator('.side-view-expand-folder').click();
+        await expect(getSideViewFile(page, 'existing.txt')).toBeVisible();
+
+        const basePathInput = await showBasePathInput(page);
+        const basePathDraft = `${baseDir}/`;
+        await basePathInput.fill(basePathDraft);
+        await writeFile(path.join(baseDir, 'external.txt'), 'Created outside the editor');
+        // This proves that the notification has been applied, without sleeping/retrying the action.
+        await expect(getSideViewFile(page, 'external.txt')).toBeVisible();
+        await expect(basePathInput).toBeVisible();
+        await expect(basePathInput).toHaveValue(basePathDraft);
+    });
+
     test('copies full and relative paths from the path icons', async ({ page, context }) => {
         test.setTimeout(60 * SECOND);
         await context.grantPermissions(['clipboard-read', 'clipboard-write']);
         const { baseDir, filePath } = await createTempFile('copy path.txt');
         await writeFile(path.join(baseDir, 'second.txt'), '');
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, 'copy path.txt');
         await openFolderFile(page, 'copy path.txt');
 
@@ -59,7 +82,7 @@ test.describe('Text editor basic', () => {
 
     test('flashes a border on focus without moving editor content', async ({ page }) => {
         const { baseDir } = await createTempFile('focus.txt');
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, 'focus.txt');
         await openFolderFile(page, 'focus.txt');
         const editor = getCodeMirrorContent(page);
@@ -102,7 +125,7 @@ test.describe('Text editor basic', () => {
         const fileName = 'hello.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
@@ -118,7 +141,7 @@ test.describe('Text editor basic', () => {
         test.setTimeout(60 * SECOND);
         const { baseDir, fileName, filePath } = await createCommittedReadme('close-flush.txt', 'Original');
         await writeFile(filePath, 'Modified');
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
         const editor = getCodeMirrorContent(page);
@@ -138,7 +161,7 @@ test.describe('Text editor basic', () => {
         const fileName = 'overlay.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
@@ -202,7 +225,7 @@ test.describe('Text editor basic', () => {
         const fileName = 'speech-overlay.txt';
         const { baseDir, filePath } = await createTempFile(fileName);
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
@@ -237,7 +260,7 @@ test.describe('Text editor basic', () => {
         await writeFile(firstPath, ['alpha line', 'bravo line', 'charlie line'].join('\n'));
         await writeFile(secondPath, 'Second file');
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, firstFile);
         await openFolderFile(page, firstFile);
 
@@ -276,7 +299,7 @@ test.describe('Text editor basic', () => {
         const { baseDir, filePath } = await createTempFile(fileName);
         const content = Array.from({ length: 300 }, (_, index) => `Hello, World! ${index + 1}`).join('\n');
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
@@ -305,7 +328,7 @@ test.describe('Text editor basic', () => {
 
         const { baseDir, fileName, filePath } = await createCommittedReadme('README.txt');
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
@@ -348,7 +371,7 @@ test.describe('Text editor basic', () => {
         const original = Array.from({ length: 2000 }, (_, index) => `${index}: ${'unchanged '.repeat(30)}`).join('\n') + '\noriginal';
         const modified = original.slice(0, -8) + 'modified';
         const { baseDir, fileName, filePath } = await createCommittedReadme('large.txt', original);
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
         const editor = getCodeMirrorContent(page);
@@ -375,7 +398,7 @@ test.describe('Text editor basic', () => {
             : line).join('\n');
         const { baseDir, fileName, filePath } = await createCommittedReadme('complex.txt', original);
         await writeFile(filePath, modified);
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
         await page.locator('.toggle-editor-diff').click();
@@ -406,7 +429,7 @@ test.describe('Text editor basic', () => {
         const original = Array.from({ length: 60 }, (_, index) => `Original line ${index + 1}`).join('\n');
         const modified = original.replace('Original line 30', 'Modified line 30');
         const { baseDir, fileName, filePath } = await createCommittedReadme('context.txt', original);
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
         await replaceEditorText(page, getCodeMirrorContent(page), modified);
@@ -452,7 +475,7 @@ test.describe('Text editor basic', () => {
 
         const root = await createFolderTree();
 
-        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await openTextEditorAndWaitForRestore(page);
         await setBasePath(page, root, 'a');
         await openFolderFile(page, 'a/');
         await openFolderFile(page, 'a2.txt');

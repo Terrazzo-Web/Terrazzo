@@ -55,8 +55,9 @@ impl MousemoveManager {
     pub fn mousedown(&self) -> impl Fn(MouseEvent) + 'static {
         let this = self.clone();
         move |ev| {
+            let drag_delta_at_mousedown = this.delta.get_value_untracked();
             *this.start.lock().or_throw("start") =
-                Some(Position::from(ev) - this.delta.get_value_untracked().unwrap_or_default());
+                Some(Position::from(ev) - drag_delta_at_mousedown.unwrap_or_default());
             this.events.lock().or_throw("events").clear();
 
             let window = window().or_throw("window");
@@ -74,7 +75,12 @@ impl MousemoveManager {
                 autoclone!(this);
                 *this.start.lock().or_throw("start") = None;
                 this.events.lock().or_throw("events").clear();
-                if let Some(mouseup) = &this.mouseup {
+                // A click (including either half of a double-click) is not a drag.
+                // Avoid saving unchanged geometry and racing other layout updates.
+                if this.delta.get_value_untracked().unwrap_or_default()
+                    != drag_delta_at_mousedown.unwrap_or_default()
+                    && let Some(mouseup) = &this.mouseup
+                {
                     mouseup()
                 }
             });

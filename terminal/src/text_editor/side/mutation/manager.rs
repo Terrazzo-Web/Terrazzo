@@ -28,7 +28,6 @@ impl TextEditorManager {
             let new_node = super::add_node(self, side_view.as_deref(), path, make);
             new_node.map(|new_node| Some(Arc::new(new_node)))
         });
-        self.force_edit_path.set(false);
     }
 
     pub fn remove_from_side_view(

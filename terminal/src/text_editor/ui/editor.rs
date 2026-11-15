@@ -37,6 +37,7 @@ use crate::text_editor::ui::ROOT_FILE_PATH;
 #[derive(Clone)]
 pub(super) enum EditorDocument {
     Text {
+        read_only: bool,
         original: Option<Arc<str>>,
         content: Arc<str>,
     },
@@ -77,6 +78,13 @@ pub fn editor(
     show_editor_diff: bool,
     show_html_preview: PreviewMode,
 ) -> XElement {
+    let read_only = matches!(
+        document,
+        EditorDocument::Text {
+            read_only: true,
+            ..
+        }
+    );
     let is_html = editor_state.is_html();
     let is_svg = editor_state
         .path
@@ -153,26 +161,27 @@ pub fn editor(
             editor_body.focus();
         }
     });
-    let (input_overlay_html, input_overlay) = if editor_type.use_overlay(show_html_preview) {
-        let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
-            autoclone!(editor_body);
-            if let Some(editor_body) = &*editor_body.lock().unwrap() {
-                editor_body.insert_text(text);
-            }
-        });
+    let (input_overlay_html, input_overlay) =
+        if !read_only && editor_type.use_overlay(show_html_preview) {
+            let send_to_editor: Ptr<dyn Fn(String)> = Ptr::new(move |text| {
+                autoclone!(editor_body);
+                if let Some(editor_body) = &*editor_body.lock().unwrap() {
+                    editor_body.insert_text(text);
+                }
+            });
 
-        let InputOverlay {
-            is_open: is_input_overlay_open,
-            html: input_overlay_html,
-            textarea: input_overlay_textarea,
-        } = InputOverlay::new(send_to_editor, focus_editor.clone());
-        (
-            Some(input_overlay_html),
-            Some((is_input_overlay_open, input_overlay_textarea)),
-        )
-    } else {
-        (None, None)
-    };
+            let InputOverlay {
+                is_open: is_input_overlay_open,
+                html: input_overlay_html,
+                textarea: input_overlay_textarea,
+            } = InputOverlay::new(send_to_editor, focus_editor.clone());
+            (
+                Some(input_overlay_html),
+                Some((is_input_overlay_open, input_overlay_textarea)),
+            )
+        } else {
+            (None, None)
+        };
 
     let edits_notify_registration = manager.notify_service.watch_file(
         &path,
@@ -229,12 +238,13 @@ pub fn editor(
                 cursor_position,
                 editor_type,
                 show_editor_diff,
+                read_only,
                 show_html_preview,
             };
             let body = match &document {
-                EditorDocument::Text { original, content } => {
-                    context.make_text_body(original, content)
-                }
+                EditorDocument::Text {
+                    original, content, ..
+                } => context.make_text_body(original, content),
                 EditorDocument::Pdf(base64) => Some(make_pdf_body(element, base64)),
                 EditorDocument::Image => None,
             };

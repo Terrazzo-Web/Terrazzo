@@ -50,6 +50,8 @@ pub enum File {
         metadata: Arc<FileMetadata>,
         content: Arc<str>,
         original: Option<Arc<str>>,
+        #[serde(default, skip_serializing_if = "is_false")]
+        read_only: bool,
         /// Transport marker for a Git baseline identical to `content`.
         #[serde(default, skip_serializing_if = "is_false")]
         #[cfg_attr(not(feature = "diagnostics"), serde(rename = "oc"))]
@@ -115,6 +117,7 @@ mod diff_tests {
     fn omitted_baseline_shares_content_and_still_tracks_edits() {
         let file = File::TextFile {
             metadata: Default::default(),
+            read_only: false,
             original: None,
             original_is_content: true,
             content: Arc::from("clean baseline"),
@@ -140,6 +143,7 @@ mod diff_tests {
     fn missing_git_baseline_stays_missing() {
         let mut file = File::TextFile {
             metadata: Default::default(),
+            read_only: false,
             original: None,
             original_is_content: false,
             content: Arc::from("untracked"),
@@ -152,6 +156,7 @@ mod diff_tests {
     fn diff_tracks_edits_and_reverts_against_git_baseline() {
         let file = File::TextFile {
             metadata: Default::default(),
+            read_only: false,
             original_is_content: false,
             original: Some(Arc::from("original")),
             content: Arc::from("original"),
@@ -161,6 +166,7 @@ mod diff_tests {
         assert!(!file.has_diff("original"));
         let file = File::TextFile {
             metadata: Default::default(),
+            read_only: false,
             original_is_content: false,
             original: Some(Arc::from("")),
             content: Arc::from(""),
@@ -168,6 +174,7 @@ mod diff_tests {
         assert!(file.has_diff("added"));
         let file = File::TextFile {
             metadata: Default::default(),
+            read_only: false,
             original_is_content: false,
             original: None,
             content: Arc::from("untracked"),

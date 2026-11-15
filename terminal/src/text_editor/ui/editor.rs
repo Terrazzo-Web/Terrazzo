@@ -77,6 +77,16 @@ pub fn editor(
     show_html_preview: PreviewMode,
 ) -> XElement {
     let is_html = editor_state.is_html();
+    let is_svg = editor_state
+        .path
+        .file
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("svg"));
+    let show_html_preview = if is_svg {
+        PreviewMode::SideBySide
+    } else {
+        show_html_preview
+    };
     let is_markdown = editor_state.is_markdown();
     let EditorDataState {
         path,
@@ -87,6 +97,8 @@ pub fn editor(
         EditorType::Pdf
     } else if is_markdown {
         EditorType::Markdown
+    } else if is_svg {
+        EditorType::Svg
     } else if is_html {
         EditorType::Html
     } else {
@@ -96,6 +108,9 @@ pub fn editor(
         (EditorDocument::Text { content, .. }, EditorType::Html) => {
             Some(super::html_viewer::html_viewer(content.clone()))
         }
+        (EditorDocument::Text { content, .. }, EditorType::Svg) => {
+            Some(super::html_viewer::svg_viewer(content.clone()))
+        }
         (_, EditorType::Markdown) => Some(div(
             class = super::milkdown::style::MILKDOWN_WYSIWYG_PANE,
             #[cfg(not(feature = "client-prod"))]
@@ -104,7 +119,7 @@ pub fn editor(
         _ => None,
     };
     let source_pane = match editor_type {
-        EditorType::Html => Some(div(
+        EditorType::Html | EditorType::Svg => Some(div(
             class = super::html_viewer::style::HTML_SOURCE_PANE,
             #[cfg(not(feature = "client-prod"))]
             class = "html-source-pane",
@@ -171,11 +186,12 @@ pub fn editor(
     tag(
         class = style::EDITOR,
         class = editor_type.class(),
+        class = (editor_type == EditorType::Svg).then_some(super::html_viewer::style::SVG_VIEWER),
         class = editor_type.preview_mode_class(show_html_preview),
         #[cfg(not(feature = "client-prod"))]
         class = (editor_type == EditorType::Pdf).then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = (editor_type == EditorType::Html).then_some("html-viewer"),
+        class = matches!(editor_type, EditorType::Html | EditorType::Svg).then_some("html-viewer"),
         #[cfg(not(feature = "client-prod"))]
         class = (editor_type == EditorType::Markdown).then_some("milkdown-editor"),
         #[cfg(not(feature = "client-prod"))]
@@ -243,6 +259,7 @@ pub(super) fn make_on_change(
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
     html_preview: Option<Element>,
+    editor_type: EditorType,
 ) -> Closure<dyn FnMut(JsValue, bool)> {
     let manager = manager.clone();
     let path = path.clone();
@@ -255,7 +272,7 @@ pub(super) fn make_on_change(
             return;
         };
         if let Some(html_preview) = &html_preview {
-            let _ = html_preview.set_attribute("srcdoc", &content);
+            super::html_viewer::update_preview(editor_type, html_preview, &content);
         }
         manager.update_content(&path, Arc::from(content.as_str()));
         writing.fetch_add(1, SeqCst);

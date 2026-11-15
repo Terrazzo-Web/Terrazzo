@@ -63,6 +63,7 @@ mod editor;
 mod editor_render;
 mod folder;
 mod html_viewer;
+mod image_viewer;
 mod milkdown;
 mod pdf_viewer;
 pub(super) mod side_view;
@@ -403,6 +404,13 @@ fn editor_container(
                     show_html_preview,
                 )
             }
+            fsio::File::ImageFile { .. } => editor(
+                manager,
+                editor_state,
+                EditorDocument::Image,
+                show_editor_diff,
+                show_html_preview,
+            ),
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();
                 editor(
@@ -621,7 +629,9 @@ impl TextEditorManager {
                 }
 
                 if let Some(
-                    fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
+                    fsio::File::TextFile { metadata, .. }
+                    | fsio::File::PdfFile { metadata, .. }
+                    | fsio::File::ImageFile { metadata, .. },
                 ) = data.as_deref()
                 {
                     let metadata = metadata.clone();

@@ -206,6 +206,7 @@ pub(super) enum EditorType {
     Html,
     Svg,
     Pdf,
+    Image,
     Text,
     Markdown,
 }
@@ -214,7 +215,7 @@ impl EditorType {
     pub(super) fn use_overlay(self, preview_mode: PreviewMode) -> bool {
         match self {
             EditorType::Html | EditorType::Svg => preview_mode.shows_editor(),
-            EditorType::Pdf => false,
+            EditorType::Pdf | EditorType::Image => false,
             EditorType::Text | EditorType::Markdown => true,
         }
     }
@@ -224,6 +225,7 @@ impl EditorType {
             EditorType::Html | EditorType::Svg => super::html_viewer::style::HTML_VIEWER,
             EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
             EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
+            EditorType::Image => super::image_viewer::style::IMAGE_VIEWER,
             EditorType::Text => return None,
         })
     }
@@ -240,7 +242,7 @@ impl EditorType {
                 PreviewMode::Editor => super::milkdown::style::EDITOR_MODE,
                 PreviewMode::SideBySide => super::milkdown::style::SIDE_BY_SIDE_MODE,
             }),
-            EditorType::Pdf | EditorType::Text => None,
+            EditorType::Pdf | EditorType::Image | EditorType::Text => None,
         }
     }
 }

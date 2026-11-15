@@ -41,6 +41,7 @@ pub(super) enum EditorDocument {
         content: Arc<str>,
     },
     Pdf(Arc<str>),
+    Image,
 }
 
 pub(super) trait EditorBody {
@@ -95,6 +96,8 @@ pub fn editor(
     } = editor_state;
     let editor_type = if matches!(document, EditorDocument::Pdf(_)) {
         EditorType::Pdf
+    } else if matches!(document, EditorDocument::Image) {
+        EditorType::Image
     } else if is_markdown {
         EditorType::Markdown
     } else if is_svg {
@@ -111,6 +114,7 @@ pub fn editor(
         (EditorDocument::Text { content, .. }, EditorType::Svg) => {
             Some(super::html_viewer::svg_viewer(content.clone()))
         }
+        (EditorDocument::Image, _) => Some(super::image_viewer::image_viewer(&manager, &path)),
         (_, EditorType::Markdown) => Some(div(
             class = super::milkdown::style::MILKDOWN_WYSIWYG_PANE,
             #[cfg(not(feature = "client-prod"))]
@@ -232,6 +236,7 @@ pub fn editor(
                     context.make_text_body(original, content)
                 }
                 EditorDocument::Pdf(base64) => Some(make_pdf_body(element, base64)),
+                EditorDocument::Image => None,
             };
             if let Some(body) = &body {
                 body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
@@ -401,6 +406,9 @@ async fn notify_edit(
                 manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }
+        }
+        Ok(Some(fsio::File::ImageFile { .. })) => {
+            manager.path.file.force(path.file);
         }
         Ok(Some(fsio::File::PdfFile { base64, .. })) => {
             debug!("Loaded modified file");

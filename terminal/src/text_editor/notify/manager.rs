@@ -101,9 +101,9 @@ fn on_child_change(
         };
 
         let item = match data {
-            fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. } => {
-                SvnItem::File { metadata }
-            }
+            fsio::File::TextFile { metadata, .. }
+            | fsio::File::PdfFile { metadata, .. }
+            | fsio::File::ImageFile { metadata, .. } => SvnItem::File { metadata },
             fsio::File::Folder(_) => SvnItem::Folder {
                 folder: Arc::default(),
                 notify: manager.watch_side_view_folder(&changed_path),

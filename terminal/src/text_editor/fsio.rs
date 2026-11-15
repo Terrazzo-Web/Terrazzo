@@ -58,10 +58,24 @@ pub enum File {
         metadata: Arc<FileMetadata>,
         base64: Arc<str>,
     },
+    #[cfg_attr(not(feature = "diagnostics"), serde(rename = "I"))]
+    ImageFile { metadata: Arc<FileMetadata> },
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "F"))]
     Folder(Arc<Vec<FileMetadata>>),
     #[cfg_attr(not(feature = "diagnostics"), serde(rename = "E"))]
     Error(String),
+}
+
+#[cfg(feature = "server")]
+pub(super) fn image_mime_type(path: &Path) -> Option<&'static str> {
+    match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "gif" => Some("image/gif"),
+        "png" => Some("image/png"),
+        "bmp" => Some("image/bmp"),
+        "ico" => Some("image/vnd.microsoft.icon"),
+        "jpeg" | "jpg" => Some("image/jpeg"),
+        _ => None,
+    }
 }
 
 fn is_false(value: &bool) -> bool {
@@ -188,6 +202,7 @@ impl std::fmt::Debug for File {
         match self {
             Self::TextFile { content, .. } => f.field(&content.len()),
             Self::PdfFile { base64, .. } => f.field(&base64.len()),
+            Self::ImageFile { metadata } => f.field(&metadata.name),
             Self::Folder(folder) => f.field(&folder.len()),
             Self::Error(error) => f.field(error),
         }

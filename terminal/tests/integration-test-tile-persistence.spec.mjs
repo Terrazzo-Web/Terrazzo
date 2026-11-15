@@ -10,6 +10,15 @@ import { SECOND, getCodeMirrorContent, openFolderFile, setBasePath } from './tex
 // Page action timeouts do not change Playwright's separate assertion timeout.
 const expect = playwrightExpect.configure({ timeout: 15 * SECOND });
 
+async function newPage(browser) {
+    const context = await browser.newContext();
+    // This isolated server has a cold debug WASM load on both sides of the restart.
+    // Allow initialization and UI actions enough time under concurrent CI load.
+    context.setDefaultTimeout(30 * SECOND);
+    context.setDefaultNavigationTimeout(30 * SECOND);
+    return { context, page: await context.newPage() };
+}
+
 // Own the process and config so restarting cannot disrupt the harness or other tests.
 async function startServer(configFile, endpointFile, request) {
     await rm(endpointFile, { force: true });
@@ -90,10 +99,8 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         // Omit tiles_file to also exercise the default beside the config file.
         await writeFile(configFile, `[server]\nhost = "localhost"\nports = [0]\nprivate_root_ca = ${JSON.stringify(path.join(dir, 'root-ca'))}\npidfile = ${JSON.stringify(path.join(dir, 'pid'))}\n`);
         server = await startServer(configFile, endpointFile, request);
-        context = await browser.newContext();
-        let page = await context.newPage();
-        page.setDefaultTimeout(10 * SECOND);
-        page.setDefaultNavigationTimeout(10 * SECOND);
+        let page;
+        ({ context, page } = await newPage(browser));
         await page.goto(server.url, { waitUntil: 'domcontentloaded' });
         const editorTile = page.locator('.app-tile').first();
         await editorTile.locator('.app-menu-trigger').hover();
@@ -124,8 +131,7 @@ test('restores tiles and the updated editor FilePath after a server restart', as
         context = undefined;
         server = await startServer(configFile, endpointFile, request);
         // A fresh context rules out client memory or browser storage restoring the state.
-        context = await browser.newContext();
-        page = await context.newPage();
+        ({ context, page } = await newPage(browser));
         await page.goto(server.url, { waitUntil: 'domcontentloaded' });
         await expect(page.locator('.tile-tab-title')).toHaveText(titles);
         await expect(getCodeMirrorContent(page)).toContainText('Restored editor file');

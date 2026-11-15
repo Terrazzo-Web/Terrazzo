@@ -71,9 +71,9 @@ class CodeMirrorJsImpl {
                     ".cm-content": {
                         minWidth: "0",
                     },
-                    ".cm-mergeSpacer": {
-                        display: showDiff ? "block" : "none",
-                    },
+                    // Keep merge spacers measurable even when the original pane
+                    // is hidden. Hiding them makes alignment repeatedly increase
+                    // their heights to compensate for the missing DOM space.
                     "&.cm-merge-a .cm-changedLine": {
                         backgroundColor: "rgba(255, 0, 0, 0.20)",
                     },

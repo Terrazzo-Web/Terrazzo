@@ -343,6 +343,32 @@ test.describe('Text editor basic', () => {
         await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 10 * SECOND });
     });
 
+    test('keeps single-pane editor height bounded while scrolling wrapped lines', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const content = Array.from({ length: 100 }, (_, index) =>
+            `Line ${index}: ${'wrapped content '.repeat(12)}`).join('\n');
+        const { baseDir, fileName } = await createCommittedReadme('wrapped.txt', content);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const editor = getMergeViewEditors(page);
+        await expect(editor).toHaveCount(1);
+        const mergeView = page.locator('.code-mirror-editor .cm-mergeView');
+        // A narrow pane makes line wrapping and merge alignment participate.
+        await mergeView.evaluate((node) => { node.style.width = '400px'; });
+        await expect(editor.locator('.cm-line').first()).toBeVisible();
+        const scroller = editor.locator('.cm-scroller');
+        const initialHeight = await scroller.evaluate((node) => node.scrollHeight);
+        await mergeView.hover();
+        for (let index = 0; index < 40; index++) {
+            await page.mouse.wheel(0, 600);
+            await page.evaluate(() => new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        }
+        expect(await scroller.evaluate((node) => node.scrollHeight)).toBeLessThan(initialHeight * 1.5);
+        await expect(editor.locator('.cm-line').filter({ hasText: /^Line 99:/ })).toBeVisible();
+    });
+
     test('updates diff availability while typing in a large file without replacing the editor', async ({ page }) => {
         test.setTimeout(60 * SECOND);
         const original = Array.from({ length: 2000 }, (_, index) => `${index}: ${'unchanged '.repeat(30)}`).join('\n') + '\noriginal';

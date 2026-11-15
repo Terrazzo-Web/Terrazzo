@@ -1,0 +1,17 @@
+div.image-viewer {
+    min-height: 0;
+    min-width: 0;
+
+    > div.image-scroll {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+
+        > img.image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: auto;
+        }
+    }
+}

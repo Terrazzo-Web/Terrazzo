@@ -216,3 +216,15 @@ remote_fn_service::unary::declare_remote_fn!(
         Ok::<_, GrpcError<Infallible>>(())
     }
 );
+
+remote_fn_service::unary::declare_remote_fn!(
+    LOAD_IMAGE_REMOTE_FN,
+    super::service::LOAD_IMAGE,
+    LoadFileRequest,
+    String,
+    |_server, arg: LoadFileRequest| async {
+        super::service::load_image(arg.path)
+            .await
+            .map_err(GrpcError::from)
+    }
+);

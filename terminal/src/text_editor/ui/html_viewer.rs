@@ -51,6 +51,6 @@ pub(super) fn update_preview(
         EditorType::Html => {
             let _ = preview.set_attribute("srcdoc", content);
         }
-        EditorType::Pdf | EditorType::Text | EditorType::Markdown => {}
+        EditorType::Pdf | EditorType::Image | EditorType::Text | EditorType::Markdown => {}
     }
 }

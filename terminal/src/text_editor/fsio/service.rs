@@ -35,6 +35,11 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
     let path = path.full_path();
     if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
+            if super::image_mime_type(&path).is_some() {
+                return Ok(Some(File::ImageFile {
+                    metadata: FileMetadata::single(&path, &metadata).await.into(),
+                }));
+            }
             if path.extension() == Some("pdf".as_ref()) {
                 debug!("Loading PDF file {path:?}");
                 let data = tokio::fs::read(&path).await?;
@@ -103,6 +108,11 @@ pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File
     if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
             let file_metadata = Arc::new(FileMetadata::single(&path, &metadata).await);
+            if super::image_mime_type(&path).is_some() {
+                return Ok(Some(File::ImageFile {
+                    metadata: file_metadata,
+                }));
+            }
             if path.extension() == Some("pdf".as_ref()) {
                 return Ok(Some(File::PdfFile {
                     metadata: file_metadata,
@@ -425,6 +435,45 @@ mod tests {
     use crate::text_editor::file_path::FilePath;
 
     #[tokio::test]
+    async fn images_load_as_metadata_and_transfer_as_base64() {
+        use crate::text_editor::fsio::File;
+        use base64::Engine as _;
+        use base64::prelude::BASE64_STANDARD;
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let bytes = [0, 255, 128, 13, 10, 42];
+        for (extension, mime) in [
+            ("gif", "image/gif"),
+            ("PNG", "image/png"),
+            ("bmp", "image/bmp"),
+            ("ico", "image/vnd.microsoft.icon"),
+            ("jpeg", "image/jpeg"),
+            ("jpg", "image/jpeg"),
+        ] {
+            let name = format!("image.{extension}");
+            let path = FilePath {
+                base: Arc::from(tempdir.path()),
+                file: Arc::from(Path::new(&name)),
+            };
+            tokio::fs::write(path.full_path(), bytes).await.unwrap();
+            assert_eq!(super::super::image_mime_type(&path.file), Some(mime));
+            assert!(matches!(
+                super::load_file(path.clone()).await.unwrap(),
+                Some(File::ImageFile { .. })
+            ));
+            assert!(matches!(
+                super::load_file_metadata(path.clone()).await.unwrap(),
+                Some(File::ImageFile { .. })
+            ));
+            let base64 = super::load_image(path).await.unwrap();
+            assert_eq!(BASE64_STANDARD.decode(&base64).unwrap(), bytes);
+            assert!(serde_json::to_string(&base64).unwrap().starts_with('"'));
+        }
+        assert_eq!(super::super::image_mime_type(Path::new("source.svg")), None);
+        assert_eq!(super::super::image_mime_type(Path::new("source.txt")), None);
+    }
+
+    #[tokio::test]
     async fn create_file_in_folder() {
         let tempdir = tempfile::tempdir().unwrap();
         let path = FilePath {
@@ -657,4 +706,10 @@ mod tests {
             "deleted"
         );
     }
+}
+
+#[nameth]
+pub(super) async fn load_image(path: FilePath<Arc<Path>>) -> Result<String, FsioError> {
+    let data = tokio::fs::read(path.full_path()).await?;
+    Ok(BASE64_STANDARD.encode(data))
 }

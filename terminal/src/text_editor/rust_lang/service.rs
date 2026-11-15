@@ -74,7 +74,7 @@ pub fn cargo_check(
                 Ok(None) => break,
                 Err(error) => {
                     if results.is_empty() {
-                        return Err(CargoCheckError::Failure(error))?;
+                        return Err(CargoCheckError::Failure(error).into());
                     } else {
                         debug!("Bad line: {error}");
                         break;

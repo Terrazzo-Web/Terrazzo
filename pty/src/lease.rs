@@ -254,7 +254,6 @@ impl Stream for ReleaseOnDrop<ProcessOutput> {
 
 #[cfg(test)]
 mod tests {
-    use futures::StreamExt as _;
     use futures::stream;
 
     use super::*;

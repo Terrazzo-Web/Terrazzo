@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use super::Direction;
+use super::Tile;
 use super::Tiles;
 use super::state::TilesLockGuard;
 use super::state::TilesStateError;
@@ -59,7 +61,13 @@ fn remove_node_aux(
                 nodes.push(super::float::default_tile());
             }
             if nodes.len() <= 1 && floating_nodes.is_empty() {
-                nodes.into_iter().next()
+                nodes.into_iter().next().map(|node| {
+                    if *direction == Direction::Tabbed {
+                        with_title(&node, title.clone())
+                    } else {
+                        node
+                    }
+                })
             } else {
                 Some(Arc::new(Tiles::Array {
                     id: *id,
@@ -75,6 +83,33 @@ fn remove_node_aux(
     }
 }
 
+fn with_title(tree: &Tiles, title: Arc<str>) -> Arc<Tiles> {
+    Arc::new(match tree {
+        Tiles::Tile(tile) => Tiles::Tile(Tile {
+            id: tile.id,
+            app: tile.app,
+            app_config: tile.app_config.clone(),
+            remote: tile.remote.clone(),
+            title,
+        }),
+        Tiles::Array {
+            id,
+            direction,
+            selected,
+            nodes,
+            floating_nodes,
+            ..
+        } => Tiles::Array {
+            id: *id,
+            direction: *direction,
+            title,
+            selected: *selected,
+            nodes: nodes.clone(),
+            floating_nodes: floating_nodes.clone(),
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::Direction;
@@ -82,6 +117,61 @@ mod tests {
     use super::super::Tile;
     use super::*;
     use crate::tiles::app::App;
+
+    #[test]
+    fn collapsing_tabs_preserves_parent_title_and_child_identity() {
+        let child_id = TileId::for_test(1);
+        let removed_id = TileId::for_test(2);
+        let children = [
+            tile(child_id),
+            Arc::new(Tiles::Array {
+                id: child_id,
+                direction: Direction::Horizontal,
+                title: "Child split".into(),
+                selected: None,
+                nodes: vec![tile(TileId::for_test(3)), tile(TileId::for_test(4))],
+                floating_nodes: vec![],
+            }),
+        ];
+        for child in children {
+            for direction in [
+                Direction::Tabbed,
+                Direction::Horizontal,
+                Direction::Vertical,
+            ] {
+                for nodes in [
+                    vec![child.clone(), tile(removed_id)],
+                    vec![tile(removed_id), child.clone()],
+                ] {
+                    let tree = Arc::new(Tiles::Array {
+                        id: TileId::for_test(10),
+                        direction,
+                        title: "Parent title".into(),
+                        selected: Some(removed_id),
+                        nodes,
+                        floating_nodes: vec![],
+                    });
+                    let mut id_to_remove = Some(removed_id);
+                    let tree = remove_node_aux(tree, &mut id_to_remove).unwrap();
+                    assert!(id_to_remove.is_none());
+                    assert_eq!(child_id, tree.id());
+                    if direction == Direction::Tabbed {
+                        let title = match &*tree {
+                            Tiles::Tile(tile) => &tile.title,
+                            Tiles::Array { title, .. } => title,
+                        };
+                        assert_eq!("Parent title", title.as_ref());
+                    }
+                    let expected = if direction == Direction::Tabbed {
+                        with_title(&child, "Parent title".into())
+                    } else {
+                        child.clone()
+                    };
+                    assert_eq!(expected, tree);
+                }
+            }
+        }
+    }
 
     #[test]
     fn removing_last_regular_node_with_floating_nodes_adds_default_tile() {

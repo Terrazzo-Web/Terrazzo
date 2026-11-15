@@ -72,6 +72,7 @@ pub(super) fn image_mime_type(path: &Path) -> Option<&'static str> {
         "gif" => Some("image/gif"),
         "png" => Some("image/png"),
         "bmp" => Some("image/bmp"),
+        "ico" => Some("image/vnd.microsoft.icon"),
         "jpeg" | "jpg" => Some("image/jpeg"),
         _ => None,
     }

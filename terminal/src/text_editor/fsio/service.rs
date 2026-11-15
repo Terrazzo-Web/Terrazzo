@@ -446,6 +446,7 @@ mod tests {
             ("gif", "image/gif"),
             ("PNG", "image/png"),
             ("bmp", "image/bmp"),
+            ("ico", "image/vnd.microsoft.icon"),
             ("jpeg", "image/jpeg"),
             ("jpg", "image/jpeg"),
         ] {

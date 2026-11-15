@@ -1,6 +1,5 @@
 div.html-viewer {
     box-sizing: border-box;
-    background-color: white;
     display: flex;
     min-width: 0;
 
@@ -89,6 +88,7 @@ div.html-viewer.svg-viewer.side-by-side-mode {
     }
 
     > img.html-preview-pane {
+        background-color: white;
         display: block;
         object-fit: contain;
         padding: 12px;

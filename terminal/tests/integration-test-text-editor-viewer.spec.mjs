@@ -136,6 +136,38 @@ test.describe('Text editor viewers', () => {
             .toBeGreaterThan(sliderCssWidth * 1.05);
     });
 
+    test('renders SVG above its source and refreshes on changes', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-svg-'));
+        const fileName = 'preview.SVG';
+        const filePath = path.join(baseDir, fileName);
+        const svg = (color) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="${color}"/></svg>`;
+        await writeFile(filePath, svg('red'));
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        const image = page.locator('img[data-viewer="svg"]');
+        const source = getHtmlSource(page);
+        const expectImage = async (content) => {
+            await expect(image).toHaveAttribute('src', `data:image/svg+xml;base64,${Buffer.from(content).toString('base64')}`);
+            await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
+        };
+        await expectImage(svg('red'));
+        await expect(source).toBeVisible();
+        const imageBox = await image.boundingBox();
+        const sourceBox = await source.boundingBox();
+        expect(sourceBox.y).toBeGreaterThanOrEqual(imageBox.y + imageBox.height - 1);
+
+        await writeFile(filePath, svg('blue'));
+        await expectImage(svg('blue'));
+        await expect(source).toContainText('blue');
+
+        await replaceEditorText(page, source, svg('green'));
+        await expectImage(svg('green'));
+        await expect.poll(() => readFile(filePath, 'utf8')).toBe(svg('green'));
+    });
+
     test('renders an HTML file in an iframe', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 

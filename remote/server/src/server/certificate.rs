@@ -46,7 +46,7 @@ impl Server {
                 request.auth_code,
                 AuthCode::current()
             );
-            return Err(GetCertificateError::InvalidAuthCode)?;
+            return Err(GetCertificateError::InvalidAuthCode.into());
         }
         Ok(self.make_pem_cert(request)?)
     }

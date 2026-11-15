@@ -73,10 +73,7 @@ fn path_selector_impl(
             },
             click = move |_| {
                 autoclone!(manager);
-                let path = manager
-                    .path
-                    .as_ref()
-                    .map(|path| path.get_value_untracked());
+                let path = manager.path.as_ref().map(|path| path.get_value_untracked());
                 let text = match kind {
                     PathSelector::BasePath => path.full_path().to_owned_string(),
                     PathSelector::FilePath => path.file.make_relative().to_owned_string(),

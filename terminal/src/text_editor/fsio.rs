@@ -24,6 +24,8 @@ mod cursor_positions;
 mod fsmetadata;
 #[cfg(feature = "server")]
 pub(super) mod git;
+#[cfg(all(feature = "server", feature = "converter"))]
+pub mod pfx;
 #[cfg(feature = "server")]
 mod remote;
 #[cfg(feature = "server")]

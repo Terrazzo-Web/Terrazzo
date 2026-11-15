@@ -175,7 +175,7 @@ test.describe('Text editor viewers', () => {
         const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-image-'));
         const fileName = 'preview image.PNG';
         const filePath = path.join(baseDir, fileName);
-        const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+        const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64');
         await writeFile(filePath, png);
         await authenticateApi(page.request);
         const response = await page.request.get(fsioApiUrl('image', baseDir, fileName));

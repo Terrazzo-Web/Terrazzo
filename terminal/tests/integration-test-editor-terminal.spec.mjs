@@ -1,7 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect as playwrightExpect } from '@playwright/test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { BASE_URL, SECOND, createTempDir, setBasePath } from './text-editor-helpers.mjs';
+
+// Debug WASM startup and restored terminal discovery can outlast the default 5s.
+const expect = playwrightExpect.configure({ timeout: 15 * SECOND });
 
 const panel = (page) => page.locator('.editor-terminal');
 const toggle = (page) => page.locator('.toggle-terminal');

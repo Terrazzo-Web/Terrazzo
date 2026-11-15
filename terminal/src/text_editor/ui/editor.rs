@@ -204,7 +204,7 @@ pub fn editor(
         #[cfg(not(feature = "client-prod"))]
         class = (editor_type == EditorType::Pdf).then_some("pdf-viewer"),
         #[cfg(not(feature = "client-prod"))]
-        class = (editor_type == EditorType::Html).then_some("html-viewer"),
+        class = matches!(editor_type, EditorType::Html | EditorType::Svg).then_some("html-viewer"),
         #[cfg(not(feature = "client-prod"))]
         class = (editor_type == EditorType::Markdown).then_some("milkdown-editor"),
         #[cfg(not(feature = "client-prod"))]

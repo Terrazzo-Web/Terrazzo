@@ -41,6 +41,7 @@ pub(super) enum EditorDocument {
         content: Arc<str>,
     },
     Pdf(Arc<str>),
+    Image,
 }
 
 pub(super) trait EditorBody {
@@ -77,6 +78,16 @@ pub fn editor(
     show_html_preview: PreviewMode,
 ) -> XElement {
     let is_html = editor_state.is_html();
+    let is_svg = editor_state
+        .path
+        .file
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("svg"));
+    let show_html_preview = if is_svg {
+        PreviewMode::SideBySide
+    } else {
+        show_html_preview
+    };
     let is_markdown = editor_state.is_markdown();
     let EditorDataState {
         path,
@@ -85,8 +96,12 @@ pub fn editor(
     } = editor_state;
     let editor_type = if matches!(document, EditorDocument::Pdf(_)) {
         EditorType::Pdf
+    } else if matches!(document, EditorDocument::Image) {
+        EditorType::Image
     } else if is_markdown {
         EditorType::Markdown
+    } else if is_svg {
+        EditorType::Svg
     } else if is_html {
         EditorType::Html
     } else {
@@ -96,6 +111,10 @@ pub fn editor(
         (EditorDocument::Text { content, .. }, EditorType::Html) => {
             Some(super::html_viewer::html_viewer(content.clone()))
         }
+        (EditorDocument::Text { content, .. }, EditorType::Svg) => {
+            Some(super::html_viewer::svg_viewer(content.clone()))
+        }
+        (EditorDocument::Image, _) => Some(super::image_viewer::image_viewer(&manager, &path)),
         (_, EditorType::Markdown) => Some(div(
             class = super::milkdown::style::MILKDOWN_WYSIWYG_PANE,
             #[cfg(not(feature = "client-prod"))]
@@ -104,7 +123,7 @@ pub fn editor(
         _ => None,
     };
     let source_pane = match editor_type {
-        EditorType::Html => Some(div(
+        EditorType::Html | EditorType::Svg => Some(div(
             class = super::html_viewer::style::HTML_SOURCE_PANE,
             #[cfg(not(feature = "client-prod"))]
             class = "html-source-pane",
@@ -171,6 +190,7 @@ pub fn editor(
     tag(
         class = style::EDITOR,
         class = editor_type.class(),
+        class = (editor_type == EditorType::Svg).then_some(super::html_viewer::style::SVG_VIEWER),
         class = editor_type.preview_mode_class(show_html_preview),
         #[cfg(not(feature = "client-prod"))]
         class = (editor_type == EditorType::Pdf).then_some("pdf-viewer"),
@@ -216,6 +236,7 @@ pub fn editor(
                     context.make_text_body(original, content)
                 }
                 EditorDocument::Pdf(base64) => Some(make_pdf_body(element, base64)),
+                EditorDocument::Image => None,
             };
             if let Some(body) = &body {
                 body.set_collapse_unchanged(manager.collapse_unchanged.get_value_untracked());
@@ -243,6 +264,7 @@ pub(super) fn make_on_change(
     path: &FilePath<Arc<Path>>,
     writing: &Arc<AtomicU32>,
     html_preview: Option<Element>,
+    editor_type: EditorType,
 ) -> Closure<dyn FnMut(JsValue, bool)> {
     let manager = manager.clone();
     let path = path.clone();
@@ -255,7 +277,7 @@ pub(super) fn make_on_change(
             return;
         };
         if let Some(html_preview) = &html_preview {
-            let _ = html_preview.set_attribute("srcdoc", &content);
+            super::html_viewer::update_preview(editor_type, html_preview, &content);
         }
         manager.update_content(&path, Arc::from(content.as_str()));
         writing.fetch_add(1, SeqCst);
@@ -384,6 +406,9 @@ async fn notify_edit(
                 manager.update_content(&path, content.clone());
                 editor_body.set_content(content.to_string());
             }
+        }
+        Ok(Some(fsio::File::ImageFile { .. })) => {
+            manager.path.file.force(path.file);
         }
         Ok(Some(fsio::File::PdfFile { base64, .. })) => {
             debug!("Loaded modified file");

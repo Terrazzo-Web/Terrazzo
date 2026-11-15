@@ -23,6 +23,7 @@ use crate::utils::more_path::MorePath as _;
 struct HtmlEditorBody {
     source: CodeMirrorJs,
     preview: Element,
+    editor_type: EditorType,
 }
 
 impl EditorBody for HtmlEditorBody {
@@ -36,7 +37,7 @@ impl EditorBody for HtmlEditorBody {
 
     fn set_content(&self, content: String) {
         self.source.set_content(content.clone());
-        let _ = self.preview.set_attribute("srcdoc", &content);
+        super::html_viewer::update_preview(self.editor_type, &self.preview, &content);
     }
 
     fn insert_text(&self, text: String) {
@@ -127,7 +128,13 @@ impl EditorBodyContext<'_> {
             source_pane,
             document.original,
             document.content,
-            make_on_change(self.manager, self.path, self.writing, None),
+            make_on_change(
+                self.manager,
+                self.path,
+                self.writing,
+                None,
+                self.editor_type,
+            ),
             make_on_cursor_position_change(self.manager, self.path),
             make_on_flush(self.manager, self.path),
             make_on_dirty(self.manager),
@@ -140,29 +147,36 @@ impl EditorBodyContext<'_> {
     }
 
     fn make_code_mirror_body(&self, document: SourceDocument) -> Box<dyn EditorBody> {
-        let (source_element, preview) = if self.editor_type == EditorType::Html {
-            let source = self
-                .element
-                .query_selector(&format!(".{}", super::html_viewer::style::HTML_SOURCE_PANE))
-                .expect("Invalid HTML source pane selector")
-                .expect("Missing HTML source pane");
-            let preview = self
-                .element
-                .query_selector(&format!(
-                    ".{}",
-                    super::html_viewer::style::HTML_PREVIEW_PANE
-                ))
-                .expect("Invalid HTML preview pane selector")
-                .expect("Missing HTML preview pane");
-            (source, Some(preview))
-        } else {
-            (self.element.clone(), None)
-        };
+        let (source_element, preview) =
+            if matches!(self.editor_type, EditorType::Html | EditorType::Svg) {
+                let source = self
+                    .element
+                    .query_selector(&format!(".{}", super::html_viewer::style::HTML_SOURCE_PANE))
+                    .expect("Invalid HTML source pane selector")
+                    .expect("Missing HTML source pane");
+                let preview = self
+                    .element
+                    .query_selector(&format!(
+                        ".{}",
+                        super::html_viewer::style::HTML_PREVIEW_PANE
+                    ))
+                    .expect("Invalid HTML preview pane selector")
+                    .expect("Missing HTML preview pane");
+                (source, Some(preview))
+            } else {
+                (self.element.clone(), None)
+            };
         let source = CodeMirrorJs::new(
             source_element,
             document.original,
             document.content,
-            make_on_change(self.manager, self.path, self.writing, preview.clone()),
+            make_on_change(
+                self.manager,
+                self.path,
+                self.writing,
+                preview.clone(),
+                self.editor_type,
+            ),
             make_on_cursor_position_change(self.manager, self.path),
             make_on_flush(self.manager, self.path),
             make_on_dirty(self.manager),
@@ -172,7 +186,11 @@ impl EditorBodyContext<'_> {
             self.show_editor_diff,
         );
         if let Some(preview) = preview {
-            Box::new(HtmlEditorBody { source, preview })
+            Box::new(HtmlEditorBody {
+                source,
+                preview,
+                editor_type: self.editor_type,
+            })
         } else {
             Box::new(source)
         }
@@ -186,7 +204,9 @@ pub(super) fn make_pdf_body(element: &Element, base64: &Arc<str>) -> Box<dyn Edi
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum EditorType {
     Html,
+    Svg,
     Pdf,
+    Image,
     Text,
     Markdown,
 }
@@ -194,24 +214,25 @@ pub(super) enum EditorType {
 impl EditorType {
     pub(super) fn use_overlay(self, preview_mode: PreviewMode) -> bool {
         match self {
-            EditorType::Html => preview_mode.shows_editor(),
-            EditorType::Pdf => false,
+            EditorType::Html | EditorType::Svg => preview_mode.shows_editor(),
+            EditorType::Pdf | EditorType::Image => false,
             EditorType::Text | EditorType::Markdown => true,
         }
     }
 
     pub(super) fn class(self) -> Option<&'static str> {
         Some(match self {
-            EditorType::Html => super::html_viewer::style::HTML_VIEWER,
+            EditorType::Html | EditorType::Svg => super::html_viewer::style::HTML_VIEWER,
             EditorType::Pdf => super::pdf_viewer::style::PDF_VIEWER,
             EditorType::Markdown => super::milkdown::style::MILKDOWN_EDITOR,
+            EditorType::Image => super::image_viewer::style::IMAGE_VIEWER,
             EditorType::Text => return None,
         })
     }
 
     pub(super) fn preview_mode_class(self, preview_mode: PreviewMode) -> Option<&'static str> {
         match self {
-            EditorType::Html => Some(match preview_mode {
+            EditorType::Html | EditorType::Svg => Some(match preview_mode {
                 PreviewMode::Preview => super::html_viewer::style::PREVIEW_MODE,
                 PreviewMode::Editor => super::html_viewer::style::EDITOR_MODE,
                 PreviewMode::SideBySide => super::html_viewer::style::SIDE_BY_SIDE_MODE,
@@ -221,7 +242,7 @@ impl EditorType {
                 PreviewMode::Editor => super::milkdown::style::EDITOR_MODE,
                 PreviewMode::SideBySide => super::milkdown::style::SIDE_BY_SIDE_MODE,
             }),
-            EditorType::Pdf | EditorType::Text => None,
+            EditorType::Pdf | EditorType::Image | EditorType::Text => None,
         }
     }
 }

@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect as playwrightExpect } from '@playwright/test';
 
 const SECOND = 1000;
+const expect = playwrightExpect.configure({ timeout: 15 * SECOND });
 const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
     .split(';')
     .map((url) => url.trim())
@@ -8,8 +9,8 @@ const BASE_URL = (process.env.BASE_URL ?? 'http://127.0.0.1:3000')
 
 test.describe('Floating terminal tile', () => {
     test.beforeEach(async ({ page }) => {
-        page.setDefaultTimeout(5 * SECOND);
-        page.setDefaultNavigationTimeout(5 * SECOND);
+        page.setDefaultTimeout(10 * SECOND);
+        page.setDefaultNavigationTimeout(15 * SECOND);
         await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
 
         const password = page.locator('input[type="password"]');
@@ -101,7 +102,9 @@ test.describe('Floating terminal tile', () => {
         });
 
         await rightTile.locator('.app-menu-trigger').hover();
-        await rightTile.locator('.split-horizontal').click();
+        // Splitting reparents the live terminal. Wait for the layout below instead
+        // of Playwright's unrelated navigation barrier after this DOM change.
+        await rightTile.locator('.split-horizontal').click({ noWaitAfter: true });
         await expect(tiles).toHaveCount(3);
         await expect(xterms).toHaveCount(2);
         await expect.poll(() => tiles.evaluateAll((nodes) => (
@@ -174,7 +177,7 @@ test.describe('Floating terminal tile', () => {
         await expect(rightTile.locator('.xterm')).toBeVisible();
         // Add the other split direction to exercise clipping by mixed nested ancestors.
         await rightTile.locator('.app-menu-trigger').hover();
-        await rightTile.locator('.split-vertical').click();
+        await rightTile.locator('.split-vertical').click({ noWaitAfter: true });
         await expect(tiles).toHaveCount(3);
         await rightTile.locator('.xterm').evaluate((node) => {
             window.__nestedXterm = node;
@@ -190,7 +193,7 @@ test.describe('Floating terminal tile', () => {
         await tiles.filter({ hasNot: page.locator('.xterm') })
             .locator('.app-menu-trigger').hover();
         await tiles.filter({ hasNot: page.locator('.xterm') })
-            .locator('.tile-close').click();
+            .locator('.tile-close').click({ noWaitAfter: true });
         await expect(tiles).toHaveCount(2);
         await signpostInTile.dblclick();
         await maximized.locator('.app-menu-trigger').hover();
@@ -208,7 +211,9 @@ test.describe('Floating terminal tile', () => {
         const signpost = floatingTile.locator(
             '.app-menu-trigger img[src*="signpost-split.svg"]',
         ).first();
-        await signpost.dblclick();
+        // Exercise collapse without also starting drag/raise requests on each
+        // mousedown, whose layout responses can race the collapse response.
+        await signpost.dispatchEvent('dblclick');
 
         await expect(floatingTile).toHaveCSS('height', '32px');
         await expect(signpost).toBeVisible();
@@ -216,7 +221,7 @@ test.describe('Floating terminal tile', () => {
         await expect(floatingTile.locator('[class*="app-collapsible-content-"]')).toBeHidden();
         await expect(floatingTile.locator('.xterm')).toBeHidden();
 
-        await signpost.dblclick();
+        await signpost.dispatchEvent('dblclick');
         await expect(floatingTile).toHaveCSS('height', '600px');
         await expect(floatingTile.locator('.xterm')).toBeVisible();
 

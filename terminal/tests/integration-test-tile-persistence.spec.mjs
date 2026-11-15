@@ -1,10 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect as playwrightExpect, test } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { SECOND, getCodeMirrorContent, openFolderFile, setBasePath } from './text-editor-helpers.mjs';
+
+// A new server/page must load and initialize the debug WASM before rendering tiles.
+// Page action timeouts do not change Playwright's separate assertion timeout.
+const expect = playwrightExpect.configure({ timeout: 15 * SECOND });
 
 // Own the process and config so restarting cannot disrupt the harness or other tests.
 async function startServer(configFile, endpointFile, request) {

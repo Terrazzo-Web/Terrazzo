@@ -903,7 +903,7 @@ dependencies = [
  "libc",
  "lru 0.19.0",
  "mime_guess",
- "nix",
+ "nix 0.32.0",
  "notify",
  "oid-registry 0.8.1",
  "openssl",
@@ -2941,6 +2941,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77730ed34f01f4990cb2ea67fec715ecebc6fab9a6396cf83c5529b13f581bdc"
+dependencies = [
+ "bitflags 2.13.2",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
 name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4254,7 +4266,7 @@ checksum = "1250e81796ac6d3d67bd04ecdb891b8371ff97c8a2ce0a5a1c1321f2e12b657b"
 dependencies = [
  "bitflags 1.3.2",
  "bytes",
- "nix",
+ "nix 0.31.3",
  "rand 0.10.3",
  "serde",
  "substring",
@@ -5395,7 +5407,7 @@ dependencies = [
  "libc",
  "lru 0.19.0",
  "nameth",
- "nix",
+ "nix 0.32.0",
  "notify",
  "oid-registry 0.8.1",
  "openssl",

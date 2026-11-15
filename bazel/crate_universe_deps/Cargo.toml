@@ -103,5 +103,19 @@ web-sys = { workspace = true, features = [
 ] }
 x509-parser = { workspace = true }
 
-[lints]
-workspace = true
+# This crate only collects dependencies and features for Bazel's crate universe.
+# Its dependencies are intentionally unused by the empty Rust library.
+# Cargo does not allow package overrides when inheriting workspace lints.
+[lints.cargo]
+unused_dependencies = "allow"
+
+[lints.rust]
+unused = "deny"
+warnings = "deny"
+unused_crate_dependencies = "deny"
+
+[lints.clippy]
+enum_variant_names = "allow"
+needless_return = "allow"
+too_many_arguments = "allow"
+type_complexity = "allow"

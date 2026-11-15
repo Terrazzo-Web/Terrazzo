@@ -953,8 +953,24 @@ mod tests {
             repository
         });
         runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+        assert!(repository.tx.is_closed());
         // A live cached sender must not keep the old writer's file lock held.
-        let _writer: tantivy::IndexWriter = repository.index.writer(50_000_000).unwrap();
+        // Concurrent process creation can briefly inherit the lock's file
+        // descriptor on Unix, until exec closes it. Only retry a busy lock;
+        // a leaked writer must still fail within a bounded time.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let _writer: tantivy::IndexWriter = loop {
+            match repository.index.writer(50_000_000) {
+                Ok(writer) => break writer,
+                Err(tantivy::TantivyError::LockFailure(
+                    tantivy::directory::error::LockError::LockBusy,
+                    _,
+                )) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("Writer lock was not released after runtime shutdown: {error}"),
+            }
+        };
     }
 
     #[tokio::test]

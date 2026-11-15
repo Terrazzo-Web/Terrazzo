@@ -23,6 +23,7 @@ mod tls_info;
 mod unescaped;
 mod x509;
 
+#[cfg(feature = "text-editor")]
 pub(crate) use self::x509::certificate_text as certificate_text_for_export;
 
 #[nameth]

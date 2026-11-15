@@ -31,14 +31,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.24"
+version = "0.2.25"
 authors = ["Lamparo <LamparoS@Pavy.one>"]
 edition = "2024"
 repository = "https://github.com/Terrazzo-Web/Terrazzo"
 license = "MIT"
-description = """
-Lightweight, simple and efficient web UI framework based on Rust and WASM.
-"""
 
 [profile.dev.package."*"]
 # Set the default for dependencies in Development mode.
@@ -58,25 +55,23 @@ incremental = true       # Incremental compilation.
 opt-level = "s"
 
 [workspace.dependencies]
-autoclone = { version = "0.2.24", path = "utils/autoclone/autoclone" }
-nameth = { version = "0.2.24", path = "utils/nameth/nameth" }
-nameth-macro = { version = "0.2.24", path = "utils/nameth/nameth-macro" }
-terrazzo = { version = "0.2.24", path = "framework/terrazzo", default-features = false }
-terrazzo-build = { version = "0.2.24", path = "framework/build" }
-terrazzo-client = { version = "0.2.24", path = "framework/client" }
-terrazzo-css = { version = "0.2.24", path = "utils/css/css" }
-terrazzo-css-cli = { version = "0.2.24", path = "utils/css/cli" }
-terrazzo-css-macro = { version = "0.2.24", path = "utils/css/macro" }
-terrazzo-css-shared = { version = "0.2.24", path = "utils/css/shared" }
-terrazzo-fixture = { version = "0.2.24", path = "utils/fixture" }
-terrazzo-macro = { version = "0.2.24", path = "framework/macro" }
-terrazzo-pty = { version = "0.2.24", path = "pty" }
-terrazzo-synctex = { version = "0.2.24", path = "utils/synctex/synctex" }
-terrazzo-synctex-cli = { version = "0.2.24", path = "utils/synctex/cli" }
-terrazzo-synctex-sys = { version = "0.2.24", path = "utils/synctex/sys" }
-trz-gateway-client = { version = "0.2.24", path = "remote/client" }
-trz-gateway-common = { version = "0.2.24", path = "remote/common" }
-trz-gateway-server = { version = "0.2.24", path = "remote/server" }
+autoclone = { version = "0.2.25", path = "utils/autoclone/autoclone" }
+nameth = { version = "0.2.25", path = "utils/nameth/nameth" }
+nameth-macro = { version = "0.2.25", path = "utils/nameth/nameth-macro" }
+terrazzo = { version = "0.2.25", path = "framework/terrazzo", default-features = false }
+terrazzo-build = { version = "0.2.25", path = "framework/build" }
+terrazzo-client = { version = "0.2.25", path = "framework/client" }
+terrazzo-css = { version = "0.2.25", path = "utils/css/css" }
+terrazzo-css-macro = { version = "0.2.25", path = "utils/css/macro" }
+terrazzo-css-shared = { version = "0.2.25", path = "utils/css/shared" }
+terrazzo-fixture = { version = "0.2.25", path = "utils/fixture" }
+terrazzo-macro = { version = "0.2.25", path = "framework/macro" }
+terrazzo-pty = { version = "0.2.25", path = "pty" }
+terrazzo-synctex = { version = "0.2.25", path = "utils/synctex/synctex" }
+terrazzo-synctex-sys = { version = "0.2.25", path = "utils/synctex/sys" }
+trz-gateway-client = { version = "0.2.25", path = "remote/client" }
+trz-gateway-common = { version = "0.2.25", path = "remote/common" }
+trz-gateway-server = { version = "0.2.25", path = "remote/server" }
 
 async-trait = { version = "0.1.92" }
 axum = { version = "0.8.9" }
@@ -127,7 +122,6 @@ quote = { version = "1.0.47" }
 rcgen = { version = "0.14.10" }
 regex = { version = "1.13.1" }
 reqwest = { version = "0.13.5" }
-reqwest-wasm = { version = "0.11.16" }
 ring = { version = "0.17.14" }
 rpassword = { version = "7.5.5" }
 rsass = { version = "0.29.2" }
@@ -141,7 +135,6 @@ serde = { version = "1.0.229", features = ["derive", "rc"] }
 serde-saphyr = { version = "2.1.1" }
 serde-wasm-bindgen = { version = "0.6.5" }
 serde_json = { version = "1.0.154" }
-serde_urlencoded = { version = "0.7.1" }
 server_fn = { version = "0.8.13", features = ["browser"] }
 server_fn_macro = { version = "0.8.12" }
 sha2 = { version = "0.11.1" }
@@ -177,7 +170,6 @@ walkdir = { version = "2.5.0" }
 wasm-bindgen = { version = "0.2.130" }
 wasm-bindgen-cli = { version = "0.2.130" }
 wasm-bindgen-futures = { version = "0.4.80" }
-wasm-bindgen-test = { version = "0.3.80" }
 wasm-streams = { version = "0.7.1" }
 web-sys = { version = "0.3.107" }
 webrtc = { version = "0.21.1", default-features = false, features = [

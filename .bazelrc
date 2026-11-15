@@ -7,8 +7,8 @@ build:linux --linkopt=-fuse-ld=bfd
 build:linux --host_linkopt=-fuse-ld=bfd
 
 build:linux --action_env=PROTOC=/usr/bin/protoc
-# Match the minimum macOS deployment target supported by rustc.
-build:macos --macos_minimum_os=10.12
-build:macos --action_env=MACOSX_DEPLOYMENT_TARGET=10.12
-build:macos --host_action_env=MACOSX_DEPLOYMENT_TARGET=10.12
+build:macos --macos_minimum_os=11.0
+build:macos --host_macos_minimum_os=11.0
+build:macos --action_env=MACOSX_DEPLOYMENT_TARGET=11.0
+build:macos --host_action_env=MACOSX_DEPLOYMENT_TARGET=11.0
 build:macos --action_env=PROTOC=/opt/homebrew/bin/protoc

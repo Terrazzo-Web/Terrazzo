@@ -58,6 +58,7 @@ const languages = {
     html,
     java,
     js: javascript,
+    ts: () => javascript({ typescript: true }),
     json,
     md: markdown,
     py: python,

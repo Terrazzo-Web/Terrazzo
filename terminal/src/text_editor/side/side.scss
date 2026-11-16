@@ -3,6 +3,7 @@ div.side {
     overflow: auto;
     padding: 5px;
     background-color: var(--background-color);
+    border-right: 1px dotted gray;
 
     ul {
         list-style: none;

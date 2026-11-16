@@ -10,17 +10,31 @@ class CodeMirrorJsImpl {
         content,
         onchange,
         oncursor,
+        onflush,
+        ondirty,
         cursorPosition,
         basePath,
         fullPath,
+        showDiff,
+        readOnly = false,
     ) {
+        this.onchange = onchange;
+        this.onflush = onflush;
+        this.ondirty = ondirty;
+        this.dirty = false;
+        this.destroyed = false;
+        this.changeTimer = null;
         this.basePath = basePath;
         this.fullPath = fullPath;
         this.reloadFromDisk = true;
         const updateListener = JsDeps.EditorView.updateListener.of((update) => {
-            if (!this.reloadFromDisk && update.docChanged) {
-                const content = update.state.doc.toString();
-                onchange(content);
+            if (!readOnly && !this.reloadFromDisk && update.docChanged) {
+                if (!this.dirty) {
+                    this.dirty = true;
+                    this.ondirty(true);
+                }
+                clearTimeout(this.changeTimer);
+                this.changeTimer = setTimeout(() => this.flush(), 200);
             }
             if (!this.reloadFromDisk && update.selectionSet) {
                 const selection = update.state.selection.main;
@@ -32,6 +46,8 @@ class CodeMirrorJsImpl {
         });
 
         let extensions = [
+            JsDeps.EditorState.readOnly.of(readOnly),
+            JsDeps.EditorView.editable.of(!readOnly),
             JsDeps.basicSetup,
             JsDeps.search({ top: true }),
             JsDeps.lintGutter(),
@@ -45,7 +61,7 @@ class CodeMirrorJsImpl {
         }
 
         const selection = selectionFromCursorPosition(cursorPosition, content.length);
-        if (original) {
+        if (original !== null && original !== undefined) {
             const mergePaneExtensions = [
                 JsDeps.EditorView.theme({
                     "&": {
@@ -58,6 +74,21 @@ class CodeMirrorJsImpl {
                     ".cm-content": {
                         minWidth: "0",
                     },
+                    // Keep merge spacers measurable even when the original pane
+                    // is hidden. Hiding them makes alignment repeatedly increase
+                    // their heights to compensate for the missing DOM space.
+                    "&.cm-merge-a .cm-changedLine": {
+                        backgroundColor: "rgba(255, 0, 0, 0.20)",
+                    },
+                    "&.cm-merge-b .cm-changedLine": {
+                        backgroundColor: "rgba(155, 185, 85, 0.20)",
+                    },
+                    "&.cm-merge-a .cm-changedText": {
+                        background: "rgba(255, 0, 0, 0.30)",
+                    },
+                    "&.cm-merge-b .cm-changedText": {
+                        background: "rgba(155, 185, 85, 0.40)",
+                    },
                 }),
             ];
             this.rootView = new JsDeps.MergeView({
@@ -68,6 +99,7 @@ class CodeMirrorJsImpl {
                         JsDeps.lintGutter(),
                         JsDeps.oneDark,
                         JsDeps.EditorView.editable.of(false),
+                        JsDeps.EditorView.lineWrapping,
                         ...mergePaneExtensions,
                     ],
                 },
@@ -82,8 +114,16 @@ class CodeMirrorJsImpl {
                         ...mergePaneExtensions,
                     ],
                 },
+                // Keep scattered changes precise in files around 2,000 lines,
+                // while bounding synchronous work for pathological inputs.
+                diffConfig: { scanLimit: 100000, timeout: 1000 },
+                collapseUnchanged: showDiff ? { margin: 3, minSize: 4 } : undefined,
                 parent: element,
             });
+            this.showDiff = showDiff;
+            if (!showDiff) {
+                this.rootView.a.dom.parentElement.style.display = "none";
+            }
             this.rootView.dom.style.overflowX = "auto";
             this.rootView.dom
                 .querySelectorAll(".cm-mergeViewEditor")
@@ -115,12 +155,41 @@ class CodeMirrorJsImpl {
         this.reloadFromDisk = false;
     }
 
+    set_collapse_unchanged(collapse) {
+        if (this.showDiff && this.rootView instanceof JsDeps.MergeView) {
+            this.rootView.reconfigure({
+                collapseUnchanged: collapse ? { margin: 3, minSize: 4 } : undefined,
+            });
+        }
+    }
+
+    has_pending_changes() {
+        return this.dirty;
+    }
+
+    flush(immediate = false) {
+        clearTimeout(this.changeTimer);
+        this.changeTimer = null;
+        if (this.destroyed) return;
+        if (this.dirty) {
+            this.dirty = false;
+            this.onchange(this.editorView.state.doc.toString(), immediate);
+            this.ondirty(false);
+        }
+        if (immediate) this.onflush();
+    }
+
     destroy() {
+        if (this.destroyed) return;
+        this.flush(true);
+        this.destroyed = true;
         this.rootView.destroy();
         console.debug(`CodeMirror at path "${this.fullPath}" is destroyed.`);
     }
 
     set_content(content) {
+        // Local edits remain authoritative until they have been emitted.
+        if (this.dirty || this.destroyed) return;
         const current = this.editorView.state.doc;
         if (current.toString() === content) return;
         this.reloadFromDisk = true;
@@ -145,6 +214,7 @@ class CodeMirrorJsImpl {
     }
 
     insert_text(text) {
+        if (this.editorView.state.readOnly) return;
         const selection = this.editorView.state.selection.main;
         this.editorView.dispatch({
             changes: {

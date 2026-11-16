@@ -1,6 +1,8 @@
 pub mod api;
 pub mod app;
 pub mod id;
+#[cfg(feature = "client")]
+mod maximize;
 pub mod signals;
 pub mod state;
 #[cfg(feature = "client")]

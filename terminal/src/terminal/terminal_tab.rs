@@ -63,6 +63,7 @@ impl TerminalTab {
             title,
             order,
             tile,
+            base_path,
         } = terminal_definition;
         let terminal_id = &address.id;
         let selected = {
@@ -116,6 +117,7 @@ impl TerminalTab {
                 title,
                 order,
                 tile,
+                base_path,
             },
             selected,
             generation: XSignal::new("terminal-generation", 0),
@@ -287,6 +289,7 @@ impl TerminalTabInner {
             title: self.title.get_value_untracked().map(|t| t.to_string()),
             order: self.order,
             tile: self.tile,
+            base_path: self.base_path.clone(),
         }
     }
 }

@@ -21,7 +21,7 @@ use self::diagnostics::debug;
 use self::diagnostics::info;
 use self::diagnostics::warn;
 use super::terminal_tab::TerminalTab;
-use super::terminal_tabs::TerminalTabs;
+pub(crate) use super::terminal_tabs::TerminalTabs;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::terminal::api::selected_tab;
 use crate::terminal::client as terminal_api;
@@ -46,7 +46,7 @@ pub type TerminalsState = TerminalsStateImplPtr;
 #[derive(Clone)]
 pub struct TerminalUiState {
     selected_tab: XSignal<TerminalId>,
-    terminal_tabs: XSignal<TerminalTabs>,
+    pub(crate) terminal_tabs: XSignal<TerminalTabs>,
 }
 
 impl Default for TerminalUiState {
@@ -63,13 +63,7 @@ static REFRESH: LazyLock<XSignal<()>> = LazyLock::new(|| XSignal::new("refresh-t
 #[autoclone]
 pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
     let tile_id = tile.id;
-    let selected_tab = tile.terminal_ui.selected_tab.clone();
-    let terminal_tabs = tile.terminal_ui.terminal_tabs.clone();
-    let state = TerminalsState::from(TerminalsStateImpl {
-        tile,
-        selected_tab,
-        terminal_tabs,
-    });
+    let state = TerminalsState::new(tile);
     refresh_terminal_tabs(state.clone());
 
     render_terminals(template, state.clone(), state.terminal_tabs.clone())
@@ -79,6 +73,9 @@ pub fn terminals(template: XTemplate, tile: TilePtr) -> Consumers {
             let Some(current) = terminal_tabs.lookup_tab(&terminal_id) else {
                 return;
             };
+            if state.tile.app.get_value_untracked() != App::Terminal {
+                return;
+            }
             let client_address = &current.address.via;
             state.tile.remote.set(client_address.clone())
         }))
@@ -218,24 +215,23 @@ fn refresh_terminal_tabs(state: TerminalsState) {
             debug!("Ignoring stale terminal list after tabs changed");
             return;
         }
-        let mut all_tile_ids: Option<HashSet<TileId>> = None;
-        let _: ControlFlow<()> = RootTree::foreach(|t| {
-            if t.app.get_value_untracked() != App::Terminal {
-                return ControlFlow::Continue(());
-            }
-            if let Some(all_tile_ids) = &mut all_tile_ids {
-                all_tile_ids.insert(t.id);
-                ControlFlow::Continue(())
-            } else {
-                // This is the first Terminal tile
-                if t.id != state.tile.id {
-                    ControlFlow::Break(())
-                } else {
-                    all_tile_ids = Some([state.tile.id].into());
-                    ControlFlow::Continue(())
+        let mut owners = HashSet::new();
+        let mut first_terminal = None;
+        let _: ControlFlow<()> = RootTree::foreach(|tile| {
+            match tile.app.get_value_untracked() {
+                App::Terminal => {
+                    first_terminal.get_or_insert(tile.id);
+                    owners.insert(tile.id);
                 }
+                #[cfg(feature = "text-editor")]
+                App::TextEditor => {
+                    owners.insert(tile.id);
+                }
+                _ => (),
             }
+            ControlFlow::Continue(())
         });
+        let all_tile_ids = (first_terminal == Some(state.tile.id)).then_some(owners);
 
         set_terminal_defs(&state, terminal_defs, all_tile_ids);
         load_selected_terminal_tab(state).await;
@@ -251,7 +247,9 @@ fn set_terminal_defs(
     let terminal_defs = terminal_defs
         .into_iter()
         .filter(|def| {
-            def.tile == state.tile.id
+            (def.tile == state.tile.id
+                && (state.tile.app.get_value_untracked() == App::Terminal
+                    || def.address.via == state.tile.remote.get_value_untracked()))
                 || if let Some(all_tile_ids) = &all_tile_ids {
                     !all_tile_ids.contains(&def.tile)
                 } else {
@@ -290,6 +288,22 @@ async fn load_selected_terminal_tab(state: TerminalsState) {
 }
 
 impl TerminalsState {
+    pub(crate) fn new(tile: TilePtr) -> Self {
+        Self::from(TerminalsStateImpl {
+            selected_tab: tile.terminal_ui.selected_tab.clone(),
+            terminal_tabs: tile.terminal_ui.terminal_tabs.clone(),
+            tile,
+        })
+    }
+
+    pub(crate) fn add_terminal(&self, terminal_def: TerminalDef) {
+        let new_tab = TerminalTab::new(terminal_def, &self.selected_tab);
+        let _batch = Batch::use_batch("add-tab");
+        self.selected_tab.set(new_tab.address.id.clone());
+        self.terminal_tabs
+            .update(|tabs| Some(tabs.clone().add_tab(new_tab)));
+    }
+
     /// Callback on end-of-stream to drop the terminal tab from the UI after the process is closed in the backend.
     pub fn on_eos(&self, terminal_id: &TerminalId) {
         debug!("Closing the terminal tab");

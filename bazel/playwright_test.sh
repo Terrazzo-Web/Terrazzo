@@ -77,6 +77,7 @@ for _ in $(seq 1 "${SERVER_STARTUP_TIMEOUT_SECONDS}"); do
     export TMPDIR="$PLAYWRIGHT_ROOT/tmp"
     export PATH="$(dirname "${NODE_BIN}"):${PATH:-}"
     export TERRAZZO_SERVER_BIN
+    export CARGO_MANIFEST_DIR
     export TERRAZZO_CONFIG_FILE
     ln -s "${PLAYWRIGHT_ROOT}/node_modules" "node_modules"
     ln -s "${PLAYWRIGHT_ROOT}/package.json" "package.json"

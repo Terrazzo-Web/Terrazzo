@@ -55,6 +55,37 @@ where
     }
 }
 
+/// The TLS acceptor may wrap its service to attach TLS connection metadata.
+#[derive(Clone)]
+pub enum TlsOrPlaintextService<T, P> {
+    Tls(T),
+    Plaintext(P),
+}
+
+impl<T, P, B> Service<Request<B>> for TlsOrPlaintextService<T, P>
+where
+    T: Service<Request<B>>,
+    P: Service<Request<B>, Response = T::Response, Error = T::Error>,
+{
+    type Response = T::Response;
+    type Error = T::Error;
+    type Future = futures::future::Either<T::Future, P::Future>;
+
+    fn poll_ready(&mut self, context: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        match self {
+            Self::Tls(service) => service.poll_ready(context),
+            Self::Plaintext(service) => service.poll_ready(context),
+        }
+    }
+
+    fn call(&mut self, request: Request<B>) -> Self::Future {
+        match self {
+            Self::Tls(service) => futures::future::Either::Left(service.call(request)),
+            Self::Plaintext(service) => futures::future::Either::Right(service.call(request)),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct HttpOrHttps<TLS, PLAIN> {
     pub tls: TLS,
@@ -63,11 +94,11 @@ pub struct HttpOrHttps<TLS, PLAIN> {
 
 impl<T, P, S> Accept<TcpStream, S> for HttpOrHttps<T, P>
 where
-    T: Accept<PeekStream, S, Service = S> + Clone + Unpin,
-    P: Accept<PeekStream, S, Service = S> + Clone + Unpin,
+    T: Accept<PeekStream, S> + Clone + Unpin,
+    P: Accept<PeekStream, S> + Clone + Unpin,
     S: Unpin,
 {
-    type Service = AddHttpConnectionInfo<S>;
+    type Service = AddHttpConnectionInfo<TlsOrPlaintextService<T::Service, P::Service>>;
     type Stream = TlsOrPlaintextStream<
         <T as Accept<PeekStream, S>>::Stream,
         <P as Accept<PeekStream, S>>::Stream,
@@ -124,8 +155,8 @@ type StreamHeader = [u8; 11];
 
 impl<T, P, S> Future for FuturePeekStream<T, P, S>
 where
-    T: Accept<PeekStream, S, Service = S> + Unpin,
-    P: Accept<PeekStream, S, Service = S> + Unpin,
+    T: Accept<PeekStream, S> + Unpin,
+    P: Accept<PeekStream, S> + Unpin,
     S: Unpin,
 {
     type Output = std::io::Result<(
@@ -133,7 +164,7 @@ where
             <T as Accept<PeekStream, S>>::Stream,
             <P as Accept<PeekStream, S>>::Stream,
         >,
-        AddHttpConnectionInfo<S>,
+        AddHttpConnectionInfo<TlsOrPlaintextService<T::Service, P::Service>>,
     )>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -226,7 +257,7 @@ where
                 } => {
                     let (stream, service) = ready!(future.poll_unpin(cx))?;
                     let service = AddHttpConnectionInfo {
-                        service,
+                        service: TlsOrPlaintextService::Tls(service),
                         connection_info: HttpConnectionInfo {
                             scheme: Scheme::HTTPS,
                             is_localhost: *is_localhost,
@@ -240,7 +271,7 @@ where
                 } => {
                     let (stream, service) = ready!(future.poll_unpin(cx))?;
                     let service = AddHttpConnectionInfo {
-                        service,
+                        service: TlsOrPlaintextService::Plaintext(service),
                         connection_info: HttpConnectionInfo {
                             scheme: Scheme::HTTP,
                             is_localhost: *is_localhost,

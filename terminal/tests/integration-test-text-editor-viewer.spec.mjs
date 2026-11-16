@@ -7,6 +7,8 @@ import {
     BASE_URL,
     SECOND,
     copyPlantUmlPdf,
+    authenticateApi,
+    fsioApiUrl,
     expectPdfPage,
     getHtmlSource,
     getHtmlViewerFrame,
@@ -134,6 +136,67 @@ test.describe('Text editor viewers', () => {
         await expect
             .poll(async () => renderedCssWidth(getPdfPage(page, 1)), { timeout: 10 * SECOND })
             .toBeGreaterThan(sliderCssWidth * 1.05);
+    });
+
+    test('renders SVG above its source and refreshes on changes', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-svg-'));
+        const fileName = 'preview.SVG';
+        const filePath = path.join(baseDir, fileName);
+        const svg = (color) => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="${color}"/></svg>`;
+        await writeFile(filePath, svg('red'));
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+
+        const image = page.locator('img[data-viewer="svg"]');
+        const source = getHtmlSource(page);
+        const expectImage = async (content) => {
+            await expect(image).toHaveAttribute('src', `data:image/svg+xml;base64,${Buffer.from(content).toString('base64')}`);
+            await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
+        };
+        await expectImage(svg('red'));
+        await expect(source).toBeVisible();
+        const imageBox = await image.boundingBox();
+        const sourceBox = await source.boundingBox();
+        expect(sourceBox.y).toBeGreaterThanOrEqual(imageBox.y + imageBox.height - 1);
+
+        await writeFile(filePath, svg('blue'));
+        await expectImage(svg('blue'));
+        await expect(source).toContainText('blue');
+
+        await replaceEditorText(page, source, svg('green'));
+        await expectImage(svg('green'));
+        await expect.poll(() => readFile(filePath, 'utf8')).toBe(svg('green'));
+    });
+
+    test('loads a normal image through the binary HTTP endpoint and refreshes it', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-image-'));
+        const fileName = 'preview image.PNG';
+        const filePath = path.join(baseDir, fileName);
+        const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64');
+        await writeFile(filePath, png);
+        await authenticateApi(page.request);
+        const response = await page.request.get(fsioApiUrl('image', baseDir, fileName));
+        expect(response.status()).toBe(200);
+        expect(response.headers()['content-type']).toBe('image/png');
+        expect(response.headers()['cache-control']).toBe('no-store');
+        expect(await response.body()).toEqual(png);
+        const unsupported = await page.request.get(fsioApiUrl('image', baseDir, 'file.txt'));
+        expect(unsupported.status()).toBe(415);
+
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const image = page.locator('img[data-viewer="image"]');
+        await expect(image).toBeVisible();
+        await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth === 1)).toBe(true);
+        await expect(page.locator('.cm-content:visible')).toHaveCount(0);
+        const initialSrc = await image.getAttribute('src');
+        await writeFile(filePath, png);
+        await expect(image).not.toHaveAttribute('src', initialSrc);
+        await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth === 1)).toBe(true);
     });
 
     test('renders an HTML file in an iframe', async ({ page }) => {

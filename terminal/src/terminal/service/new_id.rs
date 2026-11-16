@@ -40,6 +40,7 @@ pub async fn new_id(remote: ClientAddress, tile: TileId) -> Result<TerminalDef, 
         },
         order: next,
         tile,
+        base_path: None,
     })
 }
 

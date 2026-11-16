@@ -33,12 +33,47 @@ pub struct TailStream {
     stream_state: StreamState,
 }
 
+/// Browser state captured after applying output through `position`.
+#[derive(Clone, Debug)]
+pub struct OutputSnapshot {
+    pub position: usize,
+    pub data: Bytes,
+}
+
+/// Shared access to the bounded tail's latest browser snapshot.
+#[derive(Clone)]
+pub struct TerminalOutputBuffer(Arc<Mutex<BufferState>>);
+
+impl TerminalOutputBuffer {
+    pub fn save_snapshot(&self, snapshot: OutputSnapshot) -> Result<(), &'static str> {
+        let mut state = self.0.lock().expect("output buffer");
+        if snapshot.data.len() > state.capacity {
+            return Err("SnapshotTooLarge");
+        }
+        if snapshot.position > state.start + state.lines.len() {
+            return Err("InvalidSnapshotPosition");
+        }
+        if state
+            .snapshot
+            .as_ref()
+            .is_none_or(|old| snapshot.position > old.position)
+        {
+            state.snapshot = Some(snapshot);
+        }
+        Ok(())
+    }
+}
+
 impl TailStream {
     pub fn new<S>(stream: S, scrollback: usize) -> Self
     where
         S: Stream<Item = std::io::Result<Bytes>> + Send + 'static,
     {
-        let state = Arc::new(Mutex::new(BufferState::default()));
+        assert!(scrollback > 0);
+        let state = Arc::new(Mutex::new(BufferState {
+            capacity: scrollback,
+            ..Default::default()
+        }));
         let task = worker(Arc::downgrade(&state), stream, scrollback);
         let worker = if span_enabled!(Level::TRACE) {
             tokio::spawn(task.instrument(trace_span!("Worker")))
@@ -53,6 +88,25 @@ impl TailStream {
                 worker_handle: AbortOnDrop(worker).into(),
             },
         }
+    }
+
+    pub fn buffer(&self) -> TerminalOutputBuffer {
+        TerminalOutputBuffer(self.buffer_state.clone())
+    }
+
+    pub fn position(&self) -> usize {
+        self.stream_state.pos
+    }
+
+    pub fn restore_snapshot(&mut self) -> Option<OutputSnapshot> {
+        let state = self.buffer_state.lock().expect("output buffer");
+        let snapshot = state.snapshot.clone()?;
+        if snapshot.position < state.start {
+            warn!("Some output after the terminal snapshot was discarded");
+        }
+        self.stream_state.pos = snapshot.position;
+        self.stream_state.future_rx = None;
+        Some(snapshot)
     }
 
     pub fn rewind(&mut self) {
@@ -73,7 +127,15 @@ where
     pin!(stream);
     let mut size = 0;
     loop {
-        let item = stream.next().await;
+        let item = stream.next().await.map(|item| {
+            item.map(|bytes| {
+                if bytes.len() > scrollback {
+                    Bytes::copy_from_slice(&bytes[bytes.len() - scrollback..])
+                } else {
+                    bytes
+                }
+            })
+        });
         trace!("Next: {item:?}");
         let end = item.is_none();
         let Some(state) = state.upgrade() else {
@@ -244,6 +306,8 @@ fn handle_pending_state(
 
 #[derive(Default)]
 struct BufferState {
+    capacity: usize,
+    snapshot: Option<OutputSnapshot>,
     lines: VecDeque<Option<std::io::Result<Bytes>>>,
 
     /// The line number at which 'lines' starts, ie, the number of lines that were discarded.
@@ -301,6 +365,7 @@ mod tests {
     use tracing::trace;
     use trz_gateway_common::tracing::test_utils::enable_tracing_for_tests;
 
+    use super::OutputSnapshot;
     use crate::tail::TailStream;
 
     const TIMEOUT: Duration = Duration::from_millis(100);
@@ -433,6 +498,84 @@ mod tests {
         }
         .instrument(info_span!("Test"))
         .await
+    }
+
+    #[tokio::test]
+    async fn snapshot_replays_only_the_delta() {
+        let (tx, rx) = futures::channel::mpsc::unbounded();
+        let mut tail = TailStream::new(rx, 64);
+        for data in ["one", "two", "three"] {
+            tx.unbounded_send(Ok(Bytes::copy_from_slice(data.as_bytes())))
+                .unwrap();
+        }
+        tail.next().await.unwrap().unwrap();
+        tail.next().await.unwrap().unwrap();
+        let buffer = tail.buffer();
+        buffer
+            .save_snapshot(OutputSnapshot {
+                position: tail.position(),
+                data: Bytes::from_static(b"snapshot at two"),
+            })
+            .unwrap();
+        tail.rewind();
+        let selected = tail.restore_snapshot().unwrap();
+        assert_eq!(selected.position, 2);
+        assert_eq!(tail.next().await.unwrap().unwrap(), "three");
+        // A concurrent newer upload cannot change the already selected restore point.
+        buffer
+            .save_snapshot(OutputSnapshot {
+                position: 3,
+                data: Bytes::from_static(b"new snapshot"),
+            })
+            .unwrap();
+        assert_eq!(selected.data, "snapshot at two");
+        assert_eq!(tail.position(), 3);
+    }
+
+    #[tokio::test]
+    async fn snapshot_survives_bounded_tail_eviction() {
+        let (tx, rx) = futures::channel::mpsc::unbounded();
+        let mut tail = TailStream::new(rx, 4);
+        tx.unbounded_send(Ok(Bytes::from_static(b"old"))).unwrap();
+        tail.next().await.unwrap().unwrap();
+        tail.buffer()
+            .save_snapshot(OutputSnapshot {
+                position: 1,
+                data: Bytes::from_static(b"snap"),
+            })
+            .unwrap();
+        tx.unbounded_send(Ok(Bytes::from_static(b"new1"))).unwrap();
+        tx.unbounded_send(Ok(Bytes::from_static(b"new2"))).unwrap();
+        tail.next().await.unwrap().unwrap();
+        tail.rewind();
+        assert_eq!(tail.restore_snapshot().unwrap().data, "snap");
+        assert_eq!(tail.next().await.unwrap().unwrap(), "new2");
+        assert!(tail.buffer_state.lock().unwrap().lines.len() <= 1);
+    }
+
+    #[tokio::test]
+    async fn invalid_snapshots_do_not_replace_the_latest() {
+        let (tx, rx) = futures::channel::mpsc::unbounded();
+        let mut tail = TailStream::new(rx, 4);
+        tx.unbounded_send(Ok(Bytes::from_static(b"data"))).unwrap();
+        tail.next().await.unwrap().unwrap();
+        let buffer = tail.buffer();
+        let snapshot = |position, data: &'static [u8]| OutputSnapshot {
+            position,
+            data: Bytes::from_static(data),
+        };
+        buffer.save_snapshot(snapshot(1, b"good")).unwrap();
+        buffer.save_snapshot(snapshot(0, b"old")).unwrap();
+        assert_eq!(
+            buffer.save_snapshot(snapshot(2, b"bad")),
+            Err("InvalidSnapshotPosition")
+        );
+        assert_eq!(
+            buffer.save_snapshot(snapshot(1, b"oversized")),
+            Err("SnapshotTooLarge")
+        );
+        tail.rewind();
+        assert_eq!(tail.restore_snapshot().unwrap().data, "good");
     }
 
     impl TailStream {

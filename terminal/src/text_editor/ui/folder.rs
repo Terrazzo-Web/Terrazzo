@@ -32,6 +32,8 @@ use crate::text_editor::notify::server_fn::FileEventKind;
 use crate::text_editor::notify::ui::NotifyRegistration;
 use crate::tiles::app::App;
 
+mod file_icon;
+
 terrazzo_css::import_style!(style, "folder.scss");
 
 #[autoclone]
@@ -74,10 +76,23 @@ pub fn folder(
                 )
             })
             .unwrap_or_default();
-        let file_path = FilePath {
+        let file_path: FilePath<Arc<Path>> = FilePath {
             base: manager.path.base.get_value_untracked(),
             file: folder_entry_path(&folder_path, name).into(),
         };
+        let preview = (!is_dir
+            && file_path
+                .file
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("svg")))
+        .then(|| {
+            img(
+                class = style::SVG_PREVIEW,
+                src = file_url(&manager, &file_path, "image"),
+                alt = "",
+                loading = "lazy",
+            )
+        });
         rows.push(tr(
             id = "{name}",
             #[cfg(not(feature = "client-prod"))]
@@ -87,11 +102,21 @@ pub fn folder(
                 manager.path.file.force(file_path.file.clone())
             },
             td(
+                class = style::FILE_TYPE,
+                img(
+                    src = file_icon::file_icon(name, is_dir),
+                    alt = "",
+                    width = "20",
+                    height = "20",
+                ),
+            ),
+            td(
                 draggable = (name.as_ref() != "..").then_some("true"),
                 dragstart = on_move_dragstart(&file_path),
                 #[cfg(not(feature = "client-prod"))]
                 class = "folder-name",
                 "{display_name}",
+                preview..,
             ),
             td("{size}"),
             td(modified),
@@ -142,6 +167,7 @@ pub fn folder(
         class %= get_dragover_class(dragover_class.clone()),
         table(
             thead(tr(
+                th(class = style::FILE_TYPE, ""),
                 th("Name"),
                 th("Size"),
                 th("Modified"),
@@ -174,7 +200,7 @@ fn download_action(
         return span();
     }
     a(
-        href = download_url(manager, &file_path),
+        href = file_url(manager, &file_path, "download"),
         download = name,
         click = move |event: MouseEvent| {
             event.stop_propagation();
@@ -216,12 +242,16 @@ fn trash_action(
     )
 }
 
-fn download_url(manager: &TextEditorManager, file_path: &FilePath<Arc<Path>>) -> Option<String> {
+fn file_url(
+    manager: &TextEditorManager,
+    file_path: &FilePath<Arc<Path>>,
+    endpoint: &str,
+) -> Option<String> {
     let remote = serde_json::to_string(&manager.remote)
         .inspect_err(|error| warn!("Failed to JSON serialize the remote: {error}"))
         .ok()?;
     format!(
-        "/api/text_editor/fsio/download?base={}&file={}&remote={}",
+        "/api/text_editor/fsio/{endpoint}?base={}&file={}&remote={}",
         encode_query_path(file_path.base.as_ref()),
         encode_query_path(file_path.file.as_ref()),
         encode_query(&remote),

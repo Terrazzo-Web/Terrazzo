@@ -34,6 +34,68 @@ test.describe('Text editor basic', () => {
         expect(response?.ok()).toBeTruthy();
     });
 
+    test('copies full and relative paths from the path icons', async ({ page, context }) => {
+        test.setTimeout(60 * SECOND);
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+        const { baseDir, filePath } = await createTempFile('copy path.txt');
+        await writeFile(path.join(baseDir, 'second.txt'), '');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'copy path.txt');
+        await openFolderFile(page, 'copy path.txt');
+
+        const expectCopiedPath = async (title, expected) => {
+            await page.getByTitle(title, { exact: true }).click();
+            await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+        };
+        await expectCopiedPath('Copy full path', filePath);
+        await expectCopiedPath('Copy relative path', 'copy path.txt');
+
+        // The handlers must read the current path after navigating to another file.
+        await reopenFolderFile(page, 'second.txt');
+        await expect(page.locator('.file-path-selector-field')).toHaveValue(/second\.txt$/);
+        await expectCopiedPath('Copy full path', path.join(baseDir, 'second.txt'));
+        await expectCopiedPath('Copy relative path', 'second.txt');
+    });
+
+    test('flashes a border on focus without moving editor content', async ({ page }) => {
+        const { baseDir } = await createTempFile('focus.txt');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, 'focus.txt');
+        await openFolderFile(page, 'focus.txt');
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible();
+        const result = await editor.evaluate((node) => {
+            document.activeElement?.blur();
+            const app = node.closest('.text-editor-app');
+            const rect = () => {
+                const { x, y, width, height } = node.getBoundingClientRect();
+                return { x, y, width, height };
+            };
+            const before = rect();
+            node.focus();
+            const animation = app.getAnimations({ subtree: true }).find((animation) => animation.animationName === 'trz-focus-flash');
+            if (!animation) throw new Error('Missing focus border animation');
+            animation.pause();
+            animation.currentTime = 0;
+            const border = getComputedStyle(app, '::after');
+            const flash = { opacity: border.opacity, background: border.backgroundImage, size: border.backgroundSize, sizing: border.boxSizing };
+            const during = rect();
+            const duration = animation.effect.getTiming().duration;
+            animation.finish();
+            return { before, during, after: rect(), flash, duration, opacity: getComputedStyle(app, '::after').opacity };
+        });
+        expect(result.flash.opacity).toBe('1');
+        expect(result.flash.sizing).toBe('border-box');
+        expect(result.flash.background.match(/linear-gradient/g)).toHaveLength(4);
+        expect(result.flash.background).toContain('rgb(0, 128, 0)');
+        expect(result.flash.background).toContain('rgba(0, 0, 0, 0)');
+        expect(result.flash.size).toBe('100% 10px, 100% 10px, 10px 100%, 10px 100%');
+        expect(result.duration).toBe(1500);
+        expect(result.opacity).toBe('0');
+        expect(result.during).toEqual(result.before);
+        expect(result.after).toEqual(result.before);
+    });
+
     test('edits a file', async ({ page }) => {
         test.setTimeout(60 * SECOND);
 
@@ -50,6 +112,24 @@ test.describe('Text editor basic', () => {
         await page.keyboard.type('Hello, world!');
 
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, world!');
+    });
+
+    test('flushes pending CodeMirror edits before recreating the editor', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const { baseDir, fileName, filePath } = await createCommittedReadme('close-flush.txt', 'Original');
+        await writeFile(filePath, 'Modified');
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const editor = getCodeMirrorContent(page);
+        await expect(editor).toBeVisible({ timeout: 10 * SECOND });
+        await expect(page.locator('.toggle-editor-diff')).toBeVisible();
+        await replaceEditorText(page, editor, 'Saved before the debounce fires.');
+        // Avoid click actionability waits: recreate immediately after input.
+        await page.locator('.toggle-editor-diff').evaluate((toggle) => toggle.click());
+        await expect(editor.last()).toContainText('Saved before the debounce fires.');
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 2 * SECOND })
+            .toBe('Saved before the debounce fires.');
     });
 
     test('inserts typed input from the editor overlay', async ({ page }) => {
@@ -229,18 +309,21 @@ test.describe('Text editor basic', () => {
         await setBasePath(page, baseDir, fileName);
         await openFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(1, { timeout: 10 * SECOND });
         const plainEditor = getCodeMirrorContent(page).first();
         await expect(plainEditor).toContainText('Hello, World!', { timeout: 10 * SECOND });
 
+        const diffToggle = page.locator('.toggle-editor-diff');
+        await expect(diffToggle).toBeHidden();
+        await plainEditor.evaluate((node) => { window.__originalEditor = node; });
         await replaceEditorText(page, plainEditor, 'Bonjour, Monde!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Bonjour, Monde!');
 
-        await reopenFolderFile(page, fileName);
-
-        const diffToggle = page.locator('.toggle-editor-diff');
+        // Availability updates without reopening or replacing the live editor.
+        await expect.poll(() => plainEditor.evaluate((node) => node === window.__originalEditor)).toBe(true);
         await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
         await expect(diffToggle).toHaveAttribute('title', 'Show diff');
+        await expect(page.locator('.cm-merge-b .cm-changedLine:visible')).not.toHaveCount(0);
         await diffToggle.click();
         await expect(diffToggle).toHaveAttribute('title', 'Hide diff');
 
@@ -252,11 +335,142 @@ test.describe('Text editor basic', () => {
         await replaceEditorText(page, diffEditors.nth(1), 'Hello, World!');
         await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe('Hello, World!');
 
+        await expect(diffToggle).toBeHidden({ timeout: 10 * SECOND });
         await reopenFolderFile(page, fileName);
 
-        await expect(getMergeViewEditors(page)).toHaveCount(0, { timeout: 10 * SECOND });
+        await expect(getMergeViewEditors(page)).toHaveCount(1, { timeout: 10 * SECOND });
         await expect(getCodeMirrorContent(page)).toHaveCount(1, { timeout: 10 * SECOND });
         await expect(getCodeMirrorContent(page).first()).toContainText('Hello, World!', { timeout: 10 * SECOND });
+    });
+
+    test('keeps single-pane editor height bounded while scrolling wrapped lines', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const content = Array.from({ length: 100 }, (_, index) =>
+            `Line ${index}: ${'wrapped content '.repeat(12)}`).join('\n');
+        const { baseDir, fileName } = await createCommittedReadme('wrapped.txt', content);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const editor = getMergeViewEditors(page);
+        await expect(editor).toHaveCount(1);
+        const mergeView = page.locator('.code-mirror-editor .cm-mergeView');
+        // A narrow pane makes line wrapping and merge alignment participate.
+        await mergeView.evaluate((node) => { node.style.width = '400px'; });
+        await expect(editor.locator('.cm-line').first()).toBeVisible();
+        const scroller = editor.locator('.cm-scroller');
+        const initialHeight = await scroller.evaluate((node) => node.scrollHeight);
+        await mergeView.hover();
+        for (let index = 0; index < 40; index++) {
+            await page.mouse.wheel(0, 600);
+            await page.evaluate(() => new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        }
+        expect(await scroller.evaluate((node) => node.scrollHeight)).toBeLessThan(initialHeight * 1.5);
+        await expect(editor.locator('.cm-line').filter({ hasText: /^Line 99:/ })).toBeVisible();
+    });
+
+    test('updates diff availability while typing in a large file without replacing the editor', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const original = Array.from({ length: 2000 }, (_, index) => `${index}: ${'unchanged '.repeat(30)}`).join('\n') + '\noriginal';
+        const modified = original.slice(0, -8) + 'modified';
+        const { baseDir, fileName, filePath } = await createCommittedReadme('large.txt', original);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        const editor = getCodeMirrorContent(page);
+        const diffToggle = page.locator('.toggle-editor-diff');
+        await expect(editor).toBeVisible();
+        await expect(diffToggle).toBeHidden();
+        await editor.evaluate((node) => { window.__largeEditor = node; node.focus(); });
+        await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
+        for (let index = 0; index < 8; index += 1) await page.keyboard.press('Backspace');
+        await page.keyboard.type('modified', { delay: 10 });
+        await expect(diffToggle).toBeVisible({ timeout: 10 * SECOND });
+        await expect.poll(() => editor.evaluate((node) => node === window.__largeEditor)).toBe(true);
+        await expect.poll(async () => readFile(filePath, 'utf8'), { timeout: 10 * SECOND }).toBe(modified);
+        await expect(getMergeViewEditors(page)).toHaveCount(1);
+    });
+
+    test('preserves unchanged regions in a complex 2000-line diff and wraps both panes', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const lines = Array.from({ length: 2000 }, (_, index) =>
+            `Line ${index}: ${'unchanged text '.repeat(12)}`);
+        const original = lines.join('\n');
+        const modified = lines.map((line, index) => index % 20 === 10
+            ? `Replacement ${index}: ${'different content '.repeat(40)}`
+            : line).join('\n');
+        const { baseDir, fileName, filePath } = await createCommittedReadme('complex.txt', original);
+        await writeFile(filePath, modified);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        await page.locator('.toggle-editor-diff').click();
+        const editors = getMergeViewEditors(page);
+        await expect(editors).toHaveCount(2);
+        for (let index = 0; index < 2; index++) {
+            await expect(editors.nth(index).locator('.cm-content')).toHaveCSS('white-space', /pre-wrap|break-spaces/);
+        }
+        // Unchanged context should remain collapsible despite the many edits.
+        await expect(page.locator('.code-mirror-editor .cm-collapsedLines').first()).toBeVisible();
+        await page.locator('.toggle-unchanged-regions').click();
+        const current = editors.nth(1).locator('.cm-content');
+        await editors.nth(1).locator('.cm-scroller').evaluate((node) => {
+            node.scrollTop = (node.scrollHeight - node.clientHeight) / 2;
+        });
+        const unchangedMiddle = current.locator('.cm-line').filter({ hasText: /^Line \d+: unchanged text/ }).first();
+        await expect(unchangedMiddle).toBeVisible();
+        await expect(unchangedMiddle).not.toHaveClass(/cm-changedLine/);
+        await current.focus();
+        await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
+        const lastLine = current.locator('.cm-line').filter({ hasText: 'Line 1999:' });
+        await expect(lastLine).toBeVisible();
+        await expect(lastLine).not.toHaveClass(/cm-changedLine/);
+    });
+
+    test('toggles unchanged regions with diff controls on the same row', async ({ page }) => {
+        test.setTimeout(60 * SECOND);
+        const original = Array.from({ length: 60 }, (_, index) => `Original line ${index + 1}`).join('\n');
+        const modified = original.replace('Original line 30', 'Modified line 30');
+        const { baseDir, fileName, filePath } = await createCommittedReadme('context.txt', original);
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await setBasePath(page, baseDir, fileName);
+        await openFolderFile(page, fileName);
+        await replaceEditorText(page, getCodeMirrorContent(page), modified);
+
+        const diffToggle = page.locator('.toggle-editor-diff');
+        const contextToggle = page.locator('.toggle-unchanged-regions');
+        await expect(diffToggle).toBeVisible();
+        await expect(contextToggle).toBeHidden();
+        await diffToggle.click();
+        await expect(getMergeViewEditors(page)).toHaveCount(2);
+        await expect(contextToggle).toHaveAttribute('title', 'Show unchanged regions');
+        await expect(contextToggle).toHaveAttribute('src', /chevron-bar-expand\.svg$/);
+        const collapsed = page.locator('.code-mirror-editor .cm-collapsedLines');
+        await expect(collapsed.first()).toBeVisible();
+
+        // The buttons must be horizontally adjacent, including their actual rendered wrappers.
+        await expect.poll(async () => {
+            const diff = await diffToggle.boundingBox();
+            const context = await contextToggle.boundingBox();
+            return diff && context && Math.abs(diff.y - context.y) < 2 && diff.x >= context.x + context.width;
+        }).toBe(true);
+        const currentEditor = getCodeMirrorContent(page).nth(1);
+        await currentEditor.evaluate((node) => { window.__diffEditor = node; });
+        await contextToggle.click();
+        await expect(collapsed).toHaveCount(0);
+        await expect(contextToggle).toHaveAttribute('title', 'Hide unchanged regions');
+        await expect(contextToggle).toHaveAttribute('src', /chevron-bar-contract\.svg$/);
+        await expect.poll(() => currentEditor.evaluate((node) =>
+            window.JsDeps.EditorView.findFromDOM(node).state.doc.toString(),
+        )).toBe(modified);
+        await contextToggle.click();
+        await expect(collapsed.first()).toBeVisible();
+        await expect.poll(() => currentEditor.evaluate((node) => node === window.__diffEditor)).toBe(true);
+        await expect.poll(async () => readFile(filePath, 'utf8')).toBe(modified);
+        await diffToggle.click();
+        await expect(contextToggle).toBeHidden();
+        await expect(getMergeViewEditors(page)).toHaveCount(1);
+        await expect(getCodeMirrorContent(page)).toContainText('Modified line 30');
     });
 
     test('expands and collapses side-view folder nodes', async ({ page }) => {

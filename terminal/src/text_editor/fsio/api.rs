@@ -34,6 +34,7 @@ pub(crate) fn fsio_routes(
             "/text_editor/fsio",
             Router::new()
                 .route("/download", get(download_file))
+                .route("/image", get(image_file))
                 .route("/upload", post(upload_file))
                 .with_state(server.clone()),
         )
@@ -109,4 +110,45 @@ where
         return Ok(ClientAddress::default());
     };
     serde_json::from_str(&remote).map_err(serde::de::Error::custom)
+}
+
+async fn image_file(
+    Query(path): Query<ApiFilePath>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    use base64::Engine as _;
+    use base64::prelude::BASE64_STANDARD;
+
+    let (remote, path) = path.into_remote_and_file_path();
+    let mime_type = super::image_mime_type(&path.file).ok_or_else(|| {
+        (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "Unsupported image format".into(),
+        )
+    })?;
+    let base64 = super::remote::LOAD_IMAGE_REMOTE_FN
+        .call(
+            remote.into(),
+            super::remote::LoadFileRequest {
+                path: FilePath {
+                    base: path.base.into(),
+                    file: path.file.into(),
+                },
+            },
+        )
+        .await
+        .map_err(|error| {
+            let error = tonic::Status::from(error);
+            (error.status_code(), error.to_string())
+        })?;
+    let bytes = BASE64_STANDARD
+        .decode(base64)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, mime_type),
+            (header::CACHE_CONTROL, "no-store"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        bytes,
+    ))
 }

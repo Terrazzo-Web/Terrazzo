@@ -59,6 +59,7 @@ pub struct FloatingTile {
 pub struct Tile {
     pub id: TileId,
     pub app: XSignal<App>,
+    pub app_config: XSignal<crate::tiles::app::AppConfig>,
     pub remote: XSignal<Remote>,
     pub title: XSignal<XString>,
     pub menu: MenuState,
@@ -86,10 +87,12 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
         TilesDto::Tile(TileDto {
             id,
             app,
+            app_config,
             remote,
             title,
         }) => {
             let ui_tile = if let Some(ui_tile) = signals.tile_ids.remove(id) {
+                ui_tile.app_config.set(app_config.clone());
                 ui_tile.app.set(*app);
                 ui_tile.remote.set(remote.clone());
                 ui_tile.title.set(title.clone());
@@ -98,6 +101,7 @@ fn transform(signals: &mut TileSignals, tile_tree_dto: &TilesDto) -> Tiles {
                 Tile {
                     id: *id,
                     app: XSignal::new("app", *app),
+                    app_config: XSignal::new("app-config", app_config.clone()),
                     remote: XSignal::new("remote", remote.clone()),
                     title: XSignal::new("title", title.clone().into()),
                     menu: MenuState::default(),
@@ -204,6 +208,7 @@ impl Default for Tiles {
         Tile {
             id,
             app: XSignal::new("app", App::default()),
+            app_config: XSignal::new("app-config", Default::default()),
             remote: XSignal::new("remote", Remote::default()),
             title: XSignal::new("title", format!("New tile {id}").into()),
             menu: MenuState::default(),

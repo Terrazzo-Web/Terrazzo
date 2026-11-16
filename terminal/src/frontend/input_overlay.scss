@@ -38,14 +38,22 @@
     opacity: 1;
 }
 
-.input-overlay:not(.active) .input-overlay-textarea,
+.input-overlay:not(.active) .input-overlay-compose,
 .input-overlay:not(.active) .input-overlay-send {
     display: none;
     visibility: hidden;
 }
 
-.input-overlay-textarea {
+.input-overlay-compose {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
+    min-width: 0;
+    pointer-events: auto;
+}
+
+.input-overlay-textarea {
+    height: 6rem;
     min-height: 6rem;
     padding: var(--padding);
     border: 1px solid var(--color);
@@ -53,7 +61,7 @@
     background: rgba(0, 0, 0, 0.8);
     color: color-mix(in srgb, white 50%, var(--color) 50%);
     pointer-events: auto;
-    resize: vertical;
+    resize: none;
     outline: none;
     @include trz-font;
 }

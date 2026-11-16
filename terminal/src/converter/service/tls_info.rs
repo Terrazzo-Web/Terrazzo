@@ -51,7 +51,7 @@ async fn add_tls_info_impl(input: &str, add: &mut impl AddConversionFn) -> Resul
             drop(tls_stream);
             self::tls_handshake::add_tls_handshake("TLS Server", &tcp_buffered.read_buffer, add);
             self::tls_handshake::add_tls_handshake("TLS Client", &tcp_buffered.write_buffer, add);
-            return Err(error)?;
+            return Err(error);
         }
         tls_stream?
     };

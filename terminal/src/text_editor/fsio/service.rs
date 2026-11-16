@@ -33,34 +33,59 @@ const MAX_FILES_RETURNED: usize = 1000;
 
 pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioError> {
     let path = path.full_path();
-    if let Ok(metadata) = path.metadata() {
+    if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
+            // SVGs keep their text editor alongside the rendered preview.
+            if super::image_mime_type(&path).is_some_and(|mime| mime != "image/svg+xml") {
+                return Ok(Some(File::ImageFile {
+                    metadata: FileMetadata::single(&path, &metadata).await.into(),
+                }));
+            }
             if path.extension() == Some("pdf".as_ref()) {
                 debug!("Loading PDF file {path:?}");
                 let data = tokio::fs::read(&path).await?;
                 let base64 = BASE64_STANDARD.encode(data).into();
-                reconcile_touched_path(&path);
+                reconcile_touched_path(&path).await;
                 return Ok(Some(File::PdfFile {
-                    metadata: FileMetadata::single(&path, &metadata).into(),
+                    metadata: FileMetadata::single(&path, &metadata).await.into(),
                     base64,
+                }));
+            }
+            #[cfg(feature = "converter")]
+            if super::pfx::is_pfx(&path) {
+                let content = super::pfx::load_pfx(&path, "")?.into();
+                reconcile_touched_path(&path).await;
+                return Ok(Some(File::TextFile {
+                    metadata: FileMetadata::single(&path, &metadata).await.into(),
+                    original: None,
+                    original_is_content: false,
+                    read_only: true,
+                    content,
                 }));
             }
             debug!("Loading text file {path:?}");
             let content: Arc<str> = tokio::fs::read_to_string(&path).await?.into();
-            let original = git::git_repo_root(&path)
-                .is_some()
-                .then(|| {
-                    git::file_content_at_commit(&path, "HEAD")
-                        .inspect_err(|error| warn!("Failed to load git file: {error}"))
-                        .ok()
-                })
-                .flatten()
-                .filter(|original| original != content.as_ref())
-                .map(Arc::from);
-            reconcile_touched_path(&path);
+            // Omit duplicate text; the client shares `content` for a clean Git baseline.
+            let original = if git::git_repo_root(&path).await.is_some() {
+                git::file_content_at_commit(&path, "HEAD")
+                    .await
+                    .inspect_err(|error| warn!("Failed to load git file: {error}"))
+                    .ok()
+            } else {
+                None
+            };
+            let original_is_content = original.as_deref() == Some(content.as_ref());
+            let original = if original_is_content {
+                None
+            } else {
+                original.map(Arc::from)
+            };
+            reconcile_touched_path(&path).await;
             return Ok(Some(File::TextFile {
-                metadata: FileMetadata::single(&path, &metadata).into(),
+                metadata: FileMetadata::single(&path, &metadata).await.into(),
                 original,
+                original_is_content,
+                read_only: false,
                 content,
             }));
         }
@@ -69,12 +94,15 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
             let mut files = vec![];
             let mut uids = HashMap::default();
             let mut gids = HashMap::default();
-            for file in path
-                .read_dir()?
-                .filter_map(|f| f.ok())
-                .take(MAX_FILES_SORTED)
-            {
-                files.push(FileMetadata::of(file, &mut uids, &mut gids));
+            let mut directory = tokio::fs::read_dir(&path).await?;
+            while files.len() < MAX_FILES_SORTED {
+                let Some(file) = directory.next_entry().await? else {
+                    break;
+                };
+                files.push(FileMetadata::of(file, &mut uids, &mut gids).await);
+                if files.len() % 64 == 0 {
+                    tokio::task::yield_now().await;
+                }
             }
             files.sort_by_key(|f| Reverse(f.modified));
             let mut files = files
@@ -91,9 +119,14 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
 
 pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioError> {
     let path = path.full_path();
-    if let Ok(metadata) = path.metadata() {
+    if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
-            let file_metadata = Arc::new(FileMetadata::single(&path, &metadata));
+            let file_metadata = Arc::new(FileMetadata::single(&path, &metadata).await);
+            if super::image_mime_type(&path).is_some_and(|mime| mime != "image/svg+xml") {
+                return Ok(Some(File::ImageFile {
+                    metadata: file_metadata,
+                }));
+            }
             if path.extension() == Some("pdf".as_ref()) {
                 return Ok(Some(File::PdfFile {
                     metadata: file_metadata,
@@ -103,6 +136,17 @@ pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File
             return Ok(Some(File::TextFile {
                 metadata: file_metadata,
                 original: None,
+                original_is_content: false,
+                read_only: {
+                    #[cfg(feature = "converter")]
+                    {
+                        super::pfx::is_pfx(&path)
+                    }
+                    #[cfg(not(feature = "converter"))]
+                    {
+                        false
+                    }
+                },
                 content: Arc::from(""),
             }));
         }
@@ -124,20 +168,20 @@ pub async fn list_folder(
 }
 
 pub async fn file_exists(path: FilePath<Arc<Path>>) -> Result<bool, FsioError> {
-    Ok(path.full_path().exists())
+    Ok(tokio::fs::try_exists(path.full_path()).await?)
 }
 
 pub async fn prune_side_view(
     base: Arc<Path>,
     node: Arc<SideViewNode<()>>,
 ) -> Result<Option<Arc<SideViewNode<()>>>, FsioError> {
-    let Some((node, changed)) = prune_side_view_rec(&base, &ROOT_FILE_PATH, &node) else {
+    let Some((node, changed)) = prune_side_view_rec(&base, &ROOT_FILE_PATH, &node).await else {
         return Err(FsioError::BaseFolderNotFound { base });
     };
     Ok(changed.then(|| Arc::new(node)))
 }
 
-fn prune_side_view_rec(
+async fn prune_side_view_rec(
     base: &Arc<Path>,
     file_path: &Path,
     node: &SideViewNode<()>,
@@ -147,7 +191,10 @@ fn prune_side_view_rec(
             base,
             file: file_path,
         };
-        if !(file_path.full_path().exists()) {
+        if !(tokio::fs::try_exists(file_path.full_path())
+            .await
+            .unwrap_or(false))
+        {
             return None;
         }
     }
@@ -155,9 +202,12 @@ fn prune_side_view_rec(
     let item = match &node.item {
         SvnItem::Folder { folder, notify: () } => {
             let mut pruned_folder = SideViewList::default();
-            for (name, child) in folder.iter() {
+            for (index, (name, child)) in folder.iter().enumerate() {
+                if index % 64 == 0 {
+                    tokio::task::yield_now().await;
+                }
                 let Some((child, child_changed)) =
-                    prune_side_view_rec(base, &file_path.join(name), child)
+                    Box::pin(prune_side_view_rec(base, &file_path.join(name), child)).await
                 else {
                     continue;
                 };
@@ -180,9 +230,17 @@ fn prune_side_view_rec(
 
 pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<(), FsioError> {
     let path = path.full_path();
-    return if path.exists() {
+    #[cfg(feature = "converter")]
+    if super::pfx::is_pfx(&path) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "PFX certificate views are read-only",
+        )
+        .into());
+    }
+    return if tokio::fs::try_exists(&path).await? {
         let () = tokio::fs::write(&path, content).await?;
-        reconcile_touched_path(&path);
+        reconcile_touched_path(&path).await;
         Ok(())
     } else {
         Err(FsioError::PathNotFound { path })
@@ -191,7 +249,7 @@ pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<()
 
 pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
     let name = name.trim();
-    let path = create_entry_path(path, name)?;
+    let path = create_entry_path(path, name).await?;
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -199,13 +257,13 @@ pub async fn create_file(path: FilePath<Arc<Path>>, name: String) -> Result<(), 
         .await?;
     file.write_all(&format!("-- {name} --").into_bytes())
         .await?;
-    reconcile_touched_path(&path);
+    reconcile_touched_path(&path).await;
     Ok(())
 }
 
 pub async fn create_folder(path: FilePath<Arc<Path>>, name: String) -> Result<(), FsioError> {
     let name = name.trim();
-    let path = create_entry_path(path, name)?;
+    let path = create_entry_path(path, name).await?;
     tokio::fs::create_dir(path).await?;
     Ok(())
 }
@@ -215,7 +273,7 @@ pub async fn move_file(
     destination_folder: FilePath<Arc<Path>>,
 ) -> Result<(), FsioError> {
     let source = source.full_path();
-    if !source.exists() {
+    if !tokio::fs::try_exists(&source).await? {
         return Err(FsioError::PathNotFound { path: source });
     }
     let Some(file_name) = source.file_name() else {
@@ -223,7 +281,11 @@ pub async fn move_file(
     };
 
     let destination_folder = destination_folder.full_path();
-    if !destination_folder.is_dir() {
+    if !tokio::fs::metadata(&destination_folder)
+        .await
+        .map(|metadata| metadata.is_dir())
+        .unwrap_or(false)
+    {
         return Err(FsioError::ParentNotFolder {
             path: destination_folder,
         });
@@ -234,12 +296,12 @@ pub async fn move_file(
     }
 
     tokio::fs::rename(&source, &destination).await?;
-    reconcile_touched_path(&source);
-    reconcile_touched_path(&destination);
+    reconcile_touched_path(&source).await;
+    reconcile_touched_path(&destination).await;
     Ok(())
 }
 
-fn create_entry_path(path: FilePath<Arc<Path>>, name: &str) -> Result<PathBuf, FsioError> {
+async fn create_entry_path(path: FilePath<Arc<Path>>, name: &str) -> Result<PathBuf, FsioError> {
     if name.is_empty() || Path::new(name).components().count() != 1 {
         return Err(FsioError::InvalidEntryName {
             name: name.to_owned(),
@@ -247,7 +309,11 @@ fn create_entry_path(path: FilePath<Arc<Path>>, name: &str) -> Result<PathBuf, F
     }
 
     let folder = path.full_path();
-    if folder.is_dir() {
+    if tokio::fs::metadata(&folder)
+        .await
+        .map(|metadata| metadata.is_dir())
+        .unwrap_or(false)
+    {
         Ok(folder.join(name))
     } else {
         Err(FsioError::ParentNotFolder { path: folder })
@@ -260,7 +326,7 @@ pub async fn delete_file(
     git_trash: Option<impl AsRef<Path>>,
 ) -> Result<(), FsioError> {
     let source = path.full_path();
-    if !source.exists() {
+    if !tokio::fs::try_exists(&source).await? {
         return Err(FsioError::PathNotFound { path: source });
     }
     let Some(file_name) = source.file_name() else {
@@ -271,9 +337,14 @@ pub async fn delete_file(
         &source,
         trash.as_ref(),
         git_trash.as_ref().map(AsRef::as_ref),
-    );
+    )
+    .await;
     if source.starts_with(&trash) {
-        if source.is_dir() {
+        if tokio::fs::metadata(&source)
+            .await
+            .map(|metadata| metadata.is_dir())
+            .unwrap_or(false)
+        {
             tokio::fs::remove_dir_all(source).await?;
         } else {
             tokio::fs::remove_file(source).await?;
@@ -282,13 +353,13 @@ pub async fn delete_file(
     }
     tokio::fs::create_dir_all(&trash).await?;
     let destination = trash.join(file_name);
-    if destination.exists() {
-        let metadata = destination.metadata()?;
+    if tokio::fs::try_exists(&destination).await? {
+        let metadata = tokio::fs::metadata(&destination).await?;
         let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let renamed_destination = available_trash_path(&trash, file_name, modified)?;
+        let renamed_destination = available_trash_path(&trash, file_name, modified).await?;
         tokio::fs::rename(&destination, renamed_destination).await?;
 
-        let new_destination = available_trash_path(&trash, file_name, SystemTime::now())?;
+        let new_destination = available_trash_path(&trash, file_name, SystemTime::now()).await?;
         tokio::fs::rename(source, new_destination).await?;
     } else {
         tokio::fs::rename(source, destination).await?;
@@ -296,16 +367,16 @@ pub async fn delete_file(
     Ok(())
 }
 
-fn delete_trash_path(source: &Path, trash: &Path, git_trash: Option<&Path>) -> PathBuf {
+async fn delete_trash_path(source: &Path, trash: &Path, git_trash: Option<&Path>) -> PathBuf {
     if let Some(git_trash) = git_trash
-        && let Some(repo_root) = git::git_repo_root(source)
+        && let Some(repo_root) = git::git_repo_root(source).await
     {
         return repo_root.join(git_trash);
     }
     trash.to_owned()
 }
 
-fn available_trash_path(
+async fn available_trash_path(
     trash: &Path,
     file_name: &std::ffi::OsStr,
     time: SystemTime,
@@ -323,8 +394,9 @@ fn available_trash_path(
         } else {
             format!("{name}_{date}{suffix}.{extension}")
         };
+        tokio::task::yield_now().await;
         let candidate = trash.join(candidate);
-        if !candidate.exists() {
+        if !tokio::fs::try_exists(&candidate).await? {
             return Ok(candidate);
         }
     }
@@ -393,6 +465,75 @@ mod tests {
     use std::sync::Arc;
 
     use crate::text_editor::file_path::FilePath;
+
+    #[tokio::test]
+    async fn images_load_as_metadata_and_transfer_as_base64() {
+        use crate::text_editor::fsio::File;
+        use base64::Engine as _;
+        use base64::prelude::BASE64_STANDARD;
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let bytes = [0, 255, 128, 13, 10, 42];
+        for (extension, mime) in [
+            ("gif", "image/gif"),
+            ("PNG", "image/png"),
+            ("bmp", "image/bmp"),
+            ("ico", "image/vnd.microsoft.icon"),
+            ("jpeg", "image/jpeg"),
+            ("jpg", "image/jpeg"),
+        ] {
+            let name = format!("image.{extension}");
+            let path = FilePath {
+                base: Arc::from(tempdir.path()),
+                file: Arc::from(Path::new(&name)),
+            };
+            tokio::fs::write(path.full_path(), bytes).await.unwrap();
+            assert_eq!(super::super::image_mime_type(&path.file), Some(mime));
+            assert!(matches!(
+                super::load_file(path.clone()).await.unwrap(),
+                Some(File::ImageFile { .. })
+            ));
+            assert!(matches!(
+                super::load_file_metadata(path.clone()).await.unwrap(),
+                Some(File::ImageFile { .. })
+            ));
+            let base64 = super::load_image(path).await.unwrap();
+            assert_eq!(BASE64_STANDARD.decode(&base64).unwrap(), bytes);
+            assert!(serde_json::to_string(&base64).unwrap().starts_with('"'));
+        }
+        assert_eq!(super::super::image_mime_type(Path::new("source.txt")), None);
+    }
+
+    #[tokio::test]
+    async fn svg_loads_as_text_and_transfers_as_image() {
+        use crate::text_editor::fsio::File;
+        use base64::Engine as _;
+        use base64::prelude::BASE64_STANDARD;
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let content = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>";
+        for name in ["image.svg", "image.SVG"] {
+            let path = FilePath {
+                base: Arc::from(tempdir.path()),
+                file: Arc::from(Path::new(name)),
+            };
+            tokio::fs::write(path.full_path(), content).await.unwrap();
+            assert_eq!(
+                super::super::image_mime_type(&path.file),
+                Some("image/svg+xml")
+            );
+            assert!(matches!(
+                super::load_file(path.clone()).await.unwrap(),
+                Some(File::TextFile { content: loaded, .. }) if loaded.as_ref() == content
+            ));
+            assert!(matches!(
+                super::load_file_metadata(path.clone()).await.unwrap(),
+                Some(File::TextFile { .. })
+            ));
+            let base64 = super::load_image(path).await.unwrap();
+            assert_eq!(BASE64_STANDARD.decode(base64).unwrap(), content.as_bytes());
+        }
+    }
 
     #[tokio::test]
     async fn create_file_in_folder() {
@@ -627,4 +768,10 @@ mod tests {
             "deleted"
         );
     }
+}
+
+#[nameth]
+pub(super) async fn load_image(path: FilePath<Arc<Path>>) -> Result<String, FsioError> {
+    let data = tokio::fs::read(path.full_path()).await?;
+    Ok(BASE64_STANDARD.encode(data))
 }

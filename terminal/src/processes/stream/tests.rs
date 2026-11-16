@@ -77,6 +77,7 @@ async fn canceled_reconnect_preserves_terminal_process() {
         },
         order: 0,
         tile: TileId::first_tile_id(),
+        base_path: None,
     };
     let terminal_id = &terminal_def.address.id;
     defer! {

@@ -43,3 +43,13 @@ impl std::fmt::Display for App {
         .fmt(f)
     }
 }
+
+/// Persisted settings for the apps hosted by a tile.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct AppConfig {
+    #[cfg(feature = "text-editor")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub editor_path:
+        Option<crate::text_editor::file_path::FilePath<std::sync::Arc<std::path::Path>>>,
+}

@@ -11,6 +11,7 @@ fn add_remove() {
     let tree = Arc::new(Tiles::Tile(Tile {
         id: TileId::for_test(1),
         app: Default::default(),
+        app_config: Default::default(),
         remote: Default::default(),
         title: Default::default(),
     }));
@@ -69,6 +70,7 @@ fn split_preserves_app() {
                 let tree = Arc::new(Tiles::Tile(Tile {
                     id: TileId::for_test(1),
                     app,
+                    app_config: Default::default(),
                     remote: Default::default(),
                     title: "Original".into(),
                 }));

@@ -38,7 +38,7 @@ pub fn create_entry_controls(
     let EditorState::Data(data) = editor_state else {
         return tag(style::display = "none", style::visibility = "hidden");
     };
-    if !matches!(&*data.data, File::Folder(_)) {
+    if !matches!(&*data.data.get_value_untracked(), File::Folder(_)) {
         return tag(style::display = "none", style::visibility = "hidden");
     }
 

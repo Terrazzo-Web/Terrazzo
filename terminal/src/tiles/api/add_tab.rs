@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::Direction;
 use super::Tile;
 use super::Tiles;
-use super::state::TREE;
+use super::state::TilesLockGuard;
 use super::state::TilesStateError;
 use super::transform::try_transform_first;
 use crate::tiles::app::App;
@@ -15,7 +15,7 @@ pub fn add_tab(
     array_id: TileId,
     after_child: Option<TileId>,
 ) -> Result<(Arc<Tiles>, TileId), TilesStateError> {
-    let mut lock = TREE.lock().map_err(|_| TilesStateError::PoisonError)?;
+    let mut lock = TilesLockGuard::new()?;
     let tree = lock.clone().unwrap_or_default();
     let new_id = TileId::new();
     let tree = try_transform_first(tree, &mut |tree| {
@@ -36,6 +36,7 @@ pub fn add_tab(
         let new = Arc::new(Tiles::Tile(Tile {
             id: new_id,
             app: App::Default,
+            app_config: Default::default(),
             remote: Default::default(),
             title: format!("New tab {new_id}").into(),
         }));

@@ -26,6 +26,9 @@ mod release_on_drop;
 pub mod size;
 mod tail;
 
+pub use self::tail::OutputSnapshot;
+pub use self::tail::TerminalOutputBuffer;
+
 pub const TERRAZZO_CLIENT_NAME: &str = "TERRAZZO_CLIENT_NAME";
 
 pub struct ProcessIO {

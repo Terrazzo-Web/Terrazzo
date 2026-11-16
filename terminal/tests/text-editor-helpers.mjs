@@ -45,7 +45,7 @@ function getBasePathDisplay(page) {
 }
 
 export function getCodeMirrorContent(page) {
-    return page.locator('.code-mirror-editor .cm-content');
+    return page.locator('.code-mirror-editor .cm-content:visible');
 }
 
 export function getCodeMirrorSearchPanel(page) {
@@ -53,7 +53,7 @@ export function getCodeMirrorSearchPanel(page) {
 }
 
 export function getMergeViewEditors(page) {
-    return page.locator('.code-mirror-editor .cm-mergeViewEditor');
+    return page.locator('.code-mirror-editor .cm-mergeViewEditor:visible');
 }
 
 export function getMilkdownWysiwyg(page) {
@@ -65,11 +65,11 @@ export function getMilkdownContent(page) {
 }
 
 export function getMilkdownSource(page) {
-    return page.locator('.milkdown-editor .milkdown-source-pane .cm-content');
+    return page.locator('.milkdown-editor .milkdown-source-pane .cm-editor:not(.cm-merge-a) .cm-content');
 }
 
 export function getMilkdownMergeViewEditors(page) {
-    return page.locator('.milkdown-editor .milkdown-source-pane .cm-mergeViewEditor');
+    return page.locator('.milkdown-editor .milkdown-source-pane .cm-mergeViewEditor:visible');
 }
 
 export function editorFindShortcut() {
@@ -312,13 +312,13 @@ async function git(cwd, args) {
     await execFileAsync('git', args, { cwd });
 }
 
-export async function createCommittedReadme(fileName = 'README.md') {
+export async function createCommittedReadme(fileName = 'README.md', content = 'Hello, World!') {
     const baseDir = await mkdtemp(path.join(process.env.TEST_TMPDIR ?? tmpdir(), 'text-editor-git-'));
     const filePath = path.join(baseDir, fileName);
     await git(baseDir, ['init']);
     await git(baseDir, ['config', 'user.email', 'test@example.com']);
     await git(baseDir, ['config', 'user.name', 'Test User']);
-    await writeFile(filePath, 'Hello, World!');
+    await writeFile(filePath, content);
     await git(baseDir, ['add', fileName]);
     await git(baseDir, ['commit', '-m', 'Add README']);
     return { baseDir, fileName, filePath };

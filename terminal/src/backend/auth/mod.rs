@@ -71,8 +71,8 @@ impl AuthConfig {
         validation.validate_nbf = true;
         validation.leeway = 15;
         Self {
-            encoding_key: EncodingKey::from_secret(secret),
-            decoding_key: DecodingKey::from_secret(secret),
+            encoding_key: EncodingKey::from_secret(secret).expect("nonempty authentication secret"),
+            decoding_key: DecodingKey::from_secret(secret).expect("nonempty authentication secret"),
             validation,
             token_lifetime: DEFAULT_TOKEN_LIFETIME,
             token_refresh: DEFAULT_TOKEN_REFRESH,

@@ -41,9 +41,31 @@ div.folder {
                 white-space: nowrap;
             }
 
+            td.file-type {
+                width: 1%;
+                text-align: center;
+
+                >img {
+                    display: block;
+                    width: 1.25rem;
+                    height: 1.25rem;
+                }
+            }
+
             td.folder-actions {
                 width: 1%;
                 text-align: right;
+            }
+
+            img.svg-preview {
+                width: 2rem;
+                height: 2rem;
+                object-fit: contain;
+                vertical-align: middle;
+                margin-left: var(--padding);
+                background-color: white;
+                background-image: conic-gradient(#ddd 25%, white 0 50%, #ddd 0 75%, white 0);
+                background-size: 0.5rem 0.5rem;
             }
 
             img.download-action,

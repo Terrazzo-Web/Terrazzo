@@ -18,7 +18,7 @@ mod mutate;
 mod remove;
 mod select_child;
 mod set_tab_title;
-mod state;
+pub(crate) mod state;
 mod tests;
 mod transform;
 
@@ -127,6 +127,7 @@ pub async fn set_app(id: TileId, app: App) -> Result<Arc<Tiles>, ServerFnError> 
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app,
+        app_config: tile.app_config.clone(),
         remote: tile.remote.clone(),
         title: tile.title.clone(),
     })?)
@@ -137,6 +138,7 @@ pub async fn set_title(id: TileId, title: Arc<str>) -> Result<Arc<Tiles>, Server
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
+        app_config: tile.app_config.clone(),
         remote: tile.remote.clone(),
         title: title.clone(),
     })?)
@@ -147,9 +149,38 @@ pub async fn set_remote(id: TileId, remote: ClientAddress) -> Result<Arc<Tiles>,
     Ok(mutate::mutate_node(id, |tile| Tile {
         id: tile.id,
         app: tile.app,
+        app_config: if remote == tile.remote {
+            tile.app_config.clone()
+        } else {
+            Default::default()
+        },
         remote,
         title: tile.title.clone(),
     })?)
+}
+
+#[cfg(feature = "text-editor")]
+#[server(protocol = Http<Json, Json>)]
+pub async fn set_editor_path(
+    id: TileId,
+    remote: ClientAddress,
+    path: crate::text_editor::file_path::FilePath<Arc<std::path::Path>>,
+) -> Result<(), ServerFnError> {
+    mutate::mutate_node(id, |tile| Tile {
+        id: tile.id,
+        app: tile.app,
+        remote: tile.remote.clone(),
+        title: tile.title.clone(),
+        // A request from an editor that was replaced by a remote change is stale.
+        app_config: {
+            let mut config = tile.app_config.clone();
+            if tile.remote == remote {
+                config.editor_path = Some(path);
+            }
+            config
+        },
+    })?;
+    Ok(())
 }
 
 // Basic
@@ -210,6 +241,8 @@ pub struct Tile {
     pub id: TileId,
     pub app: App,
     #[serde(default)]
+    pub app_config: super::app::AppConfig,
+    #[serde(default)]
     pub remote: ClientAddress,
     #[serde(default)]
     pub title: Arc<str>,
@@ -234,6 +267,7 @@ impl Default for Tiles {
         Tile {
             id: TileId::first_tile_id(),
             app: Default::default(),
+            app_config: Default::default(),
             remote: Default::default(),
             title: "New tile".into(),
         }

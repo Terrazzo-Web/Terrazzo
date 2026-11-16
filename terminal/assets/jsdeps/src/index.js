@@ -1,6 +1,8 @@
 // JsDeps
+import * as SnapshotAdapter from "../../../src/terminal/snapshot.js";
 
 import { Terminal } from '@xterm/xterm';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
@@ -31,10 +33,13 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 
 import { cpp } from "@codemirror/lang-cpp"
+import { StreamLanguage } from "@codemirror/language"
+import { csharp } from "@codemirror/legacy-modes/mode/clike"
 import { css } from "@codemirror/lang-css"
 import { go } from "@codemirror/lang-go"
 import { html } from "@codemirror/lang-html"
 import { java } from "@codemirror/lang-java"
+import { javascript } from "@codemirror/lang-javascript"
 import { json } from "@codemirror/lang-json"
 import { markdown } from "@codemirror/lang-markdown"
 import { python } from "@codemirror/lang-python"
@@ -46,11 +51,14 @@ import { rust } from "@codemirror/lang-rust"
 import { CodeMirrorJsImpl } from "../../../src/text_editor/ui/code_mirror.js";
 
 const languages = {
-    cpp, "c++": cpp, "h": cpp, "hpp": cpp,
+    cs: () => StreamLanguage.define(csharp),
+    c: cpp, cpp, "c++": cpp, "h": cpp, "hpp": cpp,
     css,
     go,
     html,
     java,
+    js: javascript,
+    ts: () => javascript({ typescript: true }),
     json,
     md: markdown,
     py: python,
@@ -69,6 +77,8 @@ const Milkdown = {
 export {
     Terminal,
     FitAddon,
+    SerializeAddon,
+    SnapshotAdapter,
     WebLinksAddon,
 
     Milkdown,

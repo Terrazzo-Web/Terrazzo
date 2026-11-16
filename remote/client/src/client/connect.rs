@@ -91,9 +91,10 @@ mod create_tunnel {
     //!
     //! Node dependencies (arrows point from a dependency to its consumer):
     //!
-    //! ```text
-    //! websocket_url --> tls_request --> web_socket --> run
-    //! request --> connect_tcp --> connect_transport --> socket --> web_socket
+    //! ```graph
+    //!                            websocket_url ──→ tls_request ──→┬── web_socket ──→ run
+    //!                                                             │
+    //! request ──→ connect_tcp ──→ connect_transport ──→ socket ──→┘
     //! ```
     //!
     //! `gateway_client` supplies `websocket_url`, `request`, `connect_transport`, and

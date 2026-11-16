@@ -136,11 +136,44 @@ body {
 }
 
 @mixin trz-focusable {
-    &:not(:focus-within) {
-        opacity: 0.8;
+    position: relative;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        // Paint inside the overlay so the gradient never changes content geometry.
+        background:
+            linear-gradient(to bottom, green, transparent) top / 100% 10px,
+            linear-gradient(to top, green, transparent) bottom / 100% 10px,
+            linear-gradient(to right, green, transparent) left / 10px 100%,
+            linear-gradient(to left, green, transparent) right / 10px 100%;
+        background-repeat: no-repeat;
+        pointer-events: none;
+        z-index: 10;
+        opacity: 0;
     }
 
-    transition: opacity 0.2s ease;
+    &:focus-within::after {
+        animation: trz-focus-flash 1.5s ease;
+    }
+
+    &:not(:focus-within) {
+        opacity: 0.7;
+    }
+
+    transition: opacity 0.3s ease;
+}
+
+@keyframes trz-focus-flash {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
 }
 
 @mixin trz-bg-transition {

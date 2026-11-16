@@ -73,7 +73,7 @@ pub struct TerminalBackendServer {
     pub active_challenges: ActiveChallenges,
 }
 
-type TlsConfig = EitherConfig<
+pub(super) type TlsConfig = EitherConfig<
     SecurityConfig<PrivateRootCa, CachedCertificate>,
     SecurityConfig<NativeTrustedStoreConfig, AcmeCertificateConfig<Arc<FsPath>>>,
 >;

@@ -174,6 +174,20 @@ playwright_matrix_test(
 
 playwright_matrix_test(
     overrides = {
+        "tile-nesting-integration-test-debug": {
+            "target_server": ":terminal-server-debug",
+        },
+        "tile-nesting-integration-test-release": {
+            "target_server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-tile-nesting.spec.mjs",
+)
+
+playwright_matrix_test(
+    overrides = {
         "tile-move-integration-test-debug": {
             "target_server": ":terminal-server-debug",
         },
@@ -198,6 +212,21 @@ playwright_matrix_test(
     },
     server = "//terminal/integration:exec",
     test = "tests/integration-test-password-update.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "tile-persistence-integration-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "tile-persistence-integration-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-tile-persistence.spec.mjs",
 )
 
 playwright_matrix_test(
@@ -276,4 +305,67 @@ playwright_matrix_test(
     },
     server = "//terminal/integration:exec",
     test = "tests/integration-test-text-editor-viewer.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "editor-debounce-test-debug": {
+            "target_server": ":text-editor-server-debug",
+        },
+        "editor-debounce-test-release": {
+            "target_server": ":text-editor-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-editor-debounce.spec.mjs",
+)
+
+playwright_matrix_test(
+    extra_data = [
+        "//terminal/integration:mouse-tui",
+        "assets/jsdeps/dist/jsdeps.js",
+        "src/terminal/snapshot.js",
+        "src/terminal/javascript.js",
+    ],
+    overrides = {
+        "terminal-snapshot-integration-test-debug": {
+            "target_server": ":terminal-server-debug",
+        },
+        "terminal-snapshot-integration-test-release": {
+            "target_server": ":terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-terminal-snapshot.spec.mjs",
+)
+
+# Exercise the editor/terminal integration with development DOM selectors enabled.
+terminal_rules(
+    client_deps = ["//utils/nameth/nameth"] + TERMINAL_CLIENT_DEPS + TEXT_EDITOR_CLIENT_DEPS,
+    client_features = TERMINAL_CLIENT_FEATURES + TEXT_EDITOR_CLIENT_FEATURES,
+    prefix = "editor-terminal",
+    server_deps = [
+        ":protos",
+        "//remote/server:acme",
+        "//utils/nameth/nameth",
+    ] + TERMINAL_SERVER_DEPS + TEXT_EDITOR_SERVER_DEPS,
+    server_features = TERMINAL_SERVER_FEATURES + TEXT_EDITOR_SERVER_FEATURES,
+)
+
+playwright_matrix_test(
+    extra_data = ["tests/text-editor-helpers.mjs"],
+    overrides = {
+        "editor-terminal-integration-test-debug": {
+            "target_server": ":editor-terminal-server-debug",
+        },
+        "editor-terminal-integration-test-release": {
+            "target_server": ":editor-terminal-server",
+            "tags": ["opt_mode"],
+        },
+    },
+    server = "//terminal/integration:exec",
+    test = "tests/integration-test-editor-terminal.spec.mjs",
 )

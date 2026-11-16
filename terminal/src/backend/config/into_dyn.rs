@@ -318,6 +318,11 @@ fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
             let result = get_or_init(old, &mut result);
             result.terminal_shell = new.terminal_shell.clone();
         }
+        if new.terminal_cd != old.terminal_cd {
+            info!("Changed: terminal_cd");
+            let result = get_or_init(old, &mut result);
+            result.terminal_cd = new.terminal_cd.clone();
+        }
         if new.trash != old.trash {
             info!("Changed: trash");
             let result = get_or_init(old, &mut result);

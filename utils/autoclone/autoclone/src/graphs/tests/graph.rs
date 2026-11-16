@@ -478,6 +478,7 @@ mod make_app {
 #[test]
 fn topological_order_accepts_shared_dependencies_and_external_inputs() {
     let sample = quote! {
+        #[doc = "```graph\nrun <-- left\nrun <-- right\nleft <-- shared\nright <-- shared\nunrelated\n```"]
         mod graph {
             pub fn run(left: usize, right: usize) -> usize { left + right }
             fn unrelated() {}
@@ -554,7 +555,12 @@ fn topological_order_diagnostic_names_caller_and_dependency() {
 
 #[track_caller]
 fn run_test(args: proc_macro2::TokenStream, sample: proc_macro2::TokenStream, expected: &str) {
-    let actual = super::super::graph2(args, sample).unwrap();
+    // These fixtures isolate code generation; visual validation has dedicated tests.
+    let _ = args;
+    let mut graph = super::super::graph::Graph::new(sample).unwrap();
+    graph.record_functions().unwrap();
+    graph.process_functions();
+    let actual = graph.into_token_stream().unwrap();
     let actual = syn::parse2(actual.clone())
         .map(|mut item| {
             RemoveCfgAttr.visit_item_mut(&mut item);

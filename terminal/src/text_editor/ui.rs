@@ -1,7 +1,9 @@
 #![cfg(feature = "client")]
 
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use nameth::nameth;
@@ -11,6 +13,7 @@ use terrazzo::autoclone;
 use terrazzo::html;
 use terrazzo::prelude::*;
 use terrazzo::template;
+use terrazzo::widgets::debounce::DoDebounce as _;
 use terrazzo::widgets::element_capture::ElementCapture;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
@@ -57,11 +60,15 @@ use crate::tiles::signals::TilePtr;
 mod code_mirror;
 pub mod drag;
 mod editor;
+mod editor_render;
 mod folder;
 mod html_viewer;
+mod image_viewer;
 mod milkdown;
 mod pdf_viewer;
 pub(super) mod side_view;
+#[cfg(feature = "terminal")]
+mod terminal;
 
 pub(super) const STORE_FILE_DEBOUNCE_DELAY: Duration = if cfg!(debug_assertions) {
     Duration::from_millis(1500)
@@ -84,6 +91,7 @@ pub fn text_editor(tile: TilePtr) -> XElement {
 #[template(tag = div)]
 fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
     let manager = Ptr::new(TextEditorManager {
+        flush_editor: Default::default(),
         tile,
         remote: remote.clone(),
         path: FilePath {
@@ -93,6 +101,7 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
         force_edit_path: XSignal::new("force-edit-path", false),
         editor_state: XSignal::new("editor-state", EditorState::default()),
         show_editor_diff: XSignal::new("show-editor-diff", false),
+        collapse_unchanged: XSignal::new("collapse-unchanged", true),
         show_html_preview: XSignal::new("show-html-preview", PreviewMode::default()),
         synchronized_state: XSignal::new("synchronized-state", SynchronizedState::Sync),
         side_view: XSignal::new("side-view", None),
@@ -146,16 +155,21 @@ fn text_editor_impl(tile: TilePtr, #[signal] remote: Remote) -> XElement {
                 manager.editor_state.clone(),
                 manager.show_html_preview.clone(),
             ),
-            toggle_editor_diff(
+            editor_diff_controls(
                 manager.editor_state.clone(),
                 manager.show_editor_diff.clone(),
                 manager.show_html_preview.clone(),
+                manager.collapse_unchanged.clone(),
             ),
+            #[cfg(feature = "terminal")]
+            manager.terminal_toggle(),
             manager.refresh_editor(),
             show_synchronized_state(manager.synchronized_state.clone()),
             show_remote(manager.tile.remote.clone()),
         ),
-        editor_body(manager),
+        editor_body(manager.clone()),
+        #[cfg(feature = "terminal")]
+        manager.terminal_panel(),
         after_render = move |_| {
             let _moved = &consumers;
         },
@@ -232,31 +246,77 @@ fn toggle_html_preview(
 
 #[html]
 #[template(tag = span)]
-fn toggle_editor_diff(
+fn editor_diff_controls(
     #[signal] editor_state: EditorState,
     show_editor_diff: XSignal<bool>,
     #[signal] show_html_preview: PreviewMode,
+    collapse_unchanged: XSignal<bool>,
 ) -> XElement {
-    let has_diff = match editor_state {
-        EditorState::Data(_)
-            if editor_state.supports_preview() && !show_html_preview.shows_editor() =>
-        {
-            false
-        }
-        EditorState::Data(editor_state) => match &*editor_state.data {
-            fsio::File::TextFile {
-                original: Some(original),
-                content,
-                ..
-            } => original != content,
-            _ => false,
-        },
-        _ => false,
+    let preview_only = editor_state.supports_preview() && !show_html_preview.shows_editor();
+    let EditorState::Data(editor) = editor_state else {
+        return tag(style::display = "none");
     };
-    if !has_diff {
-        return tag(style::display = "none", style::visibility = "hidden");
+    if preview_only {
+        return tag(style::display = "none");
     }
+    let file = editor.data.get_value_untracked();
+    let has_diff = XSignal::new("diff-available", file_has_diff(&file));
+    let generation = Arc::new(AtomicU32::new(0));
+    let registration = editor.data.add_subscriber({
+        let has_diff = has_diff.clone();
+        let data = editor.data.clone();
+        move |_| {
+            use std::sync::atomic::Ordering::SeqCst;
+            let version = generation.fetch_add(1, SeqCst) + 1;
+            let generation = generation.clone();
+            let has_diff = has_diff.clone();
+            let data = data.clone();
+            spawn_local(async move {
+                if terrazzo::widgets::sleep::sleep(Duration::from_millis(150))
+                    .await
+                    .is_ok()
+                    && generation.load(SeqCst) == version
+                {
+                    has_diff.set(file_has_diff(&data.get_value_untracked()));
+                }
+            });
+        }
+    });
+    tag(
+        class = style::DIFF_CONTROLS,
+        diff_controls(has_diff, show_editor_diff, collapse_unchanged),
+        after_render = move |_| {
+            let _keep = &registration;
+        },
+    )
+}
 
+fn file_has_diff(file: &fsio::File) -> bool {
+    match file {
+        fsio::File::TextFile { content, .. } => file.has_diff(content),
+        _ => false,
+    }
+}
+
+#[html]
+#[template(tag = span)]
+fn diff_controls(
+    #[signal] has_diff: bool,
+    show_editor_diff: XSignal<bool>,
+    collapse_unchanged: XSignal<bool>,
+) -> XElement {
+    if !has_diff {
+        return tag(style::display = "none");
+    }
+    tag(
+        class = style::DIFF_CONTROLS,
+        toggle_unchanged_regions(show_editor_diff.clone(), collapse_unchanged),
+        toggle_editor_diff(show_editor_diff),
+    )
+}
+
+#[html]
+fn toggle_editor_diff(show_editor_diff: XSignal<bool>) -> XElement {
     #[template(wrap = true)]
     fn make_class(#[signal] show_editor_diff: bool) -> XAttributeValue {
         show_editor_diff.then_some(style::ACTIVE)
@@ -271,7 +331,7 @@ fn toggle_editor_diff(
         }
     }
 
-    return img(
+    img(
         class = style::TOGGLE_EDITOR_DIFF,
         class %= make_class(show_editor_diff.clone()),
         #[cfg(not(feature = "client-prod"))]
@@ -279,7 +339,42 @@ fn toggle_editor_diff(
         src = icons::diff(),
         title %= make_title(show_editor_diff.clone()),
         click = move |_| show_editor_diff.update(|show| Some(!show)),
-    );
+    )
+}
+
+#[html]
+#[template(tag = span)]
+fn toggle_unchanged_regions(
+    #[signal] show_editor_diff: bool,
+    collapse_unchanged: XSignal<bool>,
+) -> XElement {
+    if !show_editor_diff {
+        return tag(style::display = "none");
+    }
+    #[template(wrap = true)]
+    fn make_src(#[signal] collapse_unchanged: bool) -> XAttributeValue {
+        if collapse_unchanged {
+            icons::chevron_bar_expand()
+        } else {
+            icons::chevron_bar_contract()
+        }
+    }
+    #[template(wrap = true)]
+    fn make_title(#[signal] collapse_unchanged: bool) -> XAttributeValue {
+        if collapse_unchanged {
+            "Show unchanged regions"
+        } else {
+            "Hide unchanged regions"
+        }
+    }
+    img(
+        class = style::TOGGLE_EDITOR_DIFF,
+        #[cfg(not(feature = "client-prod"))]
+        class = "toggle-unchanged-regions",
+        src %= make_src(collapse_unchanged.clone()),
+        title %= make_title(collapse_unchanged.clone()),
+        click = move |_| collapse_unchanged.update(|collapse| Some(!collapse)),
+    )
 }
 
 #[html]
@@ -290,12 +385,18 @@ fn editor_container(
     #[signal] show_editor_diff: bool,
     #[signal] show_html_preview: PreviewMode,
 ) -> XElement {
+    // Flush before taking the content snapshot for a replacement editor.
+    manager.flush_editor();
     let body = match editor_state {
-        EditorState::Data(editor_state) => match &*editor_state.data {
+        EditorState::Data(editor_state) => match &*editor_state.data.get_value_untracked() {
             fsio::File::TextFile {
-                original, content, ..
+                original,
+                content,
+                read_only,
+                ..
             } => {
                 let editor_document = EditorDocument::Text {
+                    read_only: *read_only,
                     original: original.clone(),
                     content: content.clone(),
                 };
@@ -307,6 +408,13 @@ fn editor_container(
                     show_html_preview,
                 )
             }
+            fsio::File::ImageFile { .. } => editor(
+                manager,
+                editor_state,
+                EditorDocument::Image,
+                show_editor_diff,
+                show_html_preview,
+            ),
             fsio::File::PdfFile { base64, .. } => {
                 let base64 = base64.clone();
                 editor(
@@ -361,6 +469,7 @@ impl TextEditorManager {
             let registrations = Consumers::default().append(this.make_file_async_view());
             let registrations = guard(registrations, |registrations| {
                 *consumers.lock().unwrap() = registrations
+                    .append(this.save_editor_path_on_change())
                     .append(this.save_on_change(this.path.base.clone(), state::base_path::set))
                     .append(this.save_on_change(this.path.file.clone(), state::file_path::set))
                     .append(this.save_on_change(
@@ -409,7 +518,14 @@ impl TextEditorManager {
             )
             .await;
             let (get_side_view, get_base_path, get_file_path, get_search) = get_paths;
-            let base_path = get_base_path.as_ref().ok().cloned();
+            let saved_path = this.tile.app_config.get_value_untracked().editor_path;
+            let base_path = saved_path
+                .as_ref()
+                .map(|path| path.base.clone())
+                .or_else(|| get_base_path.as_ref().ok().cloned());
+            let file_path = saved_path
+                .map(|path| path.file)
+                .or_else(|| get_file_path.ok());
             let side_view = if let Ok(side_view) = get_side_view {
                 debug!("Setting side_view to {side_view:?}");
                 let base_path = base_path
@@ -438,7 +554,7 @@ impl TextEditorManager {
             if let Some(p) = base_path {
                 this.path.base.force(p);
             }
-            if let Ok(p) = get_file_path {
+            if let Some(p) = file_path {
                 this.path.file.force(p);
             }
             if let Some((base_path, side_view)) = side_view {
@@ -517,7 +633,9 @@ impl TextEditorManager {
                 }
 
                 if let Some(
-                    fsio::File::TextFile { metadata, .. } | fsio::File::PdfFile { metadata, .. },
+                    fsio::File::TextFile { metadata, .. }
+                    | fsio::File::PdfFile { metadata, .. }
+                    | fsio::File::ImageFile { metadata, .. },
                 ) = data.as_deref()
                 {
                     let metadata = metadata.clone();
@@ -531,15 +649,24 @@ impl TextEditorManager {
                     });
                 }
 
+                let batch = Batch::use_batch("Update editor document");
+                let has_diff = match data.as_deref() {
+                    Some(file @ fsio::File::TextFile { content, .. }) => file.has_diff(content),
+                    _ => false,
+                };
+                if !has_diff {
+                    this.show_editor_diff.set(false);
+                }
                 if let Some(data) = data {
                     this.editor_state.force(EditorState::Data(EditorDataState {
                         path,
-                        data,
+                        data: XSignal::new("editor-document", data),
                         cursor_position,
                     }))
                 } else {
                     this.editor_state.force(EditorState::default());
                 }
+                drop(batch);
                 drop(loading);
                 drop(end);
             };
@@ -566,6 +693,41 @@ impl TextEditorManager {
                     .unwrap_or_else(|error| warn!("Failed to save: {error}"));
             })
         })
+    }
+
+    fn save_editor_path_on_change(self: &Ptr<Self>) -> Consumers {
+        let tile_id = self.tile.id;
+        let remote = self.remote.clone();
+        // Serialize saves for both selectors so base-path resets and rapid navigation
+        // cannot leave an older file selection on disk.
+        let save = Rc::new(Duration::from_millis(100).async_debounce(move |path| {
+            let remote = remote.clone();
+            async move {
+                if let Err(error) = crate::tiles::api::set_editor_path(tile_id, remote, path).await
+                {
+                    warn!("Failed to save editor path: {error}");
+                }
+            }
+        }));
+        let mut consumers = Consumers::default();
+        for signal in [self.path.base.clone(), self.path.file.clone()] {
+            let this = self.clone();
+            let save = save.clone();
+            consumers = consumers.append(signal.add_subscriber(move |_| {
+                let path = FilePath {
+                    base: this.path.base.get_value_untracked(),
+                    file: this.path.file.get_value_untracked(),
+                };
+                let mut config = this.tile.app_config.get_value_untracked();
+                config.editor_path = Some(path.clone());
+                this.tile.app_config.set(config);
+                let saving = save(path);
+                spawn_local(async move {
+                    saving.await;
+                });
+            }));
+        }
+        consumers
     }
 
     #[autoclone]
@@ -604,7 +766,7 @@ fn is_focusable(
     let EditorState::Data(EditorDataState { data, .. }) = &state else {
         return None;
     };
-    let fsio::File::TextFile { .. } = **data else {
+    let fsio::File::TextFile { .. } = *data.get_value_untracked() else {
         return None;
     };
     let is_html_preview = state.is_html() && show_html_preview == PreviewMode::Preview;

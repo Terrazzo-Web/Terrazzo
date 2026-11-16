@@ -449,6 +449,8 @@ mod tests {
             ("ico", "image/vnd.microsoft.icon"),
             ("jpeg", "image/jpeg"),
             ("jpg", "image/jpeg"),
+            ("svg", "image/svg+xml"),
+            ("SVG", "image/svg+xml"),
         ] {
             let name = format!("image.{extension}");
             let path = FilePath {
@@ -469,7 +471,6 @@ mod tests {
             assert_eq!(BASE64_STANDARD.decode(&base64).unwrap(), bytes);
             assert!(serde_json::to_string(&base64).unwrap().starts_with('"'));
         }
-        assert_eq!(super::super::image_mime_type(Path::new("source.svg")), None);
         assert_eq!(super::super::image_mime_type(Path::new("source.txt")), None);
     }
 

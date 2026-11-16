@@ -57,6 +57,17 @@ div.folder {
                 text-align: right;
             }
 
+            img.svg-preview {
+                width: 2rem;
+                height: 2rem;
+                object-fit: contain;
+                vertical-align: middle;
+                margin-left: var(--padding);
+                background-color: white;
+                background-image: conic-gradient(#ddd 25%, white 0 50%, #ddd 0 75%, white 0);
+                background-size: 0.5rem 0.5rem;
+            }
+
             img.download-action,
             img.trash-action {
                 width: 1rem;

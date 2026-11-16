@@ -35,7 +35,8 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
     let path = path.full_path();
     if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
-            if super::image_mime_type(&path).is_some() {
+            // SVGs keep their text editor alongside the rendered preview.
+            if super::image_mime_type(&path).is_some_and(|mime| mime != "image/svg+xml") {
                 return Ok(Some(File::ImageFile {
                     metadata: FileMetadata::single(&path, &metadata).await.into(),
                 }));
@@ -108,7 +109,7 @@ pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File
     if let Ok(metadata) = tokio::fs::metadata(&path).await {
         if metadata.is_file() {
             let file_metadata = Arc::new(FileMetadata::single(&path, &metadata).await);
-            if super::image_mime_type(&path).is_some() {
+            if super::image_mime_type(&path).is_some_and(|mime| mime != "image/svg+xml") {
                 return Ok(Some(File::ImageFile {
                     metadata: file_metadata,
                 }));
@@ -449,8 +450,6 @@ mod tests {
             ("ico", "image/vnd.microsoft.icon"),
             ("jpeg", "image/jpeg"),
             ("jpg", "image/jpeg"),
-            ("svg", "image/svg+xml"),
-            ("SVG", "image/svg+xml"),
         ] {
             let name = format!("image.{extension}");
             let path = FilePath {
@@ -472,6 +471,37 @@ mod tests {
             assert!(serde_json::to_string(&base64).unwrap().starts_with('"'));
         }
         assert_eq!(super::super::image_mime_type(Path::new("source.txt")), None);
+    }
+
+    #[tokio::test]
+    async fn svg_loads_as_text_and_transfers_as_image() {
+        use crate::text_editor::fsio::File;
+        use base64::Engine as _;
+        use base64::prelude::BASE64_STANDARD;
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let content = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>";
+        for name in ["image.svg", "image.SVG"] {
+            let path = FilePath {
+                base: Arc::from(tempdir.path()),
+                file: Arc::from(Path::new(name)),
+            };
+            tokio::fs::write(path.full_path(), content).await.unwrap();
+            assert_eq!(
+                super::super::image_mime_type(&path.file),
+                Some("image/svg+xml")
+            );
+            assert!(matches!(
+                super::load_file(path.clone()).await.unwrap(),
+                Some(File::TextFile { content: loaded, .. }) if loaded.as_ref() == content
+            ));
+            assert!(matches!(
+                super::load_file_metadata(path.clone()).await.unwrap(),
+                Some(File::TextFile { .. })
+            ));
+            let base64 = super::load_image(path).await.unwrap();
+            assert_eq!(BASE64_STANDARD.decode(base64).unwrap(), content.as_bytes());
+        }
     }
 
     #[tokio::test]

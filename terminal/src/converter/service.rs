@@ -23,6 +23,9 @@ mod tls_info;
 mod unescaped;
 mod x509;
 
+#[cfg(feature = "text-editor")]
+pub(crate) use self::x509::certificate_text as certificate_text_for_export;
+
 #[nameth]
 pub async fn get_conversions(input: Arc<str>) -> Result<Conversions, Status> {
     let mut conversions = vec![];

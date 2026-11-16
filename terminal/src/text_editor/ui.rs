@@ -390,9 +390,13 @@ fn editor_container(
     let body = match editor_state {
         EditorState::Data(editor_state) => match &*editor_state.data.get_value_untracked() {
             fsio::File::TextFile {
-                original, content, ..
+                original,
+                content,
+                read_only,
+                ..
             } => {
                 let editor_document = EditorDocument::Text {
+                    read_only: *read_only,
                     original: original.clone(),
                     content: content.clone(),
                 };

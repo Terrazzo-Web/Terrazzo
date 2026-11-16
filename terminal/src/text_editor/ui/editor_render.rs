@@ -65,6 +65,7 @@ pub(super) struct EditorBodyContext<'a> {
     pub(super) cursor_position: Option<fsio::CursorPosition>,
     pub(super) editor_type: EditorType,
     pub(super) show_editor_diff: bool,
+    pub(super) read_only: bool,
     pub(super) show_html_preview: PreviewMode,
 }
 
@@ -184,6 +185,7 @@ impl EditorBodyContext<'_> {
             document.base_path,
             document.full_path,
             self.show_editor_diff,
+            self.read_only,
         );
         if let Some(preview) = preview {
             Box::new(HtmlEditorBody {

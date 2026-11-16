@@ -51,6 +51,18 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                     base64,
                 }));
             }
+            #[cfg(feature = "converter")]
+            if super::pfx::is_pfx(&path) {
+                let content = super::pfx::load_pfx(&path, "")?.into();
+                reconcile_touched_path(&path).await;
+                return Ok(Some(File::TextFile {
+                    metadata: FileMetadata::single(&path, &metadata).await.into(),
+                    original: None,
+                    original_is_content: false,
+                    read_only: true,
+                    content,
+                }));
+            }
             debug!("Loading text file {path:?}");
             let content: Arc<str> = tokio::fs::read_to_string(&path).await?.into();
             // Omit duplicate text; the client shares `content` for a clean Git baseline.
@@ -73,6 +85,7 @@ pub async fn load_file(path: FilePath<Arc<Path>>) -> Result<Option<File>, FsioEr
                 metadata: FileMetadata::single(&path, &metadata).await.into(),
                 original,
                 original_is_content,
+                read_only: false,
                 content,
             }));
         }
@@ -124,6 +137,16 @@ pub async fn load_file_metadata(path: FilePath<Arc<Path>>) -> Result<Option<File
                 metadata: file_metadata,
                 original: None,
                 original_is_content: false,
+                read_only: {
+                    #[cfg(feature = "converter")]
+                    {
+                        super::pfx::is_pfx(&path)
+                    }
+                    #[cfg(not(feature = "converter"))]
+                    {
+                        false
+                    }
+                },
                 content: Arc::from(""),
             }));
         }
@@ -207,6 +230,14 @@ async fn prune_side_view_rec(
 
 pub async fn store_file(path: FilePath<Arc<Path>>, content: String) -> Result<(), FsioError> {
     let path = path.full_path();
+    #[cfg(feature = "converter")]
+    if super::pfx::is_pfx(&path) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "PFX certificate views are read-only",
+        )
+        .into());
+    }
     return if tokio::fs::try_exists(&path).await? {
         let () = tokio::fs::write(&path, content).await?;
         reconcile_touched_path(&path).await;

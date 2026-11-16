@@ -16,6 +16,7 @@ class CodeMirrorJsImpl {
         basePath,
         fullPath,
         showDiff,
+        readOnly = false,
     ) {
         this.onchange = onchange;
         this.onflush = onflush;
@@ -27,7 +28,7 @@ class CodeMirrorJsImpl {
         this.fullPath = fullPath;
         this.reloadFromDisk = true;
         const updateListener = JsDeps.EditorView.updateListener.of((update) => {
-            if (!this.reloadFromDisk && update.docChanged) {
+            if (!readOnly && !this.reloadFromDisk && update.docChanged) {
                 if (!this.dirty) {
                     this.dirty = true;
                     this.ondirty(true);
@@ -45,6 +46,8 @@ class CodeMirrorJsImpl {
         });
 
         let extensions = [
+            JsDeps.EditorState.readOnly.of(readOnly),
+            JsDeps.EditorView.editable.of(!readOnly),
             JsDeps.basicSetup,
             JsDeps.search({ top: true }),
             JsDeps.lintGutter(),
@@ -211,6 +214,7 @@ class CodeMirrorJsImpl {
     }
 
     insert_text(text) {
+        if (this.editorView.state.readOnly) return;
         const selection = this.editorView.state.selection.main;
         this.editorView.dispatch({
             changes: {

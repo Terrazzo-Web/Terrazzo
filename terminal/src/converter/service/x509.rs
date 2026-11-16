@@ -24,10 +24,9 @@ pub fn add_x509_pem(input: &str, add: &mut impl AddConversionFn) -> bool {
         .collect::<Vec<_>>();
     let mut result = false;
     for x509 in certificates {
-        let Ok(Ok(mut text)) = x509.to_text().map(String::from_utf8) else {
+        let Ok(text) = certificate_text(&x509) else {
             continue;
         };
-        add_extensions(&x509, &mut text);
         add(Language::new(get_certificate_name(&x509)), text);
         result = true;
     }
@@ -38,12 +37,17 @@ pub fn add_x509_base64(input: &[u8], add: &mut impl AddConversionFn) -> bool {
     let Ok(x509) = X509::from_der(input) else {
         return false;
     };
-    let Ok(Ok(mut text)) = x509.to_text().map(String::from_utf8) else {
+    let Ok(text) = certificate_text(&x509) else {
         return false;
     };
-    add_extensions(&x509, &mut text);
     add(Language::new(get_certificate_name(&x509)), text);
     return true;
+}
+
+pub(crate) fn certificate_text(x509: &X509Ref) -> std::io::Result<String> {
+    let mut text = String::from_utf8(x509.to_text()?).map_err(std::io::Error::other)?;
+    add_extensions(x509, &mut text);
+    Ok(text)
 }
 
 fn get_certificate_name(x509: &X509Ref) -> String {

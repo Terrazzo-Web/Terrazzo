@@ -48,7 +48,7 @@ import { rust } from "@codemirror/lang-rust"
 import { CodeMirrorJsImpl } from "../../../src/text_editor/ui/code_mirror.js";
 
 const languages = {
-    cpp, "c++": cpp, "h": cpp, "hpp": cpp,
+    c: cpp, cpp, "c++": cpp, "h": cpp, "hpp": cpp,
     css,
     go,
     html,

@@ -1,13 +1,8 @@
-use std::ops::Deref;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
 use trz_gateway_common::certificate_info::CertificateInfo;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 
 use super::types::ConfigTypes;
 use super::types::RuntimeTypes;
@@ -56,23 +51,6 @@ pub struct MeshWebRtcConfig<T: ConfigTypes = RuntimeTypes> {
     pub signaling_timeout: T::Duration,
     pub handshake_timeout: T::Duration,
     pub connect_timeout: T::Duration,
-}
-
-#[derive(Clone)]
-pub struct DynamicMeshConfig(Arc<DynamicConfig<DiffOption<DiffArc<MeshConfig>>>>);
-
-impl Deref for DynamicMeshConfig {
-    type Target = Arc<DynamicConfig<DiffOption<DiffArc<MeshConfig>>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<Arc<DynamicConfig<DiffOption<DiffArc<MeshConfig>>>>> for DynamicMeshConfig {
-    fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<MeshConfig>>>>) -> Self {
-        Self(value)
-    }
 }
 
 impl MeshConfig {

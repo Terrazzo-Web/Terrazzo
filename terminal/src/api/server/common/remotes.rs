@@ -1,34 +1,32 @@
+use crate::backend::config::WatchConfig as _;
 use std::sync::Arc;
 
 use terrazzo::autoclone;
 use terrazzo::axum::Json;
 use terrazzo::axum::Router;
 use terrazzo::axum::routing::get;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
 use crate::backend::Server;
-use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::shared_service::remotes::list_remotes;
 use crate::backend::config::DynConfig;
 
 #[autoclone]
 pub fn remotes_routes(
-    config: &DiffArc<DynConfig>,
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    config: &Arc<DynConfig>,
+    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
-    let mesh = &config.mesh;
-    let client_name = mesh.with(|mesh| Some(ClientName::from(mesh.as_ref()?.client_name.as_str())));
+    let mesh = config.mesh.clone();
     Router::new()
         .route(
             "/remotes",
             get(|| {
-                autoclone!(client_name, server);
+                autoclone!(mesh, server);
+                let client_name =
+                    mesh.with(|mesh| Some(ClientName::from(mesh.as_ref()?.client_name.as_str())));
                 call_list_remotes(client_name, server)
             }),
         )

@@ -1,3 +1,4 @@
+use crate::backend::config::WatchConfig as _;
 use std::convert::Infallible;
 use std::path::Path;
 use std::sync::Arc;

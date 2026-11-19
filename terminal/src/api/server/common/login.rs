@@ -1,3 +1,4 @@
+use crate::backend::config::WatchConfig as _;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -15,17 +16,13 @@ use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 
-use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 
 #[autoclone]
 pub fn login_routes(
-    config: &DiffArc<DynConfig>,
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    config: &Arc<DynConfig>,
+    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
 ) -> Router {
     Router::new().route(
         "/login",
@@ -38,19 +35,20 @@ pub fn login_routes(
 
 #[autoclone]
 async fn login(
-    config: DiffArc<DynConfig>,
-    auth_config: DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    config: Arc<DynConfig>,
+    _auth_config: tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
     cookies: CookieJar,
     headers: HeaderMap,
     Json(password): Json<Option<String>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let result = async move {
         let server = config.server.get();
+        let auth_config = server.auth.clone();
         match (&server.password, &password) {
             (None, _) => debug!("Password not required"),
             (Some(_), None) => {
                 debug!("Password not provided, checking token");
-                let _ = auth_config.with(|auth_config| auth_config.validate(&headers))?;
+                let _ = auth_config.validate(&headers)?;
             }
             (Some(_), Some(password)) => {
                 debug!("Password provided, verify password");
@@ -66,7 +64,7 @@ async fn login(
         }
 
         let token = auth_config
-            .with(|auth_config| auth_config.make_token())
+            .make_token()
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
         Ok((cookies.add(token), "OK"))
     }

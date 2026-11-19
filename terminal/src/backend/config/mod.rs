@@ -5,16 +5,10 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
-use trz_gateway_common::dynamic_config::mode::RO;
+use tokio::sync::watch;
 use trz_gateway_server::server::acme::AcmeConfig;
-use trz_gateway_server::server::acme::DynamicAcmeConfig;
 
-use self::mesh::DynamicMeshConfig;
 use self::mesh::MeshConfig;
-use self::server::DynamicServerConfig;
 use self::server::ServerConfig;
 use self::types::ConfigFileTypes;
 use self::types::ConfigTypes;
@@ -43,21 +37,54 @@ impl Deref for ConfigFile {
     }
 }
 
+/// One runtime allocation. Channel identities never change during reload.
 pub struct DynConfig {
-    config: Arc<DynamicConfig<DiffArc<Config>>>,
-    pub server: DynamicServerConfig,
-    pub mesh: DynamicMeshConfig,
-    pub letsencrypt: DynamicAcmeConfig<Arc<Path>>,
-
-    #[expect(unused)]
-    dyn_config_file: Arc<DynamicConfig<(), RO>>,
+    pub server: watch::Sender<Arc<ServerState>>,
+    pub mesh: watch::Sender<Option<Arc<MeshConfig>>>,
+    pub letsencrypt: watch::Sender<Option<Arc<AcmeConfig<Arc<Path>>>>>,
+    pub(super) state: std::sync::Mutex<Config>,
+    config_file: Option<std::path::PathBuf>,
+    pub(super) tls: std::sync::OnceLock<crate::backend::run_server_graph::RuntimeTls>,
+    shutdown: watch::Sender<bool>,
 }
 
-impl Deref for DynConfig {
-    type Target = Arc<DynamicConfig<DiffArc<Config>>>;
+/// Authentication inputs and signing keys are published in the same snapshot.
+#[derive(Debug)]
+pub struct ServerState {
+    config: ServerConfig,
+    pub auth: Arc<crate::backend::auth::AuthConfig>,
+}
 
+impl Deref for ServerState {
+    type Target = ServerConfig;
     fn deref(&self) -> &Self::Target {
         &self.config
+    }
+}
+
+/// Short, synchronous reads; no watch borrow escapes into asynchronous work.
+pub trait WatchConfig<T> {
+    fn get(&self) -> T
+    where
+        T: Clone;
+    fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R;
+}
+
+impl<T> WatchConfig<T> for watch::Sender<T> {
+    fn get(&self) -> T
+    where
+        T: Clone,
+    {
+        self.borrow().clone()
+    }
+    fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        f(&self.borrow())
+    }
+}
+
+impl DynConfig {
+    pub fn shutdown(&self) {
+        self.shutdown.send_replace(true);
     }
 }
 
@@ -81,9 +108,9 @@ impl From<ConfigImpl<RuntimeTypes>> for Config {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ConfigImpl<T: ConfigTypes> {
-    pub server: DiffArc<ServerConfig<T>>,
-    pub mesh: DiffOption<DiffArc<MeshConfig<T>>>,
-    pub letsencrypt: DiffOption<DiffArc<AcmeConfig<T::Path>>>,
+    pub server: Arc<ServerConfig<T>>,
+    pub mesh: Option<Arc<MeshConfig<T>>>,
+    pub letsencrypt: Option<Arc<AcmeConfig<T::Path>>>,
 }
 
 impl Default for ConfigImpl<ConfigFileTypes> {

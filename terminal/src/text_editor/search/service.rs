@@ -1,3 +1,4 @@
+use crate::backend::config::WatchConfig as _;
 use std::collections::HashMap;
 use std::future::ready;
 use std::path::Path;

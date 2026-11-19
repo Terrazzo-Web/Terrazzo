@@ -3,21 +3,17 @@
 use std::sync::Arc;
 
 use terrazzo::axum::Router;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 
 use crate::api::server::common::login::login_routes;
 use crate::api::server::common::remotes::remotes_routes;
 use crate::backend::Server;
-use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 
 mod common;
 
 pub fn api_routes(
-    config: &DiffArc<DynConfig>,
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    config: &Arc<DynConfig>,
+    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
     let router = Router::new()

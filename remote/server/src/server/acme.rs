@@ -2,7 +2,6 @@
 
 //! Configuration for integration with [Let's Encrypt](https://letsencrypt.org).
 
-use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -196,19 +195,38 @@ fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredent
     serde_json::from_str(&credentials).expect("Deserialize credentials")
 }
 
+/// Generated ACME state can be committed by the owning application, without a
+/// writable derived configuration graph.
 #[derive(Clone)]
-pub struct DynamicAcmeConfig<P = PathBuf>(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>);
+pub enum DynamicAcmeConfig<P = PathBuf> {
+    Legacy(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>),
+    Update(Arc<dyn Fn(AcmeConfig<P>) + Send + Sync>),
+}
 
-impl<P> Deref for DynamicAcmeConfig<P> {
-    type Target = Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>;
+impl<P: Clone> DynamicAcmeConfig<P> {
+    pub fn from_update(update: impl Fn(AcmeConfig<P>) + Send + Sync + 'static) -> Self {
+        Self::Update(Arc::new(update))
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn update(&self, expected: &DiffArc<AcmeConfig<P>>, new: AcmeConfig<P>) {
+        match self {
+            Self::Legacy(config) => config.set(|old| {
+                if old
+                    .as_deref()
+                    .is_some_and(|old| std::ptr::eq(old, &**expected))
+                {
+                    Some(DiffArc::from(new)).into()
+                } else {
+                    old.clone()
+                }
+            }),
+            Self::Update(update) => update(new),
+        }
     }
 }
 
 impl<P> From<Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>> for DynamicAcmeConfig<P> {
     fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>) -> Self {
-        Self(value)
+        Self::Legacy(value)
     }
 }

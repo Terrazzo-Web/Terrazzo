@@ -21,7 +21,6 @@ use tracing::warn;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 use trz_gateway_common::x509::time::asn1_to_system_time;
@@ -200,42 +199,25 @@ where
                 result.certificate.private_key.as_bytes(),
             )
             .inspect_err(|error| {
-                self.acme_config_dyn.set(|old| {
-                    warn!("The cached certificate was invalid: {error}");
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    DiffOption::from(DiffArc::from(AcmeConfig {
+                self.acme_config_dyn.update(
+                    &self.acme_config,
+                    AcmeConfig {
                         certificate: None,
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
+                        ..AcmeConfig::clone(&self.acme_config)
+                    },
+                );
+                warn!("The cached certificate was invalid: {error}");
             })?;
 
-            if let Some(new_credentials) = result.credentials {
-                self.acme_config_dyn.set(|old| {
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    info!("Update Let's Encrypt account");
-                    DiffOption::from(DiffArc::from(AcmeConfig {
-                        credentials: Some(new_credentials).into(),
-                        certificate: Some(result.certificate.certificate.clone()),
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
-            } else if Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
+            if result.credentials.is_some()
+                || Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
             {
-                self.acme_config_dyn.set(|old| {
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    info!("Update Let's Encrypt certificate");
-                    DiffOption::from(DiffArc::from(AcmeConfig {
-                        certificate: Some(result.certificate.certificate.clone()),
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
+                let mut new = AcmeConfig::clone(&self.acme_config);
+                if let Some(credentials) = result.credentials {
+                    new.credentials = Some(credentials).into();
+                }
+                new.certificate = Some(result.certificate.certificate.clone());
+                self.acme_config_dyn.update(&self.acme_config, new);
             }
 
             return Ok(acme_certificate);

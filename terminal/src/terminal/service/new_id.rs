@@ -1,3 +1,4 @@
+use crate::backend::config::WatchConfig as _;
 use server_fn::ServerFnError;
 use tonic::Status;
 use trz_gateway_common::id::ClientName;

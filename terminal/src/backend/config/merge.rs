@@ -331,6 +331,7 @@ fn collapse_tilde(path: impl AsRef<Path>) -> Arc<Path> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use trz_gateway_common::p2p::GOOGLE_STUN;

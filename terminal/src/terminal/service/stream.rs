@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use base64::Engine as _;
 use futures::Stream;
 use futures::StreamExt as _;
@@ -16,6 +15,7 @@ use crate::api::shared::terminal_schema::STREAMING_WINDOW_SIZE;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::api::shared::terminal_schema::TerminalSnapshot;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::config::WatchConfig as _;
 use crate::backend::throttling_stream::ThrottleProcessOutput;
 use crate::processes;
 use crate::processes::get_processes;

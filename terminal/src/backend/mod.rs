@@ -1,6 +1,4 @@
 #![cfg(feature = "server")]
-use crate::backend::config::WatchConfig as _;
-
 use std::ops::ControlFlow;
 use std::ops::Deref;
 use std::path::Path;
@@ -48,6 +46,7 @@ use self::daemonize::DaemonizeServerError;
 use self::root_ca_config::PrivateRootCaError;
 use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
+use crate::backend::config::WatchConfig as _;
 
 mod agent;
 pub mod auth;
@@ -235,7 +234,7 @@ async fn run_client_async(
 ) -> Result<ServerHandle<()>, RunClientError> {
     let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Dynamic Client");
     let auth_code = AuthCode::from(cli.auth_code.clone());
-    let mut mesh_rx = config.mesh.clone();
+    let mut mesh_rx = config.mesh.subscribe();
     let (restart_tx, mut restart_rx) =
         tokio::sync::mpsc::unbounded_channel::<Arc<self::config::mesh::MeshConfig>>();
     tokio::spawn(async move {
@@ -262,12 +261,14 @@ async fn run_client_async(
                 result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
                 result = initialize => result,
             };
-            let client = match initialized.map_err(|error| error.to_string()).and_then(|agent| {
-                let agent = Arc::new(agent);
-                Client::new(agent.clone())
-                    .map(|client| (agent, client))
-                    .map_err(|error| error.to_string())
-            }) {
+            let client = match initialized
+                .map_err(|error| error.to_string())
+                .and_then(|agent| {
+                    let agent = Arc::new(agent);
+                    Client::new(agent.clone())
+                        .map(|client| (agent, client))
+                        .map_err(|error| error.to_string())
+                }) {
                 Ok(client) => client,
                 Err(error) => {
                     warn!(%error, "Failed to initialize mesh client");

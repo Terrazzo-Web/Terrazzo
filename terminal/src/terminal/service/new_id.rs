@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use server_fn::ServerFnError;
 use tonic::Status;
 use trz_gateway_common::id::ClientName;
@@ -9,6 +8,7 @@ use crate::api::shared::terminal_schema::TabTitle;
 use crate::api::shared::terminal_schema::TerminalAddress;
 use crate::api::shared::terminal_schema::TerminalDef;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::config::WatchConfig as _;
 use crate::processes;
 use crate::tiles::id::TileId;
 

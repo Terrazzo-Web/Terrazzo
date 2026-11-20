@@ -187,29 +187,29 @@ where
                 )
             };
 
-            if !is_cached {
-                write_private_key(
-                    self.acme_config.private_key_path(),
-                    result.certificate.private_key.as_bytes(),
-                )?;
-            }
-
             let acme_certificate = parse_acme_certificate(
                 &result.certificate.certificate,
                 result.certificate.private_key.as_bytes(),
             )
             .inspect_err(|error| {
-                self.acme_config_dyn.update(
-                    &self.acme_config,
-                    AcmeConfig {
-                        certificate: None,
-                        ..AcmeConfig::clone(&self.acme_config)
-                    },
-                );
+                self.acme_config_dyn
+                    .update(
+                        &self.acme_config,
+                        AcmeConfig {
+                            certificate: None,
+                            ..AcmeConfig::clone(&self.acme_config)
+                        },
+                        None,
+                    )
+                    .unwrap_or_else(|error| {
+                        warn!(%error, "Failed to invalidate cached certificate");
+                        false
+                    });
                 warn!("The cached certificate was invalid: {error}");
             })?;
 
-            if result.credentials.is_some()
+            if !is_cached
+                || result.credentials.is_some()
                 || Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
             {
                 let mut new = AcmeConfig::clone(&self.acme_config);
@@ -217,7 +217,13 @@ where
                     new.credentials = Some(credentials).into();
                 }
                 new.certificate = Some(result.certificate.certificate.clone());
-                self.acme_config_dyn.update(&self.acme_config, new);
+                if !self.acme_config_dyn.update(
+                    &self.acme_config,
+                    new,
+                    (!is_cached).then_some(result.certificate.private_key.as_bytes()),
+                )? {
+                    return Err(AcmeError::ObsoleteConfig);
+                }
             }
 
             return Ok(acme_certificate);
@@ -272,7 +278,7 @@ fn read_private_key(path: &Path) -> Result<String, AcmeError> {
     })
 }
 
-fn write_private_key(path: &Path, private_key: &[u8]) -> Result<(), AcmeError> {
+pub(super) fn write_private_key(path: &Path, private_key: &[u8]) -> Result<(), AcmeError> {
     let result = (|| -> std::io::Result<()> {
         if let Some(parent) = path
             .parent()

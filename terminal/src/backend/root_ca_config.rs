@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use std::convert::Infallible;
 use std::sync::Arc;
 
@@ -21,6 +20,7 @@ use trz_gateway_server::server::root_ca_configuration;
 use trz_gateway_server::server::root_ca_configuration::RootCaConfigError;
 
 use super::config::DynConfig;
+use crate::backend::config::WatchConfig as _;
 
 #[derive(Clone)]
 pub struct PrivateRootCa(CachedCertificate);

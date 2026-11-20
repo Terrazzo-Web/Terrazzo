@@ -1,6 +1,4 @@
 #![cfg(feature = "server")]
-use crate::backend::config::WatchConfig as _;
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -10,6 +8,7 @@ use serde::Serialize;
 use super::server_fn::AutocompleteItem;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::config::WatchConfig as _;
 use crate::text_editor::path_selector::schema::PathSelector;
 
 #[derive(Debug, Serialize, Deserialize)]

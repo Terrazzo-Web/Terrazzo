@@ -135,6 +135,12 @@ pub enum AcmeError {
     #[error("[{n}] {0}", n = self.name())]
     Arc(Arc<Self>),
 
+    #[error("[{n}] ACME configuration is obsolete", n = self.name())]
+    ObsoleteConfig,
+
+    #[error("[{n}] Failed to persist ACME configuration: {0}", n = self.name())]
+    Persist(String),
+
     #[error("[{n}] Unexpected identifier format", n = self.name())]
     UnexpectedIdentifierFormat,
 
@@ -200,28 +206,51 @@ fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredent
 #[derive(Clone)]
 pub enum DynamicAcmeConfig<P = PathBuf> {
     Legacy(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>),
-    Update(Arc<dyn Fn(AcmeConfig<P>) + Send + Sync>),
+    Update(Arc<dyn Fn(AcmeConfig<P>, Option<&[u8]>) -> Result<bool, AcmeError> + Send + Sync>),
 }
 
-impl<P: Clone> DynamicAcmeConfig<P> {
-    pub fn from_update(update: impl Fn(AcmeConfig<P>) + Send + Sync + 'static) -> Self {
+impl<P: Clone + AsRef<Path>> DynamicAcmeConfig<P> {
+    pub fn from_update(
+        update: impl Fn(AcmeConfig<P>, Option<&[u8]>) -> Result<bool, AcmeError> + Send + Sync + 'static,
+    ) -> Self {
         Self::Update(Arc::new(update))
     }
 
-    pub fn update(&self, expected: &DiffArc<AcmeConfig<P>>, new: AcmeConfig<P>) {
+    /// Commit generated state and its private key only if the original input is
+    /// still active. The application serializes this callback with file reloads.
+    pub fn update(
+        &self,
+        expected: &DiffArc<AcmeConfig<P>>,
+        new: AcmeConfig<P>,
+        private_key: Option<&[u8]>,
+    ) -> Result<bool, AcmeError> {
         match self {
-            Self::Legacy(config) => config.set(|old| {
-                if old
-                    .as_deref()
-                    .is_some_and(|old| std::ptr::eq(old, &**expected))
-                {
-                    Some(DiffArc::from(new)).into()
-                } else {
-                    old.clone()
+            Self::Legacy(config) => {
+                match config.try_set(|old| {
+                    if !old
+                        .as_deref()
+                        .is_some_and(|old| std::ptr::eq(old, &**expected))
+                    {
+                        return Err(AcmeError::ObsoleteConfig);
+                    }
+                    if let Some(key) = private_key {
+                        new.store_private_key(key)?;
+                    }
+                    Ok(Some(DiffArc::from(new)).into())
+                }) {
+                    Ok(()) => Ok(true),
+                    Err(AcmeError::ObsoleteConfig) => Ok(false),
+                    Err(error) => Err(error),
                 }
-            }),
-            Self::Update(update) => update(new),
+            }
+            Self::Update(update) => update(new, private_key),
         }
+    }
+}
+
+impl<P: AsRef<Path>> AcmeConfig<P> {
+    pub fn store_private_key(&self, key: &[u8]) -> Result<(), AcmeError> {
+        certificate_config::write_private_key(self.private_key_path(), key)
     }
 }
 

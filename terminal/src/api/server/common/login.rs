@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -18,17 +17,15 @@ use tracing::info_span;
 use tracing::warn;
 
 use crate::backend::config::DynConfig;
+use crate::backend::config::WatchConfig as _;
 
 #[autoclone]
-pub fn login_routes(
-    config: &Arc<DynConfig>,
-    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
-) -> Router {
+pub fn login_routes(config: &Arc<DynConfig>) -> Router {
     Router::new().route(
         "/login",
         post(|cookies, headers, password| {
-            autoclone!(config, auth_config);
-            login(config, auth_config, cookies, headers, password)
+            autoclone!(config);
+            login(config, cookies, headers, password)
         }),
     )
 }
@@ -36,7 +33,6 @@ pub fn login_routes(
 #[autoclone]
 async fn login(
     config: Arc<DynConfig>,
-    _auth_config: tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     cookies: CookieJar,
     headers: HeaderMap,
     Json(password): Json<Option<String>>,

@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use std::iter::once;
 use std::path::Path as FsPath;
 use std::path::PathBuf;
@@ -40,6 +39,7 @@ use super::auth::layer::AuthLayer;
 use super::config::DynConfig;
 use super::root_ca_config::PrivateRootCa;
 use crate::api;
+use crate::backend::config::WatchConfig as _;
 
 #[nameth]
 pub struct TerminalBackendServer {
@@ -62,9 +62,6 @@ pub struct TerminalBackendServer {
     /// Either way the certificate used by the Terrazzo Gateway to [sign](GatewayConfig::client_certificate_issuer)
     /// the extension uses the same PKI as the [TLS server](GatewayConfig::tls) certificate.
     pub tls_config: tokio::sync::watch::Receiver<TlsConfig>,
-
-    /// Configuration for authentication
-    pub auth_config: tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
 
     pub active_challenges: ActiveChallenges,
 }
@@ -137,7 +134,7 @@ impl GatewayConfig for TerminalBackendServer {
 
     fn app_config(&self) -> impl AppConfig {
         let config = self.config.clone();
-        let auth_config = self.auth_config.clone();
+        let auth_config = self.config.server.clone();
         let active_challenges = self.active_challenges.clone();
         move |server: Arc<GatewayServer>, router: Router| {
             let server = Arc::new(Server::new(server, config.clone()));
@@ -146,10 +143,7 @@ impl GatewayConfig for TerminalBackendServer {
                     "/static/{*file}",
                     get(|Path(path): Path<String>| static_assets::get(&path)),
                 )
-                .nest_service(
-                    "/api",
-                    api::server::api_routes(&config, &auth_config, &server),
-                )
+                .nest_service("/api", api::server::api_routes(&config, &server))
                 .merge(
                     Router::new()
                         .route(

@@ -140,12 +140,10 @@ mod graph {
         tls_config: tokio::sync::watch::Receiver<TlsConfig>,
         active_challenges: ActiveChallenges,
     ) -> TerminalBackendServer {
-        let auth_config = config.server.clone();
         TerminalBackendServer {
             config,
             root_ca,
             tls_config,
-            auth_config,
             active_challenges,
         }
     }
@@ -157,10 +155,7 @@ mod graph {
         root_ca: PrivateRootCa,
         active_challenges: ActiveChallenges,
     ) -> tokio::sync::watch::Receiver<TlsConfig> {
-        let runtime = super::RuntimeTls::new(config, root_ca, active_challenges);
-        let receiver = runtime.sender.subscribe();
-        assert!(config.tls.set(runtime).is_ok(), "TLS initialized twice");
-        receiver
+        config.initialize_tls(root_ca, active_challenges)
     }
 
     /// Loads or creates the private root CA used to issue client certificates.
@@ -171,85 +166,5 @@ mod graph {
     /// Creates the shared registry of active ACME certificate challenges.
     fn active_challenges() -> ActiveChallenges {
         ActiveChallenges::default()
-    }
-}
-
-/// Owns one stable TLS watch channel. Input changes are prepared synchronously
-/// under the config mutation lock before consumers are notified.
-pub(super) struct RuntimeTls {
-    sender: tokio::sync::watch::Sender<crate::backend::server_config::TlsConfig>,
-    inputs: std::sync::Mutex<(
-        Option<Arc<trz_gateway_server::server::acme::AcmeConfig<Arc<std::path::Path>>>>,
-        std::time::Duration,
-    )>,
-    fallback: crate::backend::server_config::TlsConfig,
-    active_challenges: trz_gateway_server::server::acme::active_challenges::ActiveChallenges,
-    config: std::sync::Weak<crate::backend::config::DynConfig>,
-}
-
-use crate::backend::config::WatchConfig as _;
-use std::sync::Arc;
-
-impl RuntimeTls {
-    fn new(
-        config: &Arc<crate::backend::config::DynConfig>,
-        root_ca: crate::backend::root_ca_config::PrivateRootCa,
-        active_challenges: trz_gateway_server::server::acme::active_challenges::ActiveChallenges,
-    ) -> Self {
-        let fallback = trz_gateway_common::security_configuration::either::EitherConfig::Left(
-            crate::backend::tls_config::make_tls_config(&root_ca)
-                .expect("private root CA TLS config"),
-        );
-        let this = Self {
-            sender: tokio::sync::watch::channel(fallback.clone()).0,
-            inputs: std::sync::Mutex::new((None, std::time::Duration::ZERO)),
-            fallback,
-            active_challenges,
-            config: Arc::downgrade(config),
-        };
-        this.refresh(config);
-        this
-    }
-
-    pub(super) fn refresh(&self, config: &crate::backend::config::DynConfig) {
-        use trz_gateway_common::security_configuration::{
-            SecurityConfig, either::EitherConfig, trusted_store::native::NativeTrustedStoreConfig,
-        };
-        use trz_gateway_server::server::acme::{
-            DynamicAcmeConfig, certificate_config::AcmeCertificateConfig,
-        };
-        let acme = config.letsencrypt.get();
-        let threshold = config.server.with(|s| s.certificate_renewal_threshold);
-        let mut inputs = self.inputs.lock().unwrap();
-        let unchanged = match (&inputs.0, &acme) {
-            (None, None) => true,
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-            _ => false,
-        };
-        if unchanged && inputs.1 == threshold {
-            return;
-        }
-        let tls = if let Some(acme) = &acme {
-            let weak = self.config.clone();
-            let expected = acme.clone();
-            let updates = DynamicAcmeConfig::from_update(move |new| {
-                if let Some(config) = weak.upgrade() {
-                    config.update_acme(&expected, |acme| *acme = new);
-                }
-            });
-            EitherConfig::Right(SecurityConfig {
-                trusted_store: NativeTrustedStoreConfig,
-                certificate: AcmeCertificateConfig::new(
-                    updates,
-                    acme.clone().into(),
-                    self.active_challenges.clone(),
-                    threshold,
-                ),
-            })
-        } else {
-            self.fallback.clone()
-        };
-        *inputs = (acme, threshold);
-        self.sender.send_replace(tls);
     }
 }

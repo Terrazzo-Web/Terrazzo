@@ -1,4 +1,3 @@
-use crate::backend::config::WatchConfig as _;
 use std::sync::Arc;
 
 use terrazzo::autoclone;
@@ -12,6 +11,7 @@ use crate::backend::Server;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::shared_service::remotes::list_remotes;
 use crate::backend::config::DynConfig;
+use crate::backend::config::WatchConfig as _;
 
 #[autoclone]
 pub fn remotes_routes(

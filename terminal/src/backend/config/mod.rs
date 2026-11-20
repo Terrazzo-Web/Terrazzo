@@ -23,6 +23,7 @@ pub mod p2p;
 pub(in crate::backend) mod password;
 pub(in crate::backend) mod pidfile;
 pub mod server;
+mod tls;
 pub(in crate::backend) mod types;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -45,9 +46,9 @@ pub struct DynConfig {
     mesh_tx: watch::Sender<Option<Arc<MeshConfig>>>,
     pub letsencrypt: watch::Receiver<Option<Arc<AcmeConfig<Arc<Path>>>>>,
     letsencrypt_tx: watch::Sender<Option<Arc<AcmeConfig<Arc<Path>>>>>,
-    pub(super) state: std::sync::Mutex<Config>,
+    state: std::sync::Mutex<Config>,
     config_file: Option<std::path::PathBuf>,
-    pub(super) tls: std::sync::OnceLock<crate::backend::run_server_graph::RuntimeTls>,
+    tls: std::sync::OnceLock<tls::RuntimeTls>,
     shutdown: watch::Sender<bool>,
 }
 
@@ -70,6 +71,7 @@ pub trait WatchConfig<T> {
     where
         T: Clone;
     fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R;
+    fn subscribe(&self) -> watch::Receiver<T>;
 }
 
 impl<T> WatchConfig<T> for watch::Receiver<T> {
@@ -81,6 +83,11 @@ impl<T> WatchConfig<T> for watch::Receiver<T> {
     }
     fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
         f(&self.borrow())
+    }
+    fn subscribe(&self) -> watch::Receiver<T> {
+        let mut receiver = self.clone();
+        receiver.mark_unchanged();
+        receiver
     }
 }
 

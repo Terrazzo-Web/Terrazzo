@@ -10,9 +10,10 @@ use sha2::Sha256;
 use sha2::digest::InvalidLength;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 
+use super::DynConfig;
 use super::ServerConfig;
+use super::WatchConfig as _;
 use super::io::ConfigFileError;
-use super::{DynConfig, WatchConfig as _};
 use crate::backend::config::types::Password;
 
 impl DynConfig {

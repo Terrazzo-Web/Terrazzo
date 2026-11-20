@@ -10,7 +10,7 @@ def generate_file(name, src, dest, ignore_whitespace = False, runner = _GENERATE
         srcs = [runner],
         data = [src],
         args = [
-            "$(location %s)" % src,
+            "$(rootpath %s)" % src,
             native.package_name() + "/" + dest,
             "true" if ignore_whitespace else "false",
         ],

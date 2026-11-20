@@ -968,9 +968,7 @@ mod tests {
                 )) if std::time::Instant::now() < deadline => {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
-                Err(error) => {
-                    panic!("Writer lock was not released after runtime shutdown: {error}")
-                }
+                Err(error) => panic!("Writer lock was not released after runtime shutdown: {error}"),
             }
         };
     }

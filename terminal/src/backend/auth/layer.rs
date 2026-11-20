@@ -19,7 +19,7 @@ use crate::backend::auth::Claims;
 
 #[derive(Clone)]
 pub struct AuthLayer {
-    pub auth_config: tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    pub auth_config: tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
 }
 
 impl<S> Layer<S> for AuthLayer {

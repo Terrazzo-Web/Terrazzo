@@ -22,7 +22,7 @@ use crate::backend::config::DynConfig;
 #[autoclone]
 pub fn login_routes(
     config: &Arc<DynConfig>,
-    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
 ) -> Router {
     Router::new().route(
         "/login",
@@ -36,7 +36,7 @@ pub fn login_routes(
 #[autoclone]
 async fn login(
     config: Arc<DynConfig>,
-    _auth_config: tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    _auth_config: tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     cookies: CookieJar,
     headers: HeaderMap,
     Json(password): Json<Option<String>>,

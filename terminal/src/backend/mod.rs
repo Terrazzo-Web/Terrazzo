@@ -16,9 +16,6 @@ use futures::future::Either;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
-use terrazzo::autoclone;
-use tokio::sync::oneshot;
-use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -231,7 +228,6 @@ type EnableTracingError = crate::logs::EnableTracingError;
 #[error("{self:?}")]
 pub struct EnableTracingError;
 
-#[autoclone]
 async fn run_client_async(
     cli: Arc<Cli>,
     config: Arc<DynConfig>,
@@ -239,7 +235,7 @@ async fn run_client_async(
 ) -> Result<ServerHandle<()>, RunClientError> {
     let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Dynamic Client");
     let auth_code = AuthCode::from(cli.auth_code.clone());
-    let mut mesh_rx = config.mesh.subscribe();
+    let mut mesh_rx = config.mesh.clone();
     let (restart_tx, mut restart_rx) =
         tokio::sync::mpsc::unbounded_channel::<Arc<self::config::mesh::MeshConfig>>();
     tokio::spawn(async move {
@@ -266,11 +262,11 @@ async fn run_client_async(
                 result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
                 result = initialize => result,
             };
-            let client = match initialized.and_then(|agent| {
+            let client = match initialized.map_err(|error| error.to_string()).and_then(|agent| {
                 let agent = Arc::new(agent);
                 Client::new(agent.clone())
                     .map(|client| (agent, client))
-                    .map_err(RunClientError::from)
+                    .map_err(|error| error.to_string())
             }) {
                 Ok(client) => client,
                 Err(error) => {

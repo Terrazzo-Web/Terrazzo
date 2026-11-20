@@ -39,9 +39,12 @@ impl Deref for ConfigFile {
 
 /// One runtime allocation. Channel identities never change during reload.
 pub struct DynConfig {
-    pub server: watch::Sender<Arc<ServerState>>,
-    pub mesh: watch::Sender<Option<Arc<MeshConfig>>>,
-    pub letsencrypt: watch::Sender<Option<Arc<AcmeConfig<Arc<Path>>>>>,
+    pub server: watch::Receiver<Arc<ServerState>>,
+    server_tx: watch::Sender<Arc<ServerState>>,
+    pub mesh: watch::Receiver<Option<Arc<MeshConfig>>>,
+    mesh_tx: watch::Sender<Option<Arc<MeshConfig>>>,
+    pub letsencrypt: watch::Receiver<Option<Arc<AcmeConfig<Arc<Path>>>>>,
+    letsencrypt_tx: watch::Sender<Option<Arc<AcmeConfig<Arc<Path>>>>>,
     pub(super) state: std::sync::Mutex<Config>,
     config_file: Option<std::path::PathBuf>,
     pub(super) tls: std::sync::OnceLock<crate::backend::run_server_graph::RuntimeTls>,
@@ -49,7 +52,6 @@ pub struct DynConfig {
 }
 
 /// Authentication inputs and signing keys are published in the same snapshot.
-#[derive(Debug)]
 pub struct ServerState {
     config: ServerConfig,
     pub auth: Arc<crate::backend::auth::AuthConfig>,
@@ -70,7 +72,7 @@ pub trait WatchConfig<T> {
     fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R;
 }
 
-impl<T> WatchConfig<T> for watch::Sender<T> {
+impl<T> WatchConfig<T> for watch::Receiver<T> {
     fn get(&self) -> T
     where
         T: Clone,

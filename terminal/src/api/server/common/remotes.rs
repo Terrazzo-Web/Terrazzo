@@ -16,14 +16,14 @@ use crate::backend::config::DynConfig;
 #[autoclone]
 pub fn remotes_routes(
     config: &Arc<DynConfig>,
-    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
     let mesh = config.mesh.clone();
     Router::new()
         .route(
             "/remotes",
-            get(|| {
+            get(move || {
                 autoclone!(mesh, server);
                 let client_name =
                     mesh.with(|mesh| Some(ClientName::from(mesh.as_ref()?.client_name.as_str())));

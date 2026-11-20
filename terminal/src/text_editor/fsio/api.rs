@@ -22,7 +22,7 @@ use crate::backend::client_service::text_editor_service::TextEditorFsioError;
 use crate::text_editor::file_path::FilePath;
 
 pub(crate) fn fsio_routes(
-    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
     Router::new()

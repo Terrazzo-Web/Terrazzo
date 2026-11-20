@@ -64,7 +64,7 @@ pub struct TerminalBackendServer {
     pub tls_config: tokio::sync::watch::Receiver<TlsConfig>,
 
     /// Configuration for authentication
-    pub auth_config: tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    pub auth_config: tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
 
     pub active_challenges: ActiveChallenges,
 }

@@ -13,7 +13,7 @@ mod common;
 
 pub fn api_routes(
     config: &Arc<DynConfig>,
-    auth_config: &tokio::sync::watch::Sender<Arc<crate::backend::config::ServerState>>,
+    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
     let router = Router::new()

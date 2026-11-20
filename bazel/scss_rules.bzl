@@ -7,6 +7,6 @@ def scss_rule(name, output):
                native.glob(["src/**/*.css"], allow_empty = True) +
                native.glob(["src/**/*.scss"]),
         outs = [output],
-        cmd = """$(execpath //utils/css/cli) $$(dirname $$(realpath $(location Cargo.toml))) --output-file $@""",
+        cmd = """$(execpath //utils/css/cli) $$(dirname $$(realpath $(execpath Cargo.toml))) --output-file $@""",
         tools = ["//utils/css/cli"],
     )

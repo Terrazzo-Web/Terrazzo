@@ -80,7 +80,7 @@ axum-server = { version = "0.9.2" }
 base64 = { version = "0.23.1" }
 bitflags = { version = "2.13.2" }
 bytes = { version = "1.12.2" }
-cc = { version = "1.11.2" }
+cc = { version = "1.11.3" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 clap = { version = "4.6.9", features = ["derive"] }
 cms = { version = "0.2.3" }
@@ -111,7 +111,7 @@ oid-registry = { version = "0.8.1" }
 openssl = { version = "0.10.82" }
 pbkdf2 = { version = "0.13.0" }
 pem = { version = "4.0.0" }
-pin-project = { version = "1.1.13" }
+pin-project = { version = "1.2.0" }
 portpicker = { version = "0.1.1" }
 prettyplease = { version = "0.3.0" }
 proc-macro2 = { version = "1.0.107" }

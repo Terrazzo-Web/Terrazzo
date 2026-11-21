@@ -6,6 +6,7 @@ use super::CursorPosition;
 use super::File;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::config::WatchConfig as _;
 use crate::text_editor::file_path::FilePath;
 use crate::text_editor::side::SideViewNode;
 

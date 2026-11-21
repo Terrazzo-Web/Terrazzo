@@ -1,380 +1,525 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::time::SystemTime;
 
-use notify::RecommendedWatcher;
 use notify::Watcher as _;
-use terrazzo::autoclone;
-use tracing::Instrument as _;
+use tokio::sync::watch;
 use tracing::debug;
 use tracing::info;
-use tracing::info_span;
-use tracing::trace;
 use tracing::warn;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
-use trz_gateway_common::dynamic_config::has_diff::HasDiff;
-use trz_gateway_common::dynamic_config::mode::RO;
-use trz_gateway_server::server::acme::AcmeConfig;
-use trz_gateway_server::server::acme::DynamicAcmeConfig;
 
 use super::Config;
 use super::ConfigFile;
-use super::ConfigImpl;
 use super::DynConfig;
-use super::mesh::DynamicMeshConfig;
-use super::server::DynamicServerConfig;
+use super::ServerState;
+use super::WatchConfig as _;
+use super::io::ConfigFileError;
+use crate::backend::auth::AuthConfig;
 use crate::backend::cli::Cli;
-use crate::backend::config::server::ServerConfig;
 
 impl Config {
-    #[autoclone]
-    pub fn into_dyn(self, cli: Arc<Cli>) -> DiffArc<DynConfig> {
-        let config = Arc::from(DynamicConfig::from(DiffArc::from(self)));
-        let server = DynamicServerConfig::from(config.derive(
-            |config| config.server.clone(),
-            |config, server_config| {
-                if HasDiff::is_same(&config.server, server_config) {
-                    return None;
-                }
-                debug!("Updated server config");
-                Some(DiffArc::from(Config::from(ConfigImpl {
-                    server: server_config.clone(),
-                    ..(**config).clone()
-                })))
-            },
-        ));
-        let mesh = DynamicMeshConfig::from(config.derive(
-            |config| config.mesh.clone(),
-            |config, mesh_config| {
-                if DiffOption::is_same(&config.mesh, mesh_config) {
-                    return None;
-                }
-                debug!("Updated mesh config");
-                Some(DiffArc::from(Config::from(ConfigImpl {
-                    mesh: mesh_config.clone(),
-                    ..(**config).clone()
-                })))
-            },
-        ));
-        let letsencrypt = DynamicAcmeConfig::from(config.derive(
-            |config| config.letsencrypt.clone(),
-            |config, letsencrypt| {
-                if DiffOption::is_same(&config.letsencrypt, letsencrypt) {
-                    return None;
-                }
-                debug!("Updated letsencrypt config");
-                Some(DiffArc::from(Config::from(ConfigImpl {
-                    letsencrypt: letsencrypt.clone(),
-                    ..(**config).clone()
-                })))
-            },
-        ));
-        let config_file_path = cli.config_file.to_owned();
-        let dyn_config_file: Arc<DynamicConfig<(), RO>> = config.view(move |config| {
-            autoclone!(config_file_path);
-            if let Some(config_file_path) = config_file_path.as_deref() {
-                let () = config
-                    .to_config_file()
-                    .save(config_file_path)
-                    .inspect(|()| info!("Saved config file {config_file_path:?}"))
-                    .unwrap_or_else(|error| warn!("Failed to save {config_file_path:?}: {error}"));
-            }
+    pub fn into_dyn(self, cli: Arc<Cli>) -> Arc<DynConfig> {
+        let server = Arc::new(ServerState {
+            config: (*self.server).clone(),
+            auth: Arc::new(AuthConfig::new(&self.server)),
         });
-        let config = DiffArc::from(DynConfig {
+        let (server_tx, server) = watch::channel(server);
+        let (mesh_tx, mesh) = watch::channel(self.mesh.clone());
+        let (letsencrypt_tx, letsencrypt) = watch::channel(self.letsencrypt.clone());
+        let config = Arc::new(DynConfig {
             server,
+            server_tx,
             mesh,
+            mesh_tx,
             letsencrypt,
-            config,
-            dyn_config_file,
+            letsencrypt_tx,
+            state: std::sync::Mutex::new(self),
+            config_file: cli.config_file.clone(),
+            shutdown: watch::channel(false).0,
+            tls: std::sync::OnceLock::new(),
         });
-        if cli.action != crate::backend::cli::Action::SetPassword
-            && let Some(config_file_path) = &config_file_path
-        {
-            tokio::spawn(run_config_reload_tasks(
-                config_file_path.to_owned(),
-                cli,
-                config.clone(),
-            ));
-        }
-        return config;
-    }
-}
-
-#[derive(Default)]
-struct ReloadState {
-    last_modified: Mutex<Option<SystemTime>>,
-}
-
-async fn run_config_reload_tasks(
-    config_file_path: PathBuf,
-    cli: Arc<Cli>,
-    config: DiffArc<DynConfig>,
-) {
-    let span = info_span!("Config file live reload", ?config_file_path);
-    async move {
-        let state = Arc::new(ReloadState {
-            last_modified: Mutex::new(config_file_last_modified(Path::new(&config_file_path))),
-        });
-        let watcher_enabled = config.with(|config| config.server.config_file_watcher);
-        let polling_enabled =
-            config.with(|config| config.server.config_file_poll_strategy.is_some());
-
-        if watcher_enabled {
-            match spawn_config_file_watcher(
-                PathBuf::from(&config_file_path),
-                cli.clone(),
-                config.clone(),
-                state.clone(),
-            ) {
-                Ok(()) => info!("Started config file watcher"),
-                Err(error) => warn!("Failed to start config file watcher: {error}"),
+        if cli.action != crate::backend::cli::Action::SetPassword {
+            if let Some(path) = config.config_file.clone() {
+                tokio::spawn(run_config_reload_tasks(
+                    path,
+                    cli,
+                    Arc::downgrade(&config),
+                    config.shutdown.subscribe(),
+                ));
             }
-        } else {
-            info!("Config file watcher is disabled");
         }
-
-        if polling_enabled {
-            tokio::spawn(poll_config_file(
-                config_file_path.clone(),
-                cli.clone(),
-                config.clone(),
-                state.clone(),
-            ));
-            info!("Started config file polling");
-        } else {
-            info!("Config file polling is disabled");
-        }
-
-        if !watcher_enabled && !polling_enabled {
-            warn!("Config file live reload is disabled");
-        }
+        config
     }
-    .instrument(span)
-    .await
 }
 
-fn spawn_config_file_watcher(
-    config_file_path: PathBuf,
-    cli: Arc<Cli>,
-    config: DiffArc<DynConfig>,
-    state: Arc<ReloadState>,
-) -> notify::Result<()> {
-    let watch_path = config_file_path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."))
-        .to_owned();
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut watcher: RecommendedWatcher = notify::recommended_watcher(move |event| {
-        let _ = tx.send(event);
-    })?;
-    watcher.watch(&watch_path, notify::RecursiveMode::NonRecursive)?;
+/// Compare contents, never allocation identities. All config types serialize to JSON.
+fn same<T: serde::Serialize>(a: &T, b: &T) -> bool {
+    match (serde_json::to_value(a), serde_json::to_value(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        // Non-UTF8 paths cannot be represented in JSON. Conservatively publish
+        // them rather than panicking or incorrectly suppressing an update.
+        _ => false,
+    }
+}
 
-    tokio::spawn(async move {
-        let _watcher = watcher;
-        while let Some(event) = rx.recv().await {
-            let event = match event {
-                Ok(event) => event,
-                Err(error) => {
-                    warn!("Config file watcher failed: {error}");
-                    continue;
+impl DynConfig {
+    fn save(&self, config: &Config) -> Result<(), ConfigFileError> {
+        if let Some(path) = &self.config_file {
+            config.to_config_file().save(path)?;
+        }
+        Ok(())
+    }
+
+    /// Caller holds state, serializing reloads with password and ACME updates.
+    fn publish(&self, new: &Config) {
+        let old = self.server.get();
+        let mut server = (*new.server).clone();
+        // These settings have startup side effects, not live readers.
+        macro_rules! startup {
+            ($($field:ident),* $(,)?) => { $(
+                if !same(&server.$field, &old.$field) {
+                    info!(field = stringify!($field), "Config change requires restart");
                 }
+                server.$field = old.$field.clone();
+            )* };
+        }
+        startup!(
+            host,
+            ports,
+            tiles_file,
+            set_current_endpoint,
+            pidfile,
+            private_root_ca,
+            p2p_registration
+        );
+        if !same(&server, &old.config) {
+            let auth = if server.password == old.password
+                && server.token_lifetime == old.token_lifetime
+                && server.token_refresh == old.token_refresh
+            {
+                old.auth.clone()
+            } else if server.password == old.password {
+                Arc::new(
+                    old.auth
+                        .with_token_settings(server.token_lifetime, server.token_refresh),
+                )
+            } else {
+                Arc::new(AuthConfig::new(&server))
             };
-
-            if !is_relevant_config_event(&event, &config_file_path) {
-                trace!(?event, "Ignoring unrelated config watcher event");
-                continue;
+            self.server_tx.send_replace(Arc::new(ServerState {
+                config: server,
+                auth,
+            }));
+        }
+        let mesh = new.mesh.as_deref().map(|v| Arc::new(v.clone()));
+        self.mesh_tx.send_if_modified(|old| {
+            if same(old, &mesh) {
+                false
+            } else {
+                *old = mesh;
+                true
             }
-
-            reload_config_file("watcher", &config_file_path, &cli, &config, &state).await;
+        });
+        let acme = new.letsencrypt.as_deref().map(|v| Arc::new(v.clone()));
+        self.letsencrypt_tx.send_if_modified(|old| {
+            if same(old, &acme) {
+                false
+            } else {
+                *old = acme;
+                true
+            }
+        });
+        if let Some(tls) = self.tls.get() {
+            tls.refresh(self);
         }
-    });
-
-    Ok(())
-}
-
-fn is_relevant_config_event(event: &notify::Event, config_file_path: &Path) -> bool {
-    match event.kind {
-        notify::EventKind::Create(_) | notify::EventKind::Modify(_) => {}
-        _ => return false,
     }
 
-    event.paths.iter().any(|path| path == config_file_path)
+    pub(super) fn update_password(
+        &self,
+        password: super::types::Password,
+    ) -> Result<(), ConfigFileError> {
+        let mut state = self.state.lock().unwrap();
+        let mut new = state.clone();
+        let mut server = (*new.server).clone();
+        server.password = Some(password);
+        new.0.server = server.into();
+        self.save(&new)?;
+        self.publish(&new);
+        *state = new;
+        Ok(())
+    }
+
+    /// Commit only results produced for the still-current ACME configuration.
+    pub(in crate::backend) fn update_acme(
+        &self,
+        expected: &Arc<trz_gateway_server::server::acme::AcmeConfig<Arc<Path>>>,
+        acme: trz_gateway_server::server::acme::AcmeConfig<Arc<Path>>,
+        private_key: Option<&[u8]>,
+    ) -> Result<bool, trz_gateway_server::server::acme::AcmeError> {
+        use trz_gateway_server::server::acme::AcmeError;
+        let mut state = self.state.lock().unwrap();
+        let current = self.letsencrypt.get();
+        let Some(current) = current else {
+            return Ok(false);
+        };
+        if !Arc::ptr_eq(&current, expected) {
+            return Ok(false);
+        }
+        if let Some(key) = private_key {
+            acme.store_private_key(key)?;
+        }
+        let mut new = state.clone();
+        new.0.letsencrypt = Some(Arc::new(acme));
+        self.save(&new)
+            .map_err(|error| AcmeError::Persist(error.to_string()))?;
+        self.publish(&new);
+        *state = new;
+        Ok(true)
+    }
 }
 
-async fn poll_config_file(
-    config_file_path: PathBuf,
+/// One coordinator owns the watcher and polling timer. No detached reload workers.
+async fn run_config_reload_tasks(
+    path: PathBuf,
     cli: Arc<Cli>,
-    config: DiffArc<DynConfig>,
-    state: Arc<ReloadState>,
+    config: std::sync::Weak<DynConfig>,
+    mut shutdown: watch::Receiver<bool>,
 ) {
-    let span = info_span!("Polling config file", ?config_file_path);
-    async move {
-        loop {
-            let Some(mut retry_strategy) =
-                config.with(|config| config.server.config_file_poll_strategy.clone())
-            else {
-                info!("Config file polling has been disabled");
-                return;
-            };
-            retry_strategy.wait().await;
-            debug!("Polling config file");
-            reload_config_file("poll", &config_file_path, &cli, &config, &state).await;
-        }
-    }
-    .instrument(span)
-    .await
-}
-
-async fn reload_config_file(
-    trigger: &'static str,
-    config_file_path: &Path,
-    cli: &Arc<Cli>,
-    config: &DiffArc<DynConfig>,
-    state: &ReloadState,
-) {
-    let Some(modified) = config_file_last_modified(config_file_path) else {
-        debug!(trigger, "Config file is missing or has no timestamp");
+    let Some(initial) = config.upgrade() else {
         return;
     };
-
-    {
-        let mut last_modified = state.last_modified.lock().unwrap();
-        if last_modified.as_ref() == Some(&modified) {
-            trace!(
-                trigger,
-                "Config file reload skipped because timestamp is unchanged"
-            );
-            return;
+    let mut settings = initial.server.subscribe();
+    drop(initial);
+    // notify reports canonical directory paths (notably /private/var on macOS).
+    // Resolve the parent, preserving the filename so atomic replacement works.
+    let path = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+        .canonicalize()
+        .ok()
+        .and_then(|parent| path.file_name().map(|name| parent.join(name)))
+        .unwrap_or(path);
+    let (events_tx, mut events) = tokio::sync::mpsc::unbounded_channel();
+    let mut watcher = None;
+    let mut watcher_enabled = false;
+    // Start with no accepted fingerprint: an edit between startup and this task
+    // must not be silently consumed.
+    let mut accepted: Option<Vec<u8>> = None;
+    let mut first = true;
+    'reload: loop {
+        if *shutdown.borrow() {
+            break;
         }
-        *last_modified = Some(modified);
-    }
-
-    info!(trigger, "Config file timestamp has changed");
-
-    let new_config_file = match ConfigFile::load(config_file_path) {
-        Ok(new_config_file) => new_config_file,
-        Err(error) => {
-            warn!("Failed to load config file: {error}");
-            return;
-        }
-    };
-    let new = new_config_file.merge(cli);
-    apply_server_config(config, &new.server);
-    apply_letsencrypt_config(config, &new.letsencrypt);
-}
-
-fn config_file_last_modified(config_file_path: &Path) -> Option<SystemTime> {
-    let metadata = std::fs::metadata(config_file_path).ok()?;
-    metadata.modified().ok()
-}
-
-fn apply_server_config(config: &DiffArc<DynConfig>, new: &ServerConfig) {
-    let is_server_changed = config.server.try_set(|old| {
-        let mut result = Err(());
-        fn get_or_init<'t>(
-            old: &ServerConfig,
-            result: &'t mut Result<ServerConfig, ()>,
-        ) -> &'t mut ServerConfig {
-            match result {
-                Ok(r) => r,
-                Err(()) => {
-                    *result = Ok(old.clone());
-                    return result.as_mut().unwrap();
+        let server = settings.borrow_and_update().clone();
+        if server.config_file_watcher != watcher_enabled {
+            watcher = None;
+            watcher_enabled = server.config_file_watcher;
+            if watcher_enabled {
+                let tx = events_tx.clone();
+                match notify::recommended_watcher(move |event| {
+                    let _ = tx.send(event);
+                })
+                .and_then(|mut w| {
+                    let parent = path
+                        .parent()
+                        .filter(|p| !p.as_os_str().is_empty())
+                        .unwrap_or(Path::new("."));
+                    w.watch(parent, notify::RecursiveMode::NonRecursive)?;
+                    Ok(w)
+                }) {
+                    Ok(w) => {
+                        watcher = Some(w);
+                        info!("Started config file watcher");
+                    }
+                    Err(error) => warn!(%error, "Failed to start config file watcher"),
                 }
             }
         }
-        if new.password != old.password {
-            info!("Changed: password");
-            let result = get_or_init(old, &mut result);
-            result.password = new.password.clone();
+        let mut strategy = server.config_file_poll_strategy.clone();
+        let wait = async {
+            match &mut strategy {
+                Some(strategy) => strategy.wait().await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::pin!(wait);
+        if !first {
+            loop {
+                tokio::select! {
+                    _ = shutdown.changed() => break 'reload,
+                    result = settings.changed() => {
+                        if result.is_err() { break 'reload; }
+                        let current = settings.borrow_and_update().clone();
+                        if current.config_file_watcher != server.config_file_watcher
+                            || current.config_file_poll_strategy != server.config_file_poll_strategy {
+                            continue 'reload;
+                        }
+                        // Unrelated server changes must not reset the polling timer.
+                    },
+                    event = events.recv(), if watcher.is_some() => {
+                        match event {
+                            Some(Ok(event)) if is_relevant_config_event(&event, &path) => break,
+                            Some(Err(error)) => warn!(%error, "Config watcher error"),
+                            _ => {},
+                        }
+                    },
+                    _ = &mut wait => break,
+                }
+            }
         }
-        if new.token_lifetime != old.token_lifetime {
-            info!("Changed: token_lifetime");
-            let result = get_or_init(old, &mut result);
-            result.token_lifetime = new.token_lifetime;
-        }
-        if new.token_refresh != old.token_refresh {
-            info!("Changed: token_refresh");
-            let result = get_or_init(old, &mut result);
-            result.token_refresh = new.token_refresh;
-        }
-        if new.config_file_watcher != old.config_file_watcher {
-            info!("Changed: config_file_watcher");
-            let result = get_or_init(old, &mut result);
-            result.config_file_watcher = new.config_file_watcher;
-        }
-        if new.config_file_poll_strategy != old.config_file_poll_strategy {
-            info!("Changed: config_file_poll_strategy");
-            let result = get_or_init(old, &mut result);
-            result.config_file_poll_strategy = new.config_file_poll_strategy.clone();
-        }
-        if new.terminal_shell != old.terminal_shell {
-            info!("Changed: terminal_shell");
-            let result = get_or_init(old, &mut result);
-            result.terminal_shell = new.terminal_shell.clone();
-        }
-        if new.terminal_cd != old.terminal_cd {
-            info!("Changed: terminal_cd");
-            let result = get_or_init(old, &mut result);
-            result.terminal_cd = new.terminal_cd.clone();
-        }
-        if new.trash != old.trash {
-            info!("Changed: trash");
-            let result = get_or_init(old, &mut result);
-            result.trash = new.trash.clone();
-        }
-        if new.git_trash != old.git_trash {
-            info!("Changed: git_trash");
-            let result = get_or_init(old, &mut result);
-            result.git_trash = new.git_trash.clone();
-        }
-        if new.tantivy_cache != old.tantivy_cache {
-            info!("Changed: tantivy_cache");
-            let result = get_or_init(old, &mut result);
-            result.tantivy_cache = new.tantivy_cache.clone();
-        }
-        if new.search_index_refresh != old.search_index_refresh {
-            info!("Changed: search_index_refresh");
-            let result = get_or_init(old, &mut result);
-            result.search_index_refresh = new.search_index_refresh;
-        }
-        if new.search_index_stale_after != old.search_index_stale_after {
-            info!("Changed: search_index_stale_after");
-            let result = get_or_init(old, &mut result);
-            result.search_index_stale_after = new.search_index_stale_after;
-        }
-
-        return result.map(DiffArc::from);
-    });
-    match is_server_changed {
-        Ok(()) => info!("ServerConfig has changed"),
-        Err(()) => debug!("ServerConfig hasn't changed"),
+        first = false;
+        let Some(config) = config.upgrade() else {
+            break;
+        };
+        reload_config_file(&config, &path, &cli, &mut accepted);
     }
+
+    drop(watcher);
 }
 
-fn apply_letsencrypt_config(
-    config: &DiffArc<DynConfig>,
-    new: &DiffOption<DiffArc<AcmeConfig<Arc<Path>>>>,
-) {
-    let is_letsencrypt_changed =
-        config
-            .letsencrypt
-            .try_set(|old: &DiffOption<DiffArc<AcmeConfig<Arc<Path>>>>| {
-                match (old.as_deref(), new.as_deref()) {
-                    (None, None) => false,
-                    (None, Some(_)) | (Some(_), None) => true,
-                    (Some(old), Some(new)) => old != new,
+fn reload_config_file(config: &DynConfig, path: &Path, cli: &Cli, accepted: &mut Option<Vec<u8>>) {
+    // Hold the mutation lock across read, merge, and publication. Runtime
+    // writes and duplicate filesystem events cannot race this transaction.
+    let mut state = config.state.lock().unwrap();
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            debug!(%error, "Cannot read config file");
+            return;
+        }
+    };
+    if accepted.as_ref() == Some(&bytes) {
+        return;
+    }
+    let file = match std::str::from_utf8(&bytes).ok().and_then(|text| {
+        if text.is_empty() {
+            Some(ConfigFile::default())
+        } else {
+            toml::from_str::<ConfigFile>(text)
+                .inspect_err(|error| warn!(%error, "Invalid config file"))
+                .ok()
+        }
+    }) {
+        Some(file) => file,
+        None => return,
+    };
+    let new = file.merge(&cli);
+    config.publish(&new);
+    *state = new;
+    *accepted = Some(bytes);
+}
+
+fn is_relevant_config_event(event: &notify::Event, path: &Path) -> bool {
+    matches!(
+        event.kind,
+        notify::EventKind::Create(_) | notify::EventKind::Modify(_)
+    ) && event.paths.iter().any(|p| p == path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::cli::Action;
+
+    fn cli(path: Option<PathBuf>) -> Arc<Cli> {
+        Arc::new(Cli {
+            action: Action::SetPassword,
+            config_file: path,
+            ..Cli::default()
+        })
+    }
+
+    #[test]
+    fn reload_keeps_channels_and_auth_keys_and_only_notifies_changed_values() {
+        let cli = cli(None);
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli.clone());
+        let mut server = config.server.subscribe();
+        let mut mesh = config.mesh.subscribe();
+        let auth = server.borrow_and_update().auth.clone();
+        let new = ConfigFile::default().merge(&cli);
+        config.publish(&new);
+        assert!(!server.has_changed().unwrap());
+        let mut new = new;
+        Arc::make_mut(&mut new.0.server).terminal_shell = Some("/bin/sh".into());
+        config.publish(&new);
+        assert!(server.has_changed().unwrap());
+        assert!(Arc::ptr_eq(&auth, &server.borrow_and_update().auth));
+        assert_eq!(server.borrow().terminal_shell.as_deref(), Some("/bin/sh"));
+        assert!(!mesh.has_changed().unwrap());
+        let enabled: ConfigFile =
+            toml::from_str("[mesh]\nclient_name = 'test'\ngateway_url = 'https://localhost:1234'")
+                .unwrap();
+        config.publish(&enabled.merge(&cli));
+        assert!(mesh.has_changed().unwrap());
+        assert_eq!(
+            mesh.borrow_and_update().as_ref().unwrap().client_name,
+            "test"
+        );
+        config.publish(&ConfigFile::default().merge(&cli));
+        assert!(mesh.has_changed().unwrap());
+        assert!(mesh.borrow().is_none());
+    }
+
+    #[test]
+    fn late_subscribers_see_updates_and_startup_fields_stay_fixed() {
+        let cli = cli(None);
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli.clone());
+        let original_host = config.server.get().host.clone();
+        let mut new = ConfigFile::default().merge(&cli);
+        let server = Arc::make_mut(&mut new.0.server);
+        server.host = "different-host".into();
+        server.terminal_shell = Some("updated".into());
+        config.publish(&new);
+        let receiver = config.server.subscribe();
+        assert_eq!(receiver.borrow().host, original_host);
+        assert_eq!(receiver.borrow().terminal_shell.as_deref(), Some("updated"));
+    }
+
+    #[test]
+    fn invalid_file_is_retryable_and_successful_reload_does_not_write_back() {
+        let dir = std::env::temp_dir().join(format!("watch-config-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let _cleanup = scopeguard::guard(dir.clone(), |dir| {
+            let _ = std::fs::remove_dir_all(dir);
+        });
+        let path = dir.join("config.toml");
+        let cli = cli(Some(path.clone()));
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli.clone());
+        let mut accepted = None;
+        std::fs::write(&path, "[invalid").unwrap();
+        reload_config_file(&config, &path, &cli, &mut accepted);
+        assert!(accepted.is_none());
+        let content =
+            "# preserve this comment\n[server]\nports = []\nterminal-shell = 'reloaded'\n";
+        toml::from_str::<ConfigFile>(content).unwrap();
+        std::fs::write(&path, content).unwrap();
+        reload_config_file(&config, &path, &cli, &mut accepted);
+        assert_eq!(
+            config.server.get().terminal_shell.as_deref(),
+            Some("reloaded")
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
+        assert!(accepted.is_some());
+        let receiver = config.server.subscribe();
+        reload_config_file(&config, &path, &cli, &mut accepted);
+        assert!(!receiver.has_changed().unwrap());
+    }
+
+    #[test]
+    fn password_save_failure_does_not_publish() {
+        let cli = cli(Some(
+            std::env::temp_dir()
+                .join(uuid::Uuid::new_v4().to_string())
+                .join("missing.toml"),
+        ));
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli);
+        let before = config.server.get();
+        let password = super::super::types::Password {
+            hash: vec![1],
+            salt: vec![2],
+            iterations: 1,
+        };
+        assert!(config.update_password(password).is_err());
+        assert!(Arc::ptr_eq(&before, &config.server.get()));
+    }
+    #[test]
+    fn duration_changes_preserve_signing_keys_without_a_password() {
+        let cli = cli(None);
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli.clone());
+        let token = config.server.get().auth.make_token().unwrap();
+        let mut headers = terrazzo::http::HeaderMap::new();
+        headers.insert(
+            terrazzo::http::header::COOKIE,
+            format!("{}={}", token.name(), token.value())
+                .parse()
+                .unwrap(),
+        );
+        let mut new = ConfigFile::default().merge(&cli);
+        Arc::make_mut(&mut new.0.server).token_lifetime += std::time::Duration::from_secs(100);
+        config.publish(&new);
+        assert!(config.server.get().auth.validate(&headers).is_ok());
+    }
+
+    #[test]
+    fn obsolete_acme_results_cannot_write_keys_or_reenable_acme() {
+        let cli = cli(None);
+        let file: ConfigFile = toml::from_str(
+            r#"
+[letsencrypt]
+environment = "Staging"
+contact = "mailto:test@example.com"
+domains = ["example.com"]
+"#,
+        )
+        .unwrap();
+        let config = file.merge(&cli).into_dyn(cli.clone());
+        let expected = config.letsencrypt.get().unwrap();
+        config.publish(&ConfigFile::default().merge(&cli));
+        let mut stale = (*expected).clone();
+        let path = std::env::temp_dir().join(format!("stale-acme-{}", uuid::Uuid::new_v4()));
+        stale.private_key = path.clone().into();
+        assert!(
+            !config
+                .update_acme(&expected, stale, Some(b"must not be written"))
+                .unwrap()
+        );
+        assert!(!path.exists());
+        assert!(config.letsencrypt.get().is_none());
+    }
+
+    #[tokio::test]
+    async fn atomic_file_replacement_and_switching_to_polling_and_shutdown() {
+        let dir = std::env::temp_dir().join(format!("watch-config-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let _cleanup = scopeguard::guard(dir.clone(), |dir| {
+            let _ = std::fs::remove_dir_all(dir);
+        });
+        let path = dir.join("config.toml");
+        let cli = cli(Some(path.clone()));
+        let config = ConfigFile::default().merge(&cli).into_dyn(cli.clone());
+        let mut receiver = config.server.subscribe();
+        std::fs::write(&path, "[server]\nports = []\nterminal-shell = 'ready'\n").unwrap();
+        let reload = tokio::spawn(run_config_reload_tasks(
+            path.clone(),
+            cli.clone(),
+            Arc::downgrade(&config),
+            config.shutdown.subscribe(),
+        ));
+        async fn next(receiver: &mut watch::Receiver<Arc<ServerState>>, shell: &str) {
+            tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                loop {
+                    receiver.changed().await.unwrap();
+                    if receiver.borrow_and_update().terminal_shell.as_deref() == Some(shell) {
+                        break;
+                    }
                 }
-                .then(|| new.clone())
-                .ok_or(())
+            })
+            .await
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Timed out waiting for shell {shell}, current {:?}",
+                    receiver.borrow().terminal_shell
+                )
             });
-    match is_letsencrypt_changed {
-        Ok(()) => info!("Let's Encrypt config has changed"),
-        Err(()) => debug!("Let's Encrypt config hasn't changed"),
+        }
+        next(&mut receiver, "ready").await;
+        let replacement = dir.join("replacement.toml");
+        std::fs::write(
+            &replacement,
+            "[server]\nports = []\nterminal-shell = 'watcher'\n",
+        )
+        .unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+        next(&mut receiver, "watcher").await;
+        std::fs::write(&path, "[server]\nports = []\nterminal-shell = 'polling'\nconfig_file_watcher = false\n[server.config_file_poll_strategy]\nfixed = '10ms'\n").unwrap();
+        next(&mut receiver, "polling").await;
+        std::fs::write(&path, "[server]\nports = []\nterminal-shell = 'polled'\nconfig_file_watcher = false\n[server.config_file_poll_strategy]\nfixed = '10ms'\n").unwrap();
+        next(&mut receiver, "polled").await;
+        config.shutdown();
+        tokio::time::timeout(std::time::Duration::from_secs(5), reload)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

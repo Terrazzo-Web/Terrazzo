@@ -20,12 +20,8 @@ use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
 use tracing::enabled;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode::RO;
 use trz_gateway_common::security_configuration::SecurityConfig;
 use trz_gateway_common::security_configuration::certificate::cache::CachedCertificate;
-use trz_gateway_common::security_configuration::certificate::dynamic::DynamicCertificate;
 use trz_gateway_common::security_configuration::either::EitherConfig;
 use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
 use trz_gateway_server::server::HttpConnectionInfo;
@@ -39,15 +35,15 @@ use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationAuthorizatio
 use trz_gateway_server::server::gateway_config::p2p::P2pRegistrationConfig;
 
 use super::Server;
-use super::auth::AuthConfig;
 use super::auth::layer::AuthLayer;
 use super::config::DynConfig;
 use super::root_ca_config::PrivateRootCa;
 use crate::api;
+use crate::backend::config::WatchConfig as _;
 
 #[nameth]
 pub struct TerminalBackendServer {
-    pub config: DiffArc<DynConfig>,
+    pub config: Arc<DynConfig>,
 
     /// The private Root CA is used to issue client certificates.
     /// But security relies on the signed extension.
@@ -65,10 +61,7 @@ pub struct TerminalBackendServer {
     ///
     /// Either way the certificate used by the Terrazzo Gateway to [sign](GatewayConfig::client_certificate_issuer)
     /// the extension uses the same PKI as the [TLS server](GatewayConfig::tls) certificate.
-    pub tls_config: std::sync::Arc<DynamicConfig<TlsConfig, RO>>,
-
-    /// Configuration for authentication
-    pub auth_config: DiffArc<DynamicConfig<DiffArc<AuthConfig>, RO>>,
+    pub tls_config: tokio::sync::watch::Receiver<TlsConfig>,
 
     pub active_challenges: ActiveChallenges,
 }
@@ -84,12 +77,12 @@ impl GatewayConfig for TerminalBackendServer {
         self.root_ca.clone()
     }
 
-    type TlsConfig = Arc<DynamicCertificate<TlsConfig, RO>>;
+    type TlsConfig = tokio::sync::watch::Receiver<TlsConfig>;
     fn tls(&self) -> Self::TlsConfig {
-        Arc::new(DynamicCertificate::from(self.tls_config.clone()))
+        self.tls_config.clone()
     }
 
-    type ClientCertificateIssuerConfig = Arc<DynamicConfig<TlsConfig, RO>>;
+    type ClientCertificateIssuerConfig = tokio::sync::watch::Receiver<TlsConfig>;
     fn client_certificate_issuer(&self) -> Self::ClientCertificateIssuerConfig {
         self.tls_config.clone()
     }
@@ -141,7 +134,7 @@ impl GatewayConfig for TerminalBackendServer {
 
     fn app_config(&self) -> impl AppConfig {
         let config = self.config.clone();
-        let auth_config = self.auth_config.clone();
+        let auth_config = self.config.server.clone();
         let active_challenges = self.active_challenges.clone();
         move |server: Arc<GatewayServer>, router: Router| {
             let server = Arc::new(Server::new(server, config.clone()));
@@ -150,10 +143,7 @@ impl GatewayConfig for TerminalBackendServer {
                     "/static/{*file}",
                     get(|Path(path): Path<String>| static_assets::get(&path)),
                 )
-                .nest_service(
-                    "/api",
-                    api::server::api_routes(&config, &auth_config, &server),
-                )
+                .nest_service("/api", api::server::api_routes(&config, &server))
                 .merge(
                     Router::new()
                         .route(

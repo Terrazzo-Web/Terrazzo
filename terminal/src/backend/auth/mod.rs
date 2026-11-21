@@ -38,6 +38,7 @@ pub static DEFAULT_TOKEN_REFRESH: Duration = if cfg!(debug_assertions) {
     DEFAULT_TOKEN_LIFETIME.saturating_sub(Duration::from_secs(3600))
 };
 
+#[derive(Clone)]
 pub struct AuthConfig {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
@@ -53,6 +54,18 @@ pub struct Claims<T = Timestamp> {
 }
 
 impl AuthConfig {
+    pub(in crate::backend) fn with_token_settings(
+        &self,
+        token_lifetime: Duration,
+        token_refresh: Duration,
+    ) -> Self {
+        Self {
+            token_lifetime,
+            token_refresh,
+            ..self.clone()
+        }
+    }
+
     pub fn new(server_config: &ServerConfig) -> Self {
         Self {
             token_lifetime: server_config.token_lifetime,

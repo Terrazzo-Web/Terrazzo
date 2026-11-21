@@ -21,7 +21,6 @@ use tracing::warn;
 use trz_gateway_common::certificate_info::CertificateInfo;
 use trz_gateway_common::certificate_info::X509CertificateInfo;
 use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::security_configuration::certificate::CertificateConfig;
 use trz_gateway_common::security_configuration::common::parse_pem_certificates;
 use trz_gateway_common::x509::time::asn1_to_system_time;
@@ -188,54 +187,43 @@ where
                 )
             };
 
-            if !is_cached {
-                write_private_key(
-                    self.acme_config.private_key_path(),
-                    result.certificate.private_key.as_bytes(),
-                )?;
-            }
-
             let acme_certificate = parse_acme_certificate(
                 &result.certificate.certificate,
                 result.certificate.private_key.as_bytes(),
             )
             .inspect_err(|error| {
-                self.acme_config_dyn.set(|old| {
-                    warn!("The cached certificate was invalid: {error}");
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    DiffOption::from(DiffArc::from(AcmeConfig {
-                        certificate: None,
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
+                self.acme_config_dyn
+                    .update(
+                        &self.acme_config,
+                        AcmeConfig {
+                            certificate: None,
+                            ..AcmeConfig::clone(&self.acme_config)
+                        },
+                        None,
+                    )
+                    .unwrap_or_else(|error| {
+                        warn!(%error, "Failed to invalidate cached certificate");
+                        false
+                    });
+                warn!("The cached certificate was invalid: {error}");
             })?;
 
-            if let Some(new_credentials) = result.credentials {
-                self.acme_config_dyn.set(|old| {
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    info!("Update Let's Encrypt account");
-                    DiffOption::from(DiffArc::from(AcmeConfig {
-                        credentials: Some(new_credentials).into(),
-                        certificate: Some(result.certificate.certificate.clone()),
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
-            } else if Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
+            if !is_cached
+                || result.credentials.is_some()
+                || Some(&result.certificate.certificate) != self.acme_config.certificate.as_ref()
             {
-                self.acme_config_dyn.set(|old| {
-                    let Some(old) = &**old else {
-                        return DiffOption::default();
-                    };
-                    info!("Update Let's Encrypt certificate");
-                    DiffOption::from(DiffArc::from(AcmeConfig {
-                        certificate: Some(result.certificate.certificate.clone()),
-                        ..AcmeConfig::clone(old)
-                    }))
-                });
+                let mut new = AcmeConfig::clone(&self.acme_config);
+                if let Some(credentials) = result.credentials {
+                    new.credentials = Some(credentials).into();
+                }
+                new.certificate = Some(result.certificate.certificate.clone());
+                if !self.acme_config_dyn.update(
+                    &self.acme_config,
+                    new,
+                    (!is_cached).then_some(result.certificate.private_key.as_bytes()),
+                )? {
+                    return Err(AcmeError::ObsoleteConfig);
+                }
             }
 
             return Ok(acme_certificate);
@@ -290,7 +278,7 @@ fn read_private_key(path: &Path) -> Result<String, AcmeError> {
     })
 }
 
-fn write_private_key(path: &Path, private_key: &[u8]) -> Result<(), AcmeError> {
+pub(super) fn write_private_key(path: &Path, private_key: &[u8]) -> Result<(), AcmeError> {
     let result = (|| -> std::io::Result<()> {
         if let Some(parent) = path
             .parent()

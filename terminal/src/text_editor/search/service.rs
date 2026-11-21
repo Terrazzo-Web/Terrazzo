@@ -27,6 +27,7 @@ use crate::api::client_address::ClientAddress;
 use crate::backend::client_service::grpc_error::GrpcError;
 use crate::backend::client_service::grpc_error::IsGrpcError;
 use crate::backend::client_service::remote_fn_service;
+use crate::backend::config::WatchConfig as _;
 use crate::text_editor::fsio::FileMetadata;
 use crate::text_editor::fsio::git::git_repo_root;
 use crate::utils::ndjson_utils::serialize_line;

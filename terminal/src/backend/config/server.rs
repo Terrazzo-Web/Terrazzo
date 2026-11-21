@@ -1,10 +1,5 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use serde::Deserialize;
 use serde::Serialize;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
 use trz_gateway_common::p2p::credential::Credential;
 
 use super::types::ConfigTypes;
@@ -90,23 +85,6 @@ pub struct P2pRegistrationConfig<T: ConfigTypes = RuntimeTypes> {
     pub handshake_timeout: T::Duration,
     pub authorization_bearer_token: Option<Credential>,
     pub max_sessions: Option<usize>,
-}
-
-#[derive(Clone)]
-pub struct DynamicServerConfig(pub(super) Arc<DynamicConfig<DiffArc<ServerConfig>>>);
-
-impl Deref for DynamicServerConfig {
-    type Target = Arc<DynamicConfig<DiffArc<ServerConfig>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<Arc<DynamicConfig<DiffArc<ServerConfig>>>> for DynamicServerConfig {
-    fn from(value: Arc<DynamicConfig<DiffArc<ServerConfig>>>) -> Self {
-        Self(value)
-    }
 }
 
 fn deserialize_terminal_cd<'de, D: serde::Deserializer<'de>>(

@@ -50,3 +50,28 @@ impl<C: Clone + std::fmt::Debug, M: Mode> std::fmt::Debug for DynamicCertificate
             .finish()
     }
 }
+
+/// A watch-backed security snapshot. Clone before invoking certificate code:
+/// certificate provisioning may synchronously publish an updated snapshot.
+impl<C: CertificateConfig + Clone> CertificateConfig for tokio::sync::watch::Receiver<C> {
+    type Error = C::Error;
+    fn intermediates(&self) -> Result<Arc<Vec<X509>>, Self::Error> {
+        let config = self.borrow().clone();
+        config.intermediates()
+    }
+    fn certificate(&self) -> Result<Arc<X509CertificateInfo>, Self::Error> {
+        let config = self.borrow().clone();
+        config.certificate()
+    }
+    fn is_dynamic(&self) -> bool {
+        true
+    }
+}
+
+impl<C: TrustedStoreConfig + Clone> TrustedStoreConfig for tokio::sync::watch::Receiver<C> {
+    type Error = C::Error;
+    fn root_certificates(&self) -> Result<Arc<X509Store>, Self::Error> {
+        let config = self.borrow().clone();
+        config.root_certificates()
+    }
+}

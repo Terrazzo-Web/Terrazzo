@@ -2,7 +2,6 @@
 
 //! Configuration for integration with [Let's Encrypt](https://letsencrypt.org).
 
-use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -136,6 +135,12 @@ pub enum AcmeError {
     #[error("[{n}] {0}", n = self.name())]
     Arc(Arc<Self>),
 
+    #[error("[{n}] ACME configuration is obsolete", n = self.name())]
+    ObsoleteConfig,
+
+    #[error("[{n}] Failed to persist ACME configuration: {0}", n = self.name())]
+    Persist(String),
+
     #[error("[{n}] Unexpected identifier format", n = self.name())]
     UnexpectedIdentifierFormat,
 
@@ -196,19 +201,61 @@ fn clone_account_credentials(credentials: &AccountCredentials) -> AccountCredent
     serde_json::from_str(&credentials).expect("Deserialize credentials")
 }
 
+/// Generated ACME state can be committed by the owning application, without a
+/// writable derived configuration graph.
 #[derive(Clone)]
-pub struct DynamicAcmeConfig<P = PathBuf>(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>);
+pub enum DynamicAcmeConfig<P = PathBuf> {
+    Legacy(Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>),
+    Update(Arc<dyn Fn(AcmeConfig<P>, Option<&[u8]>) -> Result<bool, AcmeError> + Send + Sync>),
+}
 
-impl<P> Deref for DynamicAcmeConfig<P> {
-    type Target = Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>;
+impl<P: Clone + AsRef<Path>> DynamicAcmeConfig<P> {
+    pub fn from_update(
+        update: impl Fn(AcmeConfig<P>, Option<&[u8]>) -> Result<bool, AcmeError> + Send + Sync + 'static,
+    ) -> Self {
+        Self::Update(Arc::new(update))
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    /// Commit generated state and its private key only if the original input is
+    /// still active. The application serializes this callback with file reloads.
+    pub fn update(
+        &self,
+        expected: &DiffArc<AcmeConfig<P>>,
+        new: AcmeConfig<P>,
+        private_key: Option<&[u8]>,
+    ) -> Result<bool, AcmeError> {
+        match self {
+            Self::Legacy(config) => {
+                match config.try_set(|old| {
+                    if !old
+                        .as_deref()
+                        .is_some_and(|old| std::ptr::eq(old, &**expected))
+                    {
+                        return Err(AcmeError::ObsoleteConfig);
+                    }
+                    if let Some(key) = private_key {
+                        new.store_private_key(key)?;
+                    }
+                    Ok(Some(DiffArc::from(new)).into())
+                }) {
+                    Ok(()) => Ok(true),
+                    Err(AcmeError::ObsoleteConfig) => Ok(false),
+                    Err(error) => Err(error),
+                }
+            }
+            Self::Update(update) => update(new, private_key),
+        }
+    }
+}
+
+impl<P: AsRef<Path>> AcmeConfig<P> {
+    pub fn store_private_key(&self, key: &[u8]) -> Result<(), AcmeError> {
+        certificate_config::write_private_key(self.private_key_path(), key)
     }
 }
 
 impl<P> From<Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>> for DynamicAcmeConfig<P> {
     fn from(value: Arc<DynamicConfig<DiffOption<DiffArc<AcmeConfig<P>>>>>) -> Self {
-        Self(value)
+        Self::Legacy(value)
     }
 }

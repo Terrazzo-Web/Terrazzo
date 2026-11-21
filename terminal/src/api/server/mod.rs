@@ -3,25 +3,18 @@
 use std::sync::Arc;
 
 use terrazzo::axum::Router;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 
 use crate::api::server::common::login::login_routes;
 use crate::api::server::common::remotes::remotes_routes;
 use crate::backend::Server;
-use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
 
 mod common;
 
-pub fn api_routes(
-    config: &DiffArc<DynConfig>,
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
-    server: &Arc<Server>,
-) -> Router {
+pub fn api_routes(config: &Arc<DynConfig>, server: &Arc<Server>) -> Router {
+    let auth_config = &config.server;
     let router = Router::new()
-        .merge(login_routes(config, auth_config))
+        .merge(login_routes(config))
         .merge(remotes_routes(config, auth_config, server));
 
     #[cfg(feature = "text-editor")]

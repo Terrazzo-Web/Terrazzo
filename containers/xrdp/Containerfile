@@ -1,0 +1,117 @@
+# Use the official multi-architecture Ubuntu 26.04 LTS image, including ARM64 support for the Gentoo VM.
+FROM docker.io/library/ubuntu:26.04
+
+# Give command-line tools and desktop sessions a consistent UTF-8 locale.
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+RUN \
+    # Write a Debian service-policy hook: exit 101 prevents package scripts from starting services during the build.
+    printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
+    # Make the service-policy hook executable so package installation tools can invoke it.
+    && chmod 755 /usr/sbin/policy-rc.d \
+    # Refresh the Ubuntu package indexes before resolving package versions.
+    && apt-get update \
+    # Install the desktop, RDP services and runtime helpers without prompts or optional recommended packages.
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
+        dbus \
+        dbus-x11 \
+        # Provide ifconfig and the other traditional network inspection tools.
+        net-tools \
+        # Provide outbound SSH, SCP and SFTP clients.
+        openssh-client \
+        openssl \
+        passwd \
+        sudo \
+        tini \
+        xfce4 \
+        xfce4-terminal \
+        xfonts-base \
+        xorgxrdp \
+        xrdp \
+    # Remove downloaded package indexes to reduce the image layer size.
+    && rm -rf /var/lib/apt/lists/* \
+    # Create the non-root desktop login account with its own home directory and Bash shell.
+    && useradd --create-home --shell /bin/bash richard \
+    # Keep password login locked until the entrypoint applies the runtime password secret.
+    && passwd --lock richard \
+    # Allow the desktop user to run administrative commands without a sudo password.
+    && install -d -m 755 /etc/sudoers.d \
+    # Store the rule in sudo's included configuration directory.
+    && printf 'richard ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/richard \
+    # Restrict access to the sudo rule using the permissions required by sudo.
+    && chmod 440 /etc/sudoers.d/richard \
+    # Reject an invalid sudo configuration during the image build.
+    && visudo -c \
+    # Remove packaged certificate links; the entrypoint generates the container's RDP TLS identity.
+    && rm -f /etc/xrdp/cert.pem /etc/xrdp/key.pem \
+    # Start each RDP desktop in a fresh D-Bus session, clearing inherited session identifiers first.
+    && printf '#!/bin/sh\nunset SESSION_MANAGER DBUS_SESSION_BUS_ADDRESS\nexec dbus-run-session -- startxfce4\n' \
+        > /etc/xrdp/startwm.sh \
+    # Allow xrdp-sesman to execute the desktop startup script.
+    && chmod 755 /etc/xrdp/startwm.sh
+
+RUN \
+    # Remove Ubuntu's unused default login account to free UID/GID 1000 for the desktop user.
+    userdel --remove ubuntu \
+    # Match richard's Gentoo UID/GID so the host home bind mount stays writable by both accounts.
+    && groupmod --gid 1000 richard \
+    && usermod --uid 1000 --gid 1000 richard \
+    # Align the image's initial home files with the desktop account's new numeric identity.
+    && chown -R richard:richard /home/richard
+
+RUN \
+    # Refresh indexes to install the tools needed to authenticate Mozilla's native APT repository.
+    apt-get update \
+    # Install the HTTPS downloader and OpenPGP key inspection tool without optional packages.
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends wget gpg \
+    # Keep Mozilla's signing key separate from globally trusted APT keys.
+    && install -d -m 755 /etc/apt/keyrings \
+    # Download the repository key over HTTPS.
+    && wget -qO /etc/apt/keyrings/packages.mozilla.org.asc https://packages.mozilla.org/apt/repo-signing-key.gpg \
+    # Verify the key against the fingerprint published in Mozilla's Linux installation instructions.
+    && test "$(gpg --batch --show-keys --with-colons /etc/apt/keyrings/packages.mozilla.org.asc \
+        | awk -F: '$1 == "fpr" { print $10; exit }')" = '35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3' \
+    # Add the official native-package repository using Ubuntu 26.04's deb822 source format.
+    && printf '%s\n' 'Types: deb' 'URIs: https://packages.mozilla.org/apt' 'Suites: mozilla' \
+        'Components: main' 'Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc' \
+        > /etc/apt/sources.list.d/mozilla.sources \
+    # Prefer native Mozilla packages and prevent Ubuntu's Firefox-to-Snap transition package being selected.
+    && printf '%s\n' 'Package: firefox*' 'Pin: origin packages.mozilla.org' 'Pin-Priority: 1001' '' \
+        'Package: firefox' 'Pin: release o=Ubuntu' 'Pin-Priority: -1' > /etc/apt/preferences.d/mozilla \
+    # Load the authenticated Mozilla package index, including ARM64 packages.
+    && apt-get update \
+    # Install Firefox directly; it does not require Snap or a systemd daemon.
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends firefox \
+    # Make Firefox the system browser used by desktop launchers.
+    && update-alternatives --set x-www-browser /usr/bin/firefox \
+    # Remove package indexes and temporary GPG state from the resulting image layer.
+    && rm -rf /var/lib/apt/lists/* /root/.gnupg
+
+RUN \
+    # Remove build-time machine IDs and snakeoil TLS files so each container generates its own identity.
+    rm -f /etc/machine-id /var/lib/dbus/machine-id \
+        /etc/ssl/private/ssl-cert-snakeoil.key /etc/ssl/certs/ssl-cert-snakeoil.pem \
+    # Make D-Bus use the machine ID that the entrypoint generates at container startup.
+    && ln -s /etc/machine-id /var/lib/dbus/machine-id
+
+# Include the script that configures credentials and starts the required desktop services.
+COPY entrypoint.sh /usr/local/bin/xrdp-container
+RUN \
+    # Make the copied startup script executable.
+    chmod 755 /usr/local/bin/xrdp-container
+
+# Tell the entrypoint where to read the login password; supply this file using a runtime Podman secret.
+ENV RDP_PASSWORD_FILE=/run/secrets/rdp-password
+
+# Document the container's RDP port; publishing it still requires an explicit Podman -p option.
+EXPOSE 3389
+
+# Check that the RDP listener accepts TCP connections; this does not verify a complete desktop login.
+# Build with --format docker so Podman preserves this health-check metadata.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/3389'
+
+# Run tini as PID 1 to forward shutdown signals and reap orphaned processes, then invoke the service launcher.
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/xrdp-container"]

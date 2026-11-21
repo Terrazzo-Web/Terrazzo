@@ -20,7 +20,8 @@ Run as your normal user; the script invokes sudo when needed.
 Commands:
   build                   Build the image from this script's directory.
   password [--file FILE]   Create/replace the password secret; prompt twice if no file.
-  create, recreate        Remove the existing container, then create and start it.
+  create                  Replace the container using the existing image.
+  recreate                Build the image, then replace and start the container.
   shell [COMMAND [ARG...]] Open a root shell (default: bash), or execute a command.
   start                   Start the existing container.
   stop                    Stop the container gracefully.
@@ -47,8 +48,9 @@ Examples:
   ./manage.sh logs -f
   ./manage.sh delete
 
-Create/recreate checks that the image and password secret exist BEFORE deleting
-anything. Create the secret with "./manage.sh password" first.
+Create/recreate checks the password secret and home directory BEFORE deleting
+anything. Recreate builds first; a failed build leaves the existing container running.
+Create uses the existing image. Create the secret with "./manage.sh password" first.
 The container's desktop username is richard; its shell command runs as root.
 
 Password input is hidden and confirmed. For automation, use "password --file FILE"
@@ -157,14 +159,19 @@ case "$command" in
         "${podman[@]}" build --format docker -t "$image" "$directory"
         ;;
     create|recreate)
-        # Do not interrupt an existing desktop for an absent image or password secret.
-        "${podman[@]}" image inspect "$image" >/dev/null \
-            || fail "Image $image is unavailable; run '$0 build' first"
+        # Validate runtime requirements before building or interrupting the existing desktop.
         "${podman[@]}" secret inspect "$secret" >/dev/null \
             || fail "Password secret $secret is unavailable"
         # Require an existing absolute host directory; never create or chown a user's data implicitly.
         [[ "$home_directory" == /* && -d "$home_directory" ]] \
             || fail "Home directory must be an existing absolute path: $home_directory"
+        # Build while the existing container runs; set -e stops replacement if compilation fails.
+        if [[ "$command" == recreate ]]; then
+            "${podman[@]}" build --format docker -t "$image" "$directory"
+        fi
+        # Create uses an existing image; recreate verifies its newly built image here.
+        "${podman[@]}" image inspect "$image" >/dev/null \
+            || fail "Image $image is unavailable; run '$0 build' first"
         "${podman[@]}" rm --force --ignore "$name"
         "${podman[@]}" run -d --name "$name" \
             --hostname "$hostname" \

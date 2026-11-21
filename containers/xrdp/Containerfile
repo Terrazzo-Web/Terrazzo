@@ -17,6 +17,10 @@ RUN \
         ca-certificates \
         dbus \
         dbus-x11 \
+        # Provide ifconfig and the other traditional network inspection tools.
+        net-tools \
+        # Provide outbound SSH, SCP and SFTP clients.
+        openssh-client \
         openssl \
         passwd \
         sudo \

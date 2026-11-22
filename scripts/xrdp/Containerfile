@@ -14,15 +14,29 @@ RUN \
     && apt-get update \
     # Install the desktop, RDP services and runtime helpers without prompts or optional recommended packages.
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        # Provide compilers, Make and development headers for linking Rust projects.
+        build-essential \
         ca-certificates \
+        # Build native libraries used by Rust dependencies.
+        cmake \
+        # Download the official rustup installer and other HTTPS resources.
+        curl \
         dbus \
         dbus-x11 \
+        # Provide OpenSSL headers and libraries for Terrazzo's server build.
+        libssl-dev \
         # Provide ifconfig and the other traditional network inspection tools.
         net-tools \
         # Provide outbound SSH, SCP and SFTP clients.
         openssh-client \
         openssl \
         passwd \
+        # Let Rust build scripts locate native libraries such as OpenSSL.
+        pkg-config \
+        # Generate Rust bindings from Terrazzo's Protocol Buffer definitions.
+        protobuf-compiler \
+        # Provide Ubuntu's repository management utilities, including add-apt-repository.
+        software-properties-common \
         sudo \
         tini \
         xfce4 \
@@ -30,6 +44,8 @@ RUN \
         xfonts-base \
         xorgxrdp \
         xrdp \
+        # Unpack .xz archives, including downloaded development tools.
+        xz-utils \
     # Remove downloaded package indexes to reduce the image layer size.
     && rm -rf /var/lib/apt/lists/* \
     # Create the non-root desktop login account with its own home directory and Bash shell.
@@ -60,6 +76,47 @@ RUN \
     && usermod --uid 1000 --gid 1000 richard \
     # Align the image's initial home files with the desktop account's new numeric identity.
     && chown -R richard:richard /home/richard
+
+# Keep the image's Rust installation outside the bind-mounted desktop home directory.
+ENV CARGO_HOME=/opt/rust/cargo \
+    RUSTUP_HOME=/opt/rust/rustup \
+    PATH="/opt/rust/cargo/bin:${PATH}"
+
+RUN \
+    # Download rustup separately so a failed download fails the image build.
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup-init.sh \
+    # Install stable Rust without prompts or changes to root's shell startup files.
+    && sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable --no-modify-path \
+    # Install the language server used by editors for Rust completion and diagnostics.
+    && rustup component add rust-analyzer \
+    # Allow the desktop user to manage toolchains and Cargo-installed applications without sudo.
+    && chown -R richard:richard /opt/rust \
+    # Restore Rust's environment in login shells, including xrdp desktop sessions.
+    && printf '%s\n' 'export CARGO_HOME=/opt/rust/cargo' 'export RUSTUP_HOME=/opt/rust/rustup' \
+        'export PATH="/opt/rust/cargo/bin:$PATH"' > /etc/profile.d/rust.sh \
+    # Check that the desktop account can use the compiler, package manager and language server.
+    && sudo -u richard env CARGO_HOME="$CARGO_HOME" RUSTUP_HOME="$RUSTUP_HOME" PATH="$PATH" rustc --version \
+    && sudo -u richard env CARGO_HOME="$CARGO_HOME" RUSTUP_HOME="$RUSTUP_HOME" PATH="$PATH" cargo --version \
+    && sudo -u richard env CARGO_HOME="$CARGO_HOME" RUSTUP_HOME="$RUSTUP_HOME" PATH="$PATH" rust-analyzer --version \
+    # Remove the installer after the toolchain is installed.
+    && rm /tmp/rustup-init.sh
+
+# Install development commands as the desktop user so Cargo's files remain writable without sudo.
+USER richard
+RUN \
+    # Install the Rust standard library needed to compile Terrazzo's browser frontend.
+    rustup target add wasm32-unknown-unknown \
+    # Install the WebAssembly build tool before compiling Terrazzo Terminal.
+    && cargo install --locked wasm-pack \
+    # Install the SCSS bundler (the package provides the terrazzo-css executable).
+    && cargo install --locked terrazzo-css-cli \
+    # Install the published terminal server with production features and bundled browser assets.
+    && cargo install --locked terrazzo-terminal --features prod \
+    # Verify that all three installed commands are available on the image's PATH.
+    && command -v wasm-pack terrazzo-css terrazzo-terminal
+
+# Restore root for system configuration and the container's service entrypoint.
+USER root
 
 RUN \
     # Refresh indexes to install the tools needed to authenticate Mozilla's native APT repository.

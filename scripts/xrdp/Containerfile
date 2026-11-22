@@ -23,6 +23,8 @@ RUN \
         curl \
         dbus \
         dbus-x11 \
+        # Provide standard Protocol Buffer imports, including google/protobuf/duration.proto.
+        libprotobuf-dev \
         # Provide OpenSSL headers and libraries for Terrazzo's server build.
         libssl-dev \
         # Provide ifconfig and the other traditional network inspection tools.

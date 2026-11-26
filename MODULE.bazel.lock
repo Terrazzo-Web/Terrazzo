@@ -530,7 +530,7 @@
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
           "REPO_MAPPING:rules_rust+,rules_rust rules_rust+",
           "FILE:@@//Cargo.lock 0505609441e1fbfa1897d3c7e79edb57f1061237ad3222d21ab3746b59df0a00",
-          "FILE:@@//Cargo.toml 46be9c79b9bf5036e530eda63d64dbea6b740f47d7cf0b905f21e1a0ce353440",
+          "FILE:@@//Cargo.toml 018eab077a1589e9059e6c0d6363cfbed3c335a6c68f58c11cbd7fa70d9ba48c",
           "FILE:@@//bazel/crate_universe_deps/Cargo.toml 77070c399000ca870e3064d73814cf158e50e796bac44ecca7646544dfe9cb2e",
           "FILE:@@//bazel/feature_deps/Cargo.toml 28f7ae00a8fdfac9a44091296c1c437426fd6cd9b79a230bc56af4cde68902a7",
           "FILE:@@//utils/nameth/nameth/Cargo.toml 901f39913de1ba25b26ff4551057daf312ea61903456d94706677370a56cf79e",

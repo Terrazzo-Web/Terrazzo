@@ -82,3 +82,28 @@ where
         self.clone()
     }
 }
+
+/// Compatibility boundary for gateway consumers still using derived views.
+/// The watch channel remains the application's only writable source of truth.
+impl<T> HasDynamicSecurityConfig for tokio::sync::watch::Receiver<T>
+where
+    T: HasSecurityConfig + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+    type HasSecurityConfig = T;
+    fn as_dyn(&self) -> Arc<DynamicConfig<T, impl Mode>> {
+        let mut receiver = self.clone();
+        let initial = receiver.borrow_and_update().clone();
+        let config = Arc::new(DynamicConfig::from(initial));
+        let weak = Arc::downgrade(&config);
+        tokio::spawn(async move {
+            while receiver.changed().await.is_ok() {
+                let value = receiver.borrow_and_update().clone();
+                let Some(config) = weak.upgrade() else {
+                    break;
+                };
+                config.set(|_| value);
+            }
+        });
+        config
+    }
+}

@@ -11,22 +11,18 @@ use terrazzo::axum::routing::get;
 use terrazzo::axum::routing::post;
 use terrazzo::http::StatusCode;
 use terrazzo::http::header;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 use trz_gateway_common::http_error::IsHttpError as _;
 use trz_gateway_common::id::ClientName;
 
 use crate::api::client_address::ClientAddress;
 use crate::backend::Server;
-use crate::backend::auth::AuthConfig;
 use crate::backend::auth::layer::AuthLayer;
 use crate::backend::client_service::text_editor_service;
 use crate::backend::client_service::text_editor_service::TextEditorFsioError;
 use crate::text_editor::file_path::FilePath;
 
 pub(crate) fn fsio_routes(
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    auth_config: &tokio::sync::watch::Receiver<Arc<crate::backend::config::ServerState>>,
     server: &Arc<Server>,
 ) -> Router {
     Router::new()

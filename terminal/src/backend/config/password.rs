@@ -10,12 +10,13 @@ use sha2::Sha256;
 use sha2::digest::InvalidLength;
 use trz_gateway_common::retry_strategy::RetryStrategy;
 
+use super::DynConfig;
 use super::ServerConfig;
+use super::WatchConfig as _;
 use super::io::ConfigFileError;
-use super::server::DynamicServerConfig;
 use crate::backend::config::types::Password;
 
-impl DynamicServerConfig {
+impl DynConfig {
     pub fn set_password(&self, password_stdin: bool) -> Result<(), SetPasswordError> {
         let password = if password_stdin {
             read_password_from_stdin()?
@@ -26,17 +27,12 @@ impl DynamicServerConfig {
     }
 
     fn set_password_value(&self, password: &str) -> Result<(), SetPasswordError> {
-        let () = self.try_set(|server| {
-            let password = server.hash_password(password)?;
-            Ok::<_, SetPasswordError>(
-                ServerConfig {
-                    password: Some(password),
-                    ..(**server).clone()
-                }
-                .into(),
-            )
-        })?;
-        debug_assert!(matches!(self.get().verify_password(password), Ok(())));
+        let hash = self.server.get().hash_password(password)?;
+        self.update_password(hash)?;
+        debug_assert!(matches!(
+            self.server.get().verify_password(password),
+            Ok(())
+        ));
         Ok(())
     }
 }

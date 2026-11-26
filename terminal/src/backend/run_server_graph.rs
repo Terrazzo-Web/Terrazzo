@@ -19,23 +19,14 @@ mod graph {
     use futures::FutureExt as _;
     use tokio::signal::unix::SignalKind;
     use tokio::signal::unix::signal;
-    use tracing::debug;
-    use trz_gateway_common::dynamic_config::DynamicConfig;
-    use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-    use trz_gateway_common::dynamic_config::mode::RO;
     use trz_gateway_common::handle::ServerHandle;
-    use trz_gateway_common::security_configuration::SecurityConfig;
-    use trz_gateway_common::security_configuration::either::EitherConfig;
-    use trz_gateway_common::security_configuration::trusted_store::native::NativeTrustedStoreConfig;
     use trz_gateway_server::server::Server as GatewayServer;
     use trz_gateway_server::server::acme::active_challenges::ActiveChallenges;
-    use trz_gateway_server::server::acme::certificate_config::AcmeCertificateConfig;
 
     use crate::assets;
     use crate::backend::RunClientError;
     use crate::backend::RunServerError;
     use crate::backend::Server;
-    use crate::backend::auth::AuthConfig;
     use crate::backend::cli::Cli;
     use crate::backend::config::DynConfig;
     use crate::backend::root_ca_config::PrivateRootCa;
@@ -43,7 +34,6 @@ mod graph {
     use crate::backend::run_client_async;
     use crate::backend::server_config::TerminalBackendServer;
     use crate::backend::server_config::TlsConfig;
-    use crate::backend::tls_config::make_tls_config;
 
     struct RunningServer {
         server: Arc<Server>,
@@ -71,6 +61,7 @@ mod graph {
                 server_handle.stop("Quit").await?;
             }
         }
+        server.config().shutdown();
         drop(server);
 
         if let Some(client_handle) = client_handle {
@@ -84,7 +75,7 @@ mod graph {
     /// Returns no handle when the client is disabled.
     async fn client_handle(
         cli: Arc<Cli>,
-        config: DiffArc<DynConfig>,
+        config: Arc<DynConfig>,
         running_server: &RunningServer,
     ) -> Result<Option<ServerHandle<()>>, RunClientError> {
         let server = &running_server.server;
@@ -106,7 +97,7 @@ mod graph {
     /// Shares the crash notification between client initialization and shutdown.
     async fn running_server(
         backend_config: TerminalBackendServer,
-        config: DiffArc<DynConfig>,
+        config: Arc<DynConfig>,
     ) -> Result<RunningServer, RunServerError> {
         assets::install::install_assets();
         let (server, server_handle, crash) = GatewayServer::run(backend_config).await?;
@@ -144,20 +135,15 @@ mod graph {
 
     /// Assembles the gateway configuration with dynamically refreshed authentication.
     fn backend_config(
-        config: DiffArc<DynConfig>,
+        config: Arc<DynConfig>,
         root_ca: PrivateRootCa,
-        tls_config: Arc<DynamicConfig<TlsConfig, RO>>,
+        tls_config: tokio::sync::watch::Receiver<TlsConfig>,
         active_challenges: ActiveChallenges,
     ) -> TerminalBackendServer {
-        let auth_config = config
-            .server
-            .view(|server| DiffArc::from(AuthConfig::new(server)))
-            .into();
         TerminalBackendServer {
             config,
             root_ca,
             tls_config,
-            auth_config,
             active_challenges,
         }
     }
@@ -165,36 +151,15 @@ mod graph {
     /// Builds a dynamic TLS configuration from ACME settings and the renewal threshold.
     /// Uses the private root CA when Let's Encrypt is disabled.
     fn tls_config(
-        config: &DiffArc<DynConfig>,
+        config: &Arc<DynConfig>,
         root_ca: PrivateRootCa,
         active_challenges: ActiveChallenges,
-    ) -> Arc<DynamicConfig<TlsConfig, RO>> {
-        let dynamic_acme_config = config.letsencrypt.clone();
-        let joined_config = config.letsencrypt.zip(
-            &config
-                .server
-                .view_diff(|server_config| server_config.certificate_renewal_threshold),
-        );
-        joined_config.view(move |(letsencrypt, certificate_renewal_threshold)| {
-            debug!("Refresh TLS config");
-            if let Some(letsencrypt) = &**letsencrypt {
-                EitherConfig::Right(SecurityConfig {
-                    trusted_store: NativeTrustedStoreConfig,
-                    certificate: AcmeCertificateConfig::new(
-                        dynamic_acme_config.clone(),
-                        letsencrypt.clone(),
-                        active_challenges.clone(),
-                        *certificate_renewal_threshold,
-                    ),
-                })
-            } else {
-                EitherConfig::Left(make_tls_config(&root_ca).unwrap())
-            }
-        })
+    ) -> tokio::sync::watch::Receiver<TlsConfig> {
+        config.initialize_tls(root_ca, active_challenges)
     }
 
     /// Loads or creates the private root CA used to issue client certificates.
-    fn root_ca(config: &DiffArc<DynConfig>) -> Result<PrivateRootCa, PrivateRootCaError> {
+    fn root_ca(config: &Arc<DynConfig>) -> Result<PrivateRootCa, PrivateRootCaError> {
         PrivateRootCa::load(config)
     }
 

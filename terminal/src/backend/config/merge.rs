@@ -5,8 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tracing::warn;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_server::server::acme::AcmeConfig;
 
 use super::Config;
@@ -45,7 +43,7 @@ impl Config {
             letsencrypt,
         } = self.deref();
         ConfigFile(ConfigImpl {
-            server: DiffArc::from(ServerConfig {
+            server: Arc::from(ServerConfig {
                 host: Some(server.host.clone()),
                 ports: server.ports.clone(),
                 terminal_shell: server.terminal_shell.clone(),
@@ -85,8 +83,8 @@ impl Config {
                     }
                 }),
             }),
-            mesh: DiffOption::from(mesh.as_ref().map(|mesh| {
-                DiffArc::from(MeshConfig {
+            mesh: Option::from(mesh.as_ref().map(|mesh| {
+                Arc::from(MeshConfig {
                     client_name: Some(mesh.client_name.clone()),
                     gateway_url: Some(mesh.gateway_url.clone()),
                     gateway_sni_override: mesh.gateway_sni_override.clone(),
@@ -112,8 +110,8 @@ impl Config {
                     }),
                 })
             })),
-            letsencrypt: DiffOption::from(letsencrypt.as_deref().map(|letsencrypt| {
-                DiffArc::from(AcmeConfig {
+            letsencrypt: Option::from(letsencrypt.as_deref().map(|letsencrypt| {
+                Arc::from(AcmeConfig {
                     environment: letsencrypt.environment,
                     credentials: letsencrypt.credentials.clone(),
                     contact: letsencrypt.contact.clone(),
@@ -128,9 +126,9 @@ impl Config {
 
 fn merge_letsencrypt_config(
     letsencrypt: Option<&AcmeConfig<ConfigFileTypesPath>>,
-) -> DiffOption<DiffArc<AcmeConfig<Arc<Path>>>> {
-    DiffOption::from(letsencrypt.map(|letsencrypt| {
-        DiffArc::from(AcmeConfig {
+) -> Option<Arc<AcmeConfig<Arc<Path>>>> {
+    Option::from(letsencrypt.map(|letsencrypt| {
+        Arc::from(AcmeConfig {
             environment: letsencrypt.environment,
             credentials: letsencrypt.credentials.clone(),
             contact: letsencrypt.contact.clone(),
@@ -260,13 +258,13 @@ fn parse_duration(duration: Option<&str>) -> Option<Duration> {
 fn merge_mesh_config(
     mesh: Option<&MeshConfig<ConfigFileTypes>>,
     cli: &Cli,
-) -> Option<DiffArc<MeshConfig<RuntimeTypes>>> {
+) -> Option<Arc<MeshConfig<RuntimeTypes>>> {
     let client_name = cli.client_name.as_ref().cloned();
     let gateway_url = cli.gateway_url.as_ref().cloned();
     let gateway_sni_override = cli.gateway_sni_override.as_ref().cloned();
     let gateway_pki = cli.gateway_pki.as_deref();
     let client_certificate = cli.client_certificate.as_deref();
-    Some(DiffArc::from(MeshConfig {
+    Some(Arc::from(MeshConfig {
         client_name: client_name.or(mesh.and_then(|m| m.client_name.to_owned()))?,
         gateway_url: gateway_url.or(mesh.and_then(|m| m.gateway_url.to_owned()))?,
         gateway_sni_override: gateway_sni_override
@@ -333,9 +331,9 @@ fn collapse_tilde(path: impl AsRef<Path>) -> Arc<Path> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+    use std::sync::Arc;
     use std::time::Duration;
 
-    use trz_gateway_common::dynamic_config::has_diff::DiffArc;
     use trz_gateway_common::p2p::GOOGLE_STUN;
     use trz_gateway_common::retry_strategy::RetryStrategy;
 
@@ -451,7 +449,7 @@ certificate = "PUBLIC CERTIFICATE"
     #[test]
     fn config_file_round_trip_preserves_watcher_and_polling() {
         let config = Config::from(ConfigImpl {
-            server: DiffArc::from(ServerConfig::<RuntimeTypes> {
+            server: Arc::from(ServerConfig::<RuntimeTypes> {
                 tiles_file: None,
                 host: "localhost".into(),
                 ports: vec![3000],

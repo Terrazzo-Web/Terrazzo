@@ -15,42 +15,36 @@ use tracing::debug;
 use tracing::info;
 use tracing::info_span;
 use tracing::warn;
-use trz_gateway_common::dynamic_config::DynamicConfig;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::mode;
 
-use crate::backend::auth::AuthConfig;
 use crate::backend::config::DynConfig;
+use crate::backend::config::WatchConfig as _;
 
 #[autoclone]
-pub fn login_routes(
-    config: &DiffArc<DynConfig>,
-    auth_config: &DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
-) -> Router {
+pub fn login_routes(config: &Arc<DynConfig>) -> Router {
     Router::new().route(
         "/login",
         post(|cookies, headers, password| {
-            autoclone!(config, auth_config);
-            login(config, auth_config, cookies, headers, password)
+            autoclone!(config);
+            login(config, cookies, headers, password)
         }),
     )
 }
 
 #[autoclone]
 async fn login(
-    config: DiffArc<DynConfig>,
-    auth_config: DiffArc<DynamicConfig<DiffArc<AuthConfig>, mode::RO>>,
+    config: Arc<DynConfig>,
     cookies: CookieJar,
     headers: HeaderMap,
     Json(password): Json<Option<String>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let result = async move {
         let server = config.server.get();
+        let auth_config = server.auth.clone();
         match (&server.password, &password) {
             (None, _) => debug!("Password not required"),
             (Some(_), None) => {
                 debug!("Password not provided, checking token");
-                let _ = auth_config.with(|auth_config| auth_config.validate(&headers))?;
+                let _ = auth_config.validate(&headers)?;
             }
             (Some(_), Some(password)) => {
                 debug!("Password provided, verify password");
@@ -66,7 +60,7 @@ async fn login(
         }
 
         let token = auth_config
-            .with(|auth_config| auth_config.make_token())
+            .make_token()
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
         Ok((cookies.add(token), "OK"))
     }

@@ -1,5 +1,4 @@
 #![cfg(feature = "server")]
-
 use std::ops::ControlFlow;
 use std::ops::Deref;
 use std::path::Path;
@@ -15,12 +14,8 @@ use futures::future::Either;
 use nameth::NamedEnumValues as _;
 use nameth::nameth;
 use scopeguard::defer;
-use terrazzo::autoclone;
-use tokio::sync::oneshot;
-use tracing::Instrument as _;
 use tracing::debug;
 use tracing::info;
-use tracing::info_span;
 use tracing::warn;
 use trz_gateway_client::client::AuthCode;
 use trz_gateway_client::client::Client;
@@ -30,8 +25,6 @@ use trz_gateway_client::load_client_certificate::make_client_certificate;
 use trz_gateway_client::load_client_certificate::store_client_certificate;
 use trz_gateway_client::tunnel_config::TunnelConfig;
 use trz_gateway_common::crypto_provider::crypto_provider;
-use trz_gateway_common::dynamic_config::has_diff::DiffArc;
-use trz_gateway_common::dynamic_config::has_diff::DiffOption;
 use trz_gateway_common::handle::ServerHandle;
 use trz_gateway_common::handle::ServerStopError;
 use trz_gateway_common::notify_once;
@@ -48,12 +41,12 @@ use self::config::ConfigFile;
 use self::config::DynConfig;
 use self::config::io::ConfigFileError;
 use self::config::kill::KillServerError;
-use self::config::mesh::DynamicMeshConfig;
 use self::config::password::SetPasswordError;
 use self::daemonize::DaemonizeServerError;
 use self::root_ca_config::PrivateRootCaError;
 use self::server_config::TerminalBackendServer;
 use self::tls_config::TlsConfigError;
+use crate::backend::config::WatchConfig as _;
 
 mod agent;
 pub mod auth;
@@ -78,15 +71,15 @@ const MIN_CERTIFICATE_RENEWAL_DELAY: Duration = if cfg!(debug_assertions) {
 
 pub struct Server {
     gateway: Arc<GatewayServer>,
-    config: DiffArc<DynConfig>,
+    config: Arc<DynConfig>,
 }
 
 impl Server {
-    pub fn new(gateway: Arc<GatewayServer>, config: DiffArc<DynConfig>) -> Self {
+    pub fn new(gateway: Arc<GatewayServer>, config: Arc<DynConfig>) -> Self {
         Self { gateway, config }
     }
 
-    pub fn config(&self) -> &DiffArc<DynConfig> {
+    pub fn config(&self) -> &Arc<DynConfig> {
         &self.config
     }
 }
@@ -166,7 +159,7 @@ async fn run_server_async(cli: Cli, config: Config) -> Result<(), RunServerError
     let config = config.into_dyn(cli.clone());
     let server_config = config.server.clone();
     if cli.action == Action::SetPassword {
-        return Ok(server_config.set_password(cli.password_stdin)?);
+        return Ok(config.set_password(cli.password_stdin)?);
     }
 
     crate::tiles::api::state::initialize(server_config.with(|config| config.tiles_file.clone()))
@@ -234,100 +227,112 @@ type EnableTracingError = crate::logs::EnableTracingError;
 #[error("{self:?}")]
 pub struct EnableTracingError;
 
-#[autoclone]
 async fn run_client_async(
     cli: Arc<Cli>,
-    config: DiffArc<DynConfig>,
+    config: Arc<DynConfig>,
     server: Arc<Server>,
 ) -> Result<ServerHandle<()>, RunClientError> {
     let (shutdown_rx, terminated_tx, handle) = ServerHandle::new("Dynamic Client");
     let auth_code = AuthCode::from(cli.auth_code.clone());
-    let (terminated_all_tx, terminated_all_rx) = oneshot::channel::<()>();
-    let terminated_all_tx = Arc::new(terminated_all_tx);
-
-    let dynamic_mesh_config = config.mesh.clone();
-    let dynamic_client = config.mesh.view(move |mesh| {
-        debug!("Refresh mesh config");
-        if let Some(mesh) = (**mesh).clone() {
-            let auth_code = Arc::new(Mutex::new(auth_code.clone()));
-
-            let (abort_client_tx, abort_client_rx) = notify_once::channel();
-            let client_task = async move {
-                autoclone!(server);
-                autoclone!(terminated_all_tx);
-                autoclone!(dynamic_mesh_config);
-                autoclone!(abort_client_tx);
-                let agent_config = mesh.retry_strategy.clone().process(|| async move {
-                    autoclone!(auth_code, mesh, server, abort_client_tx);
-                    match AgentTunnelConfig::new(auth_code, &mesh, &server).await {
-                        Ok(config) => ControlFlow::Break(config),
-                        Err(error) => {
-                            if !error.is_retryable() {
-                                let _ = abort_client_tx.send(());
-                            }
-                            ControlFlow::Continue(error)
-                        }
-                    }
-                });
-                let agent_config = std::pin::pin!(agent_config);
-                let agent_config =
-                    match futures::future::select(agent_config, abort_client_rx.clone()).await {
-                        Either::Left((agent_config, _abort)) => agent_config,
-                        Either::Right((_abort, _agent_config)) => {
-                            info!("Gateway client initialization canceled");
-                            return Ok::<(), RunClientError>(());
-                        }
-                    };
-                let agent_config = Arc::new(agent_config);
-                info!(?agent_config, "Gateway client enabled");
-
-                let schedule_client_certificate_renewal_task = schedule_client_certificate_renewal(
-                    abort_client_rx.clone(),
-                    dynamic_mesh_config.clone(),
-                    mesh.client_certificate_renewal,
-                    agent_config.clone(),
-                );
-                tokio::spawn(
-                    schedule_client_certificate_renewal_task.instrument(info_span!(
-                        "Certificate renewal",
-                        id = next_client_certificate_renewal_schedule_id()
-                    )),
-                );
-
-                let client = Client::new(agent_config)?;
-                let client_handle = client.run().await?;
-                let client_handle_task = async move {
-                    let () = abort_client_rx.or_default().await;
-                    match client_handle.stop("Updated mesh config").await {
-                        Ok(()) => debug!("The client was successfully stopped"),
-                        Err(error) => warn!("Failed to stop client: {error}"),
-                    };
-                };
-                tokio::spawn(client_handle_task.instrument(info_span!("Handle")));
-                drop(terminated_all_tx);
-
-                return Ok(());
-            };
-            tokio::spawn(client_task.instrument(info_span!("Client")));
-            DiffOption::from(DiffArc::from(abort_client_tx))
-        } else {
-            None.into()
-        }
-    });
-
+    let mut mesh_rx = config.mesh.subscribe();
+    let (restart_tx, mut restart_rx) =
+        tokio::sync::mpsc::unbounded_channel::<Arc<self::config::mesh::MeshConfig>>();
     tokio::spawn(async move {
-        let () = shutdown_rx.await;
-        drop(dynamic_client);
-        let _terminated = terminated_all_rx.await;
+        tokio::pin!(shutdown_rx);
+        loop {
+            let mesh = mesh_rx.borrow_and_update().clone();
+            let Some(mesh) = mesh else {
+                tokio::select! {
+                    _ = &mut shutdown_rx => break,
+                    result = mesh_rx.changed() => { if result.is_err() { break; } },
+                }
+                continue;
+            };
+            let auth_code = Arc::new(Mutex::new(auth_code.clone()));
+            let initialize = mesh.retry_strategy.clone().process(|| async {
+                match AgentTunnelConfig::new(auth_code.clone(), &mesh, &server).await {
+                    Ok(config) => ControlFlow::Break(Ok(config)),
+                    Err(error) if !error.is_retryable() => ControlFlow::Break(Err(error)),
+                    Err(error) => ControlFlow::Continue(error),
+                }
+            });
+            let initialized = tokio::select! {
+                _ = &mut shutdown_rx => break,
+                result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
+                result = initialize => result,
+            };
+            let client = match initialized
+                .map_err(|error| error.to_string())
+                .and_then(|agent| {
+                    let agent = Arc::new(agent);
+                    Client::new(agent.clone())
+                        .map(|client| (agent, client))
+                        .map_err(|error| error.to_string())
+                }) {
+                Ok(client) => client,
+                Err(error) => {
+                    warn!(%error, "Failed to initialize mesh client");
+                    tokio::select! {
+                        _ = &mut shutdown_rx => break,
+                        result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
+                    }
+                }
+            };
+            let (agent, client) = client;
+            let running = tokio::select! {
+                _ = &mut shutdown_rx => break,
+                result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
+                result = client.run() => result,
+            };
+            let client_handle = match running {
+                Ok(handle) => handle,
+                Err(error) => {
+                    warn!(%error, "Failed to start mesh client");
+                    tokio::select! {
+                        _ = &mut shutdown_rx => break,
+                        result = mesh_rx.changed() => { if result.is_err() { break; } continue; },
+                    }
+                }
+            };
+            let (abort_tx, abort_rx) = notify_once::channel();
+            let renewal = tokio::spawn(schedule_client_certificate_renewal(
+                abort_rx,
+                mesh.clone(),
+                restart_tx.clone(),
+                mesh.client_certificate_renewal,
+                agent,
+            ));
+            let stop = loop {
+                tokio::select! {
+                    _ = &mut shutdown_rx => break true,
+                    result = mesh_rx.changed() => break result.is_err(),
+                    Some(expected) = restart_rx.recv() => {
+                        if Arc::ptr_eq(&expected, &mesh) { break false; }
+                    }
+                }
+            };
+            let _ = abort_tx.send(());
+            renewal.abort();
+            let _ = renewal.await;
+            if let Err(error) = client_handle
+                .stop("Mesh configuration updated or shutdown")
+                .await
+            {
+                warn!(%error, "Failed to stop mesh client");
+            }
+            if stop {
+                break;
+            }
+        }
         let _ = terminated_tx.send(());
     });
-
-    return Ok(handle);
+    Ok(handle)
 }
 
 async fn schedule_client_certificate_renewal(
     abort_client_rx: notify_once::Receiver<()>,
-    dynamic_mesh_config: DynamicMeshConfig,
+    mesh: Arc<self::config::mesh::MeshConfig>,
+    restart: tokio::sync::mpsc::UnboundedSender<Arc<self::config::mesh::MeshConfig>>,
     client_certificate_renewal: Duration,
     client_config: impl TunnelConfig,
 ) {
@@ -382,36 +387,16 @@ async fn schedule_client_certificate_renewal(
         else {
             continue;
         };
-        let renewed = dynamic_mesh_config.with(|mesh| {
-            if let Some(mesh) = &**mesh {
-                let result = store_client_certificate(
-                    mesh.client_certificate_paths().as_ref(),
-                    new_certificate,
-                );
-                return result
-                    .inspect(|_pem| info!("Renewed the client certificate"))
-                    .inspect_err(|error| {
-                        warn!("Failed to store the new client certificate: {error}")
-                    })
-                    .is_ok();
-            }
-            false
-        });
+        let renewed =
+            store_client_certificate(mesh.client_certificate_paths().as_ref(), new_certificate)
+                .inspect(|_| info!("Renewed the client certificate"))
+                .inspect_err(|error| warn!("Failed to store new client certificate: {error}"))
+                .is_ok();
         if renewed {
-            // Force restart the client
-            let dynamic_mesh_config = dynamic_mesh_config.clone();
-            tokio::spawn(async move {
-                dynamic_mesh_config.set(|mesh| mesh.clone());
-            });
+            let _ = restart.send(mesh.clone());
+            return;
         }
     }
-}
-
-fn next_client_certificate_renewal_schedule_id() -> i32 {
-    use std::sync::atomic::AtomicI32;
-    use std::sync::atomic::Ordering::SeqCst;
-    static NEXT: AtomicI32 = AtomicI32::new(1);
-    NEXT.fetch_add(1, SeqCst)
 }
 
 #[nameth]
